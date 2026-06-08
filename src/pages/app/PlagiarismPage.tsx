@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BookOpen, Shield, AlertTriangle, CheckCircle,
-  ExternalLink, ChevronDown, RotateCcw, FileText, Info, Upload,
+  ExternalLink, ChevronDown, RotateCcw, FileText, Info, Upload, Pencil,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePlagiarismStore } from '../../store/plagiarismStore'
@@ -40,6 +40,119 @@ function getMatchTypeBadge(type: string) {
     case 'paraphrased': return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
     default:            return 'bg-purple-500/20 text-purple-300 border-purple-500/30'
   }
+}
+
+// ── Inline highlight helpers ──────────────────────────────────────────────────
+
+interface TextPart {
+  text: string
+  highlighted: boolean
+  matchType: string
+}
+
+interface HighlightRange {
+  start: number
+  end: number
+  matchType: string
+}
+
+const MATCH_TYPE_SEVERITY: Record<string, number> = { exact: 3, paraphrased: 2, structural: 1 }
+
+function buildHighlightedParts(text: string, sourceMatches: SourceMatch[]): TextPart[] {
+  const ranges: HighlightRange[] = []
+
+  for (const match of sourceMatches) {
+    for (const seg of match.segments) {
+      const snippet = seg.suspectSnippet?.trim()
+      if (!snippet || snippet.length < 10) continue
+
+      // Try exact match, then case-insensitive fallback
+      let idx = text.indexOf(snippet)
+      if (idx === -1) idx = text.toLowerCase().indexOf(snippet.toLowerCase())
+      if (idx === -1) continue
+
+      ranges.push({ start: idx, end: idx + snippet.length, matchType: seg.matchType })
+    }
+  }
+
+  if (ranges.length === 0) return [{ text, highlighted: false, matchType: '' }]
+
+  // Sort by start position, then merge overlapping ranges
+  ranges.sort((a, b) => a.start - b.start)
+  const merged: HighlightRange[] = []
+  for (const r of ranges) {
+    const last = merged.at(-1)
+    if (last && r.start <= last.end) {
+      last.end = Math.max(last.end, r.end)
+      // Escalate to the more severe match type
+      if ((MATCH_TYPE_SEVERITY[r.matchType] ?? 0) > (MATCH_TYPE_SEVERITY[last.matchType] ?? 0)) {
+        last.matchType = r.matchType
+      }
+    } else {
+      merged.push({ ...r })
+    }
+  }
+
+  const parts: TextPart[] = []
+  let pos = 0
+  for (const range of merged) {
+    if (range.start > pos) parts.push({ text: text.slice(pos, range.start), highlighted: false, matchType: '' })
+    parts.push({ text: text.slice(range.start, range.end), highlighted: true, matchType: range.matchType })
+    pos = range.end
+  }
+  if (pos < text.length) parts.push({ text: text.slice(pos), highlighted: false, matchType: '' })
+
+  return parts
+}
+
+function getHighlightClass(matchType: string): string {
+  switch (matchType.toLowerCase()) {
+    case 'exact':
+      return 'bg-rose-500/30 border-b-2 border-rose-400 rounded-[2px] text-rose-100'
+    case 'paraphrased':
+      return 'bg-amber-500/25 border-b-2 border-amber-400 rounded-[2px] text-amber-100'
+    default:
+      return 'bg-violet-500/25 border-b-2 border-violet-400 rounded-[2px] text-violet-100'
+  }
+}
+
+// ── HighlightedTextView ───────────────────────────────────────────────────────
+
+const LEGEND = [
+  { label: 'Exact copy',   cls: 'bg-rose-500/30   border-rose-400'   },
+  { label: 'Paraphrased',  cls: 'bg-amber-500/25  border-amber-400'  },
+  { label: 'Structural',   cls: 'bg-violet-500/25 border-violet-400' },
+] as const
+
+function HighlightedTextView({ text, sourceMatches }: { text: string; sourceMatches: SourceMatch[] }) {
+  const parts = buildHighlightedParts(text, sourceMatches)
+  const hasHighlights = parts.some(p => p.highlighted)
+
+  return (
+    <div className="flex-1 overflow-auto flex flex-col min-h-0">
+      {hasHighlights && (
+        <div className="shrink-0 flex items-center gap-5 px-5 py-2.5 border-b border-slate-700/50 bg-slate-800/50">
+          {LEGEND.map(({ label, cls }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <span className={cn('w-3 h-3 rounded-sm border-b-2 shrink-0', cls)} />
+              <span className="text-[11px] text-slate-400">{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex-1 overflow-auto px-5 py-4 text-[15px] leading-[1.75] text-slate-200 whitespace-pre-wrap break-words select-text">
+        {parts.map((part, i) =>
+          part.highlighted ? (
+            <mark key={i} className={cn('bg-transparent', getHighlightClass(part.matchType))}>
+              {part.text}
+            </mark>
+          ) : (
+            <span key={i}>{part.text}</span>
+          )
+        )}
+      </div>
+    </div>
+  )
 }
 
 // ── SourceMatchCard ───────────────────────────────────────────────────────────
@@ -143,7 +256,7 @@ function SourceMatchCard({ match, index }: { match: SourceMatch; index: number }
   )
 }
 
-// ── LoadingOverlay ────────────────────────────────────────────────────────────
+// ── LoadingCard ───────────────────────────────────────────────────────────────
 
 function LoadingCard({ stage }: { stage: string }) {
   return (
@@ -189,6 +302,26 @@ export default function PlagiarismPage() {
     disabled: isLoading,
   })
 
+  // editMode = true → show editable textarea; false → show highlighted view (when results exist)
+  const [editMode, setEditMode] = useState(false)
+
+  // Auto-switch to highlight view whenever new results arrive
+  useEffect(() => {
+    if (result) setEditMode(false)
+  }, [result])
+
+  // Compute highlighted parts. Returns null when there's nothing to highlight.
+  const highlightParts = useMemo(() => {
+    if (!result || result.sourceMatches.length === 0) return null
+    const hasSegments = result.sourceMatches.some(m => m.segments.length > 0)
+    if (!hasSegments) return null
+    const parts = buildHighlightedParts(inputText, result.sourceMatches)
+    return parts.some(p => p.highlighted) ? parts : null
+  }, [result, inputText])
+
+  // Show the highlighted view only when we have highlights and user hasn't toggled edit mode
+  const showHighlights = !!highlightParts && !editMode
+
   const wordCount = inputText.trim().split(/\s+/).filter(Boolean).length
   const canCheck  = wordCount >= 50 && !isLoading
 
@@ -204,8 +337,8 @@ export default function PlagiarismPage() {
     toast.success('Summary copied!')
   }
 
-  const verdictStyle  = result ? getVerdictStyle(result.verdictColor) : null
-  const VerdictIcon   = verdictStyle?.Icon ?? CheckCircle
+  const verdictStyle = result ? getVerdictStyle(result.verdictColor) : null
+  const VerdictIcon  = verdictStyle?.Icon ?? CheckCircle
 
   return (
     <div className="min-h-0 bg-transparent w-full">
@@ -213,22 +346,35 @@ export default function PlagiarismPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[13fr_8fr] gap-5 items-start">
 
-          {/* Left — input (sticky on desktop) */}
+          {/* Left — input / highlighted view (sticky on desktop) */}
           <div className="lg:sticky lg:top-4" style={{ height: 'calc(100vh - 7rem)' }}>
             <div
               className="bg-slate-800 border border-slate-700/80 rounded-2xl overflow-hidden flex flex-col h-full relative shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_32px_rgba(0,0,0,0.35)]"
-              {...dragHandlers}
+              {...(showHighlights ? {} : dragHandlers)}
             >
               {fileInputElement}
-              <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />
+              {!showHighlights && <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />}
 
+              {/* Header */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700 shrink-0">
                 <div className="flex items-center gap-2 text-slate-300 font-medium text-[14px]">
                   <FileText size={14} className="text-slate-400" />
                   Your Text
                 </div>
                 <div className="flex items-center gap-3">
-                  {!inputText && (
+                  {/* Edit-text toggle — only visible when showing highlights */}
+                  {showHighlights && (
+                    <button
+                      type="button"
+                      onClick={() => setEditMode(true)}
+                      className="flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition-colors"
+                    >
+                      <Pencil size={12} />
+                      Edit text
+                    </button>
+                  )}
+
+                  {!showHighlights && !inputText && (
                     <button
                       type="button"
                       onClick={() => setInputText(SAMPLE_TEXT)}
@@ -237,19 +383,23 @@ export default function PlagiarismPage() {
                       Try sample
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={openFilePicker}
-                    disabled={isLoading || isFileProcessing}
-                    className="flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition-colors disabled:opacity-40"
-                  >
-                    <Upload size={12} />
-                    Upload
-                  </button>
+
+                  {!showHighlights && (
+                    <button
+                      type="button"
+                      onClick={openFilePicker}
+                      disabled={isLoading || isFileProcessing}
+                      className="flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition-colors disabled:opacity-40"
+                    >
+                      <Upload size={12} />
+                      Upload
+                    </button>
+                  )}
+
                   <span className={cn(
                     'text-[13px] font-medium px-2.5 py-1 rounded-full',
-                    wordCount === 0     ? 'bg-slate-700 text-slate-400'
-                    : wordCount < 50    ? 'bg-red-500/15 text-red-400'
+                    wordCount === 0  ? 'bg-slate-700 text-slate-400'
+                    : wordCount < 50 ? 'bg-red-500/15 text-red-400'
                     : 'bg-slate-700 text-slate-300',
                   )}>
                     {wordCount > 0
@@ -259,20 +409,42 @@ export default function PlagiarismPage() {
                 </div>
               </div>
 
-              <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="Paste the text you want to check. Minimum 50 words for accurate detection..."
-                className="flex-1 w-full bg-transparent text-slate-200 placeholder:text-slate-500 resize-none focus:outline-none px-5 py-4 text-[15px] leading-[1.75]"
-              />
+              {/* Body — highlighted view OR editable textarea */}
+              <AnimatePresence mode="wait">
+                {showHighlights ? (
+                  <motion.div
+                    key="highlights"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex-1 min-h-0 flex flex-col"
+                  >
+                    <HighlightedTextView text={inputText} sourceMatches={result!.sourceMatches} />
+                  </motion.div>
+                ) : (
+                  <motion.textarea
+                    key="textarea"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder="Paste the text you want to check. Minimum 50 words for accurate detection..."
+                    className="flex-1 w-full bg-transparent text-slate-200 placeholder:text-slate-500 resize-none focus:outline-none px-5 py-4 text-[15px] leading-[1.75]"
+                  />
+                )}
+              </AnimatePresence>
 
+              {/* Footer */}
               <div className="px-5 py-3 border-t border-slate-700/50 flex items-center justify-between gap-3 shrink-0">
                 <span className="text-[13px] text-slate-400">Min. 50 words</span>
                 <div className="flex items-center gap-3">
                   {(inputText || result) && (
                     <button
                       type="button"
-                      onClick={() => reset()}
+                      onClick={() => { reset(); setEditMode(false) }}
                       className="flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition-colors"
                     >
                       <RotateCcw size={12} />
@@ -327,11 +499,15 @@ export default function PlagiarismPage() {
                   <div>
                     <p className="text-slate-200 font-semibold text-[15px]">Results appear here</p>
                     <p className="text-slate-500 text-[13px] mt-1 max-w-xs">
-                      Searches the web in real-time and uses AI to detect exact copying, paraphrasing, and structural mirroring
+                      Searches web + academic databases in real-time. Detects exact copying, paraphrasing, and structural mirroring.
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 w-full max-w-xs text-left">
-                    {['Searches live web sources', 'Detects paraphrasing, not just exact matches', 'Sentence-level match breakdown'].map(f => (
+                    {[
+                      'Searches Google + Crossref + Semantic Scholar',
+                      'Detects paraphrasing, not just exact matches',
+                      'Sentence-level match breakdown with inline highlights',
+                    ].map(f => (
                       <div key={f} className="flex items-center gap-2 text-[13px] text-slate-400">
                         <CheckCircle size={13} className="text-indigo-400 shrink-0" />
                         {f}
@@ -391,8 +567,18 @@ export default function PlagiarismPage() {
                     </div>
                   </div>
 
-                  {/* Low confidence banner */}
-                  {result.isLowConfidence && (
+                  {/* No-sources warning */}
+                  {(result.isNoSourcesFound || result.sourcesSearched === 0) ? (
+                    <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
+                      <AlertTriangle size={15} className="text-amber-400 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-amber-300 text-[13px] font-semibold mb-0.5">Cannot determine plagiarism — no sources retrieved</p>
+                        <p className="text-amber-400/70 text-[12px]">
+                          The web search returned no results. This is usually a missing or invalid SerpAPI key. This result does <strong>not</strong> mean the text is original — manual verification is required.
+                        </p>
+                      </div>
+                    </div>
+                  ) : result.isLowConfidence && (
                     <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
                       <Info size={15} className="text-amber-400 mt-0.5 shrink-0" />
                       <p className="text-amber-300 text-[13px]">
@@ -419,21 +605,19 @@ export default function PlagiarismPage() {
                   {/* Source matches */}
                   {result.sourceMatches.length > 0 && (
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-slate-100 font-semibold">
-                          Matched Sources
-                          <span className="ml-2 text-[13px] font-normal text-slate-500">
-                            {result.sourceMatches.length} found
-                          </span>
-                        </h3>
-                      </div>
+                      <h3 className="text-slate-100 font-semibold">
+                        Matched Sources
+                        <span className="ml-2 text-[13px] font-normal text-slate-500">
+                          {result.sourceMatches.length} found
+                        </span>
+                      </h3>
                       {result.sourceMatches.map((match, i) => (
                         <SourceMatchCard key={match.url} match={match} index={i} />
                       ))}
                     </div>
                   )}
 
-                  {result.sourceMatches.length === 0 && result.similarityScore < 20 && (
+                  {result.sourceMatches.length === 0 && result.similarityScore < 20 && !result.isNoSourcesFound && result.sourcesSearched > 0 && (
                     <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                       <CheckCircle size={15} className="text-emerald-400 shrink-0" />
                       <p className="text-emerald-300 text-[14px]">No matching web sources found. This text appears to be original.</p>

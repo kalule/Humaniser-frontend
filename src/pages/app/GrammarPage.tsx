@@ -244,7 +244,27 @@ function SuggestionCard({
       </div>
 
       {suggestion.explanation && (
-        <p className="text-[13px] text-slate-500 leading-snug mb-3">{suggestion.explanation}</p>
+        <p className="text-[13px] text-slate-500 leading-snug mb-2">{suggestion.explanation}</p>
+      )}
+
+      {suggestion.correctedSentence.length > suggestion.replacement.length + 10 && (
+        <p
+          className="text-[12px] text-slate-400 italic leading-snug mb-2 px-2 py-1.5 rounded-lg"
+          style={{ borderLeft: `2px solid ${suggestion.categoryColour}60`, backgroundColor: suggestion.categoryColour + '0a' }}
+        >
+          {suggestion.correctedSentence}
+        </p>
+      )}
+
+      {suggestion.alternatives.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          <span className="text-[11px] text-slate-500">Also:</span>
+          {suggestion.alternatives.map((alt) => (
+            <span key={alt} className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-300">
+              {alt}
+            </span>
+          ))}
+        </div>
       )}
 
       <div className="flex items-center gap-2">
@@ -731,6 +751,22 @@ export default function GrammarPage() {
                         </div>
                       )}
                     </div>
+                    {Object.keys(result.suggestionCountByCategory).length > 0 && (
+                      <>
+                        <div className="w-full h-px bg-slate-700/60" />
+                        <div className="w-full space-y-1.5">
+                          {Object.entries(result.suggestionCountByCategory).map(([cat, count]) => {
+                            const colour = CATEGORIES.find((c) => c.value === cat)?.colour ?? '#94a3b8'
+                            return (
+                              <div key={cat} className="flex justify-between items-center text-[11px]">
+                                <span style={{ color: colour }} className="font-medium">{cat}</span>
+                                <span className="font-semibold tabular-nums" style={{ color: colour }}>{count}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )}
                     {sortedPending.length > 0 && (
                       <button
                         type="button"

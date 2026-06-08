@@ -1,0 +1,592 @@
+import React, { useState } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useMutation } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import {
+  Check,
+  X,
+  Shield,
+  ChevronDown,
+  Zap,
+  Crown,
+  Infinity,
+  Sparkles,
+  ArrowLeft,
+} from 'lucide-react'
+import { cn } from '../lib/utils'
+import { useAuthStore } from '../store/authStore'
+import { subscriptionApi } from '../api/subscription'
+import { Navbar } from '../components/layout/Navbar'
+import { Footer } from '../components/layout/Footer'
+
+// ─── Price IDs ────────────────────────────────────────────────────────────────
+
+const PRICE_IDS = {
+  pro_monthly: 'price_pro_monthly',
+  pro_annual: 'price_pro_annual',
+  unlimited_monthly: 'price_unlimited_monthly',
+  unlimited_annual: 'price_unlimited_annual',
+}
+
+// ─── Feature comparison table ─────────────────────────────────────────────────
+
+type FeatureValue = string | boolean
+
+interface Feature {
+  label: string
+  free: FeatureValue
+  pro: FeatureValue
+  unlimited: FeatureValue
+}
+
+const FEATURES: Feature[] = [
+  { label: 'Words per month', free: '500', pro: '50,000', unlimited: 'Unlimited' },
+  { label: 'Writing tones', free: '4 tones', pro: 'All tones', unlimited: 'All tones' },
+  { label: 'Strength levels', free: true, pro: true, unlimited: true },
+  { label: 'History', free: '5 items', pro: 'Unlimited', unlimited: 'Unlimited' },
+  { label: 'Priority support', free: false, pro: true, unlimited: true },
+  { label: 'Advanced analytics', free: false, pro: true, unlimited: true },
+  { label: 'API access', free: false, pro: false, unlimited: true },
+  { label: 'Dedicated support', free: false, pro: false, unlimited: true },
+]
+
+// ─── FAQ data ─────────────────────────────────────────────────────────────────
+
+const FAQS = [
+  {
+    q: 'How does billing work?',
+    a: 'You are billed at the start of each billing period — monthly or annually. Annual plans are charged upfront for the full year at a discounted rate.',
+  },
+  {
+    q: 'Can I cancel my subscription?',
+    a: "Yes, you can cancel at any time from your account settings. You'll retain access to your plan until the end of the current billing period.",
+  },
+  {
+    q: 'Do you offer refunds?',
+    a: 'We offer a 7-day money-back guarantee. If you are not satisfied within the first 7 days, contact us for a full refund — no questions asked.',
+  },
+  {
+    q: 'Can I upgrade or downgrade my plan?',
+    a: 'Absolutely. You can upgrade or downgrade at any time. When upgrading, the price difference is prorated. When downgrading, changes take effect at the next billing cycle.',
+  },
+  {
+    q: 'What happens if I hit my word limit?',
+    a: 'Once you reach your monthly word limit, humanisations are paused until your limit resets or you upgrade your plan. Your existing history remains accessible.',
+  },
+  {
+    q: 'Is there a free trial for paid plans?',
+    a: 'Pro includes a 7-day money-back guarantee so you can explore all features risk-free. If you are not happy within 7 days, we refund you in full.',
+  },
+]
+
+// ─── Feature value cell ───────────────────────────────────────────────────────
+
+function FeatureCell({ value }: { value: FeatureValue }) {
+  if (typeof value === 'boolean') {
+    return value ? (
+      <Check size={16} className="text-primary mx-auto" />
+    ) : (
+      <X size={16} className="text-muted/40 mx-auto" />
+    )
+  }
+  return <span className="text-sm text-text-main">{value}</span>
+}
+
+// ─── FAQ accordion item ───────────────────────────────────────────────────────
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="border border-border rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/5 transition-colors"
+      >
+        <span className="text-sm font-medium text-text-main pr-4">{q}</span>
+        <ChevronDown
+          size={16}
+          className={cn(
+            'text-muted shrink-0 transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <p className="px-5 pb-4 text-sm text-muted leading-relaxed">{a}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ─── Plan card ────────────────────────────────────────────────────────────────
+
+interface PlanCardProps {
+  name: string
+  icon: React.ReactNode
+  priceMonthly: number
+  priceAnnual: number
+  description: string
+  features: string[]
+  cta: string
+  featured?: boolean
+  isAnnual: boolean
+  onSelect: () => void
+  isLoading?: boolean
+  isFree?: boolean
+  ctaLink?: string
+  isCurrent?: boolean
+}
+
+function PlanCard({
+  name,
+  icon,
+  priceMonthly,
+  priceAnnual,
+  description,
+  features,
+  cta,
+  featured,
+  isAnnual,
+  onSelect,
+  isLoading,
+  isFree,
+  ctaLink,
+  isCurrent,
+}: PlanCardProps) {
+  // Show per-month cost regardless of billing period
+  const monthlyEquivalent = isAnnual ? Math.round(priceAnnual / 12) : priceMonthly
+  const annualTotal = priceAnnual
+  const annualSaving = priceMonthly * 12 - priceAnnual
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className={cn(
+        'relative flex flex-col rounded-xl border p-6 transition-all duration-300',
+        featured
+          ? 'bg-gradient-to-b from-primary/10 to-card border-primary/50 shadow-[0_0_40px_rgba(99,102,241,0.15)]'
+          : 'bg-card border-border',
+      )}
+    >
+      {featured && !isCurrent && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-primary to-secondary text-white shadow-glow">
+            <Sparkles size={10} />
+            Most Popular
+          </span>
+        </div>
+      )}
+
+      {isCurrent && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-slate-700 border border-slate-600 text-slate-300">
+            Current Plan
+          </span>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="mb-5">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-primary">{icon}</span>
+          <span className="text-base font-bold text-text-main">{name}</span>
+        </div>
+        <p className="text-xs text-muted">{description}</p>
+      </div>
+
+      {/* Price */}
+      <div className="mb-6">
+        {isFree ? (
+          <div className="flex items-end gap-1">
+            <span className="text-3xl font-bold text-text-main">R0</span>
+            <span className="text-sm text-muted mb-1"> / month</span>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-end gap-1">
+              <span className="text-3xl font-bold text-text-main">
+                R{monthlyEquivalent}
+              </span>
+              <span className="text-sm text-muted mb-1">/month</span>
+            </div>
+            {isAnnual ? (
+              <div className="mt-1 space-y-0.5">
+                <p className="text-xs text-muted">
+                  Billed annually — R{annualTotal.toLocaleString()}/year
+                </p>
+                <p className="text-xs text-emerald-400 font-medium">
+                  Save R{annualSaving.toLocaleString()}/year vs monthly
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-muted mt-1">Billed monthly · cancel anytime</p>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Features */}
+      <ul className="space-y-3 mb-8 flex-1">
+        {features.map((f) => (
+          <li key={f} className="flex items-start gap-2.5">
+            <Check size={14} className="text-primary shrink-0 mt-0.5" />
+            <span className="text-sm text-text-main/80">{f}</span>
+          </li>
+        ))}
+      </ul>
+
+      {/* CTA */}
+      {isCurrent ? (
+        <div className="w-full py-3 rounded-md text-sm font-semibold text-center border border-border text-muted cursor-default">
+          Your current plan
+        </div>
+      ) : isFree || ctaLink ? (
+        <Link
+          to={ctaLink ?? '/register'}
+          className={cn(
+            'block text-center py-3 rounded-md text-sm font-semibold transition-all duration-200',
+            featured
+              ? 'bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 hover:shadow-glow'
+              : 'border border-border text-text-main hover:bg-white/5',
+          )}
+        >
+          {cta}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={onSelect}
+          disabled={isLoading}
+          className={cn(
+            'w-full py-3 rounded-md text-sm font-semibold transition-all duration-200',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            featured
+              ? 'bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 hover:shadow-glow'
+              : 'border border-border text-text-main hover:bg-white/5',
+          )}
+        >
+          {isLoading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              Redirecting…
+            </span>
+          ) : (
+            cta
+          )}
+        </button>
+      )}
+    </motion.div>
+  )
+}
+
+// ─── Main PricingPage ─────────────────────────────────────────────────────────
+
+export function PricingPage() {
+  const [isAnnual, setIsAnnual] = useState(false)
+  const [checkoutPlan, setCheckoutPlan] = useState<'pro' | 'unlimited' | null>(null)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { isAuthenticated, user } = useAuthStore()
+
+  // Show public Navbar + Footer only when accessed as standalone public page
+  const isPublicRoute = location.pathname === '/pricing'
+  const currentPlan = user?.plan ?? null
+
+  const checkoutMutation = useMutation({
+    mutationFn: (priceId: string) =>
+      subscriptionApi
+        .createCheckout(
+          priceId,
+          `${window.location.origin}/app/billing?success=1`,
+          `${window.location.origin}/pricing?cancelled=1`,
+        )
+        .then((r) => r.data),
+    onSuccess: (data) => {
+      window.location.href = data.url
+    },
+    onError: () => {
+      toast.error('Failed to start checkout. Please try again.')
+      setCheckoutPlan(null)
+    },
+  })
+
+  const handleProCheckout = () => {
+    if (!isAuthenticated) {
+      navigate('/register?plan=pro')
+      return
+    }
+    setCheckoutPlan('pro')
+    checkoutMutation.mutate(isAnnual ? PRICE_IDS.pro_annual : PRICE_IDS.pro_monthly)
+  }
+
+  const handleUnlimitedCheckout = () => {
+    if (!isAuthenticated) {
+      navigate('/register?plan=unlimited')
+      return
+    }
+    setCheckoutPlan('unlimited')
+    checkoutMutation.mutate(isAnnual ? PRICE_IDS.unlimited_annual : PRICE_IDS.unlimited_monthly)
+  }
+
+  return (
+    <div className="min-h-screen bg-dark">
+      {/* Public navbar — only on /pricing standalone route */}
+      {isPublicRoute && <Navbar />}
+
+      {/* Back link — only when inside the app */}
+      {!isPublicRoute && isAuthenticated && (
+        <div className="px-6 pt-4">
+          <Link
+            to="/app"
+            className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-text-main transition-colors"
+          >
+            <ArrowLeft size={14} />
+            Back to app
+          </Link>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className={cn('px-4 text-center', isPublicRoute ? 'pt-28 pb-12' : 'pt-8 pb-12')}>
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 mb-4">
+            <Shield size={11} />
+            7-Day Money-Back Guarantee
+          </span>
+          <h1 className="text-4xl sm:text-5xl font-bold text-text-main mb-4">
+            Simple, Transparent Pricing
+          </h1>
+          <p className="text-lg text-muted max-w-xl mx-auto mb-8">
+            Choose the plan that fits your writing needs. Upgrade or downgrade at any time.
+          </p>
+
+          {/* Monthly / Annual toggle */}
+          <div className="inline-flex items-center gap-3 bg-card border border-border rounded-full p-1.5">
+            <button
+              type="button"
+              onClick={() => setIsAnnual(false)}
+              aria-pressed={!isAnnual}
+              className={cn(
+                'px-5 py-2 rounded-full text-sm font-medium transition-all duration-200',
+                !isAnnual ? 'bg-primary text-white shadow-glow' : 'text-muted hover:text-text-main',
+              )}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAnnual(true)}
+              aria-pressed={isAnnual}
+              className={cn(
+                'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium transition-all duration-200',
+                isAnnual ? 'bg-primary text-white shadow-glow' : 'text-muted hover:text-text-main',
+              )}
+            >
+              Annual
+              <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                Save 20%
+              </span>
+            </button>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Plan cards */}
+      <div className="max-w-5xl mx-auto px-4 pb-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <PlanCard
+            name="Free"
+            icon={<Zap size={18} />}
+            priceMonthly={0}
+            priceAnnual={0}
+            description="Perfect for trying out HumaniseAI"
+            features={[
+              '500 words / month',
+              '4 writing tones',
+              'All strength levels',
+              'Up to 5 history items',
+              'Email support',
+            ]}
+            cta="Get Started Free"
+            isAnnual={isAnnual}
+            onSelect={() => {}}
+            isFree
+            ctaLink="/register"
+            isCurrent={currentPlan === 'Free'}
+          />
+
+          <PlanCard
+            name="Pro"
+            icon={<Crown size={18} />}
+            priceMonthly={149}
+            priceAnnual={1428}
+            description="For writers and content creators"
+            features={[
+              '50,000 words / month',
+              'All tones & strengths',
+              'Unlimited history',
+              'Priority support',
+              'Advanced analytics',
+            ]}
+            cta="Upgrade to Pro"
+            featured
+            isAnnual={isAnnual}
+            onSelect={handleProCheckout}
+            isLoading={checkoutPlan === 'pro' && checkoutMutation.isPending}
+            isCurrent={currentPlan === 'Pro'}
+          />
+
+          <PlanCard
+            name="Unlimited"
+            icon={<Infinity size={18} />}
+            priceMonthly={299}
+            priceAnnual={2868}
+            description="For teams and power users"
+            features={[
+              'Unlimited words / month',
+              'Everything in Pro',
+              'API access',
+              'Dedicated support',
+              'Custom integrations',
+            ]}
+            cta="Go Unlimited"
+            isAnnual={isAnnual}
+            onSelect={handleUnlimitedCheckout}
+            isLoading={checkoutPlan === 'unlimited' && checkoutMutation.isPending}
+            isCurrent={currentPlan === 'Unlimited'}
+          />
+        </div>
+
+        {/* Trust row */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8 text-sm text-muted"
+        >
+          <span className="flex items-center gap-2">
+            <Shield size={15} className="text-emerald-400" />
+            <span className="text-text-main font-medium">7-Day Money-Back Guarantee</span>
+          </span>
+          <span className="hidden sm:block text-border">·</span>
+          <span>No credit card required for Free</span>
+          <span className="hidden sm:block text-border">·</span>
+          <span>Cancel anytime</span>
+        </motion.div>
+
+        {/* Login nudge for unauthenticated visitors */}
+        {!isAuthenticated && (
+          <p className="text-center text-sm text-muted mt-4">
+            Already have an account?{' '}
+            <Link to="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
+              Log in →
+            </Link>
+          </p>
+        )}
+      </div>
+
+      {/* Feature comparison table */}
+      <div className="max-w-4xl mx-auto px-4 pb-16">
+        <h2 className="text-2xl font-bold text-text-main text-center mb-8">Compare Plans</h2>
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left px-5 py-4 text-sm font-semibold text-muted">Feature</th>
+                <th className="text-center px-4 py-4 text-sm font-semibold text-muted">Free</th>
+                <th className="text-center px-4 py-4 text-sm font-bold text-primary">Pro</th>
+                <th className="text-center px-4 py-4 text-sm font-semibold text-muted">Unlimited</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FEATURES.map((f, i) => (
+                <tr
+                  key={f.label}
+                  className={cn(
+                    'border-b border-border/50 last:border-b-0',
+                    i % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.02]',
+                  )}
+                >
+                  <td className="px-5 py-3.5 text-sm text-text-main">{f.label}</td>
+                  <td className="px-4 py-3.5 text-center"><FeatureCell value={f.free} /></td>
+                  <td className="px-4 py-3.5 text-center bg-primary/5"><FeatureCell value={f.pro} /></td>
+                  <td className="px-4 py-3.5 text-center"><FeatureCell value={f.unlimited} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* FAQ */}
+      <div className="max-w-2xl mx-auto px-4 pb-16">
+        <h2 className="text-2xl font-bold text-text-main text-center mb-8">
+          Frequently Asked Questions
+        </h2>
+        <div className="space-y-3">
+          {FAQS.map((faq) => (
+            <FaqItem key={faq.q} q={faq.q} a={faq.a} />
+          ))}
+        </div>
+      </div>
+
+      {/* Final CTA — appears after FAQ so users who scroll down have a destination */}
+      <div className="max-w-2xl mx-auto px-4 pb-20 text-center">
+        <p className="text-muted text-sm mb-4">Still have questions?</p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          {!isAuthenticated ? (
+            <>
+              <Link
+                to="/register"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+              >
+                Start for free — no card needed
+              </Link>
+              <Link
+                to="/login"
+                className="text-sm text-muted hover:text-text-main transition-colors"
+              >
+                Log in to your account →
+              </Link>
+            </>
+          ) : (
+            <Link
+              to="/app"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              Back to your workspace →
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* Public footer */}
+      {isPublicRoute && <Footer />}
+    </div>
+  )
+}
+
+export default PricingPage
