@@ -209,8 +209,9 @@ export default function SummarisePage() {
           </div>
         )}
 
-        {/* Editor panels */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        {/* Editor panels + contextual sidebar */}
+        <div className="flex gap-5 items-start">
+        <div className="flex-1 min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
           {/* Input — sticky so it stays visible while output scrolls */}
           <div className="lg:sticky lg:top-4" style={{ height: 'calc(100vh - 7rem)' }}>
@@ -411,6 +412,105 @@ export default function SummarisePage() {
             </div>
           </div>
         </div>
+        {/* end input/output grid */}
+
+        {/* Contextual sidebar — Summary Stats (desktop only) */}
+        <AnimatePresence>
+          {(result || isLoading) && (
+            <motion.div
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 12 }}
+              transition={{ duration: 0.25 }}
+              className="hidden lg:flex w-[208px] shrink-0 flex-col bg-slate-800 border border-slate-700/80 rounded-2xl overflow-hidden shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_32px_rgba(0,0,0,0.35)]"
+            >
+              <div className="px-5 py-3 border-b border-slate-700">
+                <div className="flex items-center gap-2">
+                  <TrendingDown size={13} className="text-slate-400" />
+                  <span className="text-[14px] font-semibold text-slate-200">Summary Stats</span>
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col items-center gap-3 p-4">
+                {result ? (
+                  <>
+                    {/* Mode badge */}
+                    <div className={cn(
+                      'w-12 h-12 rounded-xl flex items-center justify-center mt-2',
+                      `bg-${activeModeConfig.color}-500/10 border border-${activeModeConfig.color}-500/20`,
+                    )}>
+                      <activeModeConfig.Icon size={18} className={`text-${activeModeConfig.color}-400`} />
+                    </div>
+                    <p className="text-[13px] font-semibold text-slate-200">
+                      {SUMMARISE_MODE_LABELS[selectedMode]}
+                    </p>
+
+                    {/* Compression ratio bar */}
+                    {result.originalWordCount > 0 && (
+                      <>
+                        <div className="w-full mt-1 space-y-1.5">
+                          <div className="flex justify-between text-[11px] text-slate-500">
+                            <span>Compression</span>
+                            <span className="text-emerald-400 font-semibold">
+                              {Math.round(((result.originalWordCount - result.summaryWordCount) / result.originalWordCount) * 100)}%
+                            </span>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                            <motion.div
+                              className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500"
+                              initial={{ width: '0%' }}
+                              animate={{ width: `${Math.round((result.summaryWordCount / result.originalWordCount) * 100)}%` }}
+                              transition={{ duration: 0.8, ease: 'easeOut' }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[10px] text-slate-600">
+                            <span>Summary</span>
+                            <span>Original</span>
+                          </div>
+                        </div>
+
+                        <div className="w-full mt-1 space-y-2">
+                          <div className="flex justify-between items-center text-[12px]">
+                            <span className="text-slate-500">Original</span>
+                            <span className="font-semibold text-slate-300 tabular-nums">{result.originalWordCount}w</span>
+                          </div>
+                          <div className="flex justify-between items-center text-[12px]">
+                            <span className="text-slate-500">Summary</span>
+                            <span className="font-semibold text-amber-400 tabular-nums">{result.summaryWordCount}w</span>
+                          </div>
+                          <div className="flex justify-between items-center text-[12px]">
+                            <span className="text-slate-500">Saved</span>
+                            <span className="font-semibold text-emerald-400 tabular-nums">
+                              {result.originalWordCount - result.summaryWordCount}w
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {result.isChunked && (
+                      <div className="mt-auto w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-[11px] text-indigo-400 font-medium">
+                        <Layers size={11} />
+                        Multi-pass
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-4 w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                      <TrendingDown size={18} className="text-amber-400/70" />
+                    </div>
+                    <p className="text-[11px] text-slate-500 text-center leading-relaxed">
+                      Summarise text to see compression stats
+                    </p>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        </div>
+        {/* end flex+sidebar wrapper */}
 
       </main>
     </div>
