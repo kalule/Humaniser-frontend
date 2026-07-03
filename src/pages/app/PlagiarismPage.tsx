@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  BookOpen, Shield, AlertTriangle, CheckCircle,
+  BookOpen, AlertTriangle, CheckCircle,
   ExternalLink, ChevronDown, RotateCcw, FileText, Info, Upload, Pencil,
+  FileSearch, Download, RotateCw,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePlagiarismStore } from '../../store/plagiarismStore'
@@ -18,27 +19,34 @@ const SAMPLE_TEXT =
 
 // ── Score helpers ─────────────────────────────────────────────────────────────
 
+const VERDICT_HEX: Record<string, string> = {
+  green: '#10B981',
+  lime:  '#84CC16',
+  amber: '#F59E0B',
+  red:   '#EF4444',
+}
+
 function getVerdictStyle(color: string) {
   switch (color) {
-    case 'green': return { text: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/30', Icon: CheckCircle }
-    case 'lime':  return { text: 'text-lime-400',    bg: 'bg-lime-500/15 border-lime-500/30',       Icon: CheckCircle }
-    case 'amber': return { text: 'text-amber-400',   bg: 'bg-amber-500/15 border-amber-500/30',     Icon: AlertTriangle }
-    default:      return { text: 'text-red-400',     bg: 'bg-red-500/15 border-red-500/30',         Icon: AlertTriangle }
+    case 'green': return { text: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', Icon: CheckCircle }
+    case 'lime':  return { text: 'text-lime-600',    bg: 'bg-lime-50 border-lime-200',       Icon: CheckCircle }
+    case 'amber': return { text: 'text-amber-600',   bg: 'bg-amber-50 border-amber-200',     Icon: AlertTriangle }
+    default:      return { text: 'text-red-600',     bg: 'bg-red-50 border-red-200',         Icon: AlertTriangle }
   }
 }
 
 function getSimilarityColor(pct: number) {
   if (pct < 20) return 'bg-emerald-500'
   if (pct < 40) return 'bg-lime-500'
-  if (pct < 60) return 'bg-amber-500'
+  if (pct < 50) return 'bg-amber-500'
   return 'bg-red-500'
 }
 
 function getMatchTypeBadge(type: string) {
   switch (type.toLowerCase()) {
-    case 'exact':       return 'bg-red-500/20 text-red-300 border-red-500/30'
-    case 'paraphrased': return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-    default:            return 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+    case 'exact':       return 'bg-red-50 text-red-700 border-red-200'
+    case 'paraphrased': return 'bg-amber-50 text-amber-700 border-amber-200'
+    default:            return 'bg-purple-50 text-purple-700 border-purple-200'
   }
 }
 
@@ -66,7 +74,6 @@ function buildHighlightedParts(text: string, sourceMatches: SourceMatch[]): Text
       const snippet = seg.suspectSnippet?.trim()
       if (!snippet || snippet.length < 10) continue
 
-      // Try exact match, then case-insensitive fallback
       let idx = text.indexOf(snippet)
       if (idx === -1) idx = text.toLowerCase().indexOf(snippet.toLowerCase())
       if (idx === -1) continue
@@ -77,14 +84,12 @@ function buildHighlightedParts(text: string, sourceMatches: SourceMatch[]): Text
 
   if (ranges.length === 0) return [{ text, highlighted: false, matchType: '' }]
 
-  // Sort by start position, then merge overlapping ranges
   ranges.sort((a, b) => a.start - b.start)
   const merged: HighlightRange[] = []
   for (const r of ranges) {
     const last = merged.at(-1)
     if (last && r.start <= last.end) {
       last.end = Math.max(last.end, r.end)
-      // Escalate to the more severe match type
       if ((MATCH_TYPE_SEVERITY[r.matchType] ?? 0) > (MATCH_TYPE_SEVERITY[last.matchType] ?? 0)) {
         last.matchType = r.matchType
       }
@@ -108,20 +113,20 @@ function buildHighlightedParts(text: string, sourceMatches: SourceMatch[]): Text
 function getHighlightClass(matchType: string): string {
   switch (matchType.toLowerCase()) {
     case 'exact':
-      return 'bg-rose-500/30 border-b-2 border-rose-400 rounded-[2px] text-rose-100'
+      return 'bg-rose-100 border-b-2 border-rose-400 rounded-[2px] text-rose-900'
     case 'paraphrased':
-      return 'bg-amber-500/25 border-b-2 border-amber-400 rounded-[2px] text-amber-100'
+      return 'bg-amber-100 border-b-2 border-amber-400 rounded-[2px] text-amber-900'
     default:
-      return 'bg-violet-500/25 border-b-2 border-violet-400 rounded-[2px] text-violet-100'
+      return 'bg-violet-100 border-b-2 border-violet-400 rounded-[2px] text-violet-900'
   }
 }
 
 // ── HighlightedTextView ───────────────────────────────────────────────────────
 
 const LEGEND = [
-  { label: 'Exact copy',   cls: 'bg-rose-500/30   border-rose-400'   },
-  { label: 'Paraphrased',  cls: 'bg-amber-500/25  border-amber-400'  },
-  { label: 'Structural',   cls: 'bg-violet-500/25 border-violet-400' },
+  { label: 'Exact copy',   cls: 'bg-rose-100   border-rose-400'   },
+  { label: 'Paraphrased',  cls: 'bg-amber-100  border-amber-400'  },
+  { label: 'Structural',   cls: 'bg-violet-100 border-violet-400' },
 ] as const
 
 function HighlightedTextView({ text, sourceMatches }: { text: string; sourceMatches: SourceMatch[] }) {
@@ -131,16 +136,16 @@ function HighlightedTextView({ text, sourceMatches }: { text: string; sourceMatc
   return (
     <div className="flex-1 overflow-auto flex flex-col min-h-0">
       {hasHighlights && (
-        <div className="shrink-0 flex items-center gap-5 px-5 py-2.5 border-b border-slate-700/50 bg-slate-800/50">
+        <div className="shrink-0 flex items-center gap-5 px-5 py-2.5 border-b border-gray-100 bg-gray-50">
           {LEGEND.map(({ label, cls }) => (
             <div key={label} className="flex items-center gap-1.5">
               <span className={cn('w-3 h-3 rounded-sm border-b-2 shrink-0', cls)} />
-              <span className="text-[11px] text-slate-400">{label}</span>
+              <span className="text-[11px] text-gray-500">{label}</span>
             </div>
           ))}
         </div>
       )}
-      <div className="flex-1 overflow-auto px-5 py-4 text-[15px] leading-[1.75] text-slate-200 whitespace-pre-wrap break-words select-text">
+      <div className="flex-1 overflow-auto px-5 py-4 text-[15px] leading-[1.75] text-gray-800 whitespace-pre-wrap break-words select-text">
         {parts.map((part, i) =>
           part.highlighted ? (
             <mark key={i} className={cn('bg-transparent', getHighlightClass(part.matchType))}>
@@ -166,17 +171,17 @@ function SourceMatchCard({ match, index }: { match: SourceMatch; index: number }
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="bg-slate-800/60 border border-slate-700 rounded-xl overflow-hidden"
+      className="bg-white border border-gray-100 rounded-xl overflow-hidden"
     >
       <div className="px-4 py-3">
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="min-w-0 flex-1">
-            <p className="text-slate-200 text-[14px] font-medium truncate">{match.title || match.domain}</p>
+            <p className="text-gray-800 text-[14px] font-medium truncate">{match.title || match.domain}</p>
             <a
               href={match.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-[12px] text-indigo-400 hover:text-indigo-300 transition-colors mt-0.5"
+              className="flex items-center gap-1 text-[12px] text-blue-600 hover:text-blue-700 transition-colors mt-0.5"
             >
               <ExternalLink size={10} />
               {match.domain}
@@ -184,15 +189,15 @@ function SourceMatchCard({ match, index }: { match: SourceMatch; index: number }
           </div>
           <span className={cn(
             'shrink-0 text-[13px] font-semibold px-2.5 py-0.5 rounded-full',
-            match.similarityPercent >= 60 ? 'bg-red-500/20 text-red-300'
-              : match.similarityPercent >= 40 ? 'bg-amber-500/20 text-amber-300'
-              : 'bg-emerald-500/20 text-emerald-300'
+            match.similarityPercent >= 50 ? 'bg-red-50 text-red-700'
+              : match.similarityPercent >= 40 ? 'bg-amber-50 text-amber-700'
+              : 'bg-emerald-50 text-emerald-700'
           )}>
             {match.similarityPercent}% similar
           </span>
         </div>
 
-        <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden mb-2">
+        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
           <motion.div
             className={cn('h-full rounded-full', barColor)}
             initial={{ width: '0%' }}
@@ -202,7 +207,7 @@ function SourceMatchCard({ match, index }: { match: SourceMatch; index: number }
         </div>
 
         {match.snippet && (
-          <p className="text-slate-500 text-[13px] leading-snug line-clamp-2">{match.snippet}</p>
+          <p className="text-gray-500 text-[13px] leading-snug line-clamp-2">{match.snippet}</p>
         )}
       </div>
 
@@ -211,7 +216,7 @@ function SourceMatchCard({ match, index }: { match: SourceMatch; index: number }
           <button
             type="button"
             onClick={() => setExpanded(v => !v)}
-            className="w-full flex items-center justify-between gap-2 px-4 py-2 text-[13px] text-slate-300 hover:text-white border-t border-slate-700/50 transition-colors"
+            className="w-full flex items-center justify-between gap-2 px-4 py-2 text-[13px] text-gray-600 hover:text-gray-900 border-t border-gray-100 transition-colors"
           >
             <span>{match.segments.length} matched segment{match.segments.length !== 1 ? 's' : ''}</span>
             <ChevronDown size={14} className={cn('transition-transform duration-200', expanded && 'rotate-180')} />
@@ -226,7 +231,7 @@ function SourceMatchCard({ match, index }: { match: SourceMatch; index: number }
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="px-4 pb-3 space-y-3 border-t border-slate-700/50 pt-3">
+                <div className="px-4 pb-3 space-y-3 border-t border-gray-100 pt-3">
                   {match.segments.map((seg, i) => (
                     <div key={i} className="space-y-1.5">
                       <div className="flex items-center gap-2">
@@ -235,13 +240,13 @@ function SourceMatchCard({ match, index }: { match: SourceMatch; index: number }
                         </span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div className="bg-red-500/8 border border-red-500/20 rounded-lg px-3 py-2">
-                          <p className="text-[11px] text-red-400 font-semibold mb-1">Your text</p>
-                          <p className="text-[13px] text-slate-300 leading-snug">{seg.suspectSnippet}</p>
+                        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                          <p className="text-[11px] text-red-600 font-semibold mb-1">Your text</p>
+                          <p className="text-[13px] text-gray-700 leading-snug">{seg.suspectSnippet}</p>
                         </div>
-                        <div className="bg-slate-700/40 border border-slate-600 rounded-lg px-3 py-2">
-                          <p className="text-[11px] text-slate-500 font-semibold mb-1">Source text</p>
-                          <p className="text-[13px] text-slate-300 leading-snug">{seg.sourceSnippet}</p>
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                          <p className="text-[11px] text-gray-500 font-semibold mb-1">Source text</p>
+                          <p className="text-[13px] text-gray-700 leading-snug">{seg.sourceSnippet}</p>
                         </div>
                       </div>
                     </div>
@@ -260,12 +265,12 @@ function SourceMatchCard({ match, index }: { match: SourceMatch; index: number }
 
 function LoadingCard({ stage }: { stage: string }) {
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 flex flex-col items-center gap-5">
+    <div className="bg-white border border-gray-100 rounded-xl p-8 flex flex-col items-center gap-5">
       <div className="relative">
         <svg width="80" height="80" className="-rotate-90">
-          <circle cx="40" cy="40" r="32" fill="none" stroke="#1e293b" strokeWidth="6" />
+          <circle cx="40" cy="40" r="32" fill="none" stroke="#e5e7eb" strokeWidth="6" />
           <motion.circle
-            cx="40" cy="40" r="32" fill="none" stroke="#6366f1"
+            cx="40" cy="40" r="32" fill="none" stroke="#111827"
             strokeWidth="6" strokeLinecap="round"
             strokeDasharray={2 * Math.PI * 32}
             strokeDashoffset={2 * Math.PI * 32 * 0.35}
@@ -274,19 +279,72 @@ function LoadingCard({ stage }: { stage: string }) {
             style={{ transformOrigin: '40px 40px' }}
           />
         </svg>
-        <BookOpen size={20} className="absolute inset-0 m-auto text-indigo-400" />
+        <BookOpen size={20} className="absolute inset-0 m-auto text-gray-500" />
       </div>
       <div className="text-center">
-        <p className="text-slate-200 font-semibold text-[15px]">Checking for plagiarism</p>
+        <p className="text-gray-800 font-semibold text-[15px]">Checking source integrity</p>
         <motion.p
           key={stage}
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-slate-400 text-[13px] mt-1"
+          className="text-gray-500 text-[13px] mt-1"
         >
           {stage}
         </motion.p>
       </div>
+    </div>
+  )
+}
+
+// ── ResultsEmptyState ─────────────────────────────────────────────────────────
+
+function ResultsEmptyState() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center px-8 py-12 text-center gap-4">
+      <FileSearch className="w-8 h-8 text-gray-300" />
+      <div>
+        <p className="text-sm font-medium text-gray-600">Your source report</p>
+        <p className="text-xs text-gray-400 mt-1 leading-relaxed max-w-[220px]">
+          Paste text and run a check to see matched sources, similarity scores, and attribution flags.
+        </p>
+      </div>
+      <div className="w-full max-w-xs mt-2 flex flex-col gap-2 opacity-40">
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
+          <div className="w-8 h-8 rounded bg-gray-200 flex-shrink-0" />
+          <div className="flex-1 flex flex-col gap-1.5">
+            <div className="h-2.5 bg-gray-200 rounded w-3/4" />
+            <div className="h-2 bg-gray-200 rounded w-1/2" />
+          </div>
+          <div className="text-xs font-medium text-gray-400">—%</div>
+        </div>
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
+          <div className="w-8 h-8 rounded bg-gray-200 flex-shrink-0" />
+          <div className="flex-1 flex flex-col gap-1.5">
+            <div className="h-2.5 bg-gray-200 rounded w-2/3" />
+            <div className="h-2 bg-gray-200 rounded w-2/5" />
+          </div>
+          <div className="text-xs font-medium text-gray-400">—%</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── SimilarityBadge ───────────────────────────────────────────────────────────
+
+function SimilarityBadge({ overallPct }: { overallPct: number }) {
+  const { bg, text, label } =
+    overallPct >= 30 ? { bg: 'bg-red-50',    text: 'text-red-600',    label: 'High similarity' } :
+    overallPct >= 15 ? { bg: 'bg-amber-50',  text: 'text-amber-600',  label: 'Some similarity' } :
+                       { bg: 'bg-green-50',  text: 'text-green-600',  label: 'Low similarity'  }
+
+  return (
+    <div className={cn('flex items-center justify-between px-4 py-3 border-b border-gray-100', bg)}>
+      <div>
+        <p className={cn('text-sm font-medium', text)}>{label}</p>
+        <p className="text-xs text-gray-400 mt-0.5">Overall text similarity score</p>
+      </div>
+      <span className={cn('text-2xl font-medium', text)}>{overallPct}%</span>
     </div>
   )
 }
@@ -302,15 +360,12 @@ export default function PlagiarismPage() {
     disabled: isLoading,
   })
 
-  // editMode = true → show editable textarea; false → show highlighted view (when results exist)
   const [editMode, setEditMode] = useState(false)
 
-  // Auto-switch to highlight view whenever new results arrive
   useEffect(() => {
     if (result) setEditMode(false)
   }, [result])
 
-  // Compute highlighted parts. Returns null when there's nothing to highlight.
   const highlightParts = useMemo(() => {
     if (!result || result.sourceMatches.length === 0) return null
     const hasSegments = result.sourceMatches.some(m => m.segments.length > 0)
@@ -319,7 +374,6 @@ export default function PlagiarismPage() {
     return parts.some(p => p.highlighted) ? parts : null
   }, [result, inputText])
 
-  // Show the highlighted view only when we have highlights and user hasn't toggled edit mode
   const showHighlights = !!highlightParts && !editMode
 
   const wordCount = inputText.trim().split(/\s+/).filter(Boolean).length
@@ -337,152 +391,200 @@ export default function PlagiarismPage() {
     toast.success('Summary copied!')
   }
 
-  const verdictStyle = result ? getVerdictStyle(result.verdictColor) : null
-  const VerdictIcon  = verdictStyle?.Icon ?? CheckCircle
+  const handleExport = () => {
+    if (!result) return
+    const lines = [
+      'Source Check Report',
+      '==================',
+      `Originality Score: ${result.originalityScore}%`,
+      `Similarity Score: ${result.similarityScore}%`,
+      `Verdict: ${result.verdict}`,
+      `Words Checked: ${result.wordCount}`,
+      `Sources Searched: ${result.sourcesSearched}`,
+      '',
+      'Analysis:',
+      result.analysis,
+      '',
+      `Matched Sources (${result.sourceMatches.length}):`,
+      ...result.sourceMatches.map((m, i) =>
+        `${i + 1}. ${m.title || m.domain} — ${m.similarityPercent}% similar\n   ${m.url}`
+      ),
+    ]
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'source-check-report.txt'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const verdictStyle     = result ? getVerdictStyle(result.verdictColor) : null
+  const VerdictIcon      = verdictStyle?.Icon ?? CheckCircle
+  const isHighSimilarity = result ? result.similarityScore > 50 : false
+  const hasResults       = !!result && !isLoading
 
   return (
-    <div className="min-h-0 bg-transparent w-full">
-      <main className="w-full px-4 py-6 space-y-5">
+    <div className="min-h-0 bg-transparent px-4 py-6 w-full space-y-5">
 
-        <div className="grid grid-cols-1 lg:grid-cols-[13fr_8fr] gap-5 items-start">
+      {/* Page heading */}
+      <div>
+        <h1 className="text-xl font-medium text-gray-900">Source Check</h1>
+        <p className="text-sm text-gray-400 mt-1">
+          Checks against web sources and academic databases for unacknowledged similarity.
+        </p>
+      </div>
 
-          {/* Left — input / highlighted view (sticky on desktop) */}
-          <div className="lg:sticky lg:top-4" style={{ height: 'calc(100vh - 7rem)' }}>
-            <div
-              className="bg-slate-800 border border-slate-700/80 rounded-2xl overflow-hidden flex flex-col h-full relative shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_32px_rgba(0,0,0,0.35)]"
-              {...(showHighlights ? {} : dragHandlers)}
-            >
-              {fileInputElement}
-              {!showHighlights && <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />}
+      <div className="grid grid-cols-1 lg:grid-cols-[13fr_8fr] gap-5 items-start">
 
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700 shrink-0">
-                <div className="flex items-center gap-2 text-slate-300 font-medium text-[14px]">
-                  <FileText size={14} className="text-slate-400" />
-                  Your Text
-                </div>
-                <div className="flex items-center gap-3">
-                  {/* Edit-text toggle — only visible when showing highlights */}
-                  {showHighlights && (
-                    <button
-                      type="button"
-                      onClick={() => setEditMode(true)}
-                      className="flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition-colors"
-                    >
-                      <Pencil size={12} />
-                      Edit text
-                    </button>
-                  )}
+        {/* Left — input / highlighted view */}
+        <div className="lg:sticky lg:top-4" style={{ height: 'calc(100vh - 11rem)' }}>
+          <div
+            className="bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full relative"
+            {...(showHighlights ? {} : dragHandlers)}
+          >
+            {fileInputElement}
+            {!showHighlights && <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />}
 
-                  {!showHighlights && !inputText && (
-                    <button
-                      type="button"
-                      onClick={() => setInputText(SAMPLE_TEXT)}
-                      className="text-[13px] text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors"
-                    >
-                      Try sample
-                    </button>
-                  )}
-
-                  {!showHighlights && (
-                    <button
-                      type="button"
-                      onClick={openFilePicker}
-                      disabled={isLoading || isFileProcessing}
-                      className="flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition-colors disabled:opacity-40"
-                    >
-                      <Upload size={12} />
-                      Upload
-                    </button>
-                  )}
-
-                  <span className={cn(
-                    'text-[13px] font-medium px-2.5 py-1 rounded-full',
-                    wordCount === 0  ? 'bg-slate-700 text-slate-400'
-                    : wordCount < 50 ? 'bg-red-500/15 text-red-400'
-                    : 'bg-slate-700 text-slate-300',
-                  )}>
-                    {wordCount > 0
-                      ? `${wordCount} words${wordCount < 50 ? ` (${50 - wordCount} more needed)` : ''}`
-                      : '0 words'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Body — highlighted view OR editable textarea */}
-              <AnimatePresence mode="wait">
-                {showHighlights ? (
-                  <motion.div
-                    key="highlights"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex-1 min-h-0 flex flex-col"
-                  >
-                    <HighlightedTextView text={inputText} sourceMatches={result!.sourceMatches} />
-                  </motion.div>
-                ) : (
-                  <motion.textarea
-                    key="textarea"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Paste the text you want to check. Minimum 50 words for accurate detection..."
-                    className="flex-1 w-full bg-transparent text-slate-200 placeholder:text-slate-500 resize-none focus:outline-none px-5 py-4 text-[15px] leading-[1.75]"
-                  />
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
+              <div className="flex items-center gap-2 text-gray-700 font-medium text-[14px]">
+                <FileText size={14} className="text-gray-400" />
+                Your text
+                {wordCount > 0 && (
+                  <span className="ml-1 text-xs font-normal text-gray-400">{wordCount} words</span>
                 )}
-              </AnimatePresence>
-
-              {/* Footer */}
-              <div className="px-5 py-3 border-t border-slate-700/50 flex items-center justify-between gap-3 shrink-0">
-                <span className="text-[13px] text-slate-400">Min. 50 words</span>
-                <div className="flex items-center gap-3">
-                  {(inputText || result) && (
-                    <button
-                      type="button"
-                      onClick={() => { reset(); setEditMode(false) }}
-                      className="flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition-colors"
-                    >
-                      <RotateCcw size={12} />
-                      Clear
-                    </button>
-                  )}
+              </div>
+              <div className="flex items-center gap-3">
+                {showHighlights && (
                   <button
                     type="button"
-                    onClick={handleCheck}
-                    disabled={!canCheck}
-                    className={cn(
-                      'flex items-center gap-2 px-5 py-2.5 rounded-xl text-[15px] font-semibold transition-all',
-                      'bg-gradient-to-r from-indigo-600 to-purple-600 text-white',
-                      'disabled:opacity-50 disabled:cursor-not-allowed',
-                      canCheck && 'hover:opacity-90 shadow shadow-indigo-500/20',
-                    )}
+                    onClick={() => setEditMode(true)}
+                    className="flex items-center gap-1.5 text-[13px] text-gray-500 hover:text-gray-800 transition-colors"
                   >
-                    {isLoading ? (
-                      <>
-                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}>
-                          <BookOpen size={14} />
-                        </motion.div>
-                        Checking…
-                      </>
-                    ) : (
-                      <>
-                        <Shield size={14} />
-                        {result ? 'Re-check' : 'Check for Plagiarism'}
-                      </>
-                    )}
+                    <Pencil size={12} />
+                    Edit text
                   </button>
-                </div>
+                )}
+
+                {!showHighlights && !inputText && (
+                  <button
+                    type="button"
+                    onClick={() => setInputText(SAMPLE_TEXT)}
+                    className="text-[13px] text-blue-500 hover:underline transition-colors"
+                  >
+                    Try sample
+                  </button>
+                )}
+
+                {!showHighlights && (
+                  <button
+                    type="button"
+                    onClick={openFilePicker}
+                    disabled={isLoading || isFileProcessing}
+                    className="flex items-center gap-1.5 text-[13px] text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40"
+                  >
+                    <Upload size={12} />
+                    Upload
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Body — highlighted view OR editable textarea */}
+            <AnimatePresence mode="wait">
+              {showHighlights ? (
+                <motion.div
+                  key="highlights"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex-1 min-h-0 flex flex-col"
+                >
+                  <HighlightedTextView text={inputText} sourceMatches={result!.sourceMatches} />
+                </motion.div>
+              ) : (
+                <motion.textarea
+                  key="textarea"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  placeholder="Paste the text you want to check. Minimum 50 words for accurate detection."
+                  className="flex-1 w-full bg-white text-gray-800 placeholder:text-gray-400 resize-none focus:outline-none px-5 py-4 text-[15px] leading-[1.75]"
+                />
+              )}
+            </AnimatePresence>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
+              <span className="text-[13px] text-gray-400">
+                {wordCount > 0 && wordCount < 50
+                  ? `${50 - wordCount} more words needed`
+                  : 'Min. 50 words'}
+              </span>
+              <div className="flex items-center gap-3">
+                {(inputText || result) && (
+                  <button
+                    type="button"
+                    onClick={() => { reset(); setEditMode(false) }}
+                    className="flex items-center gap-1.5 text-[13px] text-gray-400 hover:text-gray-700 transition-colors"
+                  >
+                    <RotateCcw size={12} />
+                    Clear
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleCheck}
+                  disabled={!canCheck}
+                  className={cn(
+                    'flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors',
+                    !canCheck
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-900 text-white hover:bg-gray-800',
+                  )}
+                >
+                  {isLoading ? (
+                    <>
+                      <RotateCw size={14} className="animate-spin" />
+                      Checking…
+                    </>
+                  ) : (
+                    'Check sources'
+                  )}
+                </button>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Right — results */}
-          <div className="space-y-4">
+        {/* Right — results panel */}
+        <div className="lg:sticky lg:top-4" style={{ height: 'calc(100vh - 11rem)' }}>
+          <div className="flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden h-full">
+
+            {/* Persistent panel header */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
+              <span className="text-sm font-medium text-gray-700">Source report</span>
+              {hasResults && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-400">
+                    {result!.sourceMatches.length} source{result!.sourceMatches.length !== 1 ? 's' : ''} found
+                  </span>
+                  <button
+                    onClick={handleExport}
+                    className="flex items-center gap-1 text-xs text-blue-500 hover:underline"
+                  >
+                    <Download size={12} />
+                    Export
+                  </button>
+                </div>
+              )}
+            </div>
+
             <AnimatePresence mode="wait">
               {!result && !isLoading ? (
                 <motion.div
@@ -490,33 +592,18 @@ export default function PlagiarismPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="bg-slate-800/40 border border-slate-700/50 border-dashed rounded-2xl p-8 flex flex-col items-center text-center gap-4"
-                  style={{ minHeight: 360 }}
+                  className="flex-1 flex flex-col min-h-0"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
-                    <BookOpen size={24} className="text-indigo-400" />
-                  </div>
-                  <div>
-                    <p className="text-slate-200 font-semibold text-[15px]">Results appear here</p>
-                    <p className="text-slate-500 text-[13px] mt-1 max-w-xs">
-                      Searches web + academic databases in real-time. Detects exact copying, paraphrasing, and structural mirroring.
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2 w-full max-w-xs text-left">
-                    {[
-                      'Searches Google + Crossref + Semantic Scholar',
-                      'Detects paraphrasing, not just exact matches',
-                      'Sentence-level match breakdown with inline highlights',
-                    ].map(f => (
-                      <div key={f} className="flex items-center gap-2 text-[13px] text-slate-400">
-                        <CheckCircle size={13} className="text-indigo-400 shrink-0" />
-                        {f}
-                      </div>
-                    ))}
-                  </div>
+                  <ResultsEmptyState />
                 </motion.div>
               ) : isLoading ? (
-                <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex-1 p-5"
+                >
                   <LoadingCard stage={loadingStage} />
                 </motion.div>
               ) : result && (
@@ -524,112 +611,132 @@ export default function PlagiarismPage() {
                   key="results"
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4"
+                  className="flex-1 overflow-y-auto min-h-0"
                 >
-                  {/* Score card */}
-                  <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-                    <div className="flex items-center gap-5">
-                      <div className="shrink-0">
-                        <ScoreCircle score={result.originalityScore} size="md" showLabel={false} />
-                        <div className="text-center mt-1">
-                          <p className="text-white font-bold text-xl">{result.originalityScore}%</p>
-                          <p className="text-slate-400 text-[12px]">Original</p>
+                  {/* Similarity badge — pinned at top of results body */}
+                  <SimilarityBadge overallPct={result.similarityScore} />
+
+                  <div className="space-y-4 p-4 pb-6">
+                    {/* Score card */}
+                    <div className="bg-white border border-gray-100 rounded-xl p-5">
+                      <div className="flex items-center gap-5">
+                        <div className="shrink-0">
+                          <ScoreCircle
+                            score={result.originalityScore}
+                            size="md"
+                            showLabel={false}
+                            colorOverride={isHighSimilarity ? '#EF4444' : VERDICT_HEX[result.verdictColor]}
+                          />
+                          <div className="text-center mt-1">
+                            <p className="text-gray-900 font-bold text-xl">{result.originalityScore}%</p>
+                            <p className="text-gray-500 text-[12px]">Original</p>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-gray-500 text-[13px] mb-1">Source Integrity Result</p>
+                          <h2 className={cn('text-2xl font-bold mb-2', isHighSimilarity ? 'text-red-600' : verdictStyle!.text)}>
+                            {result.verdict}
+                          </h2>
+                          <span className={cn(
+                            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[13px] font-medium',
+                            isHighSimilarity
+                              ? 'bg-red-50 border-red-200 text-red-700'
+                              : cn(verdictStyle!.bg, verdictStyle!.text),
+                          )}>
+                            <VerdictIcon size={11} />
+                            {result.similarityScore}% similarity detected
+                          </span>
+                          <p className="text-gray-400 text-[13px] mt-2">
+                            {result.sourcesSearched} sources searched · {result.wordCount} words checked
+                          </p>
                         </div>
                       </div>
 
-                      <div className="flex-1 min-w-0">
-                        <p className="text-slate-400 text-[13px] mb-1">Plagiarism Check Result</p>
-                        <h2 className={cn('text-2xl font-bold mb-2', verdictStyle!.text)}>{result.verdict}</h2>
-                        <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[13px] font-medium', verdictStyle!.bg, verdictStyle!.text)}>
-                          <VerdictIcon size={11} />
-                          {result.similarityScore}% similarity detected
-                        </span>
-                        <p className="text-slate-500 text-[13px] mt-2">
-                          {result.sourcesSearched} sources searched · {result.wordCount} words checked
+                      <div className="mt-4">
+                        <div className="flex justify-between text-[13px] text-gray-500 mb-1.5">
+                          <span>High similarity</span>
+                          <span>Fully original</span>
+                        </div>
+                        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ background: 'linear-gradient(to right, #EF4444, #F59E0B, #10B981)' }}
+                            initial={{ width: '0%' }}
+                            animate={{ width: `${result.originalityScore}%` }}
+                            transition={{ duration: 1.2, ease: 'easeOut' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Warnings */}
+                    {(result.isNoSourcesFound || result.sourcesSearched === 0) ? (
+                      <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+                        <AlertTriangle size={15} className="text-amber-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-amber-700 text-[13px] font-semibold mb-0.5">
+                            Cannot determine plagiarism — no sources retrieved
+                          </p>
+                          <p className="text-amber-600 text-[12px]">
+                            The web search returned no results. This is usually a missing or invalid SerpAPI key. This result does <strong>not</strong> mean the text is original — manual verification is required.
+                          </p>
+                        </div>
+                      </div>
+                    ) : result.isLowConfidence && (
+                      <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+                        <Info size={15} className="text-amber-500 mt-0.5 shrink-0" />
+                        <p className="text-amber-700 text-[13px]">
+                          Short text (under 100 words) limits detection accuracy. For best results paste at least 200 words.
                         </p>
                       </div>
+                    )}
+
+                    {/* Analysis */}
+                    <div className="bg-white border border-gray-100 rounded-xl p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-gray-900 font-semibold">Analysis</h3>
+                        <button
+                          type="button"
+                          onClick={handleCopy}
+                          className="text-[13px] text-gray-500 hover:text-gray-900 transition-colors px-2 py-1 rounded hover:bg-gray-100"
+                        >
+                          Copy summary
+                        </button>
+                      </div>
+                      <p className="text-gray-700 text-[15px] leading-[1.75]">{result.analysis}</p>
                     </div>
 
-                    <div className="mt-4">
-                      <div className="flex justify-between text-[13px] text-slate-400 mb-1.5">
-                        <span>High similarity</span>
-                        <span>Fully original</span>
+                    {/* Source matches */}
+                    {result.sourceMatches.length > 0 && (
+                      <div className="space-y-3">
+                        <h3 className="text-gray-900 font-semibold">
+                          Matched Sources
+                          <span className="ml-2 text-[13px] font-normal text-gray-500">
+                            {result.sourceMatches.length} found
+                          </span>
+                        </h3>
+                        {result.sourceMatches.map((match, i) => (
+                          <SourceMatchCard key={match.url} match={match} index={i} />
+                        ))}
                       </div>
-                      <div className="h-2.5 bg-slate-700 rounded-full overflow-hidden">
-                        <motion.div
-                          className="h-full rounded-full"
-                          style={{ background: 'linear-gradient(to right, #EF4444, #F59E0B, #10B981)' }}
-                          initial={{ width: '0%' }}
-                          animate={{ width: `${result.originalityScore}%` }}
-                          transition={{ duration: 1.2, ease: 'easeOut' }}
-                        />
+                    )}
+
+                    {result.sourceMatches.length === 0 && result.similarityScore < 20 && !result.isNoSourcesFound && result.sourcesSearched > 0 && (
+                      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                        <CheckCircle size={15} className="text-emerald-500 shrink-0" />
+                        <p className="text-emerald-700 text-[14px]">No matching web sources found. This text appears to be original.</p>
                       </div>
-                    </div>
+                    )}
                   </div>
-
-                  {/* No-sources warning */}
-                  {(result.isNoSourcesFound || result.sourcesSearched === 0) ? (
-                    <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
-                      <AlertTriangle size={15} className="text-amber-400 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-amber-300 text-[13px] font-semibold mb-0.5">Cannot determine plagiarism — no sources retrieved</p>
-                        <p className="text-amber-400/70 text-[12px]">
-                          The web search returned no results. This is usually a missing or invalid SerpAPI key. This result does <strong>not</strong> mean the text is original — manual verification is required.
-                        </p>
-                      </div>
-                    </div>
-                  ) : result.isLowConfidence && (
-                    <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
-                      <Info size={15} className="text-amber-400 mt-0.5 shrink-0" />
-                      <p className="text-amber-300 text-[13px]">
-                        Short text (under 100 words) limits detection accuracy. For best results paste at least 200 words.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Analysis */}
-                  <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-slate-100 font-semibold">Analysis</h3>
-                      <button
-                        type="button"
-                        onClick={handleCopy}
-                        className="text-[13px] text-slate-300 hover:text-white transition-colors px-2 py-1 rounded hover:bg-slate-700"
-                      >
-                        Copy summary
-                      </button>
-                    </div>
-                    <p className="text-slate-300 text-[15px] leading-[1.75]">{result.analysis}</p>
-                  </div>
-
-                  {/* Source matches */}
-                  {result.sourceMatches.length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="text-slate-100 font-semibold">
-                        Matched Sources
-                        <span className="ml-2 text-[13px] font-normal text-slate-500">
-                          {result.sourceMatches.length} found
-                        </span>
-                      </h3>
-                      {result.sourceMatches.map((match, i) => (
-                        <SourceMatchCard key={match.url} match={match} index={i} />
-                      ))}
-                    </div>
-                  )}
-
-                  {result.sourceMatches.length === 0 && result.similarityScore < 20 && !result.isNoSourcesFound && result.sourcesSearched > 0 && (
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                      <CheckCircle size={15} className="text-emerald-400 shrink-0" />
-                      <p className="text-emerald-300 text-[14px]">No matching web sources found. This text appears to be original.</p>
-                    </div>
-                  )}
                 </motion.div>
               )}
             </AnimatePresence>
+
           </div>
         </div>
 
-      </main>
+      </div>
     </div>
   )
 }

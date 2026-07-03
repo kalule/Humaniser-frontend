@@ -4,6 +4,48 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design Tokens ──────────────────────────────────────────────────────────── */
+:root {
+  /* Surfaces (lightest → darkest, left → right in the shell) */
+  --surface-page:       #f5f5f3;
+  --surface-rail:       #f1f5f9;
+  --surface-sidebar:    #f8fafc;
+  --surface-card:       #ffffff;
+  --surface-input:      #ffffff;
+
+  /* Brand / Accent */
+  --color-purple:       #7c3aed;
+  --color-purple-tint:  #ede9fe;
+  --color-purple-text:  #5b21b6;
+  --color-purple-deep:  #4c1d95;
+
+  /* Status */
+  --color-green:        #10b981;
+  --color-green-tint:   #d1fae5;
+  --color-green-text:   #065f46;
+  --color-amber:        #f59e0b;
+  --color-amber-tint:   #fef3c7;
+  --color-amber-text:   #92400e;
+  --color-red:          #ef4444;
+  --color-red-tint:     #fee2e2;
+  --color-red-text:     #991b1b;
+
+  /* Borders */
+  --border-hairline:    #e0e0da;
+  --border-strong:      #d1d5db;
+  --border-sidebar:     #e2e8f0;
+
+  /* Text */
+  --text-primary:       #1a1a18;
+  --text-secondary:     #555555;
+  --text-muted:         #888888;
+  --text-disabled:      #c4c4c0;
+
+  /* Interactive */
+  --hover-bg:           #eff6ff;
+  --focus-ring:         0 0 0 2px #ffffff, 0 0 0 4px #7c3aed;
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -13,11 +55,16 @@
 
   html {
     scroll-behavior: smooth;
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
-    @apply bg-dark text-text-main font-sans antialiased;
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background: var(--surface-page);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
@@ -25,21 +72,19 @@
     @apply min-h-screen;
   }
 
-  /* ── Global focus-visible ring (keyboard navigation) ── */
   :focus-visible {
-    outline: 2px solid theme('colors.primary');
-    outline-offset: 2px;
+    outline: none;
+    box-shadow: var(--focus-ring);
     border-radius: 4px;
   }
 
-  /* ── Skip-to-content link (screen readers / keyboard users) ── */
   .skip-to-content {
     position: absolute;
     top: -999px;
     left: 0;
     z-index: 9999;
     padding: 0.75rem 1.5rem;
-    background: theme('colors.primary');
+    background: var(--color-purple);
     color: white;
     font-weight: 600;
     font-size: 0.875rem;
@@ -52,7 +97,8 @@
   }
 
   ::selection {
-    @apply bg-primary/30 text-white;
+    background: var(--color-purple-tint);
+    color: var(--color-purple-text);
   }
 
   ::-webkit-scrollbar {
@@ -61,15 +107,16 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-dark;
+    background: var(--surface-rail);
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-border rounded-full;
+    background: var(--border-strong);
+    border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted;
+    background: var(--text-muted);
   }
 }
 
@@ -87,20 +134,57 @@
   }
 
   .input-base {
-    @apply w-full bg-card border border-border rounded-md px-4 py-3 text-text-main
-           placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/50
-           focus:border-primary transition-all duration-200;
+    background: var(--surface-input);
+    border: 0.5px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--text-primary);
+    font-size: 14px;
+    width: 100%;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .input-base::placeholder {
+    color: var(--text-muted);
+  }
+  .input-base:focus {
+    outline: none;
+    border-color: var(--color-purple);
+    box-shadow: 0 0 0 3px var(--color-purple-tint);
   }
 
   .btn-primary {
-    @apply bg-primary text-white font-semibold
-           rounded-md px-6 py-3 transition-all duration-200 hover:opacity-90
-           hover:shadow-glow active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    background: var(--color-purple);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    height: 36px;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 150ms ease;
+  }
+  .btn-primary:hover {
+    background: var(--color-purple-deep);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .btn-ghost {
-    @apply border border-border text-text-main font-semibold rounded-md px-6 py-3
-           transition-all duration-200 hover:bg-white/5 active:scale-95;
+    background: var(--surface-card);
+    color: var(--text-secondary);
+    border: 0.5px solid var(--border-strong);
+    border-radius: 8px;
+    height: 36px;
+    padding: 0 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease;
+  }
+  .btn-ghost:hover {
+    background: var(--surface-rail);
   }
 
   .animated-gradient-bg {
@@ -134,7 +218,12 @@
   }
 }
 
-/* ── Accessibility: respect reduced motion preference ────────────────────── */
+[contenteditable]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,

@@ -13,6 +13,7 @@ import {
   Infinity,
   Sparkles,
   ArrowLeft,
+  Loader2,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuthStore } from '../store/authStore'
@@ -85,12 +86,12 @@ const FAQS = [
 function FeatureCell({ value }: { value: FeatureValue }) {
   if (typeof value === 'boolean') {
     return value ? (
-      <Check size={16} className="text-primary mx-auto" />
+      <Check size={16} className="text-purple-accent mx-auto" />
     ) : (
-      <X size={16} className="text-muted/40 mx-auto" />
+      <X size={16} className="text-[#d1d5db] mx-auto" />
     )
   }
-  return <span className="text-sm text-text-main">{value}</span>
+  return <span className="text-sm text-text-pri">{value}</span>
 }
 
 // ─── FAQ accordion item ───────────────────────────────────────────────────────
@@ -99,18 +100,18 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
+    <div className="border border-[#e0e0da] bg-white rounded-lg overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/5 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-[#f5f5f3] transition-colors"
       >
-        <span className="text-sm font-medium text-text-main pr-4">{q}</span>
+        <span className="text-sm font-medium text-text-pri pr-4">{q}</span>
         <ChevronDown
           size={16}
           className={cn(
-            'text-muted shrink-0 transition-transform duration-200',
+            'text-text-sec shrink-0 transition-transform duration-200',
             open && 'rotate-180',
           )}
         />
@@ -124,7 +125,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <p className="px-5 pb-4 text-sm text-muted leading-relaxed">{a}</p>
+            <p className="px-5 pb-4 text-sm text-text-sec leading-relaxed">{a}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -180,13 +181,13 @@ function PlanCard({
       className={cn(
         'relative flex flex-col rounded-xl border p-6 transition-all duration-300',
         featured
-          ? 'bg-gradient-to-b from-primary/10 to-card border-primary/50 shadow-[0_0_40px_rgba(99,102,241,0.15)]'
-          : 'bg-card border-border',
+          ? 'bg-gradient-to-b from-violet-50 to-white border-purple-accent/50 shadow-[0_0_32px_rgba(124,58,237,0.12)]'
+          : 'bg-white border-[#e0e0da]',
       )}
     >
       {featured && !isCurrent && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-primary to-secondary text-white shadow-glow">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-purple-accent to-[#a855f7] text-white">
             <Sparkles size={10} />
             Most Popular
           </span>
@@ -195,7 +196,7 @@ function PlanCard({
 
       {isCurrent && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-slate-700 border border-slate-600 text-slate-300">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-[#f5f5f3] border border-[#d1d5db] text-text-sec">
             Current Plan
           </span>
         </div>
@@ -204,38 +205,38 @@ function PlanCard({
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-primary">{icon}</span>
-          <span className="text-base font-bold text-text-main">{name}</span>
+          <span className="text-purple-accent">{icon}</span>
+          <span className="text-base font-bold text-text-pri">{name}</span>
         </div>
-        <p className="text-xs text-muted">{description}</p>
+        <p className="text-xs text-text-sec">{description}</p>
       </div>
 
       {/* Price */}
       <div className="mb-6">
         {isFree ? (
           <div className="flex items-end gap-1">
-            <span className="text-3xl font-bold text-text-main">R0</span>
-            <span className="text-sm text-muted mb-1"> / month</span>
+            <span className="text-3xl font-bold text-text-pri">R0</span>
+            <span className="text-sm text-text-sec mb-1"> / month</span>
           </div>
         ) : (
           <>
             <div className="flex items-end gap-1">
-              <span className="text-3xl font-bold text-text-main">
+              <span className="text-3xl font-bold text-text-pri">
                 R{monthlyEquivalent}
               </span>
-              <span className="text-sm text-muted mb-1">/month</span>
+              <span className="text-sm text-text-sec mb-1">/month</span>
             </div>
             {isAnnual ? (
               <div className="mt-1 space-y-0.5">
-                <p className="text-xs text-muted">
+                <p className="text-xs text-text-sec">
                   Billed annually — R{annualTotal.toLocaleString()}/year
                 </p>
-                <p className="text-xs text-emerald-400 font-medium">
+                <p className="text-xs text-emerald-700 font-medium">
                   Save R{annualSaving.toLocaleString()}/year vs monthly
                 </p>
               </div>
             ) : (
-              <p className="text-xs text-muted mt-1">Billed monthly · cancel anytime</p>
+              <p className="text-xs text-text-sec mt-1">Billed monthly · cancel anytime</p>
             )}
           </>
         )}
@@ -245,15 +246,15 @@ function PlanCard({
       <ul className="space-y-3 mb-8 flex-1">
         {features.map((f) => (
           <li key={f} className="flex items-start gap-2.5">
-            <Check size={14} className="text-primary shrink-0 mt-0.5" />
-            <span className="text-sm text-text-main/80">{f}</span>
+            <Check size={14} className="text-purple-accent shrink-0 mt-0.5" />
+            <span className="text-sm text-text-sec">{f}</span>
           </li>
         ))}
       </ul>
 
       {/* CTA */}
       {isCurrent ? (
-        <div className="w-full py-3 rounded-md text-sm font-semibold text-center border border-border text-muted cursor-default">
+        <div className="w-full py-3 rounded-md text-sm font-semibold text-center border border-[#e0e0da] text-text-sec bg-[#f5f5f3] cursor-default">
           Your current plan
         </div>
       ) : isFree || ctaLink ? (
@@ -262,8 +263,8 @@ function PlanCard({
           className={cn(
             'block text-center py-3 rounded-md text-sm font-semibold transition-all duration-200',
             featured
-              ? 'bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 hover:shadow-glow'
-              : 'border border-border text-text-main hover:bg-white/5',
+              ? 'bg-gradient-to-r from-purple-accent to-[#a855f7] text-white hover:opacity-90'
+              : 'border border-[#d1d5db] text-text-pri hover:bg-[#f5f5f3]',
           )}
         >
           {cta}
@@ -277,16 +278,13 @@ function PlanCard({
             'w-full py-3 rounded-md text-sm font-semibold transition-all duration-200',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             featured
-              ? 'bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 hover:shadow-glow'
-              : 'border border-border text-text-main hover:bg-white/5',
+              ? 'bg-gradient-to-r from-purple-accent to-[#a855f7] text-white hover:opacity-90'
+              : 'border border-[#d1d5db] text-text-pri hover:bg-[#f5f5f3]',
           )}
         >
           {isLoading ? (
             <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
+              <Loader2 size={16} className="animate-spin" />
               Redirecting…
             </span>
           ) : (
@@ -348,7 +346,7 @@ export function PricingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-dark">
+    <div className="min-h-screen bg-surface-page">
       {/* Public navbar — only on /pricing standalone route */}
       {isPublicRoute && <Navbar />}
 
@@ -357,7 +355,7 @@ export function PricingPage() {
         <div className="px-6 pt-4">
           <Link
             to="/app"
-            className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-text-main transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-text-sec hover:text-text-pri transition-colors"
           >
             <ArrowLeft size={14} />
             Back to app
@@ -372,26 +370,26 @@ export function PricingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 mb-4">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-violet-50 text-purple-accent border border-violet-200 mb-4">
             <Shield size={11} />
             7-Day Money-Back Guarantee
           </span>
-          <h1 className="text-4xl sm:text-5xl font-bold text-text-main mb-4">
+          <h1 className="text-4xl sm:text-5xl font-bold text-text-pri mb-4">
             Simple, Transparent Pricing
           </h1>
-          <p className="text-lg text-muted max-w-xl mx-auto mb-8">
+          <p className="text-lg text-text-sec max-w-xl mx-auto mb-8">
             Choose the plan that fits your writing needs. Upgrade or downgrade at any time.
           </p>
 
           {/* Monthly / Annual toggle */}
-          <div className="inline-flex items-center gap-3 bg-card border border-border rounded-full p-1.5">
+          <div className="inline-flex items-center gap-3 bg-white border border-[#d1d5db] rounded-full p-1.5">
             <button
               type="button"
               onClick={() => setIsAnnual(false)}
               aria-pressed={!isAnnual}
               className={cn(
                 'px-5 py-2 rounded-full text-sm font-medium transition-all duration-200',
-                !isAnnual ? 'bg-primary text-white shadow-glow' : 'text-muted hover:text-text-main',
+                !isAnnual ? 'bg-purple-accent text-white' : 'text-text-sec hover:text-text-pri',
               )}
             >
               Monthly
@@ -402,11 +400,11 @@ export function PricingPage() {
               aria-pressed={isAnnual}
               className={cn(
                 'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium transition-all duration-200',
-                isAnnual ? 'bg-primary text-white shadow-glow' : 'text-muted hover:text-text-main',
+                isAnnual ? 'bg-purple-accent text-white' : 'text-text-sec hover:text-text-pri',
               )}
             >
               Annual
-              <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+              <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
                 Save 20%
               </span>
             </button>
@@ -485,23 +483,23 @@ export function PricingPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8 text-sm text-muted"
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8 text-sm text-text-sec"
         >
           <span className="flex items-center gap-2">
-            <Shield size={15} className="text-emerald-400" />
-            <span className="text-text-main font-medium">7-Day Money-Back Guarantee</span>
+            <Shield size={15} className="text-emerald-600" />
+            <span className="text-text-pri font-medium">7-Day Money-Back Guarantee</span>
           </span>
-          <span className="hidden sm:block text-border">·</span>
+          <span className="hidden sm:block text-[#e0e0da]">·</span>
           <span>No credit card required for Free</span>
-          <span className="hidden sm:block text-border">·</span>
+          <span className="hidden sm:block text-[#e0e0da]">·</span>
           <span>Cancel anytime</span>
         </motion.div>
 
         {/* Login nudge for unauthenticated visitors */}
         {!isAuthenticated && (
-          <p className="text-center text-sm text-muted mt-4">
+          <p className="text-center text-sm text-text-sec mt-4">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
+            <Link to="/login" className="text-purple-accent hover:text-purple-text font-medium transition-colors">
               Log in →
             </Link>
           </p>
@@ -510,15 +508,15 @@ export function PricingPage() {
 
       {/* Feature comparison table */}
       <div className="max-w-4xl mx-auto px-4 pb-16">
-        <h2 className="text-2xl font-bold text-text-main text-center mb-8">Compare Plans</h2>
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <h2 className="text-2xl font-bold text-text-pri text-center mb-8">Compare Plans</h2>
+        <div className="bg-white border border-[#e0e0da] rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border">
-                <th className="text-left px-5 py-4 text-sm font-semibold text-muted">Feature</th>
-                <th className="text-center px-4 py-4 text-sm font-semibold text-muted">Free</th>
-                <th className="text-center px-4 py-4 text-sm font-bold text-primary">Pro</th>
-                <th className="text-center px-4 py-4 text-sm font-semibold text-muted">Unlimited</th>
+              <tr className="border-b border-[#e0e0da]">
+                <th className="text-left px-5 py-4 text-sm font-semibold text-text-sec">Feature</th>
+                <th className="text-center px-4 py-4 text-sm font-semibold text-text-sec">Free</th>
+                <th className="text-center px-4 py-4 text-sm font-bold text-purple-accent">Pro</th>
+                <th className="text-center px-4 py-4 text-sm font-semibold text-text-sec">Unlimited</th>
               </tr>
             </thead>
             <tbody>
@@ -526,13 +524,13 @@ export function PricingPage() {
                 <tr
                   key={f.label}
                   className={cn(
-                    'border-b border-border/50 last:border-b-0',
-                    i % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.02]',
+                    'border-b border-[#e0e0da] last:border-b-0',
+                    i % 2 === 0 ? 'bg-transparent' : 'bg-[#f8fafc]',
                   )}
                 >
-                  <td className="px-5 py-3.5 text-sm text-text-main">{f.label}</td>
+                  <td className="px-5 py-3.5 text-sm text-text-pri">{f.label}</td>
                   <td className="px-4 py-3.5 text-center"><FeatureCell value={f.free} /></td>
-                  <td className="px-4 py-3.5 text-center bg-primary/5"><FeatureCell value={f.pro} /></td>
+                  <td className="px-4 py-3.5 text-center bg-violet-50"><FeatureCell value={f.pro} /></td>
                   <td className="px-4 py-3.5 text-center"><FeatureCell value={f.unlimited} /></td>
                 </tr>
               ))}
@@ -543,7 +541,7 @@ export function PricingPage() {
 
       {/* FAQ */}
       <div className="max-w-2xl mx-auto px-4 pb-16">
-        <h2 className="text-2xl font-bold text-text-main text-center mb-8">
+        <h2 className="text-2xl font-bold text-text-pri text-center mb-8">
           Frequently Asked Questions
         </h2>
         <div className="space-y-3">
@@ -555,19 +553,19 @@ export function PricingPage() {
 
       {/* Final CTA — appears after FAQ so users who scroll down have a destination */}
       <div className="max-w-2xl mx-auto px-4 pb-20 text-center">
-        <p className="text-muted text-sm mb-4">Still have questions?</p>
+        <p className="text-text-sec text-sm mb-4">Still have questions?</p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           {!isAuthenticated ? (
             <>
               <Link
                 to="/register"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-accent to-[#a855f7] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
               >
                 Start for free — no card needed
               </Link>
               <Link
                 to="/login"
-                className="text-sm text-muted hover:text-text-main transition-colors"
+                className="text-sm text-text-sec hover:text-text-pri transition-colors"
               >
                 Log in to your account →
               </Link>
@@ -575,7 +573,7 @@ export function PricingPage() {
           ) : (
             <Link
               to="/app"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-accent to-[#a855f7] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
             >
               Back to your workspace →
             </Link>

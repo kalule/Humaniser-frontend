@@ -23,6 +23,8 @@ export interface SummariseResponse {
   processingTimeMs: number
   /** True when the document was too long for a single pass and was processed via Map-Reduce chunking. */
   isChunked: boolean
+  /** Number of chunks processed in the map stage. 1 when not chunked, 0 when served from cache. */
+  chunksProcessed: number
   wordsUsed: number
   wordsLimit: number
   wordsRemaining: number

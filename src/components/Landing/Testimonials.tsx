@@ -3,6 +3,27 @@ import { useRef } from 'react'
 import { Star } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
+// ⚠️ COPY REVIEW NEEDED — Add real testimonials for these two use cases once users are available.
+// Proposal Studio testimonial template:
+// {
+//   stars: 5,
+//   quote: '[INSERT REAL QUOTE from a Proposal Studio user]',
+//   initials: '??',
+//   name: '[First Last]',
+//   role: '[Role, University / City]',
+//   avatarBg: 'from-blue-500 to-blue-700',
+// },
+//
+// Data Analyst testimonial template:
+// {
+//   stars: 5,
+//   quote: '[INSERT REAL QUOTE from a Data Analyst user]',
+//   initials: '??',
+//   name: '[First Last]',
+//   role: '[Role, University / City]',
+//   avatarBg: 'from-purple-500 to-purple-700',
+// },
+
 const TESTIMONIALS = [
   {
     stars: 5,
@@ -67,7 +88,7 @@ function StarRow({ count }: { count: number }) {
         <Star
           key={i}
           size={13}
-          className={i < count ? 'text-amber-400 fill-amber-400' : 'text-slate-600'}
+          className={i < count ? 'text-amber-400 fill-amber-400' : 'text-[#d1d5db]'}
         />
       ))}
     </div>
@@ -79,7 +100,7 @@ export function Testimonials() {
   const isInView = useInView(ref, { once: true, margin: '-80px' })
 
   return (
-    <section ref={ref} className="py-20 px-4">
+    <section ref={ref} className="py-20 px-4 bg-white border-y border-[#e0e0da]">
       <div className="max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -87,14 +108,14 @@ export function Testimonials() {
           transition={{ duration: 0.5 }}
           className="text-center mb-14"
         >
-          <span className="inline-block px-3 py-1 rounded-full bg-white/5 border border-slate-700 text-slate-400 text-xs font-semibold mb-4">
-            Loved by Writers
+          <span className="inline-block px-3 py-1 rounded-full bg-[#ede9fe] border border-violet-200 text-[#5b21b6] text-xs font-semibold mb-4">
+            Loved by Researchers
           </span>
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Trusted by writers across South Africa
+          <h2 className="text-3xl sm:text-4xl font-bold text-[#1a1a18] mb-4">
+            Trusted across South Africa
           </h2>
-          <p className="text-slate-400 text-base max-w-xl mx-auto">
-            Students, marketers, and content creators rely on HumaniseAI daily.
+          <p className="text-[#555555] text-base max-w-xl mx-auto">
+            Students, researchers, and content creators rely on HumaniseAI every day.
           </p>
         </motion.div>
 
@@ -106,10 +127,10 @@ export function Testimonials() {
               initial={{ opacity: 0, y: 20 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.4, delay: i * 0.08 }}
-              className="bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-2xl p-5 flex flex-col gap-3 transition-all duration-200 hover:shadow-lg"
+              className="bg-white border border-[#e0e0da] hover:border-[#d1d5db] rounded-2xl p-5 flex flex-col gap-3 transition-all duration-200 hover:shadow-md"
             >
               <StarRow count={t.stars} />
-              <p className="text-base text-slate-400 leading-relaxed flex-1">
+              <p className="text-base text-[#555555] leading-relaxed flex-1">
                 &ldquo;{t.quote}&rdquo;
               </p>
               <div className="flex items-center gap-2.5">
@@ -122,8 +143,8 @@ export function Testimonials() {
                   {t.initials}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white leading-none">{t.name}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{t.role}</p>
+                  <p className="text-sm font-semibold text-[#1a1a18] leading-none">{t.name}</p>
+                  <p className="text-xs text-[#888888] mt-0.5">{t.role}</p>
                 </div>
               </div>
             </motion.article>

@@ -79,17 +79,17 @@ function UsageBar({ used, limit }: { used: number; limit: number }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-muted">{formatNumber(used)} used</span>
-        <span className="text-muted">{formatNumber(limit)} limit</span>
+        <span className="text-text-sec">{formatNumber(used)} used</span>
+        <span className="text-text-sec">{formatNumber(limit)} limit</span>
       </div>
-      <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+      <div className="h-2 w-full rounded-full bg-[#e0e0da] overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
           className={cn(
             'h-full rounded-full',
-            isDanger ? 'bg-red-500' : isWarning ? 'bg-amber-400' : 'bg-gradient-to-r from-primary to-secondary',
+            isDanger ? 'bg-red-500' : isWarning ? 'bg-amber-400' : 'bg-gradient-to-r from-purple-accent to-[#a855f7]',
           )}
         />
       </div>
@@ -109,28 +109,27 @@ function PasswordField({ label, error, registration }: PasswordFieldProps) {
   const [show, setShow] = useState(false)
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-text-main">{label}</label>
+      <label className="text-sm font-medium text-text-pri">{label}</label>
       <div className="relative">
         <input
           {...registration}
           type={show ? 'text' : 'password'}
           className={cn(
-            'w-full bg-card border rounded-md px-4 py-3 pr-10 text-sm text-text-main placeholder:text-muted',
-            'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all',
-            error ? 'border-red-500' : 'border-border',
+            'input-base pr-10',
+            error ? 'border-red-400' : '',
           )}
         />
         <button
           type="button"
           tabIndex={-1}
           onClick={() => setShow((v) => !v)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text-main transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-text-mut hover:text-text-pri transition-colors"
           aria-label={show ? 'Hide password' : 'Show password'}
         >
           {show ? <EyeOff size={15} /> : <Eye size={15} />}
         </button>
       </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   )
 }
@@ -156,13 +155,13 @@ function PasswordStrength({ password }: { password: string }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+        <div className="flex-1 h-1.5 rounded-full bg-[#e0e0da] overflow-hidden">
           <div
             className={cn('h-full rounded-full transition-all duration-300', strengthColor)}
             style={{ width: `${(score / 4) * 100}%` }}
           />
         </div>
-        <span className="text-xs text-muted w-12 text-right">{strengthLabel}</span>
+        <span className="text-xs text-text-sec w-12 text-right">{strengthLabel}</span>
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         {checks.map((c) => (
@@ -170,7 +169,7 @@ function PasswordStrength({ password }: { password: string }) {
             key={c.label}
             className={cn(
               'flex items-center gap-1 text-xs',
-              c.pass ? 'text-emerald-400' : 'text-muted',
+              c.pass ? 'text-emerald-600' : 'text-text-sec',
             )}
           >
             <CheckCircle2 size={10} />
@@ -224,7 +223,7 @@ function ProfileTab() {
       {/* Avatar */}
       <div className="flex items-center gap-4">
         <div className="relative group">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xl font-bold select-none">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-accent to-[#a855f7] flex items-center justify-center text-white text-xl font-bold select-none">
             {initials}
           </div>
           <button
@@ -235,66 +234,57 @@ function ProfileTab() {
           </button>
         </div>
         <div>
-          <p className="text-sm font-medium text-text-main">{user?.name ?? 'No name set'}</p>
-          <p className="text-xs text-muted">{user?.email}</p>
+          <p className="text-sm font-medium text-text-pri">{user?.name ?? 'No name set'}</p>
+          <p className="text-xs text-text-sec">{user?.email}</p>
         </div>
       </div>
 
       {/* Name */}
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-text-main">Full Name</label>
+        <label className="text-sm font-medium text-text-pri">Full Name</label>
         <input
           {...register('name')}
           type="text"
           placeholder="Your name"
-          className={cn(
-            'w-full bg-card border rounded-md px-4 py-3 text-sm text-text-main placeholder:text-muted',
-            'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all',
-            errors.name ? 'border-red-500' : 'border-border',
-          )}
+          className={cn('input-base', errors.name ? 'border-red-400' : '')}
         />
-        {errors.name && <p className="text-xs text-red-400">{errors.name.message}</p>}
+        {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
       </div>
 
       {/* Email */}
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-text-main">Email Address</label>
+        <label className="text-sm font-medium text-text-pri">Email Address</label>
         <div className="relative">
           <input
             {...register('email')}
             type="email"
             placeholder="you@example.com"
-            className={cn(
-              'w-full bg-card border rounded-md px-4 py-3 pr-24 text-sm text-text-main placeholder:text-muted',
-              'focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all',
-              errors.email ? 'border-red-500' : 'border-border',
-            )}
+            className={cn('input-base pr-24', errors.email ? 'border-red-400' : '')}
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             {user?.isEmailVerified ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">
+              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1">
                 <CheckCircle2 size={10} />
                 Verified
               </span>
             ) : (
               <button
                 type="button"
-                className="text-xs text-primary hover:text-secondary underline underline-offset-2 transition-colors"
+                className="text-xs text-purple-accent hover:text-purple-text underline underline-offset-2 transition-colors"
               >
                 Verify
               </button>
             )}
           </div>
         </div>
-        {errors.email && <p className="text-xs text-red-400">{errors.email.message}</p>}
+        {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
       </div>
 
       <button
         type="submit"
         disabled={!isDirty || mutation.isPending}
         className={cn(
-          'inline-flex items-center gap-2 px-6 py-3 rounded-md text-sm font-semibold transition-all duration-200',
-          'bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 hover:shadow-glow',
+          'btn-primary inline-flex items-center gap-2 !h-11 text-sm font-semibold',
           'disabled:opacity-50 disabled:cursor-not-allowed',
         )}
       >
@@ -358,8 +348,7 @@ function SecurityTab() {
         type="submit"
         disabled={mutation.isPending}
         className={cn(
-          'inline-flex items-center gap-2 px-6 py-3 rounded-md text-sm font-semibold transition-all duration-200',
-          'bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 hover:shadow-glow',
+          'btn-primary inline-flex items-center gap-2 !h-11 text-sm font-semibold',
           'disabled:opacity-50 disabled:cursor-not-allowed',
         )}
       >
@@ -408,20 +397,20 @@ function BillingTab() {
   return (
     <div className="space-y-6 max-w-lg">
       {/* Current plan */}
-      <div className="bg-card border border-border rounded-lg p-5">
+      <div className="bg-white border border-[#e0e0da] rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-xs text-muted uppercase tracking-wider font-medium mb-1">Current Plan</p>
+            <p className="text-xs text-text-sec uppercase tracking-wider font-medium mb-1">Current Plan</p>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-text-main">{planLabel}</span>
+              <span className="text-lg font-bold text-text-pri">{planLabel}</span>
               <Badge variant={planBadgeVariant}>{planLabel}</Badge>
             </div>
-            <p className="text-sm text-muted mt-0.5">{planPrice}</p>
+            <p className="text-sm text-text-sec mt-0.5">{planPrice}</p>
           </div>
           {user?.plan === 'Free' ? (
             <Link
               to="/pricing"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-semibold bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 transition-opacity"
+              className="btn-primary inline-flex items-center gap-1.5"
             >
               Upgrade Plan
               <ChevronRight size={14} />
@@ -431,7 +420,7 @@ function BillingTab() {
               type="button"
               onClick={() => portalMutation.mutate()}
               disabled={portalMutation.isPending}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-border text-text-main hover:bg-white/5 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-[#d1d5db] text-text-pri hover:bg-[#f5f5f3] disabled:opacity-50 transition-colors"
             >
               {portalMutation.isPending && <Loader2 size={13} className="animate-spin" />}
               Manage Billing
@@ -442,14 +431,14 @@ function BillingTab() {
         {/* Usage */}
         {usageLoading ? (
           <div className="space-y-2 animate-pulse">
-            <div className="h-3 bg-white/10 rounded-full w-1/3" />
-            <div className="h-2 bg-white/10 rounded-full" />
+            <div className="h-3 bg-[#e0e0da] rounded-full w-1/3" />
+            <div className="h-2 bg-[#e0e0da] rounded-full" />
           </div>
         ) : usage ? (
           <div className="space-y-2">
-            <p className="text-xs text-muted">Words used this month</p>
+            <p className="text-xs text-text-sec">Words used this month</p>
             <UsageBar used={usage.wordsUsedThisMonth} limit={usage.wordsLimit} />
-            <p className="text-xs text-muted">
+            <p className="text-xs text-text-sec">
               {formatNumber(usage.wordsRemaining)} words remaining · Resets{' '}
               {formatDate(usage.resetDate)}
             </p>
@@ -459,29 +448,29 @@ function BillingTab() {
 
       {/* Subscription details */}
       {!subLoading && subscription && (
-        <div className="bg-card border border-border rounded-lg p-5 space-y-3">
-          <p className="text-sm font-semibold text-text-main">Subscription Details</p>
+        <div className="bg-white border border-[#e0e0da] rounded-xl p-5 space-y-3">
+          <p className="text-sm font-semibold text-text-pri">Subscription Details</p>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <p className="text-xs text-muted mb-0.5">Status</p>
+              <p className="text-xs text-text-sec mb-0.5">Status</p>
               <span
                 className={cn(
                   'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
                   subscription.status === 'active'
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'bg-amber-500/20 text-amber-400',
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200',
                 )}
               >
                 {subscription.status}
               </span>
             </div>
             <div>
-              <p className="text-xs text-muted mb-0.5">Next billing date</p>
-              <p className="text-text-main font-medium">{formatDate(subscription.currentPeriodEnd)}</p>
+              <p className="text-xs text-text-sec mb-0.5">Next billing date</p>
+              <p className="text-text-pri font-medium">{formatDate(subscription.currentPeriodEnd)}</p>
             </div>
             {subscription.cancelAtPeriodEnd && (
               <div className="col-span-2">
-                <p className="text-xs text-amber-400">
+                <p className="text-xs text-amber-700">
                   Your subscription will cancel on {formatDate(subscription.currentPeriodEnd)}.
                 </p>
               </div>
@@ -492,10 +481,10 @@ function BillingTab() {
 
       {/* Free-plan upgrade prompt */}
       {user?.plan === 'Free' && (
-        <div className="bg-gradient-to-br from-indigo-600/10 to-purple-600/10 border border-indigo-500/20 rounded-lg p-5">
+        <div className="bg-violet-50 border border-violet-200 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3">
-            <Zap size={16} className="text-indigo-400" />
-            <p className="text-sm font-semibold text-text-main">Unlock more with Pro</p>
+            <Zap size={16} className="text-purple-accent" />
+            <p className="text-sm font-semibold text-text-pri">Unlock more with Pro</p>
           </div>
           <ul className="space-y-2 mb-5">
             {[
@@ -505,15 +494,15 @@ function BillingTab() {
               'Priority processing speed',
               '7-day money-back guarantee',
             ].map((feature) => (
-              <li key={feature} className="flex items-center gap-2 text-sm text-muted">
-                <CheckCircle2 size={13} className="text-indigo-400 shrink-0" />
+              <li key={feature} className="flex items-center gap-2 text-sm text-text-sec">
+                <CheckCircle2 size={13} className="text-purple-accent shrink-0" />
                 {feature}
               </li>
             ))}
           </ul>
           <Link
             to="/pricing"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+            className="btn-primary inline-flex items-center gap-2"
           >
             View Plans
             <ArrowRight size={14} />
@@ -552,12 +541,12 @@ function DangerZoneTab() {
 
   return (
     <div className="max-w-lg">
-      <div className="border border-red-500/30 rounded-lg p-6 bg-red-500/5">
+      <div className="border border-red-200 rounded-xl p-6 bg-red-50">
         <div className="flex items-start gap-3 mb-4">
-          <TriangleAlert size={20} className="text-red-400 mt-0.5 shrink-0" />
+          <TriangleAlert size={20} className="text-red-600 mt-0.5 shrink-0" />
           <div>
-            <p className="text-base font-semibold text-text-main">Delete Account</p>
-            <p className="text-sm text-muted mt-1">
+            <p className="text-base font-semibold text-text-pri">Delete Account</p>
+            <p className="text-sm text-text-sec mt-1">
               Permanently delete your account and all associated data. This action cannot be undone.
             </p>
           </div>
@@ -565,7 +554,7 @@ function DangerZoneTab() {
         <button
           type="button"
           onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-semibold bg-red-500/10 border border-red-500/40 text-red-400 hover:bg-red-500/20 transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-semibold bg-white border border-red-300 text-red-700 hover:bg-red-50 transition-colors"
         >
           <AlertTriangle size={15} />
           Delete My Account
@@ -585,15 +574,15 @@ function DangerZoneTab() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="relative bg-card border border-red-500/30 rounded-lg p-6 max-w-md w-full shadow-elevated"
+              className="relative bg-white border border-[#e0e0da] rounded-lg p-6 max-w-md w-full shadow-elevated"
             >
               <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle size={18} className="text-red-400" />
-                <h3 className="text-base font-semibold text-text-main">Confirm Account Deletion</h3>
+                <AlertTriangle size={18} className="text-red-600" />
+                <h3 className="text-base font-semibold text-text-pri">Confirm Account Deletion</h3>
               </div>
-              <p className="text-sm text-muted mb-5">
+              <p className="text-sm text-text-sec mb-5">
                 This will permanently delete your account, all your history, and cancel any active subscription. Type{' '}
-                <code className="text-red-400 bg-red-500/10 px-1 rounded">DELETE</code> to confirm.
+                <code className="text-red-700 bg-red-50 border border-red-200 px-1 rounded">DELETE</code> to confirm.
               </p>
 
               <form
@@ -601,8 +590,8 @@ function DangerZoneTab() {
                 className="space-y-4"
               >
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-text-main">
-                    Type <span className="text-red-400 font-bold">DELETE</span> to confirm
+                  <label className="text-sm font-medium text-text-pri">
+                    Type <span className="text-red-700 font-bold">DELETE</span> to confirm
                   </label>
                   <input
                     {...register('confirmation')}
@@ -610,30 +599,28 @@ function DangerZoneTab() {
                     placeholder="DELETE"
                     autoComplete="off"
                     className={cn(
-                      'w-full bg-dark border rounded-md px-4 py-3 text-sm text-text-main placeholder:text-muted/50',
-                      'focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all',
-                      errors.confirmation ? 'border-red-500' : 'border-border',
+                      'input-base focus:!border-red-500 focus:![box-shadow:0_0_0_3px_#fee2e2]',
+                      errors.confirmation ? 'border-red-400' : '',
                     )}
                   />
                   {errors.confirmation && (
-                    <p className="text-xs text-red-400">{errors.confirmation.message}</p>
+                    <p className="text-xs text-red-600">{errors.confirmation.message}</p>
                   )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-text-main">Your password</label>
+                  <label className="text-sm font-medium text-text-pri">Your password</label>
                   <input
                     {...register('password')}
                     type="password"
                     placeholder="Enter your password"
                     className={cn(
-                      'w-full bg-dark border rounded-md px-4 py-3 text-sm text-text-main placeholder:text-muted/50',
-                      'focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-all',
-                      errors.password ? 'border-red-500' : 'border-border',
+                      'input-base focus:!border-red-500 focus:![box-shadow:0_0_0_3px_#fee2e2]',
+                      errors.password ? 'border-red-400' : '',
                     )}
                   />
                   {errors.password && (
-                    <p className="text-xs text-red-400">{errors.password.message}</p>
+                    <p className="text-xs text-red-600">{errors.password.message}</p>
                   )}
                 </div>
 
@@ -641,14 +628,14 @@ function DangerZoneTab() {
                   <button
                     type="button"
                     onClick={() => { setShowModal(false); reset() }}
-                    className="flex-1 py-2.5 rounded-md text-sm font-medium border border-border text-text-main hover:bg-white/5 transition-colors"
+                    className="flex-1 py-2.5 rounded-md text-sm font-medium border border-[#d1d5db] text-text-pri hover:bg-[#f5f5f3] transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={deleteMutation.isPending}
-                    className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-semibold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {deleteMutation.isPending && <Loader2 size={14} className="animate-spin" />}
                     Delete Account
@@ -676,16 +663,16 @@ export function AccountPage() {
   }
 
   return (
-    <div className="min-h-screen bg-dark px-4 sm:px-6 py-8">
+    <div className="min-h-screen bg-surface-page px-4 sm:px-6 py-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-text-main">Account Settings</h1>
-          <p className="text-sm text-muted mt-1">Manage your profile, security, and billing</p>
+          <h1 className="text-2xl font-bold text-text-pri">Account Settings</h1>
+          <p className="text-sm text-text-sec mt-1">Manage your profile, security, and billing</p>
         </div>
 
         {/* Tab navigation */}
-        <div className="flex gap-1 border-b border-border mb-8 overflow-x-auto">
+        <div className="flex gap-1 border-b border-[#e0e0da] mb-8 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -695,12 +682,12 @@ export function AccountPage() {
                 'inline-flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all duration-200 border-b-2 -mb-px',
                 activeTab === tab.id
                   ? tab.id === 'danger'
-                    ? 'border-red-500 text-red-400'
-                    : 'border-primary text-text-main'
-                  : 'border-transparent text-muted hover:text-text-main',
+                    ? 'border-red-600 text-red-700'
+                    : 'border-purple-accent text-text-pri'
+                  : 'border-transparent text-text-sec hover:text-text-pri',
               )}
             >
-              <span className={activeTab === tab.id && tab.id === 'danger' ? 'text-red-400' : ''}>
+              <span className={activeTab === tab.id && tab.id === 'danger' ? 'text-red-700' : ''}>
                 {tab.icon}
               </span>
               {tab.label}

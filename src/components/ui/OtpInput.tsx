@@ -65,16 +65,16 @@ export function OtpInput({ value, onChange, length = 6, disabled = false, hasErr
           onPaste={handlePaste}
           onFocus={(e) => e.target.select()}
           className={cn(
-            'w-12 h-14 text-center text-xl font-bold rounded-md border bg-card',
+            'w-12 h-14 text-center text-xl font-bold rounded-md border bg-white',
             'transition-all duration-200 focus:outline-none focus:ring-2',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             value[i]
               ? hasError
-                ? 'border-red-500 text-red-400 focus:ring-red-500/40'
-                : 'border-primary text-primary focus:ring-primary/40'
+                ? 'border-red-400 text-red-600 focus:ring-red-200'
+                : 'border-purple-accent text-purple-accent focus:ring-[#7c3aed]/20'
               : hasError
-                ? 'border-red-500/50 text-text-main focus:ring-red-500/40'
-                : 'border-border text-text-main focus:ring-primary/40',
+                ? 'border-red-300 text-text-pri focus:ring-red-200'
+                : 'border-[#d1d5db] text-text-pri focus:ring-[#7c3aed]/20',
           )}
           aria-label={`Digit ${i + 1}`}
         />

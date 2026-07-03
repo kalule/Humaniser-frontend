@@ -221,6 +221,7 @@ export function WorkspacePage() {
   const [isDetectingOutput, setIsDetectingOutput] = useState(false)
   const [inputDetection, setInputDetection] = useState<DetectResponse | null>(null)
   const [outputDetection, setOutputDetection] = useState<DetectResponse | null>(null)
+  const [typewriterDone, setTypewriterDone] = useState(false)
 
   const inputWordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0
   const outputWordCount = outputText.trim() ? outputText.trim().split(/\s+/).length : 0
@@ -246,7 +247,7 @@ export function WorkspacePage() {
     setInputDetection(null)
     const [humaniseRes, detectInputRes] = await Promise.allSettled([
       humaniseApi.humanise({ text: inputText, tone, strength }).then((r) => r.data),
-      detectorApi.detect({ text: inputText }),
+      inputText.length >= 50 ? detectorApi.detect({ text: inputText.slice(0, 10000) }) : Promise.resolve(null),
     ])
 
     if (humaniseRes.status === 'fulfilled') {
@@ -255,6 +256,7 @@ export function WorkspacePage() {
       updateUser({ wordsUsed: data.usage.wordsUsed, wordsLimit: data.usage.wordsLimit })
 
       setTimeout(async () => {
+        if (data.humanisedText.length < 50) return
         setIsDetectingOutput(true)
         try {
           const outputDetect = await detectorApi.detect({ text: data.humanisedText })

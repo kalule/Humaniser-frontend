@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, ArrowLeft, CheckCircle, Loader2, Mail } from 'lucide-react'
+import { Sparkles, ArrowLeft, CheckCircle, Loader2, Mail, AlertCircle } from 'lucide-react'
 import { authApi } from '../../api/auth'
 import { cn } from '../../lib/utils'
 
@@ -33,7 +33,7 @@ export function ForgotPasswordPage() {
       await authApi.forgotPassword(data.email)
       setSuccess(true)
     } catch {
-      // Show success regardless — don't leak whether email exists
+      // Always show success — don't leak whether the email exists
       setSuccess(true)
     } finally {
       setIsLoading(false)
@@ -41,11 +41,11 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen animated-gradient-bg grid-pattern flex items-center justify-center px-4">
-      {/* Decorative orbs */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-80 h-80 rounded-full bg-primary/20 blur-[100px]" />
-        <div className="absolute -bottom-40 -right-40 w-80 h-80 rounded-full bg-secondary/20 blur-[100px]" />
+    <div className="min-h-screen bg-surface-page flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Decorative background orbs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-purple-100/70 blur-[120px]" />
+        <div className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-indigo-100/50 blur-[120px]" />
       </div>
 
       <motion.div
@@ -54,7 +54,7 @@ export function ForgotPasswordPage() {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md relative z-10"
       >
-        <div className="glass rounded-xl p-8 shadow-elevated border border-white/10">
+        <div className="bg-surface-card rounded-2xl p-8 shadow-elevated border border-border-h">
           <AnimatePresence mode="wait">
             {!success ? (
               <motion.div
@@ -66,11 +66,11 @@ export function ForgotPasswordPage() {
               >
                 {/* Header */}
                 <div className="text-center mb-8">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary mb-4">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-purple-accent to-[#a855f7] mb-4">
                     <Sparkles size={22} className="text-white" />
                   </div>
-                  <h1 className="text-2xl font-bold text-text-main">Reset password</h1>
-                  <p className="text-muted mt-1 text-sm">
+                  <h1 className="text-2xl font-bold text-text-pri">Reset password</h1>
+                  <p className="text-text-sec mt-1 text-sm">
                     Enter your email and we&apos;ll send a reset link
                   </p>
                 </div>
@@ -78,47 +78,49 @@ export function ForgotPasswordPage() {
                 {/* Form */}
                 <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-text-main mb-1.5">
+                    <label htmlFor="forgot-email" className="block text-sm font-medium text-text-pri mb-1.5">
                       Email address
                     </label>
                     <input
                       {...register('email')}
+                      id="forgot-email"
                       type="email"
                       autoComplete="email"
                       placeholder="you@example.com"
-                      className={cn(
-                        'input-base',
-                        errors.email && 'border-error focus:ring-error/50 focus:border-error',
-                      )}
+                      aria-invalid={!!errors.email}
+                      aria-describedby={errors.email ? 'forgot-email-error' : undefined}
+                      className={cn('input-base', errors.email && 'border-red-400')}
                     />
                     {errors.email && (
-                      <p className="mt-1 text-xs text-error">{errors.email.message}</p>
+                      <p
+                        id="forgot-email-error"
+                        role="alert"
+                        className="mt-1.5 flex items-center gap-1 text-xs text-red-600"
+                      >
+                        <AlertCircle size={12} className="shrink-0" />
+                        {errors.email.message}
+                      </p>
                     )}
                   </div>
 
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="btn-primary w-full flex items-center justify-center gap-2 mt-2"
+                    className="btn-primary w-full flex items-center justify-center gap-2 !h-11 text-sm font-semibold mt-2"
                   >
                     {isLoading ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Sending…
-                      </>
+                      <Loader2 size={16} className="animate-spin" />
                     ) : (
-                      <>
-                        <Mail size={16} />
-                        Send reset link
-                      </>
+                      <Mail size={16} />
                     )}
+                    {isLoading ? 'Sending…' : 'Send reset link'}
                   </button>
                 </form>
 
                 <div className="text-center mt-6">
                   <Link
                     to="/login"
-                    className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-text-main transition-colors"
+                    className="inline-flex items-center gap-1.5 text-sm text-text-sec hover:text-text-pri transition-colors"
                   >
                     <ArrowLeft size={14} />
                     Back to login
@@ -133,30 +135,29 @@ export function ForgotPasswordPage() {
                 transition={{ duration: 0.3 }}
                 className="text-center py-4"
               >
-                {/* Checkmark animation */}
                 <motion.div
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.1 }}
-                  className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/15 border border-success/30 mb-5"
+                  className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 mb-5"
                 >
-                  <CheckCircle size={32} className="text-success" />
+                  <CheckCircle size={32} className="text-emerald-600" />
                 </motion.div>
 
-                <h2 className="text-2xl font-bold text-text-main mb-2">Check your email</h2>
-                <p className="text-muted text-sm leading-relaxed">
+                <h2 className="text-2xl font-bold text-text-pri mb-2">Check your email</h2>
+                <p className="text-text-sec text-sm leading-relaxed">
                   We&apos;ve sent a password reset link to{' '}
-                  <span className="text-text-main font-medium">{getValues('email')}</span>.
+                  <span className="text-text-pri font-medium">{getValues('email')}</span>.
                   <br />
                   Check your inbox and follow the instructions.
                 </p>
 
-                <div className="mt-6 p-3 rounded-md bg-white/5 border border-border text-xs text-muted text-left">
+                <div className="mt-6 p-3 rounded-lg bg-[#f8fafc] border border-border-h text-xs text-text-sec text-left">
                   Didn&apos;t get the email? Check your spam folder, or{' '}
                   <button
                     type="button"
                     onClick={() => setSuccess(false)}
-                    className="text-primary hover:text-secondary transition-colors underline-offset-2 underline"
+                    className="text-purple-accent hover:text-purple-text transition-colors underline-offset-2 underline"
                   >
                     try again
                   </button>
@@ -165,7 +166,7 @@ export function ForgotPasswordPage() {
 
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-text-main transition-colors mt-6"
+                  className="inline-flex items-center gap-1.5 text-sm text-text-sec hover:text-text-pri transition-colors mt-6"
                 >
                   <ArrowLeft size={14} />
                   Back to login
@@ -178,4 +179,5 @@ export function ForgotPasswordPage() {
     </div>
   )
 }
+
 export default ForgotPasswordPage

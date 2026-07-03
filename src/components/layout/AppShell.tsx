@@ -21,8 +21,7 @@ export function AppShell() {
   const closeMobile = useCallback(() => setMobileOpen(false), [])
 
   return (
-    <div className="flex min-h-screen bg-[#0b1120]">
-      {/* Skip to main content — keyboard / screen reader shortcut */}
+    <div className="flex min-h-screen overflow-hidden" style={{ background: 'var(--surface-page)' }}>
       <a href="#main-content" className="skip-to-content">
         Skip to main content
       </a>
@@ -31,13 +30,19 @@ export function AppShell() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <AppNavbar onMobileMenuClick={openMobile} />
-        <main id="main-content" className="flex-1 pb-16 md:pb-0" tabIndex={-1}>
+        <main id="main-content" className="flex-1 pb-16 md:pb-0 overflow-auto" tabIndex={-1}>
           <Outlet />
         </main>
       </div>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed bottom-0 inset-x-0 z-30 md:hidden bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex safe-bottom">
+      <nav
+        className="fixed bottom-0 inset-x-0 z-30 md:hidden flex safe-bottom"
+        style={{
+          background: 'var(--surface-card)',
+          borderTop: '0.5px solid var(--border-hairline)',
+        }}
+      >
         {BOTTOM_TABS.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
@@ -45,7 +50,7 @@ export function AppShell() {
             className={({ isActive }) =>
               cn(
                 'flex-1 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors',
-                isActive ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300',
+                isActive ? 'text-[var(--color-purple)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
               )
             }
           >

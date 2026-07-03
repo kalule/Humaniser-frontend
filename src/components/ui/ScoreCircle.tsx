@@ -8,6 +8,7 @@ interface ScoreCircleProps {
   size?: ScoreCircleSize
   showLabel?: boolean
   animated?: boolean
+  colorOverride?: string
 }
 
 const SIZE_CONFIG = {
@@ -29,12 +30,13 @@ export function ScoreCircle({
   size = 'md',
   showLabel = true,
   animated = true,
+  colorOverride,
 }: ScoreCircleProps) {
   const [displayCount, setDisplayCount] = useState(animated ? 0 : score)
   const cfg = SIZE_CONFIG[size]
   const circumference = 2 * Math.PI * cfg.r
   const offset = circumference - (score / 100) * circumference
-  const color = getScoreColor(score)
+  const color = colorOverride ?? getScoreColor(score)
 
   useEffect(() => {
     if (!animated) {
@@ -73,7 +75,7 @@ export function ScoreCircle({
           cy={cfg.center}
           r={cfg.r}
           fill="none"
-          stroke="#1e293b"
+          stroke="#f1f5f9"
           strokeWidth={cfg.strokeWidth}
         />
         {/* Score ring */}
@@ -94,10 +96,10 @@ export function ScoreCircle({
       {/* Center text */}
       {showLabel && (
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`font-bold text-slate-100 tabular-nums leading-none ${cfg.fontSize}`}>
+          <span className={`font-bold tabular-nums leading-none ${cfg.fontSize}`} style={{ color }}>
             {displayCount}%
           </span>
-          <span className={`text-slate-500 mt-0.5 ${cfg.labelSize}`}>Human</span>
+          <span className={`mt-0.5 ${cfg.labelSize}`} style={{ color: 'var(--text-muted)' }}>Human</span>
         </div>
       )}
     </div>

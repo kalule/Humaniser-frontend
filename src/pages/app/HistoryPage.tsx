@@ -41,25 +41,25 @@ function timeAgo(dateStr: string): string {
 
 function SkeletonCard() {
   return (
-    <div className="bg-card border border-border rounded-lg p-4 space-y-3 animate-pulse">
+    <div className="bg-white border border-[#e0e0da] rounded-lg p-4 space-y-3 animate-pulse">
       <div className="flex items-center justify-between">
-        <div className="h-3 w-24 bg-white/10 rounded-full" />
-        <div className="h-5 w-16 bg-white/10 rounded-full" />
+        <div className="h-3 w-24 bg-[#e0e0da] rounded-full" />
+        <div className="h-5 w-16 bg-[#e0e0da] rounded-full" />
       </div>
       <div className="space-y-2">
-        <div className="h-3 bg-white/10 rounded-full" />
-        <div className="h-3 w-4/5 bg-white/10 rounded-full" />
+        <div className="h-3 bg-[#e0e0da] rounded-full" />
+        <div className="h-3 w-4/5 bg-[#e0e0da] rounded-full" />
       </div>
       <div className="flex items-center justify-center">
-        <div className="h-3 w-3 bg-white/10 rounded-full" />
+        <div className="h-3 w-3 bg-[#e0e0da] rounded-full" />
       </div>
       <div className="space-y-2">
-        <div className="h-3 bg-white/10 rounded-full" />
-        <div className="h-3 w-3/4 bg-white/10 rounded-full" />
+        <div className="h-3 bg-[#e0e0da] rounded-full" />
+        <div className="h-3 w-3/4 bg-[#e0e0da] rounded-full" />
       </div>
-      <div className="flex items-center justify-between pt-2 border-t border-border/50">
-        <div className="h-7 w-28 bg-white/10 rounded-md" />
-        <div className="h-7 w-16 bg-white/10 rounded-md" />
+      <div className="flex items-center justify-between pt-2 border-t border-[#e0e0da]">
+        <div className="h-7 w-28 bg-[#e0e0da] rounded-md" />
+        <div className="h-7 w-16 bg-[#e0e0da] rounded-md" />
       </div>
     </div>
   )
@@ -87,17 +87,17 @@ function DeleteModal({
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         transition={{ duration: 0.15 }}
-        className="relative bg-card border border-border rounded-lg p-6 max-w-sm w-full shadow-elevated"
+        className="relative bg-white border border-[#e0e0da] rounded-lg p-6 max-w-sm w-full shadow-elevated"
       >
-        <h3 className="text-base font-semibold text-text-main mb-2">Delete History Item</h3>
-        <p className="text-sm text-muted mb-5">
+        <h3 className="text-base font-semibold text-text-pri mb-2">Delete History Item</h3>
+        <p className="text-sm text-text-sec mb-5">
           Are you sure you want to delete this history item? This action cannot be undone.
         </p>
         <div className="flex items-center gap-3 justify-end">
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-muted hover:text-text-main bg-white/5 hover:bg-white/10 rounded-md transition-colors"
+            className="px-4 py-2 text-sm font-medium text-text-sec hover:text-text-pri bg-[#f5f5f3] hover:bg-[#ededeb] border border-[#e0e0da] rounded-md transition-colors"
           >
             Cancel
           </button>
@@ -155,11 +155,11 @@ function HistoryCard({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className="bg-card border border-border rounded-lg p-4 flex flex-col gap-3 hover:border-border/80 hover:shadow-card transition-all duration-200"
+        className="bg-white border border-[#e0e0da] rounded-lg p-4 flex flex-col gap-3 hover:border-[#d1d5db] hover:shadow-card transition-all duration-200"
       >
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-muted min-w-0">
+          <div className="flex items-center gap-2 text-xs text-text-sec min-w-0">
             <Clock size={11} className="shrink-0" />
             <span className="truncate">{timeAgo(item.createdAt)}</span>
           </div>
@@ -167,50 +167,50 @@ function HistoryCard({
             <Badge variant={toneBadgeVariant} className="capitalize">
               {item.tone}
             </Badge>
-            <span className="text-xs text-muted">{formatNumber(item.wordCount)}w</span>
+            <span className="text-xs text-text-sec">{formatNumber(item.wordCount)}w</span>
           </div>
         </div>
 
         {/* Input preview */}
         <div>
-          <p className="text-xs text-muted/60 uppercase tracking-wider font-medium mb-1">Original</p>
-          <p className="text-xs text-muted leading-relaxed">
+          <p className="text-xs text-[#aaa] uppercase tracking-wider font-medium mb-1">Original</p>
+          <p className="text-xs text-text-sec leading-relaxed">
             {truncate(item.inputText, 100)}
           </p>
         </div>
 
         {/* Arrow */}
         <div className="flex items-center justify-center">
-          <ArrowRight size={14} className="text-primary/50" />
+          <ArrowRight size={14} className="text-purple-accent opacity-40" />
         </div>
 
         {/* Output preview */}
         <div>
-          <p className="text-xs text-muted/60 uppercase tracking-wider font-medium mb-1">Humanised</p>
-          <p className="text-xs text-text-main/80 leading-relaxed">
+          <p className="text-xs text-[#aaa] uppercase tracking-wider font-medium mb-1">Humanised</p>
+          <p className="text-xs text-text-pri leading-relaxed">
             {truncate(item.outputText, 100)}
           </p>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-2 border-t border-border/50 gap-2">
+        <div className="flex items-center justify-between pt-2 border-t border-[#e0e0da] gap-2">
           <button
             type="button"
             onClick={() => onRestore(item)}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-secondary transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-purple-accent hover:text-purple-text transition-colors"
           >
             <RotateCcw size={12} />
             Restore to Editor
           </button>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-white/5 text-muted">
-              <Zap size={9} className="text-primary" />
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-[#f5f5f3] text-text-sec border border-[#e0e0da]">
+              <Zap size={9} className="text-purple-accent" />
               {item.processingTimeMs}ms
             </span>
             <button
               type="button"
               onClick={() => setShowDeleteModal(true)}
-              className="inline-flex items-center gap-1 text-xs text-muted hover:text-red-400 transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-text-sec hover:text-red-600 transition-colors"
             >
               <Trash2 size={12} />
               Delete
@@ -299,23 +299,23 @@ export function HistoryPage() {
   const hasPrev = data?.hasPreviousPage ?? false
 
   return (
-    <div className="min-h-screen bg-dark px-4 sm:px-6 py-6">
+    <div className="min-h-screen bg-surface-page px-4 sm:px-6 py-6">
       <div className="max-w-6xl mx-auto">
         {/* Page header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-text-main">History</h1>
-          <p className="text-sm text-muted mt-1">Your past humanisations</p>
+          <h1 className="text-2xl font-bold text-text-pri">History</h1>
+          <p className="text-sm text-text-sec mt-1">Your past humanisations</p>
         </div>
 
         {/* Search bar */}
         <div className="relative mb-4">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-mut pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search history…"
-            className="w-full bg-card border border-border rounded-md pl-10 pr-4 py-2.5 text-sm text-text-main placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+            className="input-base pl-10"
           />
         </div>
 
@@ -324,31 +324,31 @@ export function HistoryPage() {
           <select
             value={toneFilter}
             onChange={(e) => setToneFilter(e.target.value as Tone | '')}
-            className="bg-card border border-border rounded-md px-3 py-2 text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+            className="bg-white border border-[#d1d5db] rounded-lg py-2 px-3 text-sm text-text-pri focus:outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#ede9fe] transition-all"
           >
             {TONE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value} className="bg-card">
+              <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
           </select>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted">From</span>
+            <span className="text-xs text-text-sec">From</span>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="bg-card border border-border rounded-md px-3 py-2 text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all [color-scheme:dark]"
+              className="bg-white border border-[#d1d5db] rounded-lg px-3 py-2 text-sm text-text-pri focus:outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#ede9fe] transition-all"
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted">To</span>
+            <span className="text-xs text-text-sec">To</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="bg-card border border-border rounded-md px-3 py-2 text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all [color-scheme:dark]"
+              className="bg-white border border-[#d1d5db] rounded-lg px-3 py-2 text-sm text-text-pri focus:outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#ede9fe] transition-all"
             />
           </div>
 
@@ -361,7 +361,7 @@ export function HistoryPage() {
                 setDateTo('')
                 setSearch('')
               }}
-              className="text-xs text-muted hover:text-text-main transition-colors underline underline-offset-2"
+              className="text-xs text-text-sec hover:text-text-pri transition-colors underline underline-offset-2"
             >
               Clear filters
             </button>
@@ -375,15 +375,15 @@ export function HistoryPage() {
             animate={{ opacity: 1 }}
             className="flex flex-col items-center justify-center py-20 text-center"
           >
-            <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
-              <FileX size={24} className="text-red-400" />
+            <div className="w-14 h-14 rounded-full bg-red-50 border border-red-200 flex items-center justify-center mb-4">
+              <FileX size={24} className="text-red-600" />
             </div>
-            <p className="text-text-main font-semibold mb-1">Failed to load history</p>
-            <p className="text-sm text-muted mb-5">Something went wrong connecting to the server.</p>
+            <p className="text-text-pri font-semibold mb-1">Failed to load history</p>
+            <p className="text-sm text-text-sec mb-5">Something went wrong connecting to the server.</p>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white/5 border border-border text-sm font-medium text-text-main hover:bg-white/10 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white border border-[#d1d5db] text-sm font-medium text-text-pri hover:bg-[#f5f5f3] transition-colors"
             >
               <RefreshCw size={14} />
               Try Again
@@ -404,11 +404,11 @@ export function HistoryPage() {
             {debouncedSearch || toneFilter || dateFrom || dateTo ? (
               /* ── Filtered empty state ── */
               <>
-                <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                  <Search size={22} className="text-muted/50" />
+                <div className="w-14 h-14 rounded-full bg-[#f5f5f3] border border-[#e0e0da] flex items-center justify-center mb-4">
+                  <Search size={22} className="text-text-mut" />
                 </div>
-                <p className="text-text-main font-semibold mb-1">No results found</p>
-                <p className="text-sm text-muted mb-5">No history items match your current filters.</p>
+                <p className="text-text-pri font-semibold mb-1">No results found</p>
+                <p className="text-sm text-text-sec mb-5">No history items match your current filters.</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -417,7 +417,7 @@ export function HistoryPage() {
                     setDateTo('')
                     setSearch('')
                   }}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white/5 border border-border text-sm font-medium text-text-main hover:bg-white/10 transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white border border-[#d1d5db] text-sm font-medium text-text-pri hover:bg-[#f5f5f3] transition-colors"
                 >
                   <RefreshCw size={14} />
                   Clear Filters
@@ -426,16 +426,16 @@ export function HistoryPage() {
             ) : (
               /* ── First-time empty state ── */
               <>
-                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center mb-4">
-                  <Wand2 size={28} className="text-indigo-400" />
+                <div className="w-16 h-16 rounded-2xl bg-violet-50 border border-violet-200 flex items-center justify-center mb-4">
+                  <Wand2 size={28} className="text-purple-accent" />
                 </div>
-                <p className="text-text-main font-semibold text-lg mb-2">No history yet</p>
-                <p className="text-sm text-muted max-w-xs mb-6 leading-relaxed">
+                <p className="text-text-pri font-semibold text-lg mb-2">No history yet</p>
+                <p className="text-sm text-text-sec max-w-xs mb-6 leading-relaxed">
                   Every text you humanise is saved here so you can review, restore, or reuse it later.
                 </p>
                 <Link
                   to="/app/humaniser"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-indigo-900/30"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-accent to-[#a855f7] text-white font-semibold text-sm hover:opacity-90 transition-opacity"
                 >
                   <Wand2 size={16} />
                   Humanise your first text
@@ -467,15 +467,15 @@ export function HistoryPage() {
               className={cn(
                 'inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
                 hasPrev
-                  ? 'bg-card border border-border text-text-main hover:bg-white/5'
-                  : 'bg-card/50 border border-border/50 text-muted cursor-not-allowed',
+                  ? 'bg-white border border-[#d1d5db] text-text-pri hover:bg-[#f5f5f3]'
+                  : 'bg-[#f5f5f3] border border-[#e0e0da] text-text-mut cursor-not-allowed',
               )}
             >
               <ChevronLeft size={16} />
               Previous
             </button>
 
-            <span className="text-sm text-muted">
+            <span className="text-sm text-text-sec">
               Page {page} of {totalPages}
             </span>
 
@@ -486,8 +486,8 @@ export function HistoryPage() {
               className={cn(
                 'inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
                 hasNext
-                  ? 'bg-card border border-border text-text-main hover:bg-white/5'
-                  : 'bg-card/50 border border-border/50 text-muted cursor-not-allowed',
+                  ? 'bg-white border border-[#d1d5db] text-text-pri hover:bg-[#f5f5f3]'
+                  : 'bg-[#f5f5f3] border border-[#e0e0da] text-text-mut cursor-not-allowed',
               )}
             >
               Next

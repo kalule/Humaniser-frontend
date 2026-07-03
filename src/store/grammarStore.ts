@@ -18,6 +18,7 @@ interface GrammarStore {
   setContext: (ctx: GrammarContext) => void;
   setLanguage: (lang: GrammarLanguage) => void;
   toggleCategory: (cat: ErrorCategory) => void;
+  setEnabledCategories: (cats: ErrorCategory[]) => void;
   setLoading: (v: boolean) => void;
   setError: (err: string | null) => void;
   setResult: (result: GrammarCheckResponse | null) => void;
@@ -41,6 +42,7 @@ export const useGrammarStore = create<GrammarStore>((set) => ({
       ? s.enabledCategories.filter((c) => c !== cat)
       : [...s.enabledCategories, cat]
   })),
+  setEnabledCategories: (enabledCategories) => set({ enabledCategories }),
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
   setResult: (result) => set({ result }),

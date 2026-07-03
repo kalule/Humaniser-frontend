@@ -275,24 +275,24 @@ function FlowDiagram({ isInView }: { isInView: boolean }) {
       icon: FileText,
       title: 'Paste Your Text',
       desc: 'Drop in any AI-generated content',
-      style: 'bg-slate-800 border-slate-700',
-      iconStyle: 'text-slate-400',
+      style: 'bg-white border-[#e0e0da]',
+      iconStyle: 'text-[#888888]',
       arrow: 'Detect',
     },
     {
       icon: Shield,
       title: 'Check the Score',
       desc: 'See your human score instantly',
-      style: 'bg-emerald-500/10 border-emerald-500/20',
-      iconStyle: 'text-emerald-400',
+      style: 'bg-[#d1fae5] border-emerald-300',
+      iconStyle: 'text-emerald-700',
       arrow: 'If AI detected',
     },
     {
       icon: Sparkles,
       title: 'Humanise It',
       desc: 'One click to transform your text',
-      style: 'bg-indigo-500/10 border-indigo-500/20',
-      iconStyle: 'text-indigo-400',
+      style: 'bg-[#ede9fe] border-violet-200',
+      iconStyle: 'text-[#7c3aed]',
       arrow: null,
     },
   ]
@@ -314,8 +314,8 @@ function FlowDiagram({ isInView }: { isInView: boolean }) {
                 )}
               >
                 <Icon size={22} className={cn('mx-auto mb-2', step.iconStyle)} />
-                <p className="text-slate-200 font-semibold text-sm">{step.title}</p>
-                <p className="text-slate-500 text-xs mt-1">{step.desc}</p>
+                <p className="text-[#1a1a18] font-semibold text-sm">{step.title}</p>
+                <p className="text-[#888888] text-xs mt-1">{step.desc}</p>
               </motion.div>
 
               {step.arrow && (
@@ -325,16 +325,16 @@ function FlowDiagram({ isInView }: { isInView: boolean }) {
                   transition={{ duration: 0.4, delay: prefersReduced ? 0 : i * 0.15 + 0.2 }}
                   className="flex flex-col items-center mx-3 my-2 sm:my-0 shrink-0"
                 >
-                  <span className="text-slate-500 text-xs mb-1">{step.arrow}</span>
-                  <ArrowRight size={16} className="text-slate-600 hidden sm:block" />
-                  <div className="w-px h-4 bg-slate-700 sm:hidden" />
+                  <span className="text-[#888888] text-xs mb-1">{step.arrow}</span>
+                  <ArrowRight size={16} className="text-[#d1d5db] hidden sm:block" />
+                  <div className="w-px h-4 bg-[#d1d5db] sm:hidden" />
                 </motion.div>
               )}
             </div>
           )
         })}
       </div>
-      <p className="text-slate-500 text-sm text-center mt-5">
+      <p className="text-[#888888] text-sm text-center mt-5">
         The complete workflow — in under 60 seconds
       </p>
     </div>
@@ -397,21 +397,21 @@ export default function DetectorShowcase() {
     <section
       ref={ref}
       aria-label="AI Detector Demo"
-      className="relative bg-dark overflow-hidden py-24 px-6"
+      className="relative bg-slate-50 overflow-hidden py-24 px-6 border-y border-[#e0e0da]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
       {/* Dot grid background */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-30"
+        className="absolute inset-0 pointer-events-none opacity-25"
         style={{
-          backgroundImage: 'radial-gradient(circle, #334155 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, #c7d2fe 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }}
       />
 
       {/* Ambient glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-emerald-100/40 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative max-w-6xl mx-auto">
         {/* Two-column layout */}
@@ -424,20 +424,20 @@ export default function DetectorShowcase() {
             transition={{ duration: 0.6 }}
           >
             {/* Section label */}
-            <span className="inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full px-4 py-1.5 text-sm font-medium mb-5">
+            <span className="inline-flex items-center gap-2 bg-[#d1fae5] text-[#065f46] border border-emerald-300 rounded-full px-4 py-1.5 text-sm font-medium mb-5">
               🔍 AI Detector
             </span>
 
             {/* Heading */}
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight mb-4">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#1a1a18] leading-tight mb-4">
               Know exactly how human{' '}
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-400">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600">
                 your text sounds
               </span>
             </h2>
 
             {/* Subtext */}
-            <p className="text-slate-400 text-lg leading-relaxed mb-6">
+            <p className="text-[#555555] text-lg leading-relaxed mb-6">
               Paste any text and get an instant human score. Our detector analyses sentence by
               sentence — showing you exactly what reads as AI and what reads as human. Use it before
               humanising to see the problem. Use it after to verify the fix.
@@ -446,9 +446,9 @@ export default function DetectorShowcase() {
             {/* Feature points */}
             <ul className="space-y-3 mb-8">
               {featurePoints.map((point) => (
-                <li key={point} className="flex items-center gap-3 text-slate-300">
-                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 shrink-0">
-                    <Check size={11} className="text-emerald-400" />
+                <li key={point} className="flex items-center gap-3 text-[#1a1a18]">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#d1fae5] border border-emerald-300 shrink-0">
+                    <Check size={11} className="text-[#065f46]" />
                   </span>
                   {point}
                 </li>
@@ -460,14 +460,14 @@ export default function DetectorShowcase() {
               type="button"
               onClick={() => navigate('/app/detector')}
               aria-label="Try the AI Detector for free"
-              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500
+              className="inline-flex items-center gap-2 bg-[#7c3aed] hover:bg-[#4c1d95]
                          text-white px-6 py-3 rounded-xl font-semibold text-base
-                         transition-colors duration-200 shadow-lg shadow-emerald-900/40"
+                         transition-colors duration-200 shadow-md shadow-violet-200"
             >
               Try the Detector Free
               <ArrowRight size={16} />
             </button>
-            <p className="text-slate-500 text-sm mt-2">No account needed for first scan</p>
+            <p className="text-[#888888] text-sm mt-2">No account needed for first scan</p>
           </motion.div>
 
           {/* ── Right column — Demo card ─────────────────────────────────── */}

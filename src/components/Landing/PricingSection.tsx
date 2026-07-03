@@ -5,13 +5,17 @@ import { Check, Shield } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/utils'
 
+// ⚠️ PRICING REVIEW NEEDED — Confirm exact feature gating for Proposal Studio and
+// Data Analyst before publishing. The research tool line items below reflect the
+// intended tier access but must be verified against the actual subscription logic.
+
 const PLANS = [
   {
     name: 'Free',
     monthlyPrice: 0,
     annualPrice: 0,
     annualTotal: 0,
-    description: 'Perfect for occasional use',
+    description: 'Try the platform',
     highlight: false,
     features: [
       '500 words per month',
@@ -29,16 +33,16 @@ const PLANS = [
     annualPrice: 119,
     annualTotal: 1428,
     annualSaving: 360,
-    description: 'For writers and professionals',
+    description: 'For students and researchers',
     highlight: true,
     badge: 'Most Popular',
     features: [
       '10,000 words per month',
-      'All 4 writing tones',
-      'All strength levels',
-      'Full history (unlimited)',
-      'Priority processing',
-      'Word analytics dashboard',
+      'All 4 writing tones & strength levels',
+      'Proposal Studio (unlimited drafts)',
+      'Data Analyst (unlimited uploads)',
+      'Document Chat, Citations & Library',
+      'Full history · Priority processing',
     ],
     cta: 'Start Pro trial',
     ctaLink: '/register?plan=pro',
@@ -53,11 +57,10 @@ const PLANS = [
     highlight: false,
     features: [
       'Unlimited words',
-      'All 4 writing tones',
-      'All strength levels',
-      'Full history (unlimited)',
+      'Full research suite access',
+      'Proposal Studio & Data Analyst',
+      'Lecture Notes transcription',
       'Fastest processing',
-      'Word analytics dashboard',
       'Priority support',
       'API access (coming soon)',
     ],
@@ -81,37 +84,37 @@ function PricingCard({ plan, annual }: PricingCardProps) {
       className={cn(
         'relative rounded-2xl border p-6 flex flex-col transition-all duration-300',
         plan.highlight
-          ? 'border-indigo-500/50 shadow-[0_0_40px_rgba(99,102,241,0.15)] bg-slate-800'
-          : 'border-slate-700 bg-slate-800 hover:border-slate-600',
+          ? 'border-[#7c3aed] shadow-lg shadow-violet-100 bg-white'
+          : 'border-[#e0e0da] bg-white hover:border-[#d1d5db] hover:shadow-sm',
       )}
     >
       {plan.highlight && (
-        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-indigo-600 text-white text-xs font-semibold whitespace-nowrap">
+        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#7c3aed] text-white text-xs font-semibold whitespace-nowrap">
           {plan.badge}
         </div>
       )}
 
       <div className="mb-4">
-        <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-        <p className="text-sm text-slate-500 mt-0.5">{plan.description}</p>
+        <h3 className="text-lg font-bold text-[#1a1a18]">{plan.name}</h3>
+        <p className="text-sm text-[#888888] mt-0.5">{plan.description}</p>
       </div>
 
       <div className="mb-6">
         <div className="flex items-end gap-1">
           {annual && plan.monthlyPrice > 0 && (
-            <span className="text-sm text-slate-500 line-through mb-1">R{plan.monthlyPrice}</span>
+            <span className="text-sm text-[#888888] line-through mb-1">R{plan.monthlyPrice}</span>
           )}
-          <span className="text-xs text-slate-400 font-medium mt-2">R</span>
-          <span className="text-4xl font-bold text-white">{price}</span>
+          <span className="text-xs text-[#888888] font-medium mt-2">R</span>
+          <span className="text-4xl font-bold text-[#1a1a18]">{price}</span>
           {price > 0 && (
-            <span className="text-xs text-slate-500 mb-1">
+            <span className="text-xs text-[#888888] mb-1">
               /{annual ? 'mo, billed annually' : 'mo'}
             </span>
           )}
         </div>
-        {price === 0 && <span className="text-xs text-slate-500">Forever free</span>}
+        {price === 0 && <span className="text-xs text-[#888888]">Forever free</span>}
         {annual && 'annualSaving' in plan && plan.annualSaving && plan.annualSaving > 0 && (
-          <p className="text-xs text-emerald-400 font-semibold mt-1">
+          <p className="text-xs text-[#065f46] font-semibold mt-1">
             Save R{plan.annualSaving}/year
           </p>
         )}
@@ -120,8 +123,8 @@ function PricingCard({ plan, annual }: PricingCardProps) {
       <ul className="space-y-2.5 flex-1 mb-6">
         {plan.features.map((f) => (
           <li key={f} className="flex items-start gap-2.5">
-            <Check size={14} className="text-indigo-400 shrink-0 mt-0.5" />
-            <span className="text-sm text-slate-400">{f}</span>
+            <Check size={14} className="text-[#7c3aed] shrink-0 mt-0.5" />
+            <span className="text-sm text-[#555555]">{f}</span>
           </li>
         ))}
       </ul>
@@ -131,8 +134,8 @@ function PricingCard({ plan, annual }: PricingCardProps) {
           className={cn(
             'w-full py-3 rounded-xl text-sm font-semibold transition-all duration-200',
             plan.highlight
-              ? 'bg-indigo-600 hover:bg-indigo-500 text-white transition-colors'
-              : 'border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white',
+              ? 'bg-[#7c3aed] hover:bg-[#4c1d95] text-white transition-colors'
+              : 'border border-[#d1d5db] text-[#555555] hover:bg-[#f1f5f9] hover:text-[#1a1a18]',
           )}
         >
           {plan.cta}
@@ -148,7 +151,7 @@ export function PricingSection() {
   const isInView = useInView(ref, { once: true, margin: '-80px' })
 
   return (
-    <section id="pricing" ref={ref} className="py-20 px-4 bg-slate-800/30">
+    <section id="pricing" ref={ref} className="py-20 px-4 bg-slate-50 border-y border-[#e0e0da]">
       <div className="max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -156,20 +159,20 @@ export function PricingSection() {
           transition={{ duration: 0.5 }}
           className="text-center mb-10"
         >
-          <span className="inline-block px-3 py-1 rounded-full bg-white/5 border border-slate-700 text-slate-400 text-xs font-semibold mb-4">
+          <span className="inline-block px-3 py-1 rounded-full bg-[#ede9fe] border border-violet-200 text-[#5b21b6] text-xs font-semibold mb-4">
             Simple Pricing
           </span>
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Plans for Every Writer
+          <h2 className="text-3xl sm:text-4xl font-bold text-[#1a1a18] mb-4">
+            Plans for Every Researcher
           </h2>
-          <p className="text-slate-400 text-base max-w-xl mx-auto">
-            Start free. Upgrade when you need more. Cancel anytime.
+          <p className="text-[#555555] text-base max-w-xl mx-auto">
+            Start free. Upgrade for full research power. Cancel anytime.
           </p>
         </motion.div>
 
         {/* Toggle */}
         <div className="flex items-center justify-center gap-3 mb-10">
-          <span className={cn('text-sm', !annual ? 'text-white font-medium' : 'text-slate-400')}>
+          <span className={cn('text-sm', !annual ? 'text-[#1a1a18] font-medium' : 'text-[#888888]')}>
             Monthly
           </span>
           <button
@@ -180,7 +183,7 @@ export function PricingSection() {
             aria-label="Toggle annual billing"
             className={cn(
               'relative w-12 h-6 rounded-full transition-colors duration-300',
-              annual ? 'bg-indigo-600' : 'bg-slate-600',
+              annual ? 'bg-[#7c3aed]' : 'bg-[#d1d5db]',
             )}
           >
             <span
@@ -190,9 +193,9 @@ export function PricingSection() {
               )}
             />
           </button>
-          <span className={cn('text-sm', annual ? 'text-white font-medium' : 'text-slate-400')}>
+          <span className={cn('text-sm', annual ? 'text-[#1a1a18] font-medium' : 'text-[#888888]')}>
             Annual
-            <span className="ml-1.5 text-xs text-emerald-400 font-semibold">Save 20%</span>
+            <span className="ml-1.5 text-xs text-[#065f46] font-semibold">Save 20%</span>
           </span>
         </div>
 
@@ -213,10 +216,10 @@ export function PricingSection() {
           initial={{ opacity: 0 }}
           animate={isInView ? { opacity: 1 } : {}}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="text-center text-sm text-slate-500 mt-8"
+          className="text-center text-sm text-[#555555] mt-8"
         >
           QuillBot costs $9.99/month (~R185). HumaniseAI Pro costs R149/month.{' '}
-          <span className="text-slate-400">Same quality. Local pricing. SA support.</span>
+          <span className="text-[#555555]">Same quality. Local pricing. SA support.</span>
         </motion.p>
 
         {/* Money-back guarantee */}
@@ -224,9 +227,9 @@ export function PricingSection() {
           initial={{ opacity: 0 }}
           animate={isInView ? { opacity: 1 } : {}}
           transition={{ duration: 0.5, delay: 0.5 }}
-          className="flex items-center justify-center gap-2 mt-6 text-sm text-slate-400"
+          className="flex items-center justify-center gap-2 mt-6 text-sm text-[#555555]"
         >
-          <Shield size={15} className="text-emerald-400" />
+          <Shield size={15} className="text-emerald-700" />
           7-day money back guarantee · No questions asked
         </motion.div>
       </div>

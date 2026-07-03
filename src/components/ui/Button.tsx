@@ -26,8 +26,8 @@ const variantClasses: Record<ButtonVariant, string> = {
     'disabled:opacity-50 disabled:cursor-not-allowed',
   ].join(' '),
   ghost: [
-    'bg-transparent text-muted',
-    'hover:text-white',
+    'bg-transparent text-[#555555]',
+    'hover:text-[#1a1a18] hover:bg-[#f1f5f9]',
     'disabled:opacity-50 disabled:cursor-not-allowed',
   ].join(' '),
   danger: [

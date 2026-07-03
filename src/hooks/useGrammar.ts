@@ -3,7 +3,7 @@ import { grammarApi } from '../api/grammar'
 import { useGrammarStore } from '../store/grammarStore'
 
 export function useGrammar() {
-  const { inputText, context, language, enabledCategories, setLoading, setError, setResult } = useGrammarStore()
+  const { inputText, context, enabledCategories, setLoading, setError, setResult } = useGrammarStore()
 
   const check = async () => {
     if (!inputText.trim() || inputText.trim().split(/\s+/).length < 2) {
@@ -18,7 +18,6 @@ export function useGrammar() {
       const result = await grammarApi.check({
         text: inputText,
         context,
-        language,
         enabledCategories,
       })
       setResult(result)

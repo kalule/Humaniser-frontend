@@ -6,47 +6,43 @@ import { cn } from '../../lib/utils'
 const CARDS = [
   {
     icon: Banknote,
-    iconBg: 'bg-emerald-500/10',
+    iconBg: 'bg-emerald-500/15',
     iconColor: 'text-emerald-400',
-    borderColor: 'border-emerald-500/20 hover:border-emerald-500/40',
     title: 'Priced in Rands',
     description:
       'No currency conversion. No dollar-based pricing that changes with the exchange rate. R149/month, full stop.',
     badge: 'R149/mo Pro',
-    badgeClass: 'bg-emerald-500/20 text-emerald-400',
+    badgeClass: 'bg-emerald-500/15 text-emerald-300',
   },
   {
     icon: Languages,
-    iconBg: 'bg-emerald-500/10',
+    iconBg: 'bg-emerald-500/15',
     iconColor: 'text-emerald-400',
-    borderColor: 'border-emerald-500/20 hover:border-emerald-500/40',
     title: 'South African English',
     description:
       "Writes 'colour' not 'color', 'organise' not 'organize'. Output sounds like it was written here — because it was tuned for here.",
     badge: 'colour ✓',
-    badgeClass: 'bg-emerald-500/20 text-emerald-400',
+    badgeClass: 'bg-emerald-500/15 text-emerald-300',
   },
   {
     icon: Zap,
-    iconBg: 'bg-emerald-500/10',
+    iconBg: 'bg-emerald-500/15',
     iconColor: 'text-emerald-400',
-    borderColor: 'border-emerald-500/20 hover:border-emerald-500/40',
     title: 'Load Shedding Proof',
     description:
       'Your work auto-saves every 30 seconds. Come back after Stage 4 and your text is exactly where you left it.',
     badge: 'Auto-saves',
-    badgeClass: 'bg-emerald-500/20 text-emerald-400',
+    badgeClass: 'bg-emerald-500/15 text-emerald-300',
   },
   {
     icon: MessageCircle,
-    iconBg: 'bg-emerald-500/10',
+    iconBg: 'bg-emerald-500/15',
     iconColor: 'text-emerald-400',
-    borderColor: 'border-emerald-500/20 hover:border-emerald-500/40',
     title: 'WhatsApp Support',
     description:
       'Support via WhatsApp — not a ticket system. South African team, South African hours.',
     badge: 'WhatsApp',
-    badgeClass: 'bg-emerald-500/20 text-emerald-400',
+    badgeClass: 'bg-emerald-500/15 text-emerald-300',
   },
 ]
 
@@ -55,7 +51,7 @@ export function SADifferentiators() {
   const isInView = useInView(ref, { once: true, margin: '-80px' })
 
   return (
-    <section ref={ref} className="py-20 px-4 bg-slate-800/30">
+    <section ref={ref} className="py-20 px-4 bg-[#0f172a]">
       <div className="max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -65,7 +61,7 @@ export function SADifferentiators() {
         >
           <div className="flex items-center justify-center gap-2 mb-4">
             <span className="text-2xl">🇿🇦</span>
-            <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+            <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
               Built for South Africa
             </span>
           </div>
@@ -88,19 +84,16 @@ export function SADifferentiators() {
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.4, delay: i * 0.1 }}
               whileHover={{ y: -2, transition: { duration: 0.15 } }}
-              className={cn(
-                'bg-slate-800 border rounded-2xl p-5 transition-all duration-200',
-                card.borderColor,
-              )}
+              className="bg-white/5 border border-white/10 hover:border-emerald-500/40 hover:bg-white/[0.08] rounded-2xl p-6 transition-all duration-200"
             >
               <div className="flex items-start gap-4">
                 <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center shrink-0', card.iconBg)}>
                   <card.icon size={22} className={card.iconColor} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                     <h3 className="text-base font-bold text-white">{card.title}</h3>
-                    <span className={cn('text-xs px-2 py-0.5 rounded-full font-semibold', card.badgeClass)}>
+                    <span className={cn('text-xs px-2 py-0.5 rounded-full font-semibold border border-emerald-500/20', card.badgeClass)}>
                       {card.badge}
                     </span>
                   </div>

@@ -1,57 +1,47 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  SpellCheck, Copy, RotateCcw, CheckCheck, Upload, FileText, Wand2,
-} from 'lucide-react'
+import { SpellCheck, Copy, RotateCcw, CheckCheck, Upload, Sparkles, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
 import { useGrammarStore } from '../../store/grammarStore'
 import { useGrammar } from '../../hooks/useGrammar'
 import { useDragDrop } from '../../hooks/useDragDrop'
 import { DropOverlay } from '../../components/ui/DropOverlay'
-import type { ActiveSuggestion, ErrorCategory, GrammarContext, GrammarLanguage } from '../../types/grammar'
+import { SendToMenu } from '../../components/ui/SendToMenu'
+import { useToolTransferStore } from '../../store/toolTransferStore'
+import type { ActiveSuggestion, ErrorCategory, GrammarContext } from '../../types/grammar'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const CONTEXTS: { value: GrammarContext; label: string }[] = [
-  { value: 'General',  label: 'General' },
-  { value: 'Academic', label: 'Academic' },
-  { value: 'Business', label: 'Business' },
-  { value: 'Creative', label: 'Creative' },
-  { value: 'Casual',   label: 'Casual' },
+const MODES: { id: GrammarContext; label: string; desc: string }[] = [
+  { id: 'General',  label: 'General',  desc: 'Standard grammar rules applied with moderate sensitivity.' },
+  { id: 'Academic', label: 'Academic', desc: 'Formal tone, citation-ready, avoids colloquialisms.' },
+  { id: 'Business', label: 'Business', desc: 'Professional register, concise phrasing.' },
+  { id: 'Creative', label: 'Creative', desc: 'Preserves voice, flags only clear errors.' },
+  { id: 'Casual',   label: 'Casual',   desc: 'Relaxed tone, minimal intervention.' },
 ]
 
-const LANGUAGES: { value: GrammarLanguage; label: string }[] = [
-  { value: 'AmericanEnglish',   label: 'American English' },
-  { value: 'BritishEnglish',    label: 'British English' },
-  { value: 'AustralianEnglish', label: 'Australian English' },
-]
-
-const CATEGORIES: { value: ErrorCategory; colour: string }[] = [
-  { value: 'Spelling',    colour: '#ef4444' },
-  { value: 'Grammar',     colour: '#ef4444' },
-  { value: 'Punctuation', colour: '#f59e0b' },
-  { value: 'Style',       colour: '#4f6ef7' },
-  { value: 'Clarity',     colour: '#4f6ef7' },
-  { value: 'Conciseness', colour: '#8b5cf6' },
-  { value: 'Consistency', colour: '#f59e0b' },
-  { value: 'Tone',        colour: '#8b5cf6' },
-]
-
-const SEVERITY_ORDER: Record<string, number> = { Error: 0, Warning: 1, Suggestion: 2 }
+const CORE_CHECKS: ErrorCategory[]     = ['Spelling', 'Grammar', 'Punctuation']
+const ADVANCED_CHECKS: ErrorCategory[] = ['Style', 'Clarity', 'Conciseness', 'Consistency', 'Tone']
+const ALL_CHECK_IDS: ErrorCategory[]   = [...CORE_CHECKS, ...ADVANCED_CHECKS]
 
 const SAMPLE_TEXT =
   `She recieved the report on monday and immediately forwarded it to the team. The data suggests that there is alot of room for improvment in there processes. Each of the managers have submitted there quarterly review's on time, which is a good sign. Going foward, we should leverage every oppurtunity to optimise our workflows and facilitate better collaboration accross departments.`
 
-const CONTEXT_DESCRIPTIONS: Record<GrammarContext, string> = {
-  General:  'Standard grammar rules applied with moderate sensitivity.',
-  Academic: 'Passive voice is acceptable. Contractions and fragments are flagged.',
-  Business: 'Passive voice flagged only when ambiguous. Professional tone assumed.',
-  Creative: 'Very conservative — only definite errors flagged. Style is not touched.',
-  Casual:   'Only definite spelling and grammar errors. Fragments are intentional.',
+const TYPE_COLOR: Record<ErrorCategory, string> = {
+  Spelling:    'bg-red-50 text-red-500',
+  Grammar:     'bg-orange-50 text-orange-500',
+  Punctuation: 'bg-amber-50 text-amber-600',
+  Style:       'bg-blue-50 text-blue-500',
+  Clarity:     'bg-purple-50 text-purple-500',
+  Conciseness: 'bg-teal-50 text-teal-600',
+  Consistency: 'bg-indigo-50 text-indigo-500',
+  Tone:        'bg-pink-50 text-pink-500',
 }
 
-// ── Client-side suggestion applier (mirrors C# SuggestionApplier) ─────────────
+const SEVERITY_ORDER: Record<string, number> = { Error: 0, Warning: 1, Suggestion: 2 }
+
+// ── Client-side suggestion applier ────────────────────────────────────────────
 
 function applyOneSuggestion(
   text: string,
@@ -90,38 +80,7 @@ function applyAllSuggestions(text: string, suggestions: ActiveSuggestion[]): str
   return result
 }
 
-// ── Word count badge ──────────────────────────────────────────────────────────
-
-function WordCountBadge({ count, min = 0 }: { count: number; min?: number }) {
-  const tooFew = count > 0 && count < min
-  return (
-    <span className={cn(
-      'text-[13px] font-medium px-2.5 py-1 rounded-full',
-      count === 0  ? 'bg-slate-700 text-slate-400'
-      : tooFew     ? 'bg-red-500/15 text-red-400'
-      : 'bg-slate-700 text-slate-300',
-    )}>
-      {count > 0 ? `${count} words${tooFew ? ` (${min - count} more needed)` : ''}` : '0 words'}
-    </span>
-  )
-}
-
-// ── Quality badge ─────────────────────────────────────────────────────────────
-
-function QualityBadge({ score }: { score: number }) {
-  const [colorClass, label] =
-    score >= 90 ? ['text-emerald-400 bg-emerald-500/15 border-emerald-500/20', 'Excellent'] :
-    score >= 70 ? ['text-amber-400 bg-amber-500/15 border-amber-500/20', 'Good'] :
-                  ['text-red-400 bg-red-500/15 border-red-500/20', 'Needs work']
-
-  return (
-    <span className={cn('text-[13px] font-semibold px-2.5 py-1 rounded-full border', colorClass)}>
-      {score}/100 · {label}
-    </span>
-  )
-}
-
-// ── Annotated text renderer ───────────────────────────────────────────────────
+// ── AnnotatedText ─────────────────────────────────────────────────────────────
 
 function AnnotatedText({
   text,
@@ -139,7 +98,7 @@ function AnnotatedText({
     .sort((a, b) => a.startOffset - b.startOffset)
 
   if (pending.length === 0) {
-    return <p className="text-[15px] leading-[1.75] text-slate-200 whitespace-pre-wrap">{text}</p>
+    return <p className="text-[15px] leading-[1.75] text-gray-800 whitespace-pre-wrap">{text}</p>
   }
 
   const segments: React.ReactNode[] = []
@@ -182,13 +141,13 @@ function AnnotatedText({
   }
 
   return (
-    <p className="text-[15px] leading-[1.75] text-slate-200">
+    <p className="text-[15px] leading-[1.75] text-gray-800">
       {segments}
     </p>
   )
 }
 
-// ── Suggestion card ───────────────────────────────────────────────────────────
+// ── SuggestionCard ────────────────────────────────────────────────────────────
 
 function SuggestionCard({
   suggestion,
@@ -203,12 +162,6 @@ function SuggestionCard({
   onIgnore: () => void
   onSelect: () => void
 }) {
-  const severityBg: Record<string, string> = {
-    Error:      'text-red-400 bg-red-500/10',
-    Warning:    'text-amber-400 bg-amber-500/10',
-    Suggestion: 'text-indigo-400 bg-indigo-500/10',
-  }
-
   return (
     <motion.div
       layout
@@ -217,66 +170,63 @@ function SuggestionCard({
       exit={{ opacity: 0, y: -8 }}
       onClick={onSelect}
       className={cn(
-        'rounded-2xl border p-4 cursor-pointer transition-all duration-150',
-        isSelected
-          ? 'border-slate-600 bg-slate-700/60'
-          : 'border-slate-700 bg-slate-800/60 hover:border-slate-600 hover:bg-slate-700/40'
+        'p-3 border-b border-gray-50 cursor-pointer transition-colors',
+        isSelected ? 'bg-blue-50/40' : 'hover:bg-gray-50'
       )}
     >
-      <div className="flex items-center gap-2 mb-2 flex-wrap">
-        <span
-          className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: suggestion.categoryColour + '20', color: suggestion.categoryColour }}
-        >
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <div className="flex flex-col gap-0.5">
+          {suggestion.shortMessage && (
+            <span className="text-[12px] font-medium text-gray-700">{suggestion.shortMessage}</span>
+          )}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-red-500 line-through font-mono">{suggestion.originalText}</span>
+            <span className="text-gray-400 text-xs">→</span>
+            <span className="text-xs text-green-600 font-medium font-mono">{suggestion.replacement}</span>
+          </div>
+        </div>
+        <span className={cn(
+          'text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0',
+          TYPE_COLOR[suggestion.category]
+        )}>
           {suggestion.category}
         </span>
-        <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-full', severityBg[suggestion.severity])}>
-          {suggestion.severity}
-        </span>
-      </div>
-
-      <p className="text-[14px] font-medium text-slate-200 mb-1.5">{suggestion.shortMessage}</p>
-
-      <div className="flex items-center gap-2 mb-2 text-[13px]">
-        <span className="text-red-400 line-through font-mono">{suggestion.originalText}</span>
-        <span className="text-slate-500">→</span>
-        <span className="text-emerald-400 font-medium font-mono">{suggestion.replacement}</span>
       </div>
 
       {suggestion.explanation && (
-        <p className="text-[13px] text-slate-500 leading-snug mb-2">{suggestion.explanation}</p>
+        <p className="text-[11px] text-gray-400 leading-relaxed mb-2">{suggestion.explanation}</p>
       )}
 
       {suggestion.correctedSentence.length > suggestion.replacement.length + 10 && (
         <p
-          className="text-[12px] text-slate-400 italic leading-snug mb-2 px-2 py-1.5 rounded-lg"
-          style={{ borderLeft: `2px solid ${suggestion.categoryColour}60`, backgroundColor: suggestion.categoryColour + '0a' }}
+          className="text-[11px] text-gray-500 italic leading-snug mb-2 px-2 py-1.5 rounded-lg bg-gray-50"
+          style={{ borderLeft: `2px solid ${suggestion.categoryColour}60` }}
         >
           {suggestion.correctedSentence}
         </p>
       )}
 
       {suggestion.alternatives.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 mb-3">
-          <span className="text-[11px] text-slate-500">Also:</span>
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          <span className="text-[10px] text-gray-400">Also:</span>
           {suggestion.alternatives.map((alt) => (
-            <span key={alt} className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-700/80 text-slate-300">
+            <span key={alt} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
               {alt}
             </span>
           ))}
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex gap-2">
         <button
           onClick={(e) => { e.stopPropagation(); onAccept() }}
-          className="flex-1 text-[13px] font-medium py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 transition-colors"
+          className="px-3 py-1 bg-gray-900 text-white text-xs rounded-md hover:bg-gray-800 transition-colors"
         >
           Accept
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onIgnore() }}
-          className="flex-1 text-[13px] font-medium py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-400 transition-colors"
+          className="px-3 py-1 bg-gray-100 text-gray-500 text-xs rounded-md hover:bg-gray-200 transition-colors"
         >
           Ignore
         </button>
@@ -285,21 +235,71 @@ function SuggestionCard({
   )
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── ResultsEmptyState ─────────────────────────────────────────────────────────
+
+function ResultsEmptyState() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center px-8 py-10 text-center gap-4">
+      <Sparkles className="w-8 h-8 text-gray-300" />
+      <div>
+        <p className="text-sm font-medium text-gray-600">Your corrected text</p>
+        <p className="text-xs text-gray-400 mt-1 leading-relaxed max-w-[220px]">
+          Paste text on the left and click "Check grammar". Errors are highlighted inline — accept or ignore each one.
+        </p>
+      </div>
+      {/* Suggestion skeleton */}
+      <div className="w-full max-w-xs mt-1 opacity-40 flex flex-col gap-2">
+        <div className="p-3 rounded-lg border border-gray-100 bg-gray-50 text-left">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex flex-col gap-1 flex-1">
+              <div className="h-2.5 bg-red-100 rounded w-3/4" />
+              <div className="h-2.5 bg-green-100 rounded w-2/3" />
+            </div>
+            <span className="text-[10px] bg-gray-200 text-gray-400 px-1.5 py-0.5 rounded">Spelling</span>
+          </div>
+          <div className="flex gap-2">
+            <div className="h-5 w-12 bg-gray-900 rounded opacity-20" />
+            <div className="h-5 w-12 bg-gray-200 rounded" />
+          </div>
+        </div>
+        <div className="p-3 rounded-lg border border-gray-100 bg-gray-50 flex items-center gap-3">
+          <div className="flex-1 flex flex-col gap-1.5">
+            <div className="h-2.5 bg-gray-200 rounded w-full" />
+            <div className="h-2 bg-gray-200 rounded w-2/3" />
+          </div>
+          <span className="text-[10px] bg-gray-200 text-gray-400 px-1.5 py-0.5 rounded">Grammar</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── GrammarPage ───────────────────────────────────────────────────────────────
 
 export default function GrammarPage() {
   const {
-    inputText, context, language, enabledCategories, isLoading, result,
-    setInputText, setContext, setLanguage, toggleCategory, setResult,
+    inputText, context, enabledCategories, isLoading, result,
+    setInputText, setContext, toggleCategory, setEnabledCategories, setResult,
   } = useGrammarStore()
   const { check } = useGrammar()
 
-  const [activeText, setActiveText] = useState('')
+  const [activeText, setActiveText]               = useState('')
   const [activeSuggestions, setActiveSuggestions] = useState<ActiveSuggestion[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId]               = useState<string | null>(null)
+  const [copied, setCopied]                       = useState(false)
 
-  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const cardRefs  = useRef<Record<string, HTMLDivElement | null>>({})
   const outputRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const { text, clearTransfer } = useToolTransferStore.getState()
+    if (text) {
+      setInputText(text)
+      clearTransfer()
+      toast('Text transferred — ready to check!', { icon: '✅' })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { isDragging, isProcessing: isFileProcessing, dragHandlers, openFilePicker, fileInputElement } = useDragDrop({
     onText: (t) => setInputText(t),
@@ -326,8 +326,13 @@ export default function GrammarPage() {
     [pendingSuggestions]
   )
 
-  const wordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0
-  const canCheck  = wordCount >= 2 && !isLoading
+  const wordCount   = inputText.trim() ? inputText.trim().split(/\s+/).length : 0
+  const canCheck    = wordCount >= 2 && !isLoading
+  const hasResult   = !!result
+  const allResolved = hasResult && sortedPending.length === 0
+  const noIssues    = hasResult && result.suggestions.length === 0
+  const issueCount  = sortedPending.length
+  const allChecksOn = ALL_CHECK_IDS.every(id => enabledCategories.includes(id))
 
   const handleCheck = async () => {
     if (!canCheck) return
@@ -356,6 +361,8 @@ export default function GrammarPage() {
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(activeText)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
     toast.success('Copied to clipboard!')
   }, [activeText])
 
@@ -371,109 +378,129 @@ export default function GrammarPage() {
     cardRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [])
 
-  const hasResult   = !!result
-  const allResolved = hasResult && sortedPending.length === 0
-  const noIssues    = hasResult && result.suggestions.length === 0
-
   return (
-    <div className="min-h-0 bg-transparent w-full">
-      <main className="w-full px-4 py-6 space-y-5">
+    <div className="min-h-0 bg-transparent px-4 py-6 w-full space-y-4">
 
-        {/* Controls card */}
-        <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 space-y-3">
-          {/* Context + Language */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-xl p-1">
-              {CONTEXTS.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  onClick={() => setContext(c.value)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150',
-                    context === c.value
-                      ? 'bg-slate-600 text-white shadow'
-                      : 'text-slate-400 hover:text-slate-200'
-                  )}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
+      {/* Controls: Mode tabs + Check type row */}
+      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
 
-            <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-xl p-1">
-              {LANGUAGES.map((l) => (
-                <button
-                  key={l.value}
-                  type="button"
-                  onClick={() => setLanguage(l.value)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150',
-                    language === l.value
-                      ? 'bg-slate-600 text-white shadow'
-                      : 'text-slate-400 hover:text-slate-200'
-                  )}
-                >
-                  {l.label}
-                </button>
-              ))}
-            </div>
+        {/* Mode tab bar */}
+        <div className="border-b border-gray-100">
+          <div className="flex gap-0 px-4">
+            {MODES.map(m => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setContext(m.id)}
+                className={cn(
+                  'px-4 py-3 text-sm border-b-2 transition-colors whitespace-nowrap',
+                  context === m.id
+                    ? 'border-blue-600 text-gray-900 font-medium'
+                    : 'border-transparent text-gray-400 hover:text-gray-600'
+                )}
+              >
+                {m.label}
+              </button>
+            ))}
           </div>
-
-          <p className="text-slate-400 text-[13px] pl-1">
-            <span className="text-slate-200 font-medium">{context}:</span>{' '}
-            {CONTEXT_DESCRIPTIONS[context]}
+          <p className="px-5 py-1.5 text-xs text-gray-400">
+            {MODES.find(m => m.id === context)?.desc}
           </p>
         </div>
 
-        {/* Category chips */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[13px] text-slate-500 font-medium mr-1">Check:</span>
-          {CATEGORIES.map((cat) => {
-            const active = enabledCategories.includes(cat.value)
-            return (
-              <button
-                key={cat.value}
-                type="button"
-                onClick={() => toggleCategory(cat.value)}
-                className={cn(
-                  'px-3 py-1 rounded-lg text-[13px] font-medium border transition-all duration-150',
-                  active
-                    ? 'text-white border-transparent'
-                    : 'bg-transparent text-slate-400 border-slate-700 hover:text-slate-200 hover:border-slate-600'
-                )}
-                style={active ? { backgroundColor: cat.colour + '28', color: cat.colour, borderColor: cat.colour + '50' } : {}}
-              >
-                {cat.value}
-              </button>
-            )
-          })}
-        </div>
+        {/* Check type row */}
+        <div className="flex items-center gap-3 px-4 py-2.5 flex-wrap">
+          <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Core</span>
+          <div className="flex gap-1.5 flex-wrap">
+            {CORE_CHECKS.map(cat => {
+              const isActive = enabledCategories.includes(cat)
+              const count    = hasResult ? (result?.suggestionCountByCategory[cat] ?? 0) : 0
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => toggleCategory(cat)}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+                    isActive
+                      ? 'bg-gray-900 text-white border-gray-900'
+                      : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                  )}
+                >
+                  {cat}
+                  {hasResult && count > 0 && (
+                    <span className="ml-1.5 text-[10px] font-bold">{count}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
 
-        {/* Editor panels + contextual sidebar */}
-        <div className="flex gap-5 items-start">
+          <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+
+          <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Advanced</span>
+          <div className="flex gap-1.5 flex-wrap">
+            {ADVANCED_CHECKS.map(cat => {
+              const isActive = enabledCategories.includes(cat)
+              const count    = hasResult ? (result?.suggestionCountByCategory[cat] ?? 0) : 0
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => toggleCategory(cat)}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+                    isActive
+                      ? 'bg-gray-900 text-white border-gray-900'
+                      : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                  )}
+                >
+                  {cat}
+                  {hasResult && count > 0 && (
+                    <span className="ml-1.5 text-[10px] font-bold">{count}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setEnabledCategories(allChecksOn ? [] : ALL_CHECK_IDS)}
+            className="ml-auto text-xs text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            {allChecksOn ? 'Clear all' : 'Select all'}
+          </button>
+        </div>
+      </div>
+
+      {/* Editor panels + contextual sidebar */}
+      <div className="flex gap-5 items-start">
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-5 items-start min-w-0">
 
           {/* Input panel — sticky */}
-          <div className="lg:sticky lg:top-4" style={{ height: 'calc(100vh - 7rem)' }}>
+          <div className="lg:sticky lg:top-4" style={{ height: 'calc(100vh - 15rem)' }}>
             <div
-              className="bg-slate-800 border border-slate-700/80 rounded-2xl overflow-hidden flex flex-col h-full relative shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_32px_rgba(0,0,0,0.35)]"
+              className="bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full relative"
               {...dragHandlers}
             >
               {fileInputElement}
               <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />
 
-              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700 shrink-0">
-                <div className="flex items-center gap-2 text-slate-300 font-medium text-[14px]">
-                  <FileText size={14} className="text-slate-400" />
-                  Your Text
-                </div>
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
+                <span className="text-sm font-medium text-gray-700">
+                  Your text
+                  {wordCount > 0 && (
+                    <span className="ml-2 text-xs font-normal text-gray-400">{wordCount} words</span>
+                  )}
+                </span>
                 <div className="flex items-center gap-3">
                   {!inputText && (
                     <button
                       type="button"
                       onClick={() => setInputText(SAMPLE_TEXT)}
-                      className="text-[13px] text-rose-400 hover:text-rose-300 underline underline-offset-2 transition-colors"
+                      className="text-xs text-blue-500 hover:underline transition-colors"
                     >
                       Try sample
                     </button>
@@ -482,61 +509,59 @@ export default function GrammarPage() {
                     type="button"
                     onClick={openFilePicker}
                     disabled={isLoading || isFileProcessing}
-                    className="flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition-colors disabled:opacity-40"
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40"
                   >
-                    <Upload size={12} />
+                    <Upload className="w-3 h-3" />
                     Upload
                   </button>
-                  <WordCountBadge count={wordCount} min={2} />
                 </div>
               </div>
 
+              {/* Textarea */}
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="Paste or type your text here to check grammar and spelling…"
-                className="flex-1 min-h-0 w-full bg-transparent text-slate-200 placeholder:text-slate-500 resize-none focus:outline-none px-5 py-4 text-[15px] leading-[1.75]"
+                className="flex-1 min-h-0 w-full bg-white text-gray-800 placeholder:text-gray-400 resize-none focus:outline-none px-4 py-3 text-sm leading-relaxed"
               />
 
-              <div className="px-5 py-3 border-t border-slate-700/50 flex items-center justify-between shrink-0">
-                <span className="text-[13px] text-slate-400">Min. 2 words · Max. 50,000 chars</span>
+              {/* Footer */}
+              <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                   {(inputText || hasResult) && (
                     <button
                       type="button"
                       onClick={handleClear}
-                      className="flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition-colors"
+                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
                     >
-                      <RotateCcw size={12} />
+                      <RotateCcw className="w-3 h-3" />
                       Clear
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={handleCheck}
-                    disabled={!canCheck}
-                    className={cn(
-                      'flex items-center gap-2 px-5 py-2.5 rounded-xl text-[15px] font-semibold transition-all',
-                      'bg-gradient-to-r from-rose-600 to-pink-600 text-white',
-                      'disabled:opacity-50 disabled:cursor-not-allowed',
-                      canCheck && 'hover:opacity-90 shadow shadow-rose-500/20'
-                    )}
-                  >
-                    {isLoading ? (
-                      <>
-                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
-                          <SpellCheck size={14} />
-                        </motion.div>
-                        Checking…
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 size={14} />
-                        Check Grammar
-                      </>
-                    )}
-                  </button>
+                  {wordCount > 0 && wordCount < 2 && (
+                    <span className="text-xs text-gray-400">Keep typing…</span>
+                  )}
                 </div>
+                <button
+                  type="button"
+                  onClick={handleCheck}
+                  disabled={!canCheck}
+                  className={cn(
+                    'flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors',
+                    !canCheck
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-900 text-white hover:bg-gray-800'
+                  )}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Checking…
+                    </>
+                  ) : (
+                    'Check grammar'
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -544,17 +569,48 @@ export default function GrammarPage() {
           {/* Output panel */}
           <div
             ref={outputRef}
-            className="bg-slate-800 border border-slate-700/80 rounded-2xl overflow-hidden flex flex-col shadow-[0_0_0_1px_rgba(255,255,255,0.04)]"
+            className="bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col"
             style={{ minHeight: 480 }}
           >
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700 shrink-0">
-              <div className="flex items-center gap-2 text-slate-300 font-medium text-[14px]">
-                <SpellCheck size={14} className="text-slate-400" />
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
+              <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 Results
-              </div>
+                {hasResult && issueCount > 0 && (
+                  <span className="px-1.5 py-0.5 bg-red-50 text-red-500 text-xs rounded-md">
+                    {issueCount} issue{issueCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {hasResult && result.qualityScore !== undefined && (
+                  <span className={cn(
+                    'text-xs px-1.5 py-0.5 rounded-md font-medium',
+                    result.qualityScore >= 90 ? 'bg-emerald-50 text-emerald-600'
+                      : result.qualityScore >= 70 ? 'bg-amber-50 text-amber-600'
+                      : 'bg-red-50 text-red-500'
+                  )}>
+                    {result.qualityScore}/100
+                  </span>
+                )}
+              </span>
               {hasResult && (
-                <div className="flex items-center gap-2">
-                  <QualityBadge score={result.qualityScore} />
+                <div className="flex items-center gap-3">
+                  {sortedPending.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleAcceptAll}
+                      className="text-xs text-blue-500 hover:underline transition-colors"
+                    >
+                      Accept all
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
                 </div>
               )}
             </div>
@@ -565,17 +621,8 @@ export default function GrammarPage() {
                   key="empty"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="flex-1 flex flex-col items-center justify-center text-center px-8 py-12 gap-4"
                 >
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-rose-500/10 border border-rose-500/20">
-                    <SpellCheck size={22} className="text-rose-400" />
-                  </div>
-                  <div>
-                    <p className="text-slate-300 font-semibold text-[15px]">Your corrected text will appear here</p>
-                    <p className="text-slate-500 text-[13px] mt-1">
-                      Paste text on the left and click Check Grammar. Errors are highlighted inline so you can accept or ignore each one.
-                    </p>
-                  </div>
+                  <ResultsEmptyState />
                 </motion.div>
               )}
 
@@ -584,12 +631,12 @@ export default function GrammarPage() {
                   key="loading"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="flex-1 flex items-center justify-center gap-3"
+                  className="flex-1 flex items-center justify-center gap-3 py-20"
                 >
                   {[0, 1, 2].map(i => (
                     <motion.span
                       key={i}
-                      className="w-2 h-2 rounded-full bg-rose-500"
+                      className="w-2 h-2 rounded-full bg-blue-400"
                       animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.1, 0.8] }}
                       transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
                     />
@@ -605,24 +652,24 @@ export default function GrammarPage() {
                   className="flex-1 overflow-y-auto"
                 >
                   {/* Annotated text */}
-                  <div className="px-5 py-4 border-b border-slate-700/50">
+                  <div className="px-4 py-4 border-b border-gray-50">
                     {noIssues || allResolved ? (
-                      <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-                        <CheckCheck size={18} className="text-emerald-400 shrink-0" />
+                      <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+                        <CheckCheck className="w-5 h-5 text-emerald-500 shrink-0" />
                         <div>
-                          <p className="text-[14px] text-emerald-300 font-semibold">
+                          <p className="text-sm text-emerald-700 font-semibold">
                             {noIssues ? 'No issues found' : 'All suggestions resolved'}
                           </p>
-                          <p className="text-[13px] text-emerald-500 mt-0.5">
+                          <p className="text-xs text-emerald-600 mt-0.5">
                             {noIssues
-                              ? 'Your text looks great! Quality score: ' + result.qualityScore + '/100'
-                              : 'Copy the corrected text whenever you\'re ready.'}
+                              ? `Your text looks great! Quality score: ${result.qualityScore}/100`
+                              : "Copy the corrected text whenever you're ready."}
                           </p>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <p className="text-[12px] text-slate-500 uppercase tracking-wider font-semibold mb-3">
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wider font-medium mb-3">
                           Click an underline to jump to its suggestion
                         </p>
                         <AnnotatedText
@@ -637,58 +684,34 @@ export default function GrammarPage() {
 
                   {/* Suggestion cards */}
                   {sortedPending.length > 0 && (
-                    <div className="px-5 py-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[13px] text-slate-500">
-                          {sortedPending.length} suggestion{sortedPending.length !== 1 ? 's' : ''} · {result.totalErrors} error{result.totalErrors !== 1 ? 's' : ''}, {result.totalWarnings} warning{result.totalWarnings !== 1 ? 's' : ''}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handleAcceptAll}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-[13px] font-medium transition-colors"
-                        >
-                          <CheckCheck size={12} />
-                          Accept All
-                        </button>
-                      </div>
-
-                      <AnimatePresence>
-                        {sortedPending.map((s) => (
-                          <div key={s.id} ref={(el) => { cardRefs.current[s.id] = el }}>
-                            <SuggestionCard
-                              suggestion={s}
-                              isSelected={selectedId === s.id}
-                              onAccept={() => handleAccept(s)}
-                              onIgnore={() => handleIgnore(s.id)}
-                              onSelect={() => setSelectedId(s.id)}
-                            />
-                          </div>
-                        ))}
-                      </AnimatePresence>
-                    </div>
+                    <AnimatePresence>
+                      {sortedPending.map((s) => (
+                        <div key={s.id} ref={(el) => { cardRefs.current[s.id] = el }}>
+                          <SuggestionCard
+                            suggestion={s}
+                            isSelected={selectedId === s.id}
+                            onAccept={() => handleAccept(s)}
+                            onIgnore={() => handleIgnore(s.id)}
+                            onSelect={() => setSelectedId(s.id)}
+                          />
+                        </div>
+                      ))}
+                    </AnimatePresence>
                   )}
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <div className="px-5 py-3 border-t border-slate-700/50 flex items-center justify-end gap-3 shrink-0">
-              {hasResult && (
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-[14px] font-medium transition-colors"
-                >
-                  <Copy size={13} />
-                  Copy Corrected Text
-                </button>
-              )}
-            </div>
+            {hasResult && (
+              <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-end shrink-0">
+                <SendToMenu text={activeText} />
+              </div>
+            )}
           </div>
 
         </div>
-        {/* end input/output grid */}
 
-        {/* Contextual sidebar — Grammar Score (desktop only) */}
+        {/* Grammar Score sidebar */}
         <AnimatePresence>
           {(hasResult || isLoading) && (
             <motion.div
@@ -696,12 +719,12 @@ export default function GrammarPage() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 12 }}
               transition={{ duration: 0.25 }}
-              className="hidden lg:flex w-[208px] shrink-0 flex-col bg-slate-800 border border-slate-700/80 rounded-2xl overflow-hidden shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_32px_rgba(0,0,0,0.35)]"
+              className="hidden lg:flex w-[208px] shrink-0 flex-col bg-white border border-gray-100 rounded-xl overflow-hidden"
             >
-              <div className="px-5 py-3 border-b border-slate-700">
+              <div className="px-4 py-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
-                  <SpellCheck size={13} className="text-slate-400" />
-                  <span className="text-[14px] font-semibold text-slate-200">Grammar Score</span>
+                  <SpellCheck className="w-3.5 h-3.5 text-gray-400" />
+                  <span className="text-sm font-semibold text-gray-700">Grammar Score</span>
                 </div>
               </div>
               <div className="flex-1 flex flex-col items-center gap-3 p-4">
@@ -710,15 +733,15 @@ export default function GrammarPage() {
                     <div className="flex flex-col items-center gap-1 mt-2">
                       <span className={cn(
                         'text-4xl font-bold tabular-nums',
-                        result.qualityScore >= 90 ? 'text-emerald-400'
-                          : result.qualityScore >= 70 ? 'text-amber-400'
-                          : 'text-red-400'
+                        result.qualityScore >= 90 ? 'text-emerald-500'
+                          : result.qualityScore >= 70 ? 'text-amber-500'
+                          : 'text-red-500'
                       )}>
                         {result.qualityScore}
                       </span>
-                      <span className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">/100</span>
+                      <span className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">/100</span>
                     </div>
-                    <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <motion.div
                         className={cn(
                           'h-full rounded-full',
@@ -733,37 +756,34 @@ export default function GrammarPage() {
                     </div>
                     <div className="w-full mt-1 space-y-2">
                       {result.totalErrors > 0 && (
-                        <div className="flex justify-between items-center text-[12px]">
-                          <span className="text-slate-500">Errors</span>
-                          <span className="font-semibold text-red-400 tabular-nums">{result.totalErrors}</span>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-500">Errors</span>
+                          <span className="font-semibold text-red-500 tabular-nums">{result.totalErrors}</span>
                         </div>
                       )}
                       {result.totalWarnings > 0 && (
-                        <div className="flex justify-between items-center text-[12px]">
-                          <span className="text-slate-500">Warnings</span>
-                          <span className="font-semibold text-amber-400 tabular-nums">{result.totalWarnings}</span>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-500">Warnings</span>
+                          <span className="font-semibold text-amber-500 tabular-nums">{result.totalWarnings}</span>
                         </div>
                       )}
                       {sortedPending.length > 0 && (
-                        <div className="flex justify-between items-center text-[12px]">
-                          <span className="text-slate-500">Pending</span>
-                          <span className="font-semibold text-slate-300 tabular-nums">{sortedPending.length}</span>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-500">Pending</span>
+                          <span className="font-semibold text-gray-700 tabular-nums">{sortedPending.length}</span>
                         </div>
                       )}
                     </div>
                     {Object.keys(result.suggestionCountByCategory).length > 0 && (
                       <>
-                        <div className="w-full h-px bg-slate-700/60" />
+                        <div className="w-full h-px bg-gray-100" />
                         <div className="w-full space-y-1.5">
-                          {Object.entries(result.suggestionCountByCategory).map(([cat, count]) => {
-                            const colour = CATEGORIES.find((c) => c.value === cat)?.colour ?? '#94a3b8'
-                            return (
-                              <div key={cat} className="flex justify-between items-center text-[11px]">
-                                <span style={{ color: colour }} className="font-medium">{cat}</span>
-                                <span className="font-semibold tabular-nums" style={{ color: colour }}>{count}</span>
-                              </div>
-                            )
-                          })}
+                          {Object.entries(result.suggestionCountByCategory).map(([cat, count]) => (
+                            <div key={cat} className="flex justify-between items-center text-[11px]">
+                              <span className="text-gray-500 font-medium">{cat}</span>
+                              <span className="font-semibold text-gray-700 tabular-nums">{count}</span>
+                            </div>
+                          ))}
                         </div>
                       </>
                     )}
@@ -771,19 +791,19 @@ export default function GrammarPage() {
                       <button
                         type="button"
                         onClick={handleAcceptAll}
-                        className="mt-auto w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[13px] font-semibold bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-600/25 transition-all"
+                        className="mt-auto w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-gray-900 text-white hover:bg-gray-800 transition-colors"
                       >
-                        <CheckCheck size={12} />
+                        <CheckCheck className="w-3 h-3" />
                         Accept All
                       </button>
                     )}
                   </>
                 ) : (
                   <>
-                    <div className="mt-4 w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
-                      <SpellCheck size={18} className="text-rose-400/70" />
+                    <div className="mt-4 w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center">
+                      <SpellCheck className="w-5 h-5 text-gray-300" />
                     </div>
-                    <p className="text-[11px] text-slate-500 text-center leading-relaxed">
+                    <p className="text-xs text-gray-400 text-center leading-relaxed">
                       Run a check to see your grammar score
                     </p>
                   </>
@@ -793,10 +813,7 @@ export default function GrammarPage() {
           )}
         </AnimatePresence>
 
-        </div>
-        {/* end flex+sidebar wrapper */}
-
-      </main>
+      </div>
     </div>
   )
 }

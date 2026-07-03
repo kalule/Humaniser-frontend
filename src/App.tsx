@@ -1,4 +1,5 @@
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, lazy, Suspense, Component } from 'react'
+import type { ReactNode, ErrorInfo } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GoogleOAuthProvider } from '@react-oauth/google'
@@ -12,10 +13,10 @@ const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'))
-const WorkspacePage = lazy(() => import('./pages/WorkspacePage'))
 const EditorPage = lazy(() => import('./pages/app/EditorPage'))
 const HistoryPage = lazy(() => import('./pages/app/HistoryPage'))
 const AccountPage = lazy(() => import('./pages/app/AccountPage'))
+const BillingPage = lazy(() => import('./pages/app/BillingPage'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 const DetectorPage = lazy(() => import('./pages/DetectorPage'))
 const DetectorHistoryPage = lazy(() => import('./pages/DetectorHistoryPage'))
@@ -24,6 +25,42 @@ const ParaphrasePage = lazy(() => import('./pages/app/ParaphrasePage'))
 const GrammarPage    = lazy(() => import('./pages/app/GrammarPage'))
 const PlagiarismPage  = lazy(() => import('./pages/app/PlagiarismPage'))
 const SummarisePage   = lazy(() => import('./pages/app/SummarisePage'))
+const AnalystPage     = lazy(() => import('./pages/app/AnalystPage'))
+const WorkbenchPage   = lazy(() => import('./pages/app/WorkbenchPage'))
+const DocumentChatPage = lazy(() => import('./pages/app/DocumentChatPage'))
+const CitationPage     = lazy(() => import('./pages/app/CitationPage'))
+const FlashcardPage    = lazy(() => import('./pages/app/FlashcardPage'))
+const LecturePage      = lazy(() => import('./pages/app/LecturePage'))
+const LibraryPage      = lazy(() => import('./pages/app/LibraryPage'))
+const DocumentEditorPage = lazy(() => import('./pages/app/DocumentEditorPage'))
+const WebLibraryPage      = lazy(() => import('./pages/app/WebLibraryPage'))
+const ProposalStudioPage  = lazy(() => import('./pages/app/ProposalStudioPage'))
+const ResearchAgentPage   = lazy(() => import('./pages/app/ResearchAgentPage'))
+
+class ChunkErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false }
+  static getDerivedStateFromError() { return { hasError: true } }
+  componentDidCatch(_: Error, info: ErrorInfo) { console.error('Chunk load error:', info) }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--surface-page)' }}>
+          <div className="flex flex-col items-center gap-4 text-center">
+            <p className="text-base" style={{ color: 'var(--text-secondary)' }}>A page failed to load — this is usually a network blip.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-5 py-2 text-white rounded-lg text-sm font-medium transition-colors"
+              style={{ background: 'var(--color-purple)' }}
+            >
+              Reload page
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,10 +73,10 @@ const queryClient = new QueryClient({
 
 function PageLoader() {
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--surface-page)' }}>
       <div className="flex flex-col items-center gap-4">
-        <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-slate-400 text-sm">Loading...</p>
+        <div className="w-10 h-10 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--border-strong)', borderTopColor: 'var(--color-purple)' }} />
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</p>
       </div>
     </div>
   )
@@ -78,6 +115,7 @@ function AppInner() {
   if (isLoading) return <PageLoader />
 
   return (
+    <ChunkErrorBoundary>
     <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Public */}
@@ -105,9 +143,21 @@ function AppInner() {
             <Route path="detector" element={<DetectorPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="account" element={<AccountPage />} />
-            <Route path="billing" element={<AccountPage />} />
+            <Route path="billing" element={<BillingPage />} />
             <Route path="upgrade" element={<PricingPage />} />
             <Route path="detector/history" element={<DetectorHistoryPage />} />
+            <Route path="analyst"       element={<AnalystPage />} />
+            <Route path="document-chat" element={<DocumentChatPage />} />
+            <Route path="citations"     element={<CitationPage />} />
+            <Route path="flashcards"    element={<FlashcardPage />} />
+            <Route path="lecture"       element={<LecturePage />} />
+            <Route path="workbench"     element={<WorkbenchPage />} />
+            <Route path="library"       element={<LibraryPage />} />
+            <Route path="editor/new"              element={<DocumentEditorPage />} />
+            <Route path="editor/:documentId"      element={<DocumentEditorPage />} />
+            <Route path="web-library"             element={<WebLibraryPage />} />
+            <Route path="proposal-studio"           element={<ProposalStudioPage />} />
+            <Route path="research-agent/:projectId" element={<ResearchAgentPage />} />
           </Route>
         </Route>
 
@@ -121,6 +171,7 @@ function AppInner() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
+    </ChunkErrorBoundary>
   )
 }
 
@@ -132,20 +183,22 @@ export default function App() {
           <AppInner />
           <Toaster
             position="top-right"
+            containerStyle={{ top: 80 }}
             toastOptions={{
               duration: 4000,
               style: {
-                background: '#1E293B',
-                color: '#F8FAFC',
-                border: '1px solid #334155',
-                borderRadius: '12px',
-                fontSize: '14px',
+                background: '#ffffff',
+                color: '#1a1a18',
+                border: '0.5px solid #e0e0da',
+                borderRadius: '10px',
+                fontSize: '13px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
               },
               success: {
-                iconTheme: { primary: '#10B981', secondary: '#1E293B' },
+                iconTheme: { primary: '#10b981', secondary: '#ffffff' },
               },
               error: {
-                iconTheme: { primary: '#EF4444', secondary: '#1E293B' },
+                iconTheme: { primary: '#ef4444', secondary: '#ffffff' },
               },
             }}
           />

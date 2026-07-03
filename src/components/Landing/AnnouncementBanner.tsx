@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-const DISMISSED_KEY = 'announcement_v1_dismissed'
+const DISMISSED_KEY = 'announcement_v2_dismissed'
 
 export function AnnouncementBanner() {
   const [visible, setVisible] = useState(false)
@@ -37,11 +37,11 @@ export function AnnouncementBanner() {
           onKeyDown={handleKeyDown}
           role="banner"
         >
-          <div className="bg-indigo-600 text-white text-sm text-center py-2 px-4 relative flex items-center justify-center gap-2 flex-wrap">
-            <span>✨ AI Detector now live — check your human score for free</span>
+          <div className="bg-[#ede9fe] border-b border-violet-200 text-[#5b21b6] text-sm text-center py-2.5 px-4 relative flex items-center justify-center gap-2 flex-wrap">
+            <span>🎓 Proposal Studio is live — generate fully cited research proposals</span>
             <Link
-              to="/app/detector"
-              className="inline-flex items-center gap-1 font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity whitespace-nowrap"
+              to="/app/proposal-studio"
+              className="inline-flex items-center gap-1 font-semibold text-[#4c1d95] underline underline-offset-2 hover:text-[#1a1a18] transition-colors whitespace-nowrap"
             >
               Try it free <ArrowRight size={13} />
             </Link>
@@ -49,7 +49,7 @@ export function AnnouncementBanner() {
               type="button"
               onClick={dismiss}
               aria-label="Dismiss announcement"
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:opacity-70 transition-opacity"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#7c3aed] hover:text-[#4c1d95] transition-colors"
             >
               <X size={14} />
             </button>

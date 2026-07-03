@@ -18,6 +18,10 @@ client.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    // FormData uploads must carry a boundary in Content-Type; let the browser set it
+    if (config.data instanceof FormData && config.headers) {
+      config.headers.delete('Content-Type')
+    }
     return config
   },
   (error: unknown) => Promise.reject(error),

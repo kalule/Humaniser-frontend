@@ -72,6 +72,10 @@ export interface HumaniseResponse {
   processingTimeMs: number
   usage: UsageStatsSimple
   historyId: string
+  originalAiScore: number
+  finalAiScore: number
+  verificationPassesUsed: number
+  metTargetThreshold: boolean
 }
 
 export interface UsageStatsSimple {

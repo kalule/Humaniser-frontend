@@ -13,10 +13,21 @@ export interface ParaphrasePreviewRequest {
   mode: number
 }
 
+export interface SentencePair {
+  original: string
+  rewritten: string
+}
+
 export interface ParaphraseManifest {
   syntacticChange: string
   lexicalUpgrades: string[]
   wordCountDelta: number
+  sentenceMap?: SentencePair[]
+}
+
+export interface WordDiffToken {
+  word: string
+  changed: boolean
 }
 
 export interface ParaphraseResponse {
@@ -28,6 +39,8 @@ export interface ParaphraseResponse {
   strength: string
   processingTimeMs: number
   manifest: ParaphraseManifest | null
+  wordDiff: WordDiffToken[]
+  changedWordCount: number
   wordsUsed: number
   wordsLimit: number
   wordsRemaining: number
