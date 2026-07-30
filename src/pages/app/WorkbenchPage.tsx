@@ -320,6 +320,14 @@ function ResultBlock({
     )
   }
 
+  if (result.type === 'text') {
+    return (
+      <div className="mt-3 p-3 rounded-xl text-xs text-slate-300 leading-relaxed whitespace-pre-wrap bg-slate-800/40 border border-slate-700/50">
+        {result.content}
+      </div>
+    )
+  }
+
   return (
     <div className="mt-3 overflow-x-auto">
       {result.caption && (
@@ -906,8 +914,7 @@ function ManuscriptPanel() {
         placeholder="Your manuscript will appear here. Generate an abstract from the Abstract tab or type directly…"
         disabled={isOptimizingProse}
         className="flex-1 w-full resize-none rounded-xl p-4 font-serif text-[13px] leading-relaxed outline-none focus:ring-1 focus:ring-violet-500/40 disabled:opacity-60 scrollbar-none"
-        style={{ background: '#f8fafc', border: '0.5px solid var(--border-hairline)', color: 'var(--text-primary)' }}
-        style={{ minHeight: 0 }}
+        style={{ background: '#f8fafc', border: '0.5px solid var(--border-hairline)', color: 'var(--text-primary)', minHeight: 0 }}
       />
 
       <div className="flex justify-end shrink-0">

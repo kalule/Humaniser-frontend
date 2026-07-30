@@ -19,6 +19,8 @@ import {
 import { AnalystErrorCard } from '../../components/ui/AnalystErrorCard'
 import { cn } from '../../lib/utils'
 import { useAnalystStore } from '../../store/analystStore'
+import { useAuthStore } from '../../store/authStore'
+import { CREDIT_COSTS } from '../../config/creditCosts'
 import { useAnalyst } from '../../hooks/useAnalyst'
 import { useSuggestedQuestions } from '../../hooks/useSuggestedQuestions'
 import { useWorkbench } from '../../hooks/useWorkbench'
@@ -1531,10 +1533,8 @@ function WriteUpPanel({ messageId }: { messageId: string }) {
 // ── Academic synthesis panel ──────────────────────────────────────────────────
 
 function SynthesisPanel({
-  messageId, jobId, literature, synthesis, isGenerating, isFetchingLiterature, onGenerate,
+  literature, synthesis, isGenerating, isFetchingLiterature, onGenerate,
 }: {
-  messageId:            string
-  jobId:                string
   literature:           LiteratureCitation[]
   synthesis?:           AcademicSynthesis
   isGenerating:         boolean
@@ -1857,7 +1857,7 @@ function MessageBubble({
   if (isUser) {
     return (
       <div className="flex items-start gap-3 justify-end">
-        <div className="max-w-[75%] px-4 py-2.5 rounded-2xl rounded-tr-sm text-slate-800 text-[14px] leading-relaxed" style={{ background: '#ede9fe', border: '0.5px solid #c4b5fd' }}>
+        <div className="max-w-[75%] px-4 py-2.5 rounded-2xl rounded-tr-sm text-slate-800 text-[14px] leading-relaxed bg-purple-tint" style={{ border: '0.5px solid var(--color-purple)' }}>
           {msg.content}
         </div>
         <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center" style={{ background: '#f1f5f9', border: '0.5px solid #e0e0da' }}>
@@ -1981,8 +1981,6 @@ function MessageBubble({
 
                 {/* Academic synthesis — always available once job is complete */}
                 <SynthesisPanel
-                  messageId={msg.id}
-                  jobId={msg.jobId!}
                   literature={msg.literature ?? []}
                   synthesis={msg.academicSynthesis}
                   isGenerating={msg.isGeneratingSynthesis ?? false}
@@ -2060,6 +2058,12 @@ function ConversationPanel({
   const schema      = useAnalystStore((s) => s.schema)
   const sessionId   = useAnalystStore((s) => s.sessionId)
 
+  const user = useAuthStore((s) => s.user)
+  const queryCost = CREDIT_COSTS.dataAnalystQuery
+  const hasEnoughCredits = user
+    ? user.plan === 'Unlimited' || user.creditsLimit - user.creditsUsed >= queryCost
+    : true
+
   const [text, setText]   = useState('')
   const textareaRef        = useRef<HTMLTextAreaElement>(null)
   const threadRef          = useRef<HTMLDivElement>(null)
@@ -2076,9 +2080,19 @@ function ConversationPanel({
 
   const submit = useCallback(() => {
     if (!text.trim() || isQuerying) return
+    if (!hasEnoughCredits) {
+      void import('../../store/uiStore').then(({ useUiStore }) => {
+        useUiStore.getState().openCreditLimitModal({
+          used: user?.creditsUsed ?? 0,
+          limit: user?.creditsLimit ?? 0,
+          resetDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+        })
+      })
+      return
+    }
     void query(text)
     setText('')
-  }, [text, isQuerying, query])
+  }, [text, isQuerying, hasEnoughCredits, user, query])
 
   const fillSuggestion = useCallback((suggestion: string) => {
     setText(suggestion)
@@ -2193,13 +2207,18 @@ function ConversationPanel({
           <button
             onClick={submit}
             disabled={!text.trim() || isQuerying}
-            className="shrink-0 w-8 h-8 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+            title={hasEnoughCredits ? `Uses ${queryCost} credits` : 'Not enough credits — click to see plans'}
+            className={cn(
+              'shrink-0 w-8 h-8 rounded-xl hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors',
+              hasEnoughCredits ? 'bg-violet-600' : 'bg-amber-500 hover:bg-amber-400',
+            )}
           >
             <Send size={14} className="text-white" />
           </button>
         </div>
         <p className="text-xs text-slate-400 mt-2 text-center">
-          Press Enter to send · Shift+Enter for new line
+          Press Enter to send · Shift+Enter for new line · {queryCost} credits per question
+          {!hasEnoughCredits && <span className="text-amber-600 font-medium"> · Not enough credits</span>}
         </p>
       </div>
     </div>
@@ -2401,7 +2420,7 @@ function ObjectivesWizard() {
                     Independent variables
                     <span className="text-slate-400 font-normal normal-case tracking-normal">— select one or more</span>
                   </label>
-                  <div className="rounded-xl max-h-52 overflow-y-auto divide-y scrollbar-none" style={{ background: '#ffffff', border: '0.5px solid #e0e0da', divideColor: '#ebebea' }}>
+                  <div className="rounded-xl max-h-52 overflow-y-auto divide-y divide-[#ebebea] scrollbar-none" style={{ background: '#ffffff', border: '0.5px solid #e0e0da' }}>
                     {columns.map((col) => (
                       <label key={col} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
                         <input

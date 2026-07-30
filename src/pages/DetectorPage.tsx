@@ -1,14 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
-  ShieldCheck, AlertTriangle, HelpCircle, CheckCircle,
-  RefreshCw, Upload, Sparkles, Clipboard, Check,
+  ShieldCheck, AlertTriangle, HelpCircle, CheckCircle, AlertCircle,
+  RefreshCw, Upload, Sparkles, Clipboard, Check, Download, ArrowUpDown,
 } from 'lucide-react'
 import { useDetectorStore } from '../store/detectorStore'
 import { useDetector } from '../hooks/useDetector'
 import { useDragDrop } from '../hooks/useDragDrop'
 import { DropOverlay } from '../components/ui/DropOverlay'
+import { ScoreBar } from '../components/ui/ScoreBar'
+import { PanelLabel } from '../components/ui/PanelLabel'
+import { OutputActionButton } from '../components/ui/OutputActionButton'
+import { ClearButton } from '../components/ui/ClearButton'
+import { UtilityButton } from '../components/ui/UtilityButton'
+import { Skeleton } from '../components/ui/Skeleton'
+import { HumanisePopover } from '../components/app/HumanisePopover'
+import { primaryButtonClass } from '../lib/utils'
 import type { DetectResponse } from '../types/detector'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -34,7 +43,9 @@ interface DetectorUIResult {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const SAMPLE_TEXT = `Artificial intelligence has transformed the way we approach problem-solving across industries. The utilisation of machine learning algorithms enables organisations to process vast datasets with unprecedented efficiency. Furthermore, the integration of natural language processing capabilities has facilitated more sophisticated human-computer interaction paradigms. It is important to note that these technological advancements present both opportunities and challenges for contemporary society. The systematic implementation of AI-driven solutions requires careful consideration of ethical implications and potential societal impacts.`
+const SAMPLE_TEXT_AI = `Artificial intelligence has transformed the way we approach problem-solving across industries. The utilisation of machine learning algorithms enables organisations to process vast datasets with unprecedented efficiency. Furthermore, the integration of natural language processing capabilities has facilitated more sophisticated human-computer interaction paradigms. It is important to note that these technological advancements present both opportunities and challenges for contemporary society. The systematic implementation of AI-driven solutions requires careful consideration of ethical implications and potential societal impacts.`
+
+const SAMPLE_TEXT_HUMAN = `Honestly, I didn't think the trip would go this well. We missed our connecting flight in Frankfurt, which should've ruined everything, but somehow it turned into the best part of the whole week. We ended up wandering into this tiny café near the station because we had six hours to kill, and the owner overheard us arguing about which train platform we needed. He just laughed, sat down with us, and started telling stories about growing up nearby. I still don't know his name. Funny how the stuff you didn't plan is usually what you remember.`
 
 function adaptResponse(r: DetectResponse): DetectorUIResult {
   const verdict: VerdictType =
@@ -108,28 +119,10 @@ function VerdictBadge({ verdict }: { verdict: VerdictType }) {
   )
 }
 
-// ── ScoreBar ──────────────────────────────────────────────────────────────────
+// ── Score colour helper (shared thresholds for bar + dots + highlights) ──────
 
-function ScoreBar({ aiPct, className = '' }: { aiPct: number; className?: string }) {
-  const barColor =
-    aiPct >= 70 ? 'bg-red-400'
-    : aiPct >= 40 ? 'bg-amber-400'
-    : 'bg-green-500'
-
-  return (
-    <div className={className}>
-      <div className="flex items-baseline justify-between mb-1.5">
-        <span className="text-xs text-gray-500">AI probability</span>
-        <span className="text-2xl font-medium text-gray-900">{aiPct}%</span>
-      </div>
-      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ${barColor}`}
-          style={{ width: `${aiPct}%` }}
-        />
-      </div>
-    </div>
-  )
+function aiBarColor(aiPct: number): string {
+  return aiPct >= 70 ? 'bg-red-400' : aiPct >= 40 ? 'bg-amber-400' : 'bg-green-500'
 }
 
 // ── SentenceResultRow ─────────────────────────────────────────────────────────
@@ -137,13 +130,21 @@ function ScoreBar({ aiPct, className = '' }: { aiPct: number; className?: string
 function SentenceResultRow({
   sentence,
   selected,
+  isRewritten,
+  popoverOpen,
   onClick,
-  onHumanise,
+  onTogglePopover,
+  onAcceptRewrite,
+  onOpenInEditor,
 }: {
   sentence: SentenceResult
   selected: boolean
+  isRewritten: boolean
+  popoverOpen: boolean
   onClick: () => void
-  onHumanise: (text: string) => void
+  onTogglePopover: () => void
+  onAcceptRewrite: (newText: string) => void
+  onOpenInEditor: (text: string) => void
 }) {
   const { aiProbability: pct, text } = sentence
 
@@ -160,28 +161,56 @@ function SentenceResultRow({
   return (
     <div
       onClick={onClick}
-      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+      className={`relative p-3 rounded-lg border cursor-pointer transition-colors ${
         selected ? selectedBg : 'bg-white border-gray-100 hover:bg-gray-50'
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs text-gray-700 leading-relaxed line-clamp-2 flex-1">{text}</p>
+        <div className="flex items-start gap-2 flex-1 min-w-0">
+          <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${aiBarColor(pct)}`} aria-hidden="true" />
+          <p className="text-xs text-gray-700 leading-relaxed line-clamp-2">{text}</p>
+        </div>
         <span className={`text-sm font-medium flex-shrink-0 ${pctColor}`}>{pct}%</span>
       </div>
 
       {pct >= 40 && (
-        <button
-          type="button"
-          onClick={e => {
-            e.stopPropagation()
-            onHumanise(text)
-          }}
-          className="mt-2 flex items-center gap-1 text-[11px] text-blue-500 hover:text-blue-700 hover:underline transition-colors"
-        >
-          <Sparkles size={11} />
-          Humanise this sentence
-        </button>
+        isRewritten ? (
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation()
+              onTogglePopover()
+            }}
+            className="mt-2 flex items-center gap-1 text-[11px] text-green-600 hover:text-green-700 transition-colors"
+          >
+            <Check size={11} />
+            Rewritten — humanise again
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation()
+              onTogglePopover()
+            }}
+            className="mt-2 flex items-center gap-1 text-[11px] text-blue-500 hover:text-blue-700 hover:underline transition-colors"
+          >
+            <Sparkles size={11} />
+            Humanise this sentence
+          </button>
+        )
       )}
+
+      <AnimatePresence>
+        {popoverOpen && (
+          <HumanisePopover
+            sentence={text}
+            onAccept={onAcceptRewrite}
+            onClose={onTogglePopover}
+            onOpenInEditor={() => onOpenInEditor(text)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -198,7 +227,7 @@ function SentenceHighlightView({
   onSelect: (id: string | null) => void
 }) {
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-3 text-sm text-gray-800 leading-relaxed">
+    <div className="textarea-body flex-1 overflow-y-auto px-4 py-3 text-gray-800">
       {sentences.map(s => {
         const isSelected = s.id === selectedId
         const bg =
@@ -267,8 +296,19 @@ function InputPanel({
     disabled: detectorState === 'analysing',
   })
 
+  const handlePasteFromClipboard = async () => {
+    try {
+      const clipboardText = await navigator.clipboard.readText()
+      onTextChange(clipboardText)
+      toast.success('Pasted from clipboard!')
+    } catch {
+      toast.error('Clipboard access denied')
+    }
+  }
+
   const charCount = text.length
   const isOverLimit = charCount > MAX_CHARS
+  const belowMinimum = wordCount < 50
 
   const footerHint =
     isOverLimit ? `Too long — ${charCount.toLocaleString()} / ${MAX_CHARS.toLocaleString()} characters`
@@ -277,37 +317,34 @@ function InputPanel({
     : wordCount > 0 ? `${50 - wordCount} more words needed`
     : 'Min. 50 words · 200+ for best accuracy'
 
+  const footerColor =
+    isOverLimit ? 'text-red-500'
+    : wordCount >= 50 ? 'text-green-600'
+    : 'text-gray-400'
+
   return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-100 relative" {...dragHandlers}>
+    <div className="flex flex-col h-full min-h-0 bg-white relative" {...dragHandlers}>
       {fileInputElement}
       <DropOverlay isDragging={isDragging} isProcessing={isProcessing} />
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
-        <span className="text-sm font-medium text-gray-700">
-          Your text
-          {wordCount > 0 && (
-            <span className="ml-2 text-xs font-normal text-gray-400">{wordCount} words</span>
-          )}
-        </span>
+        <PanelLabel label="Your text" count={wordCount} />
         <div className="flex items-center gap-3">
-          {!text && (
-            <button
-              type="button"
-              onClick={() => onTextChange(SAMPLE_TEXT)}
-              className="text-xs text-blue-500 hover:underline"
-            >
-              Try sample
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={openFilePicker}
-            disabled={detectorState === 'analysing' || isProcessing}
-            className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 disabled:opacity-40"
-          >
-            <Upload size={12} /> Upload
-          </button>
+          <div className="flex items-center gap-2">
+            <UtilityButton
+              icon={<Clipboard size={16} />}
+              label="Paste"
+              onClick={handlePasteFromClipboard}
+              disabled={detectorState === 'analysing'}
+            />
+            <UtilityButton
+              icon={<Upload size={16} />}
+              label="Upload"
+              onClick={openFilePicker}
+              disabled={detectorState === 'analysing' || isProcessing}
+            />
+          </div>
         </div>
       </div>
 
@@ -320,46 +357,60 @@ function InputPanel({
             onSelect={onSelect}
           />
         ) : (
-          <textarea
-            className="flex-1 w-full px-4 py-3 text-sm text-gray-800 placeholder-gray-400 bg-white resize-none outline-none leading-relaxed"
-            placeholder="Paste the text you want to analyse here. Minimum 50 words, 200+ for accurate detection…"
-            value={text}
-            onChange={e => onTextChange(e.target.value)}
-            disabled={detectorState === 'analysing'}
-          />
+          <div className="relative flex-1 min-h-0">
+            <textarea
+              className="textarea-body absolute inset-0 w-full h-full px-4 py-3 text-gray-800 bg-white resize-none outline-none focus:ring-2 focus:ring-inset focus:ring-purple-accent/30 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
+              value={text}
+              onChange={e => onTextChange(e.target.value)}
+              disabled={detectorState === 'analysing'}
+            />
+            {!text && (
+              <div className="textarea-body pointer-events-none absolute inset-0 px-4 py-3 text-gray-400 select-none">
+                Paste the text you want to analyse here. Minimum 50 words, 200+ for accurate detection. Or{' '}
+                <button
+                  type="button"
+                  onClick={() => onTextChange(SAMPLE_TEXT_AI)}
+                  className="pointer-events-auto text-purple-accent hover:underline"
+                >
+                  try an AI sample
+                </button>
+                {' '}or{' '}
+                <button
+                  type="button"
+                  onClick={() => onTextChange(SAMPLE_TEXT_HUMAN)}
+                  className="pointer-events-auto text-purple-accent hover:underline"
+                >
+                  a human sample
+                </button>
+                .
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 shrink-0">
-        <span className={`text-xs ${isOverLimit ? 'text-red-500' : 'text-gray-400'}`}>{footerHint}</span>
-        <div className="flex items-center gap-2">
-          {detectorState === 'complete' && (
-            <button
-              type="button"
-              onClick={onReset}
-              className="text-xs text-gray-400 hover:text-gray-700 flex items-center gap-1"
-            >
-              <RefreshCw size={12} /> New analysis
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onAnalyse}
-            disabled={wordCount < 50 || isOverLimit || detectorState === 'analysing'}
-            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
-              wordCount < 50 || isOverLimit || detectorState === 'analysing'
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-900 text-white hover:bg-gray-800'
-            }`}
-          >
-            {detectorState === 'analysing' ? (
-              <><RefreshCw size={14} className="animate-spin" /> Analysing…</>
-            ) : (
-              'Analyse text'
-            )}
-          </button>
+        <div className="flex items-center gap-3">
+          <ClearButton
+            onClick={onReset}
+            disabled={!text || detectorState === 'analysing'}
+          />
+          <span className={`text-[13px] ${footerColor}`}>{footerHint}</span>
         </div>
+        <button
+          type="button"
+          onClick={onAnalyse}
+          disabled={belowMinimum || isOverLimit || detectorState === 'analysing'}
+          title={belowMinimum ? 'Please enter at least 50 words to begin analysis.' : undefined}
+          className={primaryButtonClass(!(belowMinimum || isOverLimit || detectorState === 'analysing'))}
+        >
+          {detectorState === 'analysing' ? (
+            <><RefreshCw size={14} className="animate-spin" /> Analysing…</>
+          ) : (
+            'Analyse text'
+          )}
+        </button>
       </div>
     </div>
   )
@@ -377,17 +428,14 @@ function ResultsEmptyState() {
           Paste text on the left and run an analysis to see the AI probability score and sentence breakdown.
         </p>
       </div>
-      <div className="w-full max-w-xs mt-2 opacity-40 flex flex-col gap-3">
-        <div className="p-3 rounded-lg border border-gray-100 bg-gray-50 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full border-4 border-gray-200 flex-shrink-0" />
-          <div className="flex-1 flex flex-col gap-1.5">
-            <div className="h-3 bg-gray-200 rounded w-1/2" />
-            <div className="h-2 bg-gray-200 rounded w-3/4" />
-          </div>
+      <div className="w-full max-w-xs mt-2 opacity-60 text-left">
+        <div className="p-3 rounded-lg border border-gray-100 bg-gray-50 text-xs leading-6 text-gray-400">
+          <span className="bg-red-50 text-red-400 px-0.5 rounded">Furthermore, it is important to note that</span>{' '}
+          this approach{' '}
+          <span className="bg-red-50 text-red-400 px-0.5 rounded">plays a crucial role in</span>{' '}
+          improving outcomes.
         </div>
-        {[75, 45, 20].map((w, i) => (
-          <div key={i} className="h-8 bg-gray-100 rounded-lg" style={{ width: `${w}%` }} />
-        ))}
+        <p className="text-[10px] text-gray-300 mt-1.5 text-center">AI-sounding phrases flagged</p>
       </div>
     </div>
   )
@@ -395,18 +443,40 @@ function ResultsEmptyState() {
 
 // ── ResultsPanel ──────────────────────────────────────────────────────────────
 
+const SENTENCES_INITIAL_VISIBLE = 10
+
 function ResultsPanel({
   result,
+  isLoading,
+  error,
+  onRetry,
   selectedId,
   onSelect,
-  onHumanise,
+  rewrittenIds,
+  onAcceptRewrite,
+  onOpenInEditor,
 }: {
   result: DetectorUIResult | null
+  isLoading: boolean
+  error: string | null
+  onRetry: () => void
   selectedId: string | null
   onSelect: (id: string | null) => void
-  onHumanise: (text: string) => void
+  rewrittenIds: Set<string>
+  onAcceptRewrite: (sentenceId: string, originalText: string, newText: string) => void
+  onOpenInEditor: (text: string) => void
 }) {
   const [copied, setCopied] = useState(false)
+  const [downloaded, setDownloaded] = useState(false)
+  const [sortMode, setSortMode] = useState<'severity' | 'order'>(() => {
+    const saved = sessionStorage.getItem('detector_sentence_sort')
+    return saved === 'order' ? 'order' : 'severity'
+  })
+  const [showAllSentences, setShowAllSentences] = useState(false)
+  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null)
+
+  // Collapse back to the capped list whenever a fresh analysis comes in.
+  useEffect(() => { setShowAllSentences(false); setOpenPopoverId(null) }, [result?.analysedAt])
 
   const handleCopyReport = async () => {
     if (!result) return
@@ -416,57 +486,141 @@ function ResultsPanel({
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleDownloadReport = () => {
+    if (!result) return
+    const blob = new Blob([generateReportText(result)], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'ai-detection-report.txt'
+    a.click()
+    URL.revokeObjectURL(url)
+    setDownloaded(true)
+    setTimeout(() => setDownloaded(false), 2000)
+  }
+
+  const handleSortChange = (mode: 'severity' | 'order') => {
+    setSortMode(mode)
+    sessionStorage.setItem('detector_sentence_sort', mode)
+  }
+
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full min-h-0 bg-white">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
-        <span className="text-sm font-medium text-gray-700">Analysis report</span>
+        <PanelLabel label="Analysis report" />
         {result && (
-          <button
-            type="button"
-            onClick={handleCopyReport}
-            className="text-xs text-gray-400 hover:text-gray-700 flex items-center gap-1"
-          >
-            {copied ? (
-              <><Check size={12} className="text-green-500" /> Copied</>
-            ) : (
-              <><Clipboard size={12} /> Copy report</>
-            )}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <OutputActionButton icon={copied ? <Check size={11} className="text-green-500" /> : <Clipboard size={11} />} onClick={handleCopyReport}>
+              {copied ? 'Copied' : 'Copy report'}
+            </OutputActionButton>
+            <OutputActionButton
+              icon={downloaded ? <Check size={11} className="text-green-500" /> : <Download size={11} />}
+              onClick={handleDownloadReport}
+              title="Download report as .txt"
+            >
+              {downloaded ? 'Saved' : 'Download .txt'}
+            </OutputActionButton>
+          </div>
         )}
       </div>
 
-      {!result ? (
+      {isLoading ? (
+        <div className="flex-1 px-5 py-4">
+          <Skeleton variant="text" tone="light" lines={6} />
+        </div>
+      ) : !result && error ? (
+        <div className="flex-1 flex flex-col items-center justify-center h-full gap-3 text-center px-8">
+          <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center">
+            <AlertCircle size={16} className="text-red-500" />
+          </div>
+          <div>
+            <p className="text-[14px] font-medium text-gray-600">Couldn't analyse your text</p>
+            <p className="text-[12px] text-gray-400 mt-1 max-w-[240px] leading-relaxed">{error}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-purple-accent hover:bg-purple-deep text-white transition-colors"
+          >
+            <RefreshCw size={12} /> Retry
+          </button>
+        </div>
+      ) : !result ? (
         <ResultsEmptyState />
       ) : (
-        <div className="flex-1 overflow-y-auto">
-          {/* Verdict + score */}
-          <div className="px-5 py-5 border-b border-gray-100">
+        <div className="flex-1 min-h-0 flex flex-col">
+          {/* Verdict + score — pinned, stays visible while the sentence list scrolls */}
+          <div className="px-5 py-5 border-b border-gray-100 shrink-0">
             <VerdictBadge verdict={result.verdict} />
-            <ScoreBar aiPct={result.overallAiPct} className="mt-4" />
-            <p className="text-xs text-gray-400 mt-2">
+            <ScoreBar score={result.overallAiPct} label="AI probability" colorForScore={aiBarColor} className="mt-4" />
+            <p className="text-[13px] text-gray-400 mt-2">
               Based on {result.wordCount} words · {result.confidence} confidence
             </p>
           </div>
 
-          {/* Sentence breakdown */}
-          <div className="px-5 py-4">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-              Sentence breakdown
-            </p>
-            <div className="flex flex-col gap-2">
-              {[...result.sentences]
-                .sort((a, b) => b.aiProbability - a.aiProbability)
-                .map(s => (
-                  <SentenceResultRow
-                    key={s.id}
-                    sentence={s}
-                    selected={s.id === selectedId}
-                    onClick={() => onSelect(s.id === selectedId ? null : s.id)}
-                    onHumanise={onHumanise}
-                  />
+          {/* Sentence breakdown — scrolls independently of the score above */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Sentence breakdown
+              </p>
+              <div className="flex items-center gap-1 p-0.5 bg-gray-100 rounded-md">
+                {(['severity', 'order'] as const).map(mode => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => handleSortChange(mode)}
+                    className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] transition-colors ${
+                      sortMode === mode
+                        ? 'bg-white text-gray-800 font-medium shadow-sm'
+                        : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                    title={mode === 'severity' ? 'Highest AI% first' : 'Document order'}
+                  >
+                    <ArrowUpDown size={10} />
+                    {mode === 'severity' ? 'By severity' : 'By order'}
+                  </button>
                 ))}
+              </div>
             </div>
+            {(() => {
+              const sorted = [...result.sentences]
+                .sort((a, b) => sortMode === 'severity' ? b.aiProbability - a.aiProbability : 0)
+              const visible = showAllSentences ? sorted : sorted.slice(0, SENTENCES_INITIAL_VISIBLE)
+              const hiddenCount = sorted.length - visible.length
+              return (
+                <>
+                  <div className="flex flex-col gap-2">
+                    {visible.map(s => (
+                      <SentenceResultRow
+                        key={s.id}
+                        sentence={s}
+                        selected={s.id === selectedId}
+                        isRewritten={rewrittenIds.has(s.id)}
+                        popoverOpen={s.id === openPopoverId}
+                        onClick={() => onSelect(s.id === selectedId ? null : s.id)}
+                        onTogglePopover={() => setOpenPopoverId(prev => prev === s.id ? null : s.id)}
+                        onAcceptRewrite={newText => {
+                          onAcceptRewrite(s.id, s.text, newText)
+                          setOpenPopoverId(null)
+                        }}
+                        onOpenInEditor={onOpenInEditor}
+                      />
+                    ))}
+                  </div>
+                  {hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllSentences(true)}
+                      className="mt-2 w-full text-center text-xs text-gray-500 hover:text-gray-800 py-2 rounded-lg border border-dashed border-gray-200 hover:border-gray-300 transition-colors"
+                    >
+                      Show {hiddenCount} more sentence{hiddenCount !== 1 ? 's' : ''}
+                    </button>
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
       )}
@@ -477,10 +631,11 @@ function ResultsPanel({
 // ── DetectorPage ──────────────────────────────────────────────────────────────
 
 export default function DetectorPage() {
-  const { inputText, result, wordCount, setInputText, reset } = useDetectorStore()
+  const { inputText, result, wordCount, error, setInputText, setResult, reset } = useDetectorStore()
   const { detect, isLoading } = useDetector()
   const navigate = useNavigate()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [rewrittenIds, setRewrittenIds] = useState<Set<string>>(new Set())
 
   const detectorState: DetectorState =
     isLoading ? 'analysing' : result ? 'complete' : 'idle'
@@ -490,40 +645,68 @@ export default function DetectorPage() {
   const handleAnalyse = async () => {
     if (wordCount < 50 || isLoading || inputText.length > MAX_CHARS) return
     setSelectedId(null)
+    setRewrittenIds(new Set())
     await detect(inputText)
   }
 
   const handleReset = () => {
     reset()
     setSelectedId(null)
+    setRewrittenIds(new Set())
   }
 
-  const handleHumanise = (text: string) => {
+  // Splices an accepted rewrite back into the raw input and the cached sentence
+  // scores. Sentence text is a verbatim substring of inputText (it comes straight
+  // from the detector API's per-sentence split), so a plain string replace keeps
+  // everything in sync without re-tracking offsets.
+  const handleAcceptRewrite = (sentenceId: string, originalText: string, newText: string) => {
+    if (!result) return
+    setInputText(inputText.replace(originalText, newText))
+    setResult({
+      ...result,
+      sentenceScores: result.sentenceScores.map((s, i) =>
+        `s${i}` === sentenceId ? { ...s, sentence: newText } : s
+      ),
+    })
+    setRewrittenIds(prev => new Set(prev).add(sentenceId))
+    toast.success('Sentence updated')
+  }
+
+  const handleOpenInEditor = (text: string) => {
     navigate(`/app/paraphrase?text=${encodeURIComponent(text)}&mode=fluency`)
   }
 
   return (
-    <div
-      className="grid overflow-hidden"
-      style={{ gridTemplateColumns: '1fr 1fr', height: 'calc(100vh - 64px)' }}
-    >
-      <InputPanel
-        text={inputText}
-        onTextChange={setInputText}
-        detectorState={detectorState}
-        wordCount={wordCount}
-        result={uiResult}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        onAnalyse={handleAnalyse}
-        onReset={handleReset}
-      />
-      <ResultsPanel
-        result={uiResult}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        onHumanise={handleHumanise}
-      />
+    <div className="min-h-0 bg-transparent px-4 py-6 w-full">
+      <div
+        className="bg-white border border-[#e0e0da] rounded-2xl overflow-hidden flex flex-col shadow-card"
+        style={{ height: 'calc(100vh - 7rem)' }}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[#e0e0da] flex-1 min-h-0">
+          <InputPanel
+            text={inputText}
+            onTextChange={setInputText}
+            detectorState={detectorState}
+            wordCount={wordCount}
+            result={uiResult}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onAnalyse={handleAnalyse}
+            onReset={handleReset}
+          />
+          <ResultsPanel
+            result={uiResult}
+            isLoading={isLoading}
+            error={error}
+            onRetry={handleAnalyse}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            rewrittenIds={rewrittenIds}
+            onAcceptRewrite={handleAcceptRewrite}
+            onOpenInEditor={handleOpenInEditor}
+          />
+        </div>
+      </div>
     </div>
   )
 }

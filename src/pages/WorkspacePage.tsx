@@ -221,21 +221,11 @@ export function WorkspacePage() {
   const [isDetectingOutput, setIsDetectingOutput] = useState(false)
   const [inputDetection, setInputDetection] = useState<DetectResponse | null>(null)
   const [outputDetection, setOutputDetection] = useState<DetectResponse | null>(null)
-  const [typewriterDone, setTypewriterDone] = useState(false)
 
   const inputWordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0
   const outputWordCount = outputText.trim() ? outputText.trim().split(/\s+/).length : 0
   const hasOutput = !!outputText
   const bothScores = inputDetection !== null && outputDetection !== null
-
-  // Mark typewriter done when output is set
-  useEffect(() => {
-    if (outputText) {
-      setTypewriterDone(false)
-      const timeout = setTimeout(() => setTypewriterDone(true), outputText.length * 8 + 200)
-      return () => clearTimeout(timeout)
-    }
-  }, [outputText])
 
   const handleHumanise = useCallback(async () => {
     if (!inputText.trim() || isHumanising) return

@@ -23,7 +23,21 @@ function extractSurname(token: string): string | null {
   if (commaForm) return commaForm[1]
   const words = token.replace(/[.]/g, '').trim().split(/\s+/).filter(Boolean)
   if (words.length === 0) return null
-  return words[words.length - 1]
+  if (words.length === 1) return words[0]
+  // No comma to anchor on, and author-name ordering is inconsistent across the
+  // literature fetch providers ("Slimi Z." vs "Z Slimi" — same person, different
+  // sources). Initials are always short, so the longest token is reliably the surname.
+  return words.reduce((longest, w) => (w.length > longest.length ? w : longest))
+}
+
+// Extracts ordered surnames from a raw "authors" string as stored on a literature
+// record (e.g. FetchedLiterature.authors: "Smith, J., & Jones, K." or "Smith, John and Jones, Kate").
+// Shared by the in-editor citation-click matcher (citationMatch.ts) so it parses
+// author blocks the same way the compiled-bibliography path already does.
+export function extractSurnamesFromAuthors(authors: string): string[] {
+  return splitAuthorBlock(authors)
+    .map(extractSurname)
+    .filter((s): s is string => !!s)
 }
 
 // Parses the numbered lines already extracted by ReferencesStep's

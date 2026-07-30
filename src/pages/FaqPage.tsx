@@ -4,6 +4,7 @@ import { ChevronDown, HelpCircle, Sparkles, Shield, CreditCard, Settings } from 
 import { Navbar } from '../components/layout/Navbar'
 import { Footer } from '../components/layout/Footer'
 import { cn } from '../lib/utils'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
   {
     label: 'General',
     icon: HelpCircle,
-    color: 'text-slate-400',
+    color: 'text-slate-500',
     items: [
       {
         q: 'How does the Humaniser work?',
@@ -50,7 +51,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
   {
     label: 'Humaniser',
     icon: Sparkles,
-    color: 'text-indigo-400',
+    color: 'text-indigo-600',
     items: [
       {
         q: 'What do the rewrite levels mean?',
@@ -89,7 +90,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
   {
     label: 'AI Detector',
     icon: Shield,
-    color: 'text-emerald-400',
+    color: 'text-emerald-600',
     items: [
       {
         q: 'How does the AI Detector work?',
@@ -108,7 +109,7 @@ const FAQ_CATEGORIES: FaqCategory[] = [
   {
     label: 'Plans & Limits',
     icon: CreditCard,
-    color: 'text-amber-400',
+    color: 'text-amber-600',
     items: [
       {
         q: 'What are the word limits on each plan?',
@@ -140,22 +141,22 @@ function AccordionItem({ item, index }: { item: FaqItem; index: number }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04, duration: 0.25 }}
-      className="border border-slate-700/60 rounded-xl overflow-hidden"
+      className="border border-[#e0e0da] rounded-xl overflow-hidden bg-white"
     >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
           'w-full flex items-center justify-between gap-4 px-5 py-4 text-left transition-colors duration-150',
-          open ? 'bg-slate-800' : 'bg-slate-800/50 hover:bg-slate-800',
+          open ? 'bg-[#f5f5f3]' : 'hover:bg-[#f5f5f3]',
         )}
         aria-expanded={open}
       >
-        <span className="text-sm font-medium text-white leading-snug">{item.q}</span>
+        <span className="text-sm font-medium text-text-pri leading-snug">{item.q}</span>
         <ChevronDown
           size={16}
           className={cn(
-            'shrink-0 text-slate-400 transition-transform duration-200',
+            'shrink-0 text-text-sec transition-transform duration-200',
             open && 'rotate-180',
           )}
         />
@@ -171,8 +172,8 @@ function AccordionItem({ item, index }: { item: FaqItem; index: number }) {
             transition={{ duration: 0.22, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="px-5 py-4 bg-slate-800/30 border-t border-slate-700/40">
-              <p className="text-sm text-slate-400 leading-relaxed">{item.a}</p>
+            <div className="px-5 py-4 bg-[#f8fafc] border-t border-[#e0e0da]">
+              <p className="text-sm text-text-sec leading-relaxed">{item.a}</p>
             </div>
           </motion.div>
         )}
@@ -190,7 +191,7 @@ function CategorySection({ category }: { category: FaqCategory }) {
     <section>
       <div className="flex items-center gap-2.5 mb-4">
         <Icon size={18} className={category.color} />
-        <h2 className="text-base font-semibold text-white">{category.label}</h2>
+        <h2 className="text-base font-semibold text-text-pri">{category.label}</h2>
       </div>
       <div className="space-y-2">
         {category.items.map((item, i) => (
@@ -204,6 +205,11 @@ function CategorySection({ category }: { category: FaqCategory }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function FaqPage() {
+  useDocumentTitle(
+    'FAQ — AI Humaniser, Detector & Research Tools | HumaniseAI',
+    'Answers to common questions about humanising AI text, AI detection, Proposal Studio, Data Analyst, pricing, and word limits on HumaniseAI, built for South African students and researchers.',
+    '/faq',
+  )
   const [filter, setFilter] = useState('')
 
   const filtered = filter.trim()
@@ -218,26 +224,26 @@ export default function FaqPage() {
     : FAQ_CATEGORIES
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
+    <div className="min-h-screen bg-surface-page flex flex-col">
       <Navbar />
 
       <main className="flex-1">
         {/* Hero */}
-        <div className="border-b border-slate-800 bg-slate-900">
+        <div className="border-b border-[#e0e0da] bg-white">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 text-center">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35 }}
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium mb-5">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-medium mb-5">
                 <HelpCircle size={13} />
                 Help Centre
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+              <h1 className="text-3xl sm:text-4xl font-bold text-text-pri mb-3">
                 Frequently Asked Questions
               </h1>
-              <p className="text-slate-400 text-base mb-8">
+              <p className="text-text-sec text-base mb-8">
                 Common questions about humanising text and AI detection.
               </p>
 
@@ -248,7 +254,7 @@ export default function FaqPage() {
                   placeholder="Search questions..."
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-colors"
+                  className="w-full bg-white border border-[#e0e0da] rounded-xl px-4 py-3 text-sm text-text-pri placeholder-[#888888] focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-colors"
                 />
               </div>
             </motion.div>
@@ -263,11 +269,11 @@ export default function FaqPage() {
               animate={{ opacity: 1 }}
               className="text-center py-16"
             >
-              <p className="text-slate-400 text-sm">No results for "{filter}"</p>
+              <p className="text-text-sec text-sm">No results for "{filter}"</p>
               <button
                 type="button"
                 onClick={() => setFilter('')}
-                className="mt-3 text-indigo-400 text-sm hover:text-indigo-300 transition-colors"
+                className="mt-3 text-indigo-600 text-sm hover:text-indigo-700 transition-colors"
               >
                 Clear search
               </button>
@@ -281,11 +287,11 @@ export default function FaqPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.3 }}
-            className="rounded-2xl border border-slate-700/60 bg-slate-800/40 p-6 text-center"
+            className="rounded-2xl border border-[#e0e0da] bg-[#f8fafc] p-6 text-center"
           >
-            <Settings size={22} className="text-slate-500 mx-auto mb-3" />
-            <h3 className="text-sm font-semibold text-white mb-1">Still have a question?</h3>
-            <p className="text-slate-400 text-xs mb-4">
+            <Settings size={22} className="text-[#888888] mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-text-pri mb-1">Still have a question?</h3>
+            <p className="text-text-sec text-xs mb-4">
               Our support team is available on WhatsApp or email — we typically respond within a few hours.
             </p>
             <a

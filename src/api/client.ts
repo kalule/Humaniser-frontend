@@ -98,9 +98,10 @@ client.interceptors.response.use(
       }
     }
 
-    // ── 402 Word Limit Exceeded ───────────────────────────────────────────────
+    // ── 402 Payment Required — Word or Credit limit exceeded ─────────────────
     if (error.response?.status === 402) {
-      const body = error.response.data as { error?: { details?: Record<string, unknown> } } | null
+      const body = error.response.data as { error?: { code?: string; details?: Record<string, unknown> } } | null
+      const code = body?.error?.code
       const details = (body?.error?.details ?? {}) as Record<string, unknown>
 
       const used = (details.used as number) ?? 0
@@ -110,7 +111,11 @@ client.interceptors.response.use(
         new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString()
 
       const { useUiStore } = await import('../store/uiStore')
-      useUiStore.getState().openWordLimitModal({ used, limit, resetDate })
+      if (code === 'CREDIT_LIMIT_EXCEEDED') {
+        useUiStore.getState().openCreditLimitModal({ used, limit, resetDate })
+      } else {
+        useUiStore.getState().openWordLimitModal({ used, limit, resetDate })
+      }
 
       return Promise.reject(error)
     }
@@ -150,8 +155,15 @@ client.interceptors.response.use(
     }
 
     // ── Surface structured ApiError ───────────────────────────────────────────
-    const body = error.response?.data as { error?: ApiError; message?: string } | undefined
-    if (body?.error) return Promise.reject(body.error)
+    // Most controllers return `{ error: "plain string" }` for validation failures;
+    // the global exception middleware returns `{ error: { code, message, details } }`.
+    // Normalize both into an ApiError so every caller's `err.message` check works.
+    const body = error.response?.data as { error?: ApiError | string; message?: string } | undefined
+    if (body?.error) {
+      const normalized: ApiError =
+        typeof body.error === 'string' ? { code: 'ERROR', message: body.error } : body.error
+      return Promise.reject(normalized)
+    }
 
     return Promise.reject(error)
   },

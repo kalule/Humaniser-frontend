@@ -1,17 +1,22 @@
 import { useState, useRef, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  X, Upload, FolderOpen, Plus, FileText, File, ChevronDown,
+  X, Upload, FolderOpen, Plus, ChevronDown,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import type { WorkspaceFolder } from '../../types/library'
+
+// Shared with WebLibraryPage, whose folder store is a separate (still local-only)
+// implementation — accept either a sync or async creator rather than forcing both
+// call sites onto the same persistence model.
+interface CreatedFolder { id: string; name: string }
 
 interface Props {
   open:     boolean
   folders:  WorkspaceFolder[]
   onClose:  () => void
   onUpload: (files: File[], folderId: string | null) => void
-  onCreateFolder: (name: string) => WorkspaceFolder
+  onCreateFolder: (name: string) => CreatedFolder | Promise<CreatedFolder>
 }
 
 const ACCEPTED = '.pdf,.docx,.doc,.md,.txt'
@@ -71,9 +76,9 @@ export function UploadModal({ open, folders, onClose, onUpload, onCreateFolder }
     handleClose()
   }
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return
-    const f = onCreateFolder(newFolderName.trim())
+    const f = await onCreateFolder(newFolderName.trim())
     setFolderId(f.id)
     setNewFolderMode(false)
     setNewFolderName('')
@@ -146,16 +151,16 @@ export function UploadModal({ open, folders, onClose, onUpload, onCreateFolder }
                               onChange={e => setNewFolderName(e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') setNewFolderMode(false) }}
                               placeholder="Folder name..."
-                              className="flex-1 text-[13px] border border-slate-200 rounded-md px-2.5 py-1.5 outline-none focus:border-orange-400"
+                              className="flex-1 text-[13px] border border-slate-200 rounded-md px-2.5 py-1.5 outline-none focus:border-[#7c3aed]"
                             />
-                            <button onClick={handleCreateFolder} className="px-3 py-1.5 bg-orange-500 text-white text-[12px] rounded-md hover:bg-orange-600 transition-colors">
+                            <button onClick={handleCreateFolder} className="px-3 py-1.5 bg-[#7c3aed] text-white text-[12px] rounded-md hover:bg-[#4c1d95] transition-colors">
                               Create
                             </button>
                           </div>
                         ) : (
                           <button
                             onClick={() => setNewFolderMode(true)}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-orange-500 hover:bg-orange-50 transition-colors border-b border-slate-100"
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-[#7c3aed] hover:bg-violet-50 transition-colors border-b border-slate-100"
                           >
                             <Plus size={14} /> Create New Folder
                           </button>
@@ -194,12 +199,12 @@ export function UploadModal({ open, folders, onClose, onUpload, onCreateFolder }
                 className={cn(
                   'border-2 border-dashed rounded-xl p-8 text-center flex flex-col items-center justify-center gap-3 cursor-pointer transition-all duration-200',
                   dragging
-                    ? 'border-orange-400 bg-orange-50'
+                    ? 'border-[#7c3aed] bg-violet-50'
                     : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50',
                 )}
               >
-                <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center transition-colors', dragging ? 'bg-orange-100' : 'bg-slate-100')}>
-                  <Upload size={22} className={dragging ? 'text-orange-500' : 'text-slate-500'} />
+                <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center transition-colors', dragging ? 'bg-violet-100' : 'bg-slate-100')}>
+                  <Upload size={22} className={dragging ? 'text-[#7c3aed]' : 'text-slate-500'} />
                 </div>
                 <div>
                   <p className="text-[14px] font-medium text-slate-700">Drag and drop files here</p>
@@ -243,7 +248,7 @@ export function UploadModal({ open, folders, onClose, onUpload, onCreateFolder }
               <button
                 onClick={handleSubmit}
                 disabled={!files.length}
-                className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[13px] font-medium transition-colors"
+                className="px-5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#4c1d95] disabled:opacity-40 disabled:cursor-not-allowed text-white text-[13px] font-medium transition-colors"
               >
                 Upload {files.length > 0 ? files.length : 0} {files.length === 1 ? 'file' : 'files'}
               </button>

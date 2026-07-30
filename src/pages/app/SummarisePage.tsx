@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Copy, Check, Download, RotateCcw, FileText, Wand2, TrendingDown, Layers, Upload,
+  Copy, Check, Download, FileText, Wand2, TrendingDown, Layers, Upload, Clipboard, AlertCircle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSummariseStore } from '../../store/summariseStore'
@@ -9,13 +9,18 @@ import { useSummarise } from '../../hooks/useSummarise'
 import { useDragDrop } from '../../hooks/useDragDrop'
 import { DropOverlay } from '../../components/ui/DropOverlay'
 import { SendToMenu } from '../../components/ui/SendToMenu'
+import { OutputActionButton } from '../../components/ui/OutputActionButton'
+import { ClearButton } from '../../components/ui/ClearButton'
+import { PanelLabel } from '../../components/ui/PanelLabel'
+import { UtilityButton } from '../../components/ui/UtilityButton'
+import { Skeleton } from '../../components/ui/Skeleton'
 import { useToolTransferStore } from '../../store/toolTransferStore'
 import {
   SUMMARISE_MODE_LABELS,
   SUMMARISE_MODE_DESCRIPTIONS,
 } from '../../types/summarise'
 import type { SummariseMode, SummariseLength } from '../../types/summarise'
-import { cn } from '../../lib/utils'
+import { cn, primaryButtonClass, formatDuration } from '../../lib/utils'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -23,11 +28,17 @@ const MODES: SummariseMode[] = [
   'KeyPoints', 'ExecutiveSummary', 'Abstract', 'TlDr', 'MeetingNotes',
 ]
 
-const LENGTHS: { id: SummariseLength; label: string; pct: string; ratio: number }[] = [
-  { id: 'short',    label: 'Short',    pct: '~10–15%', ratio: 0.125 },
-  { id: 'medium',   label: 'Medium',   pct: '~25–30%', ratio: 0.275 },
-  { id: 'detailed', label: 'Detailed', pct: '~50–60%', ratio: 0.425 },
+// ratio/floor mirror the backend's own target formula (SummarisePromptBuilder.cs)
+// so the displayed target matches what's actually sent to the model.
+const LENGTHS: { id: SummariseLength; label: string; pct: string; ratio: number; floor: number }[] = [
+  { id: 'short',    label: 'Short',    pct: '~10–15%', ratio: 0.12, floor: 40 },
+  { id: 'medium',   label: 'Medium',   pct: '~25–30%', ratio: 0.27, floor: 70 },
+  { id: 'detailed', label: 'Detailed', pct: '~50–60%', ratio: 0.45, floor: 120 },
 ]
+
+// The model doesn't hit its stated target exactly — observed overshoot is up to ~40%.
+// Show a realistic range rather than a false-precision point number.
+const TARGET_OVERSHOOT = 1.4
 
 const SAMPLE_TEXT =
   `Artificial intelligence is fundamentally transforming healthcare by enabling faster and more accurate diagnoses, personalising treatment plans, and accelerating drug discovery. Machine learning models can now detect cancers from medical imaging with accuracy matching or exceeding human specialists. Predictive analytics allow clinicians to identify high-risk patients before their conditions deteriorate. In drug development, AI reduces the time to identify promising compounds from years to months. However, significant challenges remain: data privacy concerns, algorithmic bias in underrepresented populations, regulatory uncertainty, and the need for clinical validation. Healthcare institutions must invest in AI literacy among clinicians while ensuring that AI augments rather than replaces human judgment. The most successful implementations combine technical capability with clinical expertise and robust governance frameworks.`
@@ -53,7 +64,7 @@ function FormattedOutput({ text, mode }: { text: string; mode: SummariseMode }) 
 
   if (!isListMode) {
     return (
-      <p className="text-gray-800 text-[15px] leading-[1.85] whitespace-pre-wrap">{text}</p>
+      <p className="textarea-body text-gray-800 whitespace-pre-wrap">{text}</p>
     )
   }
 
@@ -72,14 +83,14 @@ function FormattedOutput({ text, mode }: { text: string; mode: SummariseMode }) 
           )
         }
 
+        // Key points aren't sequential/prioritised — render as bullets, not an
+        // ordered list, even though the model outputs "1. 2. 3." formatting.
         const numMatch = trimmed.match(/^(\d+)\.\s+(.+)/)
         if (numMatch) {
           return (
-            <div key={i} className="flex gap-3">
-              <span className="shrink-0 w-5 h-5 rounded-full bg-gray-900 text-white text-[11px] font-bold flex items-center justify-center mt-0.5">
-                {numMatch[1]}
-              </span>
-              <p className="text-gray-800 text-[15px] leading-[1.75] flex-1">{numMatch[2]}</p>
+            <div key={i} className="flex gap-3 pl-1">
+              <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-gray-400 mt-2.5" />
+              <p className="textarea-body text-gray-800 flex-1">{numMatch[2]}</p>
             </div>
           )
         }
@@ -88,12 +99,12 @@ function FormattedOutput({ text, mode }: { text: string; mode: SummariseMode }) 
           return (
             <div key={i} className="flex gap-3 pl-1">
               <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-gray-300 mt-2.5" />
-              <p className="text-gray-800 text-[15px] leading-[1.75] flex-1">{trimmed.slice(2)}</p>
+              <p className="textarea-body text-gray-800 flex-1">{trimmed.slice(2)}</p>
             </div>
           )
         }
 
-        return <p key={i} className="text-gray-600 text-[15px] leading-[1.75]">{trimmed}</p>
+        return <p key={i} className="textarea-body text-gray-600">{trimmed}</p>
       })}
     </div>
   )
@@ -104,7 +115,7 @@ function FormattedOutput({ text, mode }: { text: string; mode: SummariseMode }) 
 export default function SummarisePage() {
   const {
     inputText, selectedMode, selectedLength,
-    isLoading, result,
+    isLoading, result, error,
     setInputText, setMode, setLength, reset,
   } = useSummariseStore()
 
@@ -126,6 +137,16 @@ export default function SummarisePage() {
     onText: (t) => setInputText(t),
     disabled: isLoading,
   })
+
+  const handlePasteFromClipboard = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      setInputText(text)
+      toast.success('Pasted from clipboard!')
+    } catch {
+      toast.error('Clipboard access denied')
+    }
+  }, [setInputText])
 
   const wordCount    = inputText.trim().split(/\s+/).filter(Boolean).length
   const canSummarise = wordCount >= 50 && !isLoading
@@ -158,28 +179,78 @@ export default function SummarisePage() {
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white">
 
-      {/* ── Mode tabs ─────────────────────────────────────────────────────────── */}
-      <div className="border-b border-gray-200 shrink-0">
-        <div className="flex overflow-x-auto scrollbar-none px-4">
-          {MODES.map(id => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setMode(id)}
-              className={cn(
-                'px-4 py-3 text-sm border-b-2 transition-colors whitespace-nowrap',
-                selectedMode === id
-                  ? 'border-gray-900 text-gray-900 font-medium'
-                  : 'border-transparent text-gray-400 hover:text-gray-600',
-              )}
-            >
-              {SUMMARISE_MODE_LABELS[id]}
-            </button>
-          ))}
+      {/* ── Mode + Length — single unified row ───────────────────────────────── */}
+      <div className="border-b border-gray-100 shrink-0 px-4 py-3">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-3 lg:gap-5">
+
+          {/* Mode group */}
+          <div className="flex-1 min-w-0">
+            <span className="block text-[12px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+              Mode
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {MODES.map(id => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setMode(id)}
+                  className={cn(
+                    'px-4 h-9 flex items-center rounded-lg text-[15px] font-medium transition-colors whitespace-nowrap',
+                    selectedMode === id
+                      ? 'bg-neutral-900 text-white'
+                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200',
+                  )}
+                >
+                  {SUMMARISE_MODE_LABELS[id]}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">{SUMMARISE_MODE_DESCRIPTIONS[selectedMode]}</p>
+          </div>
+
+          {/* Length group — hidden for TL;DR, which has no length axis */}
+          {selectedMode !== 'TlDr' && (
+            <>
+              <div className="hidden lg:block w-px bg-gray-100 self-stretch" />
+              <div className="lg:w-64 shrink-0">
+                <span className="block text-[12px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Length
+                </span>
+                <div className="flex gap-0.5 p-1 bg-gray-100 rounded-lg">
+                  {LENGTHS.map(({ id, label, pct }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setLength(id)}
+                      className={cn(
+                        'flex-1 flex flex-col items-center px-4 py-2 rounded-md text-[15px] transition-colors',
+                        selectedLength === id
+                          ? 'bg-neutral-900 text-white font-medium shadow-sm'
+                          : 'text-gray-400 hover:text-gray-600',
+                      )}
+                    >
+                      <span>{label}</span>
+                      <span className={cn(
+                        'text-[10px] font-normal leading-none mt-0.5',
+                        selectedLength === id ? 'text-white/70' : 'text-gray-400',
+                      )}>{pct}</span>
+                    </button>
+                  ))}
+                </div>
+                {wordCount >= 50 && (() => {
+                  const active = LENGTHS.find(l => l.id === selectedLength)!
+                  const low  = Math.max(active.floor, Math.round(wordCount * active.ratio))
+                  const high = Math.round(low * TARGET_OVERSHOOT)
+                  return (
+                    <span className="text-[12px] text-gray-400 mt-1.5 block">
+                      Target: ~{low.toLocaleString()}–{high.toLocaleString()} words
+                    </span>
+                  )
+                })()}
+              </div>
+            </>
+          )}
         </div>
-        <p className="px-5 py-1.5 text-xs text-gray-400">
-          {SUMMARISE_MODE_DESCRIPTIONS[selectedMode]}
-        </p>
       </div>
 
       {/* ── Two-column content ────────────────────────────────────────────────── */}
@@ -193,115 +264,88 @@ export default function SummarisePage() {
           {fileInputElement}
           <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />
 
-          {/* Length selector — hidden for TL;DR */}
-          {selectedMode !== 'TlDr' && (
-            <div className="px-4 py-2.5 border-b border-gray-100 shrink-0 flex items-center gap-4 flex-wrap">
-              <div className="flex gap-0.5 p-1 bg-gray-100 rounded-lg">
-                {LENGTHS.map(({ id, label, pct }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setLength(id)}
-                    className={cn(
-                      'flex flex-col items-center px-4 py-1.5 rounded-md text-[13px] transition-colors',
-                      selectedLength === id
-                        ? 'bg-white text-gray-900 font-medium shadow-sm'
-                        : 'text-gray-400 hover:text-gray-600',
-                    )}
-                  >
-                    <span>{label}</span>
-                    <span className="text-[10px] font-normal text-gray-400 leading-none mt-0.5">{pct}</span>
-                  </button>
-                ))}
-              </div>
-              {wordCount >= 50 && (() => {
-                const active = LENGTHS.find(l => l.id === selectedLength)!
-                return (
-                  <span className="text-[12px] text-gray-400">
-                    Target: ~{Math.round(wordCount * active.ratio).toLocaleString()} words
-                  </span>
-                )
-              })()}
-            </div>
-          )}
-
           {/* Input header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
-            <span className="text-sm font-medium text-gray-700">
-              Your text
-              {wordCount > 0 && (
-                <span className={cn(
-                  'ml-2 text-xs font-normal',
-                  wordCount < 50 ? 'text-red-400' : 'text-gray-400',
-                )}>
-                  {wordCount} words
-                </span>
-              )}
-            </span>
-            <div className="flex items-center gap-3">
-              {!inputText && (
-                <button
-                  type="button"
-                  onClick={() => setInputText(SAMPLE_TEXT)}
-                  className="text-xs text-blue-500 hover:underline"
-                >
-                  Try sample
-                </button>
-              )}
-              <button
-                type="button"
+            <PanelLabel label="Your text" count={wordCount} />
+            <div className="flex items-center gap-1.5">
+              <UtilityButton
+                icon={<Clipboard size={16} />}
+                label="Paste"
+                onClick={handlePasteFromClipboard}
+                disabled={isLoading}
+              />
+              <UtilityButton
+                icon={<Upload size={16} />}
+                label="Upload"
                 onClick={openFilePicker}
                 disabled={isLoading || isFileProcessing}
-                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-40"
-              >
-                <Upload size={11} />
-                Upload
-              </button>
-              {(inputText || result) && (
+              />
+              {wordCount >= 50 && (
                 <button
                   type="button"
-                  onClick={() => reset()}
-                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  onClick={handleSummarise}
+                  disabled={!canSummarise}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-purple-accent hover:bg-purple-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <RotateCcw size={11} />
-                  Clear
+                  <Wand2 size={11} />
+                  {result ? 'Resummarise' : 'Summarise'}
                 </button>
               )}
             </div>
           </div>
 
           {/* Textarea */}
-          <textarea
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder="Paste or type your text here. Minimum 50 words..."
-            className="flex-1 min-h-0 w-full bg-white text-gray-800 placeholder:text-gray-300 resize-none focus:outline-none px-4 py-4 text-[15px] leading-[1.75]"
-          />
+          <div className="relative flex-1 min-h-0">
+            <textarea
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              disabled={isLoading}
+              className="textarea-body absolute inset-0 w-full h-full bg-white text-gray-800 resize-none outline-none focus:ring-2 focus:ring-inset focus:ring-purple-accent/30 rounded-lg px-4 py-4 disabled:opacity-60 disabled:cursor-not-allowed"
+            />
+            {!inputText && (
+              <div className="textarea-body pointer-events-none absolute inset-0 px-4 py-4 text-gray-300 select-none">
+                Paste or type your text here. Minimum 50 words, or{' '}
+                <button
+                  type="button"
+                  onClick={() => setInputText(SAMPLE_TEXT)}
+                  className="pointer-events-auto text-purple-accent hover:underline transition-colors"
+                >
+                  try a sample
+                </button>
+                .
+              </div>
+            )}
+          </div>
 
-          {/* Summarise button */}
-          <div className="px-4 py-3 border-t border-gray-100 shrink-0">
-            <button
-              type="button"
-              onClick={handleSummarise}
-              disabled={!canSummarise}
-              className="w-full py-2.5 px-4 bg-gray-900 text-white text-sm font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
-            >
-              {isLoading ? (
-                <>
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                  >
-                    <Wand2 size={14} />
-                  </motion.div>
-                  Summarising…
-                </>
-              ) : (
-                result ? 'Resummarise' : 'Summarise'
-              )}
-            </button>
+          {/* Footer */}
+          <div className="px-4 py-3 border-t border-gray-100 shrink-0 space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <ClearButton onClick={() => reset()} disabled={!(inputText || result)} />
+              </div>
+              <button
+                type="button"
+                onClick={handleSummarise}
+                disabled={!canSummarise}
+                className={primaryButtonClass(canSummarise)}
+              >
+                {isLoading ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    >
+                      <Wand2 size={14} />
+                    </motion.div>
+                    Summarising…
+                  </>
+                ) : (
+                  result ? 'Resummarise' : 'Summarise'
+                )}
+              </button>
+            </div>
             {wordCount > 0 && wordCount < 50 && (
-              <p className="text-xs text-gray-400 text-center mt-1.5">
+              <p className="text-xs text-gray-400 text-center">
                 Minimum 50 words required ({50 - wordCount} more needed).
               </p>
             )}
@@ -313,14 +357,7 @@ export default function SummarisePage() {
 
           {/* Output header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
-            <span className="text-sm font-medium text-gray-700">
-              {SUMMARISE_MODE_LABELS[selectedMode]}
-              {result && (
-                <span className="ml-2 text-xs font-normal text-gray-400">
-                  {result.summaryWordCount} words
-                </span>
-              )}
-            </span>
+            <PanelLabel label={SUMMARISE_MODE_LABELS[selectedMode]} count={result?.summaryWordCount} />
             <div className="flex items-center gap-2">
               {result && (
                 <>
@@ -340,56 +377,80 @@ export default function SummarisePage() {
                 </>
               )}
               {result?.summary && (
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-                >
-                  {copied ? (
-                    <>
-                      <Check size={12} className="text-green-500" />
-                      <span className="text-green-500">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={12} />
-                      Copy
-                    </>
-                  )}
-                </button>
+                <>
+                  <OutputActionButton
+                    icon={copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
+                    onClick={handleCopy}
+                  >
+                    {copied ? <span className="text-green-500">Copied</span> : 'Copy'}
+                  </OutputActionButton>
+                  <SendToMenu text={result.summary} />
+                  <OutputActionButton icon={<Download size={11} />} onClick={handleDownload}>
+                    Download
+                  </OutputActionButton>
+                </>
               )}
             </div>
           </div>
 
           {/* Output body */}
           <AnimatePresence mode="wait">
-            {!result && !isLoading ? (
+            {!result && !isLoading && !error ? (
               <motion.div
                 key="empty"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="flex-1 flex flex-col items-center justify-center gap-3 px-8 text-center"
               >
-                <FileText size={32} className="text-gray-300" />
-                <p className="text-sm text-gray-400 leading-relaxed max-w-[200px]">
-                  Paste your text on the left and hit Summarise.
-                </p>
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center">
+                  <FileText size={16} className="text-indigo-500 opacity-70" />
+                </div>
+                <div>
+                  <p className="text-[14px] font-medium text-gray-600">Summary will appear here</p>
+                  <p className="text-[12px] text-gray-400 mt-1 max-w-[220px] leading-relaxed">
+                    Condenses your text to the key points at the length you choose — paste text, then click Summarise.
+                  </p>
+                </div>
+                <div className="w-full max-w-xs mt-1 opacity-60 text-left">
+                  <div className="p-3 rounded-lg border border-[#e0e0da] bg-gray-50 text-xs leading-6 text-gray-400">
+                    <span className="line-through decoration-gray-300">AI is transforming healthcare by enabling faster, more accurate diagnoses and personalising treatment plans. Predictive analytics let clinicians spot high-risk patients early.</span>
+                  </div>
+                  <div className="p-3 mt-1.5 rounded-lg border border-purple-100 bg-purple-50 text-xs leading-6 text-purple-700 font-medium">
+                    AI speeds up diagnosis, personalises treatment, and flags high-risk patients earlier.
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1.5 text-center">Condensed to the essentials</p>
+                </div>
               </motion.div>
             ) : isLoading ? (
               <motion.div
                 key="loading"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex-1 flex items-center justify-center gap-3"
+                className="flex-1 px-5 py-4"
               >
-                {[0, 1, 2].map(i => (
-                  <motion.span
-                    key={i}
-                    className="w-2 h-2 rounded-full bg-gray-300"
-                    animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.1, 0.8] }}
-                    transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-                  />
-                ))}
+                <Skeleton variant="text" tone="light" lines={6} />
+              </motion.div>
+            ) : !result && error ? (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex-1 flex flex-col items-center justify-center h-full gap-3 text-center px-8"
+              >
+                <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center">
+                  <AlertCircle size={16} className="text-red-500" />
+                </div>
+                <div>
+                  <p className="text-[14px] font-medium text-gray-600">Couldn't summarise your text</p>
+                  <p className="text-[12px] text-gray-400 mt-1 max-w-[240px] leading-relaxed">{error}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSummarise}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-purple-accent hover:bg-purple-deep text-white transition-colors"
+                >
+                  <Wand2 size={12} /> Retry
+                </button>
               </motion.div>
             ) : result ? (
               <motion.div
@@ -405,24 +466,13 @@ export default function SummarisePage() {
 
           {/* Output footer */}
           {result?.summary && (
-            <div className="px-4 py-2.5 border-t border-gray-100 shrink-0 flex items-center justify-between">
-              <span className="text-xs text-gray-400">
+            <div className="px-4 py-2.5 border-t border-gray-100 shrink-0">
+              <span className="text-[13px] text-gray-400">
                 {result.originalWordCount} → {result.summaryWordCount} words
                 {result.processingTimeMs > 0 && (
-                  <span className="ml-2 text-gray-300">· {result.processingTimeMs}ms</span>
+                  <span className="ml-2 text-gray-300">· Generated in {formatDuration(result.processingTimeMs)}</span>
                 )}
               </span>
-              <div className="flex items-center gap-3">
-                <SendToMenu text={result.summary} />
-                <button
-                  type="button"
-                  onClick={handleDownload}
-                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <Download size={11} />
-                  Download
-                </button>
-              </div>
             </div>
           )}
         </div>

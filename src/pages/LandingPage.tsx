@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, ArrowRight, ChevronDown,
@@ -21,7 +21,7 @@ import { FinalCTA } from '../components/Landing/FinalCTA'
 
 // ── Stats bar ─────────────────────────────────────────────────────────────────
 const STATS = [
-  { icon: Layers, value: '16', label: 'Research tools' },
+  { icon: Layers, value: '16', label: 'AI & research tools' },
   { icon: Brain, value: 'Claude AI', label: 'Powered by' },
   { icon: Zap, value: 'R149/mo', label: 'Pro plan' },
   { icon: Sparkles, value: '🇿🇦 ZAR', label: 'Local pricing' },
@@ -227,6 +227,34 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
 // ── Main landing page ─────────────────────────────────────────────────────────
 export function LandingPage() {
   const heroRef = useRef<HTMLDivElement>(null)
+  const location = useLocation()
+
+  // Scroll to an on-page section when arriving via a hash link (e.g. navbar
+  // "How it Works" from a page other than "/", which routes to "/#how-it-works").
+  useEffect(() => {
+    if (!location.hash) return
+    const hash = location.hash
+    const timer = setTimeout(() => {
+      document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [location.hash])
+
+  useEffect(() => {
+    const script = document.createElement('script')
+    script.type = 'application/ld+json'
+    script.text = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: FAQS.map((faq) => ({
+        '@type': 'Question',
+        name: faq.question,
+        acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+      })),
+    })
+    document.head.appendChild(script)
+    return () => { document.head.removeChild(script) }
+  }, [])
 
   return (
     <div className="bg-white min-h-screen">
@@ -273,20 +301,14 @@ export function LandingPage() {
               </span>
             </motion.div>
 
-            {/*
-              ⚠️ COPY REVIEW NEEDED — 3 headline options below. Currently rendering Option A.
-              Option A: "From Research Question to Finished Analysis"
-              Option B: "Your Complete Academic Research Platform"
-              Option C: "Research. Write. Analyse. Submit."
-            */}
             <motion.h1
               variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
               transition={{ duration: 0.5 }}
               className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-[#1a1a18] mb-4"
             >
-              From Research Question{' '}
+              Humanise Your Writing.{' '}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600">
-                to Finished Analysis
+                Supercharge Your Research.
               </span>
             </motion.h1>
 
@@ -295,8 +317,8 @@ export function LandingPage() {
               transition={{ duration: 0.5 }}
               className="text-[#555555] text-lg leading-relaxed"
             >
-              Write proposals with real citations, analyse datasets, and polish your writing —
-              everything your research needs, in one place.
+              South Africa's all-in-one AI toolkit — humanise AI text, check for AI and plagiarism,
+              write fully cited research proposals, and analyse your data. 16 tools, one workspace.
             </motion.p>
           </motion.div>
 
@@ -421,12 +443,12 @@ export function LandingPage() {
         </motion.div>
       </div>
 
+      {/* ── Full suite ── */}
+      <FullSuiteGrid />
+
       {/* ── Flagship sections ── */}
       <ProposalPillar />
       <DataAnalystPillar />
-
-      {/* ── Full suite ── */}
-      <FullSuiteGrid />
 
       {/* ── Research workflow ── */}
       <HowItWorks />

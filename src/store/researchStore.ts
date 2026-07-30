@@ -1,7 +1,10 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
 import { researchApi } from '../api/research'
+import { STEPS } from '../data/proposalOutline'
+import { countBodyWords } from '../lib/wordCount'
 import type {
+  AlignmentIssue,
   AlignmentValidationResult,
   ChecklistItem,
   DefencePreparation,
@@ -13,6 +16,9 @@ import type {
   GeneratorMode,
   ResearchTopic,
   GeneratedTitle,
+  GenerationStatus,
+  SectionFixPreview,
+  ThesisAuditResult,
   UpdateHypothesisPayload,
 } from '../types/research'
 
@@ -42,11 +48,24 @@ interface ResearchStore {
   initSections:        (projectId: string) => Promise<void>
   generateSection:     (projectId: string, code: string, prompt: string, targetWordCount?: number) => Promise<void>
   saveSection:         (projectId: string, code: string, content: string) => Promise<void>
-  approveSection:      (projectId: string, code: string) => Promise<void>
+  approveSection:      (projectId: string, code: string, acknowledgeConflicts?: boolean) => Promise<void>
   regenerateSection:   (projectId: string, code: string, prompt: string) => Promise<void>
+  // "Apply fix" preview/confirm/discard — see api/research.ts. applySectionFix returns the
+  // proposed content for the caller to hold locally (a diff modal) without mutating store state;
+  // confirmSectionFix is what actually replaces the section, discardSectionFix just releases
+  // the credit reservation the preview call made.
+  applySectionFix:     (projectId: string, code: string, issues: AlignmentIssue[]) => Promise<SectionFixPreview>
+  confirmSectionFix:   (projectId: string, code: string, proposedContent: string) => Promise<void>
+  discardSectionFix:   (projectId: string) => Promise<void>
   validateAlignment:   (projectId: string) => Promise<AlignmentValidationResult>
+  validateQuality:     (projectId: string) => Promise<AlignmentValidationResult>
   exportDocx:          (projectId: string) => Promise<void>
   patchSection:        (projectId: string, section: ProjectSection) => void
+
+  // ── Autonomous generation (AI Thesis) — server-driven, survives tab close ───
+  generateAutonomous:  (projectId: string, targetWordCount: number) => Promise<GenerationStatus>
+  getGenerationStatus: (projectId: string) => Promise<GenerationStatus>
+  cancelGeneration:    (projectId: string) => Promise<GenerationStatus>
 
   // ── Sprint 3: Hypotheses & Analysis Plan ─────────────────────────────────
   hypotheses:             Record<string, ProjectHypothesis[]>
@@ -74,6 +93,14 @@ interface ResearchStore {
   generateDefence:      (projectId: string) => Promise<void>
   toggleChecklistItem:  (projectId: string, index: number) => void
   exportThesisDocx:     (projectId: string) => Promise<void>
+
+  // ── Thesis Studio: audit-gated transition to thesis ──────────────────────
+  thesisAudit:          Record<string, ThesisAuditResult>
+  isLoadingThesisAudit: boolean
+
+  loadThesisAudit:           (projectId: string) => Promise<void>
+  answerThesisAuditQuestion: (projectId: string, questionKey: string, answer: string) => Promise<void>
+  uploadExternalProposal:    (file: File) => Promise<ResearchProject>
 }
 
 // Wraps localStorage so a quota failure (e.g. many long-running projects) logs
@@ -115,6 +142,8 @@ export const useResearchStore = create<ResearchStore>()(
       defence: {},
       isTransitioning: false,
       isGeneratingDefence: false,
+      thesisAudit: {},
+      isLoadingThesisAudit: false,
 
       // ── createProject ───────────────────────────────────────────────────────
       createProject: async ({ generatorMode, documentMode, title }) => {
@@ -165,6 +194,13 @@ export const useResearchStore = create<ResearchStore>()(
           documentMode:    project.documentMode,
           citationStyle:   project.citationStyle,
           progressPct:     project.progressPct,
+          methodologyType:    project.methodologyType,
+          methodologySubType: project.methodologySubType,
+          notes:              project.notes,
+          studyLocation:      project.studyLocation,
+          studyPopulation:    project.studyPopulation,
+          gatherMode:         project.gatherMode,
+          selectedLibraryDocumentIds: project.selectedLibraryDocumentIds,
         })
         set(s => ({ projects: s.projects.map(p => (p.id === id ? updated : p)) }))
       },
@@ -188,7 +224,7 @@ export const useResearchStore = create<ResearchStore>()(
         set(s => ({
           projects: s.projects.map(p =>
             p.id === id
-              ? { ...p, currentStep: step, progressPct: Math.round((step / 29) * 100), updatedAt: now() }
+              ? { ...p, currentStep: step, progressPct: Math.round((step / (STEPS.length - 1)) * 100), updatedAt: now() }
               : p,
           ),
         })),
@@ -283,8 +319,8 @@ export const useResearchStore = create<ResearchStore>()(
         set(s => ({ sections: updateSection(s.sections, projectId, updated) }))
       },
 
-      approveSection: async (projectId, code) => {
-        const updated = await researchApi.approveSection(projectId, code)
+      approveSection: async (projectId, code, acknowledgeConflicts = false) => {
+        const updated = await researchApi.approveSection(projectId, code, acknowledgeConflicts)
         set(s => ({ sections: updateSection(s.sections, projectId, updated) }))
       },
 
@@ -316,8 +352,23 @@ export const useResearchStore = create<ResearchStore>()(
         }
       },
 
+      applySectionFix: async (projectId, code, issues) =>
+        researchApi.applySectionFix(projectId, code, issues),
+
+      confirmSectionFix: async (projectId, code, proposedContent) => {
+        const updated = await researchApi.confirmSectionFix(projectId, code, proposedContent)
+        set(s => ({ sections: updateSection(s.sections, projectId, updated) }))
+      },
+
+      discardSectionFix: async (projectId) => {
+        await researchApi.discardSectionFix(projectId)
+      },
+
       validateAlignment: async (projectId) =>
         researchApi.validateAlignment(projectId),
+
+      validateQuality: async (projectId) =>
+        researchApi.validateQuality(projectId),
 
       exportDocx: async (projectId) => {
         const blob = await researchApi.exportDocx(projectId)
@@ -332,6 +383,14 @@ export const useResearchStore = create<ResearchStore>()(
       patchSection: (projectId, section) =>
         set(s => ({ sections: updateSection(s.sections, projectId, section) })),
 
+      // ── Autonomous generation (Proposal Studio's "Autonomous Proposal") ──────
+      // Thin pass-throughs — the polling loop and its status live in the calling
+      // hook (useAutonomousProposalFlow), same convention as systematicReviewStore's
+      // getFetchStatus.
+      generateAutonomous:  (projectId, targetWordCount) => researchApi.generateAutonomous(projectId, targetWordCount),
+      getGenerationStatus: (projectId) => researchApi.getGenerationStatus(projectId),
+      cancelGeneration:    (projectId) => researchApi.cancelGeneration(projectId),
+
       updateSectionContent: (projectId, sectionCode, content) =>
         set(s => ({
           sections: {
@@ -341,7 +400,7 @@ export const useResearchStore = create<ResearchStore>()(
                 ? {
                     ...sec,
                     content,
-                    wordCount: content.trim().split(/\s+/).filter(Boolean).length,
+                    wordCount: countBodyWords(content),
                     status: (sec.status === 'Draft' || sec.status === 'NotStarted')
                       ? 'Edited' as const
                       : sec.status,
@@ -451,6 +510,48 @@ export const useResearchStore = create<ResearchStore>()(
         a.download = `thesis-${new Date().toISOString().slice(0, 10)}.docx`
         a.click()
         URL.revokeObjectURL(url)
+      },
+
+      // ── Thesis Studio: audit-gated transition to thesis ────────────────────
+
+      loadThesisAudit: async (projectId) => {
+        set(() => ({ isLoadingThesisAudit: true }))
+        try {
+          const audit = await researchApi.getThesisAudit(projectId)
+          set(s => ({ thesisAudit: { ...s.thesisAudit, [projectId]: audit } }))
+        } finally {
+          set(() => ({ isLoadingThesisAudit: false }))
+        }
+      },
+
+      answerThesisAuditQuestion: async (projectId, questionKey, answer) => {
+        const audit = await researchApi.answerThesisAuditQuestion(projectId, questionKey, answer)
+        set(s => ({ thesisAudit: { ...s.thesisAudit, [projectId]: audit } }))
+      },
+
+      uploadExternalProposal: async (file) => {
+        const { jobId } = await researchApi.uploadExternalProposal(file)
+
+        const POLL_INTERVAL_MS = 3_000
+        const POLL_TIMEOUT_MS  = 600_000 // 10 min — above the backend's 480s Claude budget + margin
+        const start = Date.now()
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          if (Date.now() - start > POLL_TIMEOUT_MS) {
+            throw new Error('Proposal processing timed out. Please try again.')
+          }
+          const job = await researchApi.pollProposalJob(jobId)
+          if (job.status === 'complete' && job.result) {
+            const { project } = job.result
+            set(s => ({ projects: [project, ...s.projects] }))
+            return project
+          }
+          if (job.status === 'error') {
+            throw new Error(job.error ?? 'Could not process this document.')
+          }
+          await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
+        }
       },
     }),
     {

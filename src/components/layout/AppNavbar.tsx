@@ -5,6 +5,7 @@ import { Menu, Sparkles, Settings, CreditCard, LogOut, History, ChevronDown } fr
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { authApi } from '../../api/auth';
+import { resolvePageTitle } from '../../config/navigation';
 
 function getInitials(name?: string, email?: string): string {
   if (name && name.trim()) {
@@ -16,20 +17,6 @@ function getInitials(name?: string, email?: string): string {
   if (email) return email.slice(0, 2).toUpperCase();
   return 'U';
 }
-
-const getPageTitle = (pathname: string) => {
-  if (pathname === '/app' || pathname === '/app/humaniser') return 'Humaniser';
-  if (pathname === '/app/detector') return 'AI Detector';
-  if (pathname === '/app/paraphrase') return 'Paraphraser';
-  if (pathname === '/app/grammar') return 'Grammar';
-  if (pathname === '/app/plagiarism') return 'Plagiarism';
-  if (pathname === '/app/summarise') return 'Summariser';
-  if (pathname === '/app/analyst')    return 'Data Analyst';
-  if (pathname === '/app/workbench')  return 'Data Workbench';
-  if (pathname === '/app/history') return 'History';
-  if (pathname === '/app/account' || pathname === '/app/billing') return 'Account Settings';
-  return 'Dashboard';
-};
 
 export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => void }) {
   const { user, logout } = useAuthStore();
@@ -60,7 +47,16 @@ export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => voi
   const isUnlimited = plan === 'Unlimited' || wordsLimit >= 1_000_000;
   const usagePct = isUnlimited ? 0 : Math.min((wordsUsed / wordsLimit) * 100, 100);
 
-  const pageTitle = getPageTitle(location.pathname);
+  const creditsUsed = user?.creditsUsed ?? 0;
+  const creditsLimit = user?.creditsLimit ?? 1;
+  const creditsPct = isUnlimited ? 0 : Math.min((creditsUsed / creditsLimit) * 100, 100);
+  const nearAnyLimit = usagePct >= 80 || creditsPct >= 80;
+
+  const pageTitle = resolvePageTitle(location.pathname);
+
+  useEffect(() => {
+    document.title = `${pageTitle} · HumaniseAI`;
+  }, [pageTitle]);
 
   const planBadgeStyle =
     plan === 'Unlimited'
@@ -88,7 +84,7 @@ export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => voi
         >
           <Menu size={24} />
         </button>
-        <h1 className="font-semibold text-lg hidden sm:block" style={{ color: 'var(--text-primary)' }}>
+        <h1 className="font-semibold text-[22px] hidden sm:block" style={{ color: 'var(--text-primary)' }}>
           {pageTitle}
         </h1>
       </div>
@@ -109,34 +105,23 @@ export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => voi
 
       {/* Right side */}
       <div className="flex items-center gap-3">
-        {/* Usage pill */}
-        <div
-          className="hidden md:flex items-center px-3 py-1 rounded-full"
-          style={{ background: 'var(--color-purple-tint)' }}
-        >
-          <span className="text-xs font-medium" style={{ color: 'var(--color-purple-text)' }}>
-            {isUnlimited
-              ? `${wordsUsed.toLocaleString()} words · Unlimited`
-              : `${wordsUsed.toLocaleString()}/${wordsLimit.toLocaleString()} words`}
-          </span>
-        </div>
-
         {/* Plan badge */}
         <span
           className="hidden md:inline-flex px-2 py-1 rounded-full text-xs font-semibold"
           style={planBadgeStyle}
+          title={`${plan} plan`}
         >
-          {plan}
+          {plan} Plan
         </span>
 
         {/* Upgrade button */}
         {plan === 'Free' && (
           <Link to="/app/billing" className="hidden md:block">
             <button
-              className={cn('text-white text-sm px-3 py-1.5 rounded-lg font-medium transition-colors', usagePct >= 80 && 'ring-2 ring-offset-1')}
+              className={cn('text-white text-sm px-3 py-1.5 rounded-lg font-medium transition-colors', nearAnyLimit && 'ring-2 ring-offset-1')}
               style={{
                 background: 'var(--color-purple)',
-                ...(usagePct >= 80 ? { boxShadow: '0 0 0 2px var(--color-purple-tint)' } : {}),
+                ...(nearAnyLimit ? { boxShadow: '0 0 0 2px var(--color-purple-tint)' } : {}),
               }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-purple-deep)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-purple)')}

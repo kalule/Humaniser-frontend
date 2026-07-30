@@ -12,13 +12,11 @@ export function useWorkbench() {
   const messages = useAnalystStore((s) => s.messages)
 
   const pinChart = useCallback(
-    (chart: ChartResult, sourcePrompt: string) => {
-      store.pinChart({
-        id: crypto.randomUUID(),
+    async (chart: ChartResult, sourcePrompt: string) => {
+      await store.pinChart({
         base64Png: chart.base64Png,
         caption: chart.caption,
         sourcePrompt,
-        pinnedAt: new Date().toISOString(),
       })
       toast.success('Chart pinned to asset library')
     },

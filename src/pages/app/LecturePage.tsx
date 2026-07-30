@@ -5,7 +5,6 @@ import {
   BookOpen, Tag, HelpCircle, AlignLeft, Clock, FileText,
   Loader2, AlertTriangle, Plus,
 } from 'lucide-react'
-import { cn } from '../../lib/utils'
 import { useLectureStore } from '../../store/lectureStore'
 import { useLecture } from '../../hooks/useLecture'
 import type { LectureJob, SummarySection, DefinitionItem, ExamQuestion } from '../../types/lecture'

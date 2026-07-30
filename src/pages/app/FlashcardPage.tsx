@@ -4,8 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   Brain, Loader2, Plus, Trash2, AlertCircle, ChevronLeft, ChevronRight,
   RotateCw, CheckCircle, XCircle, Trophy, RefreshCw,
-  Upload, FileText, PenLine, X, BookOpen, ChevronDown, Layers,
-  Sparkles, AlertTriangle,
+  Upload, FileText, X, BookOpen, ChevronDown, Layers,
+  Sparkles, AlertTriangle, Check, RotateCcw,
 } from 'lucide-react'
 import { useFlashcard } from '../../hooks/useFlashcard'
 import type { AssessmentItem, StudyDeck } from '../../types/flashcard'
@@ -14,11 +14,36 @@ type MasteryRating = 'unknown' | 'partial' | 'mastered'
 type MasteryMap    = Record<string, MasteryRating>
 type StudyMode     = 'flashcard' | 'mcq' | 'scenario' | 'all'
 type ActiveView    = 'create' | 'study' | 'mcq'
+type DeckFilter    = 'all' | 'ready' | 'error'
+
+// ── Neutral palette (purple diet — see UX audit) ────────────────────────────────
+// Only the primary "Generate study materials" button (and sidebar chrome) keeps purple.
+
+const NEUTRAL_900 = '#171717'
+const NEUTRAL_600 = '#525252'
+const NEUTRAL_400 = '#a3a3a3'
+const NEUTRAL_100 = '#f5f5f5'
+const NEUTRAL_200 = '#e5e5e5'
 
 // ── Utils ──────────────────────────────────────────────────────────────────────
 
 function countWords(t: string) {
   return t.trim() ? t.trim().split(/\s+/).length : 0
+}
+
+// A raw filename/id string ("39005 1550 32097 1 10 2025...") reads as noise, not a title.
+function isUnreadableTitle(title: string): boolean {
+  const stripped = title.replace(/\.\.\.$/, '').trim()
+  if (!stripped) return true
+  const compact = stripped.replace(/\s+/g, '')
+  const digitCount = (compact.match(/\d/g) ?? []).length
+  return digitCount / compact.length > 0.5
+}
+
+function sanitizeTitle(rawTitle: string | null | undefined, createdAt: string): string {
+  if (rawTitle && !isUnreadableTitle(rawTitle)) return rawTitle
+  const date = new Date(createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return `Document Draft (${date})`
 }
 
 function relativeTime(iso: string): string {
@@ -63,17 +88,20 @@ function StatusBadge({ status }: { status: StudyDeck['status'] | 'generating' })
 
 // ── Deck item (left panel) ─────────────────────────────────────────────────────
 
-function DeckItem({ deck, isActive, onClick }: {
+function DeckItem({ deck, isActive, onClick, onDelete, onRetry }: {
   deck: StudyDeck; isActive: boolean; onClick: () => void
+  onDelete: () => void; onRetry: () => void
 }) {
-  const [hover, setHover] = useState(false)
+  const [hover, setHover]                 = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const isError      = deck.status === 'error'
   const isProcessing = deck.status === 'processing'
+  const displayTitle = sanitizeTitle(deck.title || deck.sourceName, deck.createdAt)
 
-  const thumbnailBg     = isError ? '#fee2e2' : isActive ? 'var(--color-purple-tint)' : '#f1f5f9'
-  const thumbnailBorder = isError ? '#fca5a5' : isActive ? '#c4b5fd' : 'var(--border-hairline)'
-  const thumbnailColor  = isError ? '#dc2626' : 'var(--color-purple)'
-  const rowBg           = isActive ? 'var(--color-purple-tint)' : hover ? '#f8fafc' : 'transparent'
+  const thumbnailBg     = isError ? '#fee2e2' : isActive ? NEUTRAL_100 : '#f1f5f9'
+  const thumbnailBorder = isError ? '#fca5a5' : isActive ? NEUTRAL_400 : 'var(--border-hairline)'
+  const thumbnailColor  = isError ? '#dc2626' : NEUTRAL_900
+  const rowBg           = isActive ? NEUTRAL_100 : hover ? '#f8fafc' : 'transparent'
 
   return (
     <div
@@ -81,7 +109,7 @@ function DeckItem({ deck, isActive, onClick }: {
       aria-pressed={isActive}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseLeave={() => { setHover(false); setConfirmDelete(false) }}
       style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '9px 14px',
@@ -106,12 +134,12 @@ function DeckItem({ deck, isActive, onClick }: {
         }
       </div>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0 }} title={displayTitle}>
         <div style={{
           fontSize: 12, fontWeight: 500, color: 'var(--text-primary)',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
-          {deck.title || deck.sourceName || 'Untitled deck'}
+          {displayTitle}
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
           {isError
@@ -123,21 +151,80 @@ function DeckItem({ deck, isActive, onClick }: {
         </div>
       </div>
 
-      <StatusBadge status={deck.status} />
+      {hover && !isProcessing ? (
+        confirmDelete ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => onDelete()}
+              style={{
+                fontSize: 10, fontWeight: 600, padding: '3px 7px', borderRadius: 5,
+                background: '#fee2e2', border: '0.5px solid #fca5a5', color: '#dc2626', cursor: 'pointer',
+              }}
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              style={{ fontSize: 10, padding: '3px 5px', borderRadius: 5, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            {isError && (
+              <button
+                onClick={e => { e.stopPropagation(); onRetry() }}
+                title="Retry generation"
+                style={{
+                  width: 22, height: 22, borderRadius: 5, border: 'none', background: 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: NEUTRAL_600, cursor: 'pointer',
+                }}
+              >
+                <RotateCcw size={13} />
+              </button>
+            )}
+            <button
+              onClick={e => { e.stopPropagation(); setConfirmDelete(true) }}
+              title="Delete deck"
+              style={{
+                width: 22, height: 22, borderRadius: 5, border: 'none', background: 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: NEUTRAL_600, cursor: 'pointer',
+              }}
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        )
+      ) : (
+        <StatusBadge status={deck.status} />
+      )}
     </div>
   )
 }
 
 // ── Left panel ─────────────────────────────────────────────────────────────────
 
-function DeckListPanel({ decks, activeDeck, onSelectDeck, onNewDeck }: {
+const DECK_FILTERS: { id: DeckFilter; label: string }[] = [
+  { id: 'all',   label: 'All' },
+  { id: 'ready', label: 'Ready' },
+  { id: 'error', label: 'Errors' },
+]
+
+function DeckListPanel({ decks, activeDeck, onSelectDeck, onNewDeck, onDeleteDeck, onRetryDeck }: {
   decks: StudyDeck[]
   activeDeck: StudyDeck | null
   onSelectDeck: (deck: StudyDeck) => void
   onNewDeck: () => void
+  onDeleteDeck: (id: string) => void
+  onRetryDeck: (id: string) => void
 }) {
+  const [filter, setFilter] = useState<DeckFilter>('all')
   const errorCount = decks.filter(d => d.status === 'error').length
   const readyCount = decks.filter(d => d.status === 'ready').length
+  const visibleDecks = decks.filter(d => filter === 'all' || d.status === filter)
 
   return (
     <div style={{
@@ -170,8 +257,8 @@ function DeckListPanel({ decks, activeDeck, onSelectDeck, onNewDeck }: {
           onClick={onNewDeck}
           style={{
             width: '100%', height: 32,
-            background: 'var(--color-purple)', color: '#fff',
-            border: 'none', borderRadius: 8,
+            background: '#ffffff', color: NEUTRAL_900,
+            border: `1px solid ${NEUTRAL_200}`, borderRadius: 8,
             fontSize: 12, fontWeight: 500,
             cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -180,6 +267,26 @@ function DeckListPanel({ decks, activeDeck, onSelectDeck, onNewDeck }: {
           <Plus size={13} />
           Generate new deck
         </button>
+
+        {decks.length > 0 && (
+          <div style={{ display: 'flex', gap: 2, padding: 2, background: NEUTRAL_100, borderRadius: 7, marginTop: 10 }}>
+            {DECK_FILTERS.map(f => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                style={{
+                  flex: 1, padding: '4px 0', borderRadius: 5, border: 'none',
+                  fontSize: 11, fontWeight: 500, cursor: 'pointer',
+                  background: filter === f.id ? NEUTRAL_900 : 'transparent',
+                  color: filter === f.id ? '#ffffff' : NEUTRAL_600,
+                  transition: 'all 0.1s ease',
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Scrollable list */}
@@ -194,9 +301,18 @@ function DeckListPanel({ decks, activeDeck, onSelectDeck, onNewDeck }: {
               No decks yet. Generate one to get started.
             </p>
           </div>
+        ) : visibleDecks.length === 0 ? (
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            justifyContent: 'center', padding: '40px 16px', gap: 8, textAlign: 'center',
+          }}>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              No {filter} decks.
+            </p>
+          </div>
         ) : (
           <AnimatePresence initial={false}>
-            {decks.map(deck => (
+            {visibleDecks.map(deck => (
               <motion.div
                 key={deck.id}
                 initial={{ opacity: 0, x: -6 }}
@@ -208,6 +324,8 @@ function DeckListPanel({ decks, activeDeck, onSelectDeck, onNewDeck }: {
                   deck={deck}
                   isActive={activeDeck?.id === deck.id}
                   onClick={() => onSelectDeck(deck)}
+                  onDelete={() => onDeleteDeck(deck.id)}
+                  onRetry={() => onRetryDeck(deck.id)}
                 />
               </motion.div>
             ))}
@@ -223,7 +341,7 @@ function DeckListPanel({ decks, activeDeck, onSelectDeck, onNewDeck }: {
 const OPTION_TYPES = [
   { key: 'flashcard', label: 'Flashcards' },
   { key: 'mcq',       label: 'MCQs' },
-  { key: 'scenario',  label: 'Scenario / Case Study', tag: 'Long-Q' },
+  { key: 'scenario',  label: 'Scenario / Case Study' },
 ] as const
 
 interface GenOptions { flashcard: boolean; mcq: boolean; scenario: boolean }
@@ -232,56 +350,55 @@ function GenerateOptions({ options, onChange }: {
   options: GenOptions; onChange: (o: GenOptions) => void
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-      <span style={{
-        fontSize: 11, color: 'var(--text-muted)',
-        textTransform: 'uppercase', letterSpacing: '0.05em',
-      }}>
-        Generate
-      </span>
-      {OPTION_TYPES.map(opt => {
-        const checked = options[opt.key]
-        return (
-          <button
-            key={opt.key}
-            onClick={() => onChange({ ...options, [opt.key]: !checked })}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '4px 10px', borderRadius: 16,
-              border: `0.5px solid ${checked ? '#c4b5fd' : 'var(--border-strong)'}`,
-              background: checked ? 'var(--color-purple-tint)' : '#ffffff',
-              cursor: 'pointer', fontSize: 12,
-              color: checked ? 'var(--color-purple-text)' : 'var(--text-secondary)',
-              transition: 'all 0.1s ease',
-            }}
-          >
-            <span style={{
-              width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-              border: `1.5px solid ${checked ? 'var(--color-purple)' : 'var(--border-strong)'}`,
-              background: checked ? 'var(--color-purple)' : 'transparent',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {checked && <svg viewBox="0 0 10 8" width="9" height="9"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            </span>
-            {opt.label}
-            {'tag' in opt && (
-              <span style={{
-                fontSize: 10, background: '#fef3c7', color: '#92400e',
-                padding: '1px 5px', borderRadius: 4, fontWeight: 500,
-              }}>
-                {opt.tag}
-              </span>
-            )}
-          </button>
-        )
-      })}
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{
+          fontSize: 11, color: 'var(--text-muted)',
+          textTransform: 'uppercase', letterSpacing: '0.05em',
+        }}>
+          Generate
+        </span>
+        {OPTION_TYPES.map(opt => {
+          const checked = options[opt.key]
+          return (
+            <button
+              key={opt.key}
+              onClick={() => onChange({ ...options, [opt.key]: !checked })}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '4px 10px', borderRadius: 16,
+                border: `0.5px solid ${checked ? NEUTRAL_900 : 'var(--border-strong)'}`,
+                background: checked ? NEUTRAL_900 : '#ffffff',
+                cursor: 'pointer', fontSize: 12,
+                color: checked ? '#ffffff' : 'var(--text-secondary)',
+                transition: 'all 0.1s ease',
+              }}
+            >
+              {checked ? (
+                <Check size={12} style={{ flexShrink: 0 }} />
+              ) : (
+                <span style={{
+                  width: 12, height: 12, borderRadius: 3, flexShrink: 0,
+                  border: '1.5px solid var(--border-strong)',
+                }} />
+              )}
+              {opt.label}
+            </button>
+          )
+        })}
+      </div>
+      {options.scenario && (
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+          Scenario / Case Study generates longer-form questions.
+        </p>
+      )}
     </div>
   )
 }
 
 // ── Error banner ───────────────────────────────────────────────────────────────
 
-function ErrorBanner({ count, onRetryAll }: { count: number; onRetryAll: () => void }) {
+function ErrorBanner({ count, onRetryAll, onDismiss }: { count: number; onRetryAll: () => void; onDismiss: () => void }) {
   return (
     <div
       role="alert"
@@ -305,7 +422,7 @@ function ErrorBanner({ count, onRetryAll }: { count: number; onRetryAll: () => v
         <button
           onClick={onRetryAll}
           style={{
-            fontSize: 11, color: 'var(--color-purple)',
+            fontSize: 11, color: NEUTRAL_900, fontWeight: 500,
             background: 'none', border: 'none',
             textDecoration: 'underline', cursor: 'pointer',
             padding: 0, marginTop: 4,
@@ -314,6 +431,18 @@ function ErrorBanner({ count, onRetryAll }: { count: number; onRetryAll: () => v
           Retry all failed decks
         </button>
       </div>
+      <button
+        onClick={onDismiss}
+        aria-label="Dismiss"
+        style={{
+          width: 20, height: 20, borderRadius: 5, flexShrink: 0,
+          border: 'none', background: 'transparent',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#b91c1c', cursor: 'pointer',
+        }}
+      >
+        <X size={13} />
+      </button>
     </div>
   )
 }
@@ -339,7 +468,14 @@ function CreateView({ isGenerating, errorCount, onGenerate, onExtractDocument, o
   const [isExtracting, setExtracting] = useState(false)
   const [dragOver, setDragOver]       = useState(false)
   const [extractError, setExtractError] = useState<string | null>(null)
+  const [bannerDismissed, setBannerDismissed] = useState(false)
+  const prevErrorCount = useRef(errorCount)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (errorCount > prevErrorCount.current) setBannerDismissed(false)
+    prevErrorCount.current = errorCount
+  }, [errorCount])
 
   const wc         = extracted ? extracted.wordCount : countWords(text)
   const wcOver     = wc > 12000
@@ -384,7 +520,9 @@ function CreateView({ isGenerating, errorCount, onGenerate, onExtractDocument, o
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
       <div style={{ maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 0 }}>
 
-        {errorCount > 0 && <ErrorBanner count={errorCount} onRetryAll={onRetryAll} />}
+        {errorCount > 0 && !bannerDismissed && (
+          <ErrorBanner count={errorCount} onRetryAll={onRetryAll} onDismiss={() => setBannerDismissed(true)} />
+        )}
 
         {/* Create card */}
         <div style={{
@@ -397,34 +535,38 @@ function CreateView({ isGenerating, errorCount, onGenerate, onExtractDocument, o
             fontSize: 13, fontWeight: 500, color: 'var(--text-primary)',
             display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16,
           }}>
-            <Sparkles size={16} style={{ color: 'var(--color-purple)' }} />
+            <Sparkles size={16} style={{ color: NEUTRAL_900 }} />
             Generate study materials
           </div>
 
-          {/* Mode toggle */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-            {([
-              { id: 'upload' as InputMode, Icon: Upload,  label: 'Upload document', sub: 'PDF, DOCX, PPTX, TXT' },
-              { id: 'paste'  as InputMode, Icon: PenLine, label: 'Paste raw text',  sub: 'Notes, essays, transcripts' },
-            ] as const).map(({ id, Icon, label, sub }) => (
-              <button
-                key={id}
-                onClick={() => { setMode(id); setExtracted(null); setExtractError(null); setText('') }}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                  padding: '14px 8px', borderRadius: 10, textAlign: 'center',
-                  border: `1px solid ${mode === id ? '#c4b5fd' : 'var(--border-hairline)'}`,
-                  background: mode === id ? 'var(--color-purple-tint)' : '#ffffff',
-                  cursor: 'pointer', transition: 'all 0.15s ease',
-                }}
-              >
-                <Icon size={20} style={{ color: mode === id ? 'var(--color-purple)' : 'var(--text-muted)' }} />
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: mode === id ? 'var(--color-purple-text)' : 'var(--text-primary)' }}>{label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{sub}</div>
-                </div>
-              </button>
-            ))}
+          {/* Mode selector — inline neutral pill (Settings Selector pattern) */}
+          <div style={{ marginBottom: 14 }}>
+            <span style={{
+              display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)',
+              textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6,
+            }}>
+              Generate from
+            </span>
+            <div style={{ display: 'inline-flex', gap: 2, padding: 2, background: NEUTRAL_100, borderRadius: 8 }}>
+              {([
+                { id: 'upload' as InputMode, label: 'Upload document' },
+                { id: 'paste'  as InputMode, label: 'Paste raw text' },
+              ] as const).map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => { setMode(id); setExtracted(null); setExtractError(null); setText('') }}
+                  style={{
+                    padding: '6px 14px', borderRadius: 6, border: 'none',
+                    fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    background: mode === id ? NEUTRAL_900 : 'transparent',
+                    color: mode === id ? '#ffffff' : NEUTRAL_600,
+                    transition: 'all 0.1s ease',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Upload zone */}
@@ -432,27 +574,32 @@ function CreateView({ isGenerating, errorCount, onGenerate, onExtractDocument, o
             <div style={{ marginBottom: 14 }}>
               {extracted ? (
                 <div style={{
-                  borderRadius: 10, border: '0.5px solid #6ee7b7',
-                  background: '#ecfdf5', padding: '12px 14px',
+                  borderRadius: 10, border: `0.5px solid ${wcOver ? '#fca5a5' : '#6ee7b7'}`,
+                  background: wcOver ? 'var(--color-red-tint)' : '#ecfdf5', padding: '12px 14px',
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
                   <div style={{
                     width: 34, height: 34, borderRadius: 8,
-                    background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    background: wcOver ? '#fee2e2' : '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>
-                    <FileText size={16} style={{ color: '#059669' }} />
+                    <FileText size={16} style={{ color: wcOver ? '#dc2626' : '#059669' }} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#065f46', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{extracted.filename}</div>
-                    <div style={{ fontSize: 11, color: '#10b981', marginTop: 1 }}>{extracted.wordCount.toLocaleString()} words extracted</div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: wcOver ? '#991b1b' : '#065f46', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{extracted.filename}</div>
+                    <div style={{ fontSize: 11, color: wcOver ? '#b91c1c' : '#10b981', marginTop: 1 }}>
+                      {wcOver
+                        ? `${extracted.wordCount.toLocaleString()} words — exceeds the 12,000-word limit. Trim or extract a shorter section.`
+                        : `${extracted.wordCount.toLocaleString()} words extracted`
+                      }
+                    </div>
                   </div>
                   <button
                     onClick={() => { setExtracted(null); setExtractError(null) }}
                     style={{
                       width: 26, height: 26, borderRadius: 6,
-                      background: '#d1fae5', border: 'none',
+                      background: wcOver ? '#fee2e2' : '#d1fae5', border: 'none',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', color: '#059669',
+                      cursor: 'pointer', color: wcOver ? '#dc2626' : '#059669',
                     }}
                   >
                     <X size={12} />
@@ -466,14 +613,14 @@ function CreateView({ isGenerating, errorCount, onGenerate, onExtractDocument, o
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
                     style={{
-                      border: `1.5px dashed ${dragOver ? 'var(--color-purple)' : 'var(--border-strong)'}`,
+                      border: `1.5px dashed ${dragOver ? NEUTRAL_900 : 'var(--border-strong)'}`,
                       borderRadius: 10, padding: '28px 16px', textAlign: 'center',
-                      cursor: 'pointer', background: dragOver ? '#faf8ff' : '#ffffff',
+                      cursor: 'pointer', background: dragOver ? NEUTRAL_100 : '#ffffff',
                       transition: 'all 0.15s ease',
                     }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = 'var(--color-purple)'
-                      e.currentTarget.style.background = '#faf8ff'
+                      e.currentTarget.style.borderColor = NEUTRAL_900
+                      e.currentTarget.style.background = NEUTRAL_100
                     }}
                     onMouseLeave={e => {
                       if (!dragOver) {
@@ -484,16 +631,16 @@ function CreateView({ isGenerating, errorCount, onGenerate, onExtractDocument, o
                   >
                     {isExtracting ? (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                        <Loader2 size={24} style={{ color: 'var(--color-purple)', animation: 'spin 1s linear infinite' }} />
+                        <Loader2 size={24} style={{ color: NEUTRAL_600, animation: 'spin 1s linear infinite' }} />
                         <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Extracting text…</p>
                       </div>
                     ) : (
                       <>
-                        <Upload size={22} style={{ color: 'var(--color-purple)', margin: '0 auto 8px' }} />
+                        <Upload size={22} style={{ color: NEUTRAL_600, margin: '0 auto 8px' }} />
                         <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
-                          Drag &amp; drop or <span style={{ color: 'var(--color-purple)' }}>browse</span>
+                          Drag &amp; drop or <span style={{ color: NEUTRAL_900, textDecoration: 'underline' }}>browse</span>
                         </p>
-                        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>PDF · DOCX · PPTX · TXT · MD · max 12,000 words</p>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginTop: 6 }}>PDF · DOCX · PPTX · TXT · MD · max 12,000 words</p>
                       </>
                     )}
                   </div>
@@ -574,8 +721,8 @@ function CreateView({ isGenerating, errorCount, onGenerate, onExtractDocument, o
             aria-busy={isGenerating}
             style={{
               width: '100%', height: 40,
-              background: !canSubmit ? '#c4b5fd' : 'var(--color-purple)',
-              color: '#ffffff',
+              background: !canSubmit ? NEUTRAL_100 : 'var(--color-purple)',
+              color: !canSubmit ? NEUTRAL_400 : '#ffffff',
               border: 'none', borderRadius: 9,
               fontSize: 13, fontWeight: 500,
               cursor: !canSubmit ? 'not-allowed' : 'pointer',
@@ -607,7 +754,7 @@ function ProcessingView({ deck }: { deck: StudyDeck }) {
         <Loader2 size={28} style={{ color: 'var(--color-purple)', animation: 'spin 1s linear infinite' }} />
       </div>
       <div style={{ textAlign: 'center' }}>
-        <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{deck.title}</p>
+        <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{sanitizeTitle(deck.title || deck.sourceName, deck.createdAt)}</p>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>Generating your study materials…</p>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>Claude is extracting concepts and building your cards. This may take a minute.</p>
       </div>
@@ -628,7 +775,7 @@ function ErrorView({ deck, onRetry }: { deck: StudyDeck; onRetry: () => void }) 
         <AlertTriangle size={26} style={{ color: '#dc2626' }} />
       </div>
       <div style={{ textAlign: 'center', maxWidth: 360 }}>
-        <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{deck.title}</p>
+        <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{sanitizeTitle(deck.title || deck.sourceName, deck.createdAt)}</p>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>Generation failed</p>
         {deck.errorMessage && (
           <p style={{
@@ -1167,8 +1314,8 @@ function StudyPanel({ deck, studyIndex, studyMode, onDelete, onIndexChange, onMo
         display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, flexWrap: 'wrap',
         background: '#fafaf8',
       }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deck.title}</p>
+        <div style={{ flex: 1, minWidth: 0 }} title={sanitizeTitle(deck.title || deck.sourceName, deck.createdAt)}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sanitizeTitle(deck.title || deck.sourceName, deck.createdAt)}</p>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
             {[flashCount > 0 && `${flashCount} card${flashCount !== 1 ? 's' : ''}`, mcqCount > 0 && `${mcqCount} MCQ${mcqCount !== 1 ? 's' : ''}`, scenarioCount > 0 && `${scenarioCount} scenario${scenarioCount !== 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
           </p>
@@ -1335,8 +1482,8 @@ function SubTopbar({ activeView, setActiveView, selectedDeck, onStudyNow }: {
               height: 34, padding: '0 12px', borderRadius: 7,
               fontSize: 12, cursor: disabled ? 'not-allowed' : 'pointer', border: 'none',
               fontWeight: active ? 500 : 400,
-              background: active ? 'var(--color-purple-tint)' : 'transparent',
-              color: disabled ? 'var(--text-disabled)' : active ? 'var(--color-purple-text)' : 'var(--text-muted)',
+              background: active ? NEUTRAL_900 : 'transparent',
+              color: disabled ? 'var(--text-disabled)' : active ? '#ffffff' : 'var(--text-muted)',
               transition: 'all 0.1s ease',
             }}
           >
@@ -1352,7 +1499,7 @@ function SubTopbar({ activeView, setActiveView, selectedDeck, onStudyNow }: {
           onClick={onStudyNow}
           style={{
             display: 'flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px',
-            borderRadius: 7, background: 'var(--color-purple)', color: '#fff',
+            borderRadius: 7, background: NEUTRAL_900, color: '#fff',
             border: 'none', fontSize: 12, fontWeight: 500, cursor: 'pointer',
           }}
         >
@@ -1399,6 +1546,16 @@ export default function FlashcardPage() {
     }
   }
 
+  const handleDeleteFromList = (id: string) => {
+    void removeDeck(id)
+    if (activeDeck?.id === id) {
+      setActiveDeck(null)
+      setActiveView('create')
+    }
+  }
+
+  const handleRetryFromList = (id: string) => { void retryDeck(id) }
+
   const showStudyPanel = activeView !== 'create' && activeDeck?.status === 'ready'
   const initialStudyMode: StudyMode = activeView === 'mcq' ? 'mcq' : 'all'
 
@@ -1409,6 +1566,8 @@ export default function FlashcardPage() {
         activeDeck={activeDeck}
         onSelectDeck={handleSelectDeck}
         onNewDeck={handleNewDeck}
+        onDeleteDeck={handleDeleteFromList}
+        onRetryDeck={handleRetryFromList}
       />
 
       {/* Main area */}

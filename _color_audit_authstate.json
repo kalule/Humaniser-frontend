@@ -1,0 +1,45 @@
+{
+  "cookies": [
+    {
+      "name": "refresh_token",
+      "value": "ly2QNEiI-smiuhV1Drii3O7ui20js8PllzRnp251qxEp0-ustIRGO_jdg4oi3VHfFyg_AZbcXPL0QUj_WSplcg",
+      "domain": "localhost",
+      "path": "/api/v1/auth",
+      "expires": 1784659430.565208,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3008",
+      "localStorage": [
+        {
+          "name": "web-library-migrated:00000000-0000-0000-0000-000000000001",
+          "value": "true"
+        },
+        {
+          "name": "sidebar_collapsed",
+          "value": "false"
+        },
+        {
+          "name": "library-migrated:00000000-0000-0000-0000-000000000001",
+          "value": "true"
+        },
+        {
+          "name": "humanise-web-library-prefs",
+          "value": "{\"state\":{\"visibleColumns\":[\"tldr\",\"conclusions\"]},\"version\":0}"
+        },
+        {
+          "name": "pinned-charts-migrated:00000000-0000-0000-0000-000000000001",
+          "value": "true"
+        },
+        {
+          "name": "studio-migrated:00000000-0000-0000-0000-000000000001",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

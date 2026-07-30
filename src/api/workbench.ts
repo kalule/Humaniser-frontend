@@ -12,6 +12,12 @@ import type {
   ScanShieldResponse,
   ValidateLiteratureRequest,
   ValidateLiteratureResponse,
+  WriteWithAiRequest,
+  WriteWithAiResponse,
+  ContinueWritingRequest,
+  ContinueWritingResponse,
+  ReviewDocumentRequest,
+  ReviewDocumentResponse,
 } from '../types/workbench'
 
 type Wrapped<T> = { success: boolean; data: T }
@@ -48,5 +54,20 @@ export const workbenchApi = {
   simulateOutliers: async (data: OutlierSimulationRequest): Promise<OutlierScanResult> =>
     unwrap(await client.post<Wrapped<OutlierScanResult>>(
       '/api/v1/workbench/simulate-outliers', data,
+    )),
+
+  writeWithAi: async (data: WriteWithAiRequest): Promise<WriteWithAiResponse> =>
+    unwrap(await client.post<Wrapped<WriteWithAiResponse>>(
+      '/api/v1/workbench/write-with-ai', data, { timeout: 180_000 },
+    )),
+
+  continueWriting: async (data: ContinueWritingRequest): Promise<ContinueWritingResponse> =>
+    unwrap(await client.post<Wrapped<ContinueWritingResponse>>(
+      '/api/v1/workbench/continue-writing', data, { timeout: 180_000 },
+    )),
+
+  reviewDocument: async (data: ReviewDocumentRequest): Promise<ReviewDocumentResponse> =>
+    unwrap(await client.post<Wrapped<ReviewDocumentResponse>>(
+      '/api/v1/workbench/review-document', data, { timeout: 120_000 },
     )),
 }

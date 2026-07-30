@@ -141,3 +141,58 @@ export interface ValidateLiteratureRequest {
 export interface ValidateLiteratureResponse {
   citations: CitationAsset[]
 }
+
+// ── Write with AI ────────────────────────────────────────────────────────────
+
+export type WriteWithAiSourceMode = 'Web' | 'MyFiles' | 'Hybrid'
+
+export interface WriteWithAiLibraryDocument {
+  title:   string
+  content: string
+}
+
+export interface WriteWithAiRequest {
+  topic:             string
+  targetWordCount?:  number
+  sourceMode:        WriteWithAiSourceMode
+  libraryDocuments?: WriteWithAiLibraryDocument[]
+}
+
+export interface WriteWithAiReference {
+  title:  string
+  url:    string | null
+  source: 'web' | 'my_files'
+}
+
+export interface WriteWithAiResponse {
+  title:      string
+  content:    string
+  references: WriteWithAiReference[]
+  wordCount:  number
+}
+
+// ── Write On (continue writing) ──────────────────────────────────────────────
+
+export interface ContinueWritingRequest {
+  existingContent:  string
+  topic?:           string
+  targetWordCount?: number
+}
+
+export interface ContinueWritingResponse {
+  content:    string
+  references: WriteWithAiReference[]
+  wordCount:  number
+}
+
+// ── Review On (AI document review) ───────────────────────────────────────────
+
+export interface ReviewDocumentRequest {
+  content: string
+}
+
+export interface ReviewDocumentResponse {
+  overallAssessment: string
+  strengths:         string[]
+  suggestions:       string[]
+}

@@ -5,10 +5,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './store/authStore'
+import { useLibraryStore, migrateLocalLibraryIfPresent } from './store/libraryStore'
+import { useWebLibraryStore, migrateLocalWebLibraryIfPresent } from './store/webLibraryStore'
+import { useStudioStore, migrateLocalStudioIfPresent } from './store/studioStore'
+import { useWorkbenchStore, migrateLocalPinnedChartsIfPresent } from './store/workbenchStore'
 import { AppShell } from './components/layout/AppShell'
+import { ScrollToTop } from './components/layout/ScrollToTop'
 
 const LandingPage = lazy(() => import('./pages/LandingPage'))
 const PricingPage = lazy(() => import('./pages/PricingPage'))
+const FeaturesPage = lazy(() => import('./pages/FeaturesPage'))
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
@@ -21,6 +27,15 @@ const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 const DetectorPage = lazy(() => import('./pages/DetectorPage'))
 const DetectorHistoryPage = lazy(() => import('./pages/DetectorHistoryPage'))
 const FaqPage = lazy(() => import('./pages/FaqPage'))
+const ContactPage = lazy(() => import('./pages/ContactPage'))
+const AboutPage = lazy(() => import('./pages/AboutPage'))
+const BlogPage = lazy(() => import('./pages/BlogPage'))
+const CareersPage = lazy(() => import('./pages/CareersPage'))
+const FeedbackPage = lazy(() => import('./pages/FeedbackPage'))
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'))
+const TermsPage = lazy(() => import('./pages/TermsPage'))
+const PopiaPage = lazy(() => import('./pages/PopiaPage'))
+const CookiePolicyPage = lazy(() => import('./pages/CookiePolicyPage'))
 const ParaphrasePage = lazy(() => import('./pages/app/ParaphrasePage'))
 const GrammarPage    = lazy(() => import('./pages/app/GrammarPage'))
 const PlagiarismPage  = lazy(() => import('./pages/app/PlagiarismPage'))
@@ -35,7 +50,16 @@ const LibraryPage      = lazy(() => import('./pages/app/LibraryPage'))
 const DocumentEditorPage = lazy(() => import('./pages/app/DocumentEditorPage'))
 const WebLibraryPage      = lazy(() => import('./pages/app/WebLibraryPage'))
 const ProposalStudioPage  = lazy(() => import('./pages/app/ProposalStudioPage'))
+const ThesisStudioPage    = lazy(() => import('./pages/app/ThesisStudioPage'))
 const ResearchAgentPage   = lazy(() => import('./pages/app/ResearchAgentPage'))
+const DocumentViewPage    = lazy(() => import('./pages/app/DocumentViewPage'))
+const ResearchDashboardPage = lazy(() => import('./pages/app/ResearchDashboardPage'))
+const SystematicReviewPage          = lazy(() => import('./pages/app/SystematicReviewPage'))
+const SystematicReviewWorkspacePage = lazy(() => import('./pages/app/SystematicReviewWorkspacePage'))
+const LiteratureReviewPage          = lazy(() => import('./pages/app/LiteratureReviewPage'))
+const LiteratureDiscoveryProgressPage = lazy(() => import('./pages/app/LiteratureDiscoveryProgressPage'))
+const ReviewerPage                  = lazy(() => import('./pages/app/ReviewerPage'))
+const ReviewerWorkspacePage         = lazy(() => import('./pages/app/ReviewerWorkspacePage'))
 
 class ChunkErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false }
@@ -105,10 +129,40 @@ function GuestRoute() {
 function AppInner() {
   const initialize = useAuthStore((s) => s.initialize)
   const isLoading = useAuthStore((s) => s.isLoading)
+  const userId = useAuthStore((s) => s.user?.id ?? null)
 
   useEffect(() => {
     void initialize()
   }, [initialize])
+
+  // Documents are API-backed now, scoped server-side by the authenticated user —
+  // load this account's library on login/switch, and drop it from memory on logout
+  // so a shared browser never shows a signed-out state with stale data lingering.
+  useEffect(() => {
+    if (userId) {
+      void (async () => {
+        await migrateLocalLibraryIfPresent(userId)
+        await useLibraryStore.getState().loadDocuments()
+      })()
+      void (async () => {
+        await migrateLocalWebLibraryIfPresent(userId)
+        await useWebLibraryStore.getState().loadDocuments()
+      })()
+      void (async () => {
+        await migrateLocalStudioIfPresent(userId)
+        await useStudioStore.getState().loadDocuments()
+      })()
+      void (async () => {
+        await migrateLocalPinnedChartsIfPresent(userId)
+        await useWorkbenchStore.getState().loadPinnedCharts()
+      })()
+    } else {
+      useLibraryStore.getState().clear()
+      useWebLibraryStore.getState().clear()
+      useStudioStore.getState().clear()
+      useWorkbenchStore.getState().clearPinnedCharts()
+    }
+  }, [userId])
 
   // Show loader while the silent refresh is in flight so protected routes
   // don't flash the login page before the cookie exchange completes.
@@ -116,12 +170,23 @@ function AppInner() {
 
   return (
     <ChunkErrorBoundary>
+    <ScrollToTop />
     <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
         <Route path="/faq" element={<FaqPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/careers" element={<CareersPage />} />
+        <Route path="/feedback" element={<FeedbackPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/popia" element={<PopiaPage />} />
+        <Route path="/cookies" element={<CookiePolicyPage />} />
 
         {/* Guest only */}
         <Route element={<GuestRoute />}>
@@ -157,7 +222,16 @@ function AppInner() {
             <Route path="editor/:documentId"      element={<DocumentEditorPage />} />
             <Route path="web-library"             element={<WebLibraryPage />} />
             <Route path="proposal-studio"           element={<ProposalStudioPage />} />
+            <Route path="thesis-studio"              element={<ThesisStudioPage />} />
             <Route path="research-agent/:projectId" element={<ResearchAgentPage />} />
+            <Route path="research-agent/:projectId/document" element={<DocumentViewPage />} />
+            <Route path="research-agent/:projectId/dashboard" element={<ResearchDashboardPage />} />
+            <Route path="systematic-review"     element={<SystematicReviewPage />} />
+            <Route path="systematic-review/:id" element={<SystematicReviewWorkspacePage />} />
+            <Route path="literature-review"     element={<LiteratureReviewPage />} />
+            <Route path="literature-review/discovery" element={<LiteratureDiscoveryProgressPage />} />
+            <Route path="reviewer"     element={<ReviewerPage />} />
+            <Route path="reviewer/:id" element={<ReviewerWorkspacePage />} />
           </Route>
         </Route>
 

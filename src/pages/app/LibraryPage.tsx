@@ -10,6 +10,8 @@ import { useLibraryStore } from '../../store/libraryStore'
 import { UploadModal } from '../../components/ui/UploadModal'
 import type { WorkspaceDocument, DocOwnership, DocViewMode } from '../../types/library'
 
+type SortBy = 'modified' | 'alpha' | 'created'
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function relativeDate(iso: string) {
@@ -22,6 +24,27 @@ function relativeDate(iso: string) {
   const days = Math.floor(hrs / 24)
   if (days < 30)  return `${days}d ago`
   return new Date(iso).toLocaleDateString()
+}
+
+function extractPreviewText(content?: string): string {
+  if (!content) return ''
+  try {
+    const json = JSON.parse(content)
+    const parts: string[] = []
+    const walk = (node: any) => {
+      if (!node) return
+      if (node.type === 'text' && typeof node.text === 'string') parts.push(node.text)
+      if (Array.isArray(node.content)) node.content.forEach(walk)
+    }
+    walk(json)
+    return parts.join(' ').replace(/\s+/g, ' ').trim()
+  } catch {
+    return content.replace(/\s+/g, ' ').trim()
+  }
+}
+
+function countWords(text: string): number {
+  return text ? text.split(' ').filter(Boolean).length : 0
 }
 
 function DocTypeIcon({ type, isPdf }: { type: string; isPdf: boolean }) {
@@ -37,12 +60,10 @@ function DocTypeIcon({ type, isPdf }: { type: string; isPdf: boolean }) {
 // ── Context menu ───────────────────────────────────────────────────────────────
 
 function DocMenu({
-  doc,
   onRename,
   onDelete,
   onOpen,
 }: {
-  doc: WorkspaceDocument
   onRename: () => void
   onDelete: () => void
   onOpen:   () => void
@@ -52,9 +73,9 @@ function DocMenu({
     <div className="relative" onClick={e => e.stopPropagation()}>
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-black/[0.05] transition-colors"
+        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-black/[0.08] transition-colors"
       >
-        <MoreVertical size={14} />
+        <MoreVertical size={16} />
       </button>
       <AnimatePresence>
         {open && (
@@ -98,6 +119,9 @@ function DocCard({
   onRename: () => void
   onDelete: () => void
 }) {
+  const preview = extractPreviewText(doc.content)
+  const words   = countWords(preview)
+
   return (
     <motion.div
       layout
@@ -111,6 +135,10 @@ function DocCard({
       <div className="aspect-[3/4] rounded-lg bg-[#f5f5f3] border border-[#e0e0da] mb-3 flex items-center justify-center overflow-hidden">
         {doc.isPdf || doc.type === 'pdf' ? (
           <File size={32} className="text-red-300" />
+        ) : preview ? (
+          <p className="w-full h-full p-3 text-[11px] leading-relaxed text-[#666] overflow-hidden">
+            {preview.length > 220 ? `${preview.slice(0, 220).trimEnd()}…` : preview}
+          </p>
         ) : (
           <div className="w-full h-full p-3 space-y-1.5">
             <div className="h-1.5 bg-[#d1d5db] rounded w-3/4" />
@@ -125,13 +153,19 @@ function DocCard({
       {/* Meta */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[13px] text-[#1a1a18] font-medium truncate leading-snug">{doc.title}</p>
+          <p title={doc.title} className="text-[13px] text-[#1a1a18] font-medium truncate leading-snug">{doc.title}</p>
           <div className="flex items-center gap-1.5 mt-1">
             <DocTypeIcon type={doc.type} isPdf={doc.isPdf} />
             <span className="text-[11px] text-[#888]">{relativeDate(doc.updatedAt)}</span>
+            {words > 0 && (
+              <>
+                <span className="text-[11px] text-[#ccc]">·</span>
+                <span className="text-[11px] text-[#888]">{words.toLocaleString()} words</span>
+              </>
+            )}
           </div>
         </div>
-        <DocMenu doc={doc} onOpen={onOpen} onRename={onRename} onDelete={onDelete} />
+        <DocMenu onOpen={onOpen} onRename={onRename} onDelete={onDelete} />
       </div>
     </motion.div>
   )
@@ -152,19 +186,51 @@ function DocRow({
       layout
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       onClick={onOpen}
-      className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/[0.04] cursor-pointer group transition-colors border border-transparent hover:border-white/[0.06]"
+      className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-black/[0.03] cursor-pointer group transition-colors border border-transparent hover:border-[#e0e0da]"
     >
-      <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-[#f5f5f3] border border-[#e0e0da] flex items-center justify-center shrink-0">
         <DocTypeIcon type={doc.type} isPdf={doc.isPdf} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] text-white font-medium truncate">{doc.title}</p>
-        <p className="text-[11px] text-slate-500">Modified {relativeDate(doc.updatedAt)}</p>
+        <p title={doc.title} className="text-[13px] text-[#1a1a18] font-medium truncate">{doc.title}</p>
+        <p className="text-[11px] text-[#888]">Modified {relativeDate(doc.updatedAt)}</p>
       </div>
       <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-        <DocMenu doc={doc} onOpen={onOpen} onRename={onRename} onDelete={onDelete} />
+        <DocMenu onOpen={onOpen} onRename={onRename} onDelete={onDelete} />
       </div>
     </motion.div>
+  )
+}
+
+// ── New document dialog ─────────────────────────────────────────────────────────
+
+function NewDocDialog({ onCreate, onCancel }: { onCreate: (title: string) => void; onCancel: () => void }) {
+  const [val, setVal] = useState('Untitled document')
+  const commit = () => onCreate(val.trim() || 'Untitled document')
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="relative bg-white border border-[#e0e0da] rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+      >
+        <h3 className="flex items-center gap-2 text-[#1a1a18] font-semibold mb-4">
+          <FilePlus size={16} className="text-[#7c3aed]" /> Name your document
+        </h3>
+        <input
+          autoFocus value={val} onChange={e => setVal(e.target.value)}
+          onFocus={e => e.target.select()}
+          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel() }}
+          className="w-full bg-neutral-100 border-0 rounded-lg px-3.5 py-2.5 text-[#1a1a18] text-sm outline-none focus:ring-2 focus:ring-[#7c3aed]/20 mb-4"
+        />
+        <div className="flex gap-2 justify-end">
+          <button onClick={onCancel} className="px-4 py-2 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 text-[13px] font-medium transition-colors">Cancel</button>
+          <button onClick={commit} className="px-5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#4c1d95] text-white text-[13px] font-medium transition-colors">
+            Create
+          </button>
+        </div>
+      </motion.div>
+    </div>
   )
 }
 
@@ -177,17 +243,20 @@ function RenameDialog({ doc, onSave, onCancel }: { doc: WorkspaceDocument; onSav
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="relative bg-[#0d1526] border border-white/[0.1] rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+        className="relative bg-white border border-[#e0e0da] rounded-2xl p-6 w-full max-w-sm shadow-2xl"
       >
-        <h3 className="text-white font-semibold mb-4">Rename document</h3>
+        <h3 className="flex items-center gap-2 text-[#1a1a18] font-semibold mb-4">
+          <Edit3 size={16} className="text-[#7c3aed]" /> Rename document
+        </h3>
         <input
           autoFocus value={val} onChange={e => setVal(e.target.value)}
+          onFocus={e => e.target.select()}
           onKeyDown={e => { if (e.key === 'Enter') onSave(val); if (e.key === 'Escape') onCancel() }}
-          className="w-full bg-white/[0.05] border border-white/[0.1] rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-orange-500/50 mb-4"
+          className="w-full bg-neutral-100 border-0 rounded-lg px-3.5 py-2.5 text-[#1a1a18] text-sm outline-none focus:ring-2 focus:ring-[#7c3aed]/20 mb-4"
         />
         <div className="flex gap-2 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 text-[13px] text-slate-400 hover:text-white transition-colors">Cancel</button>
-          <button onClick={() => onSave(val)} className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium transition-colors">
+          <button onClick={onCancel} className="px-4 py-2 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 text-[13px] font-medium transition-colors">Cancel</button>
+          <button onClick={() => onSave(val)} className="px-5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#4c1d95] text-white text-[13px] font-medium transition-colors">
             Rename
           </button>
         </div>
@@ -204,19 +273,38 @@ export default function LibraryPage() {
 
   const [search,      setSearch]      = useState('')
   const [filter,      setFilter]      = useState<DocOwnership>('all')
-  const [viewMode,    setViewMode]    = useState<DocViewMode>('grid')
+  const [sortBy,      setSortBy]      = useState<SortBy>('modified')
+  const [viewMode,    setViewMode]    = useState<DocViewMode>('list')
   const [uploadOpen,  setUploadOpen]  = useState(false)
   const [renameDoc,   setRenameDoc]   = useState<WorkspaceDocument | null>(null)
+  const [namingNew,   setNamingNew]   = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return documents.filter(d =>
-      (q ? d.title.toLowerCase().includes(q) : true)
-    )
-  }, [documents, search])
+    // There's no sharing feature yet, so every document is "owned by me" and
+    // nothing is ever "shared" — reflect that instead of ignoring the tabs.
+    let list = documents.filter(d => (q ? d.title.toLowerCase().includes(q) : true))
+    if (filter === 'shared') list = []
 
-  const handleNewDocument = () => {
-    const doc = createDocument({ title: 'Untitled document' })
+    const sorted = [...list]
+    if (sortBy === 'alpha') {
+      sorted.sort((a, b) => a.title.localeCompare(b.title))
+    } else if (sortBy === 'created') {
+      sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    } else {
+      sorted.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    }
+    return sorted
+  }, [documents, search, filter, sortBy])
+
+  const mostRecentDoc = useMemo(() => {
+    if (documents.length === 0) return null
+    return [...documents].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
+  }, [documents])
+
+  const handleCreateNamed = async (title: string) => {
+    const doc = await createDocument({ title })
+    setNamingNew(false)
     navigate(`/app/editor/${doc.id}`)
   }
 
@@ -232,7 +320,7 @@ export default function LibraryPage() {
     files.forEach(file => {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? 'txt'
       const isPdf = ext === 'pdf'
-      createDocument({
+      void createDocument({
         title:    file.name.replace(/\.[^.]+$/, ''),
         type:     ext as any,
         isPdf,
@@ -243,7 +331,7 @@ export default function LibraryPage() {
   }
 
   const handleRename = (doc: WorkspaceDocument, title: string) => {
-    updateDocument(doc.id, { title })
+    void updateDocument(doc.id, { title })
     setRenameDoc(null)
   }
 
@@ -254,65 +342,59 @@ export default function LibraryPage() {
   ]
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="h-14 border-b border-white/[0.05] flex items-center px-6 gap-4 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <FolderOpen size={18} className="text-amber-400" />
-          <h1 className="text-white font-semibold text-[15px]">My Library</h1>
+      <div className="h-14 border-b border-[#e0e0da] flex items-center px-6 gap-4 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <FolderOpen size={18} className="text-amber-500" />
+          <h1 className="text-[#1a1a18] font-semibold text-[15px]">My Library</h1>
         </div>
 
-        {/* Search */}
-        <div className="flex-1 max-w-sm relative ml-4">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+        {/* Search — primary way to find a doc among many similarly-named drafts */}
+        <div className="flex-1 max-w-md relative">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#999]" />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search documents…"
-            className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pl-9 pr-4 py-2 text-[13px] text-white placeholder-slate-500 outline-none focus:border-white/[0.15] transition-colors"
+            className="w-full h-10 bg-white border border-[#e0e0da] rounded-xl pl-10 pr-4 text-sm text-[#1a1a18] placeholder-[#999] outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#ede9fe] transition-colors"
           />
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 shrink-0">
           <button
             onClick={() => setUploadOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-white/[0.08] text-slate-300 hover:text-white hover:border-white/[0.15] text-[13px] transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#e0e0da] text-[#555] hover:text-[#1a1a18] hover:border-[#d1d5db] text-[13px] transition-all"
           >
             <Upload size={14} /> Upload
           </button>
-          <button
-            onClick={handleNewDocument}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium transition-colors shadow-lg shadow-orange-900/30"
-          >
-            <Plus size={14} /> New document
-          </button>
         </div>
       </div>
 
-      {/* ── "Start a new doc" banner ─────────────────────────────────────────── */}
-      <div className="px-6 py-5 border-b border-white/[0.04] shrink-0">
-        <p className="text-[11px] text-slate-500 uppercase tracking-widest font-semibold mb-3">Start a new document</p>
-        <div className="flex items-center gap-3">
-          {/* Blank doc template */}
+      {/* ── Start new / resume — one row, so returning users aren't pushed past a big empty block ── */}
+      <div className="px-6 py-3 border-b border-[#e0e0da] shrink-0 flex items-center gap-3">
+        <button
+          onClick={() => setNamingNew(true)}
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#4c1d95] text-white text-[13px] font-medium transition-colors shadow-lg shadow-purple-900/20 shrink-0"
+        >
+          <Plus size={14} /> Blank document
+        </button>
+
+        {mostRecentDoc && (
           <button
-            onClick={handleNewDocument}
-            className="group w-28 flex flex-col items-center gap-2"
+            onClick={() => handleOpenDoc(mostRecentDoc)}
+            className="flex-1 min-w-0 flex items-center gap-3 px-4 py-2.5 rounded-xl border border-[#e0e0da] hover:border-[#d1d5db] hover:bg-black/[0.02] transition-all text-left"
           >
-            <div className="w-28 h-36 rounded-xl bg-white/[0.04] border border-white/[0.08] group-hover:border-white/[0.2] group-hover:bg-white/[0.07] transition-all flex items-center justify-center">
-              <div className="w-14 h-20 bg-white/90 rounded shadow-md flex flex-col p-2 gap-1">
-                <div className="h-0.5 bg-slate-200 rounded w-full" />
-                <div className="h-0.5 bg-slate-200 rounded w-4/5" />
-                <div className="h-0.5 bg-slate-200 rounded w-full" />
-                <div className="h-0.5 bg-slate-200 rounded w-2/3" />
-              </div>
-            </div>
-            <span className="text-[12px] text-slate-400 group-hover:text-slate-200 transition-colors">Blank document</span>
+            <Clock size={14} className="text-[#888] shrink-0" />
+            <span className="text-[11px] text-[#555] uppercase tracking-wide shrink-0">Continue where you left off</span>
+            <span title={mostRecentDoc.title} className="text-[13px] text-[#1a1a18] font-medium truncate">{mostRecentDoc.title}</span>
+            <span className="text-[11px] text-[#888] ml-auto shrink-0">{relativeDate(mostRecentDoc.updatedAt)}</span>
           </button>
-        </div>
+        )}
       </div>
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
-      <div className="px-6 py-3 flex items-center gap-3 border-b border-white/[0.04] shrink-0">
+      <div className="px-6 py-3 flex items-center gap-3 border-b border-[#e0e0da] shrink-0">
         <div className="inline-flex items-center gap-0.5 bg-[#f1f5f9] rounded-lg p-0.5">
           {FILTER_TABS.map(t => (
             <button
@@ -329,13 +411,23 @@ export default function LibraryPage() {
           ))}
         </div>
 
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as SortBy)}
+          className="h-7 pl-2.5 pr-1.5 rounded-md text-[12px] bg-white border border-[#e0e0da] text-[#555] outline-none"
+        >
+          <option value="modified">Last modified</option>
+          <option value="alpha">Alphabetical</option>
+          <option value="created">Date created</option>
+        </select>
+
         <div className="ml-auto flex items-center gap-1">
           <button onClick={() => setViewMode('grid')}
-            className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-colors', viewMode === 'grid' ? 'bg-white/[0.08] text-white' : 'text-slate-500 hover:text-slate-300')}>
+            className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-colors', viewMode === 'grid' ? 'bg-[#f1f5f9] text-[#1a1a18]' : 'text-[#999] hover:text-[#1a1a18]')}>
             <Grid3x3 size={15} />
           </button>
           <button onClick={() => setViewMode('list')}
-            className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-colors', viewMode === 'list' ? 'bg-white/[0.08] text-white' : 'text-slate-500 hover:text-slate-300')}>
+            className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-colors', viewMode === 'list' ? 'bg-[#f1f5f9] text-[#1a1a18]' : 'text-[#999] hover:text-[#1a1a18]')}>
             <List size={15} />
           </button>
         </div>
@@ -345,18 +437,18 @@ export default function LibraryPage() {
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-5 text-center py-20">
-            <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
-              <FilePlus size={28} className="text-slate-600" />
+            <div className="w-16 h-16 rounded-2xl bg-[#f5f5f3] border border-[#e0e0da] flex items-center justify-center">
+              <FilePlus size={28} className="text-[#999]" />
             </div>
             <div>
-              <p className="text-white font-medium text-[15px]">No documents yet</p>
-              <p className="text-slate-500 text-[13px] mt-1">Create a blank document or upload existing files</p>
+              <p className="text-[#1a1a18] font-medium text-[15px]">No documents yet</p>
+              <p className="text-[#888] text-[13px] mt-1">Create a blank document or upload existing files</p>
             </div>
             <div className="flex gap-3">
-              <button onClick={handleNewDocument} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium transition-colors">
+              <button onClick={() => setNamingNew(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#4c1d95] text-white text-[13px] font-medium transition-colors">
                 <Plus size={14} /> New document
               </button>
-              <button onClick={() => setUploadOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-white/[0.1] text-slate-300 hover:text-white hover:border-white/[0.2] text-[13px] transition-all">
+              <button onClick={() => setUploadOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#e0e0da] text-[#555] hover:text-[#1a1a18] hover:border-[#d1d5db] text-[13px] transition-all">
                 <Upload size={14} /> Upload files
               </button>
             </div>
@@ -405,6 +497,14 @@ export default function LibraryPage() {
           doc={renameDoc}
           onSave={title => handleRename(renameDoc, title)}
           onCancel={() => setRenameDoc(null)}
+        />
+      )}
+
+      {/* ── New document dialog ──────────────────────────────────────────────── */}
+      {namingNew && (
+        <NewDocDialog
+          onCreate={handleCreateNamed}
+          onCancel={() => setNamingNew(false)}
         />
       )}
     </div>

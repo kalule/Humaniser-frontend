@@ -5,7 +5,7 @@ import { cn } from '../../lib/utils'
 import { useToolTransferStore } from '../../store/toolTransferStore'
 
 const DESTINATIONS = [
-  { label: 'Voice Editor',  path: '/app/humaniser',  Icon: Sparkles  },
+  { label: 'Rewrite',    path: '/app/humaniser',  Icon: Sparkles  },
   { label: 'Paraphraser',   path: '/app/paraphrase', Icon: RefreshCw  },
   { label: 'Grammar',       path: '/app/grammar',    Icon: SpellCheck },
   { label: 'Summariser',    path: '/app/summarise',  Icon: Scissors   },
@@ -41,9 +41,9 @@ export function SendToMenu({ text, className }: SendToMenuProps) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition-colors"
+        className="inline-flex items-center gap-1 h-6 px-2 rounded text-[11px] text-text-sec border border-[#e0e0da] bg-white hover:border-[#d1d5db] hover:text-text-pri transition-colors"
       >
-        <Share2 size={12} />
+        <Share2 size={11} />
         Send to
         <ChevronDown
           size={10}
@@ -52,7 +52,7 @@ export function SendToMenu({ text, className }: SendToMenuProps) {
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-1.5 left-0 z-50 w-44 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden">
+        <div className="absolute bottom-full mb-1.5 left-0 z-50 w-44 bg-white border border-gray-200 rounded-xl shadow-elevated overflow-hidden">
           {destinations.map(({ label, path, Icon }) => (
             <button
               key={path}
@@ -62,9 +62,9 @@ export function SendToMenu({ text, className }: SendToMenuProps) {
                 navigate(path)
                 setOpen(false)
               }}
-              className="flex items-center gap-2.5 w-full px-3 py-2 text-[13px] text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-[13px] text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
             >
-              <Icon size={12} className="text-slate-500 shrink-0" />
+              <Icon size={12} className="text-gray-400 shrink-0" />
               {label}
             </button>
           ))}

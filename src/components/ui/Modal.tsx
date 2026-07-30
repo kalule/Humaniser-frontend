@@ -10,6 +10,15 @@ interface ModalProps {
   title?: string
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg'
+  /** Overrides the panel's default bg-surface-card/border/rounded/shadow — e.g. for a caller
+   *  that renders its own header (title unset) and wants different rounding/border treatment. */
+  panelClassName?: string
+  /** Overrides the default px-6 py-5 body padding — pass '' when the caller renders its
+   *  own header/body/footer sections with their own padding instead. */
+  bodyClassName?: string
+  /** Suppresses the built-in absolute-positioned close button (only rendered when `title`
+   *  is unset) for callers rendering their own header with its own close control. */
+  showCloseButton?: boolean
 }
 
 const sizeClasses: Record<NonNullable<ModalProps['size']>, string> = {
@@ -33,6 +42,9 @@ export function Modal({
   title,
   children,
   size = 'md',
+  panelClassName,
+  bodyClassName,
+  showCloseButton = true,
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -127,24 +139,25 @@ export function Modal({
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
             transition={{ type: 'spring', stiffness: 300, damping: 24 }}
             className={cn(
-              'relative z-10 w-full bg-card border border-border rounded-lg shadow-elevated',
+              'relative z-10 w-full max-h-[85vh] flex flex-col bg-surface-card border border-border-h rounded-lg shadow-elevated',
               'focus:outline-none',
               sizeClasses[size],
+              panelClassName,
             )}
           >
             {/* Header */}
             {title != null && (
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-border-h shrink-0">
                 <h2
                   id="modal-title"
-                  className="text-lg font-semibold text-text-main"
+                  className="text-lg font-semibold text-text-pri"
                 >
                   {title}
                 </h2>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="text-muted hover:text-text-main transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded-sm p-0.5"
+                  className="text-text-mut hover:text-text-pri transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/60 rounded-sm p-0.5"
                   aria-label="Close modal"
                 >
                   <X size={18} />
@@ -153,11 +166,11 @@ export function Modal({
             )}
 
             {/* Close button when no title */}
-            {title == null && (
+            {title == null && showCloseButton && (
               <button
                 type="button"
                 onClick={onClose}
-                className="absolute top-4 right-4 text-muted hover:text-text-main transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded-sm p-0.5"
+                className="absolute top-4 right-4 text-text-mut hover:text-text-pri transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/60 rounded-sm p-0.5"
                 aria-label="Close modal"
               >
                 <X size={18} />
@@ -165,7 +178,7 @@ export function Modal({
             )}
 
             {/* Body */}
-            <div className="px-6 py-5">{children}</div>
+            <div className={cn('flex-1 min-h-0 overflow-y-auto', bodyClassName ?? 'px-6 py-5')}>{children}</div>
           </motion.div>
         </div>
       )}

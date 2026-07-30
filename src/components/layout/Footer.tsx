@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Sparkles, Twitter, Linkedin, Instagram } from 'lucide-react'
 
 interface FooterLink {
@@ -8,10 +8,11 @@ interface FooterLink {
 }
 
 const PRODUCT_LINKS: FooterLink[] = [
+  { label: 'All Features', href: '/features' },
   { label: 'Humaniser', href: '/app' },
   { label: 'AI Detector', href: '/app/detector' },
-  { label: 'Paraphraser', href: '#', soon: true },
-  { label: 'Plagiarism Checker', href: '#', soon: true },
+  { label: 'Paraphraser', href: '/app/paraphrase' },
+  { label: 'Plagiarism Checker', href: '/app/plagiarism' },
   { label: 'Pricing', href: '/pricing' },
 ]
 
@@ -23,7 +24,7 @@ const COMPANY_LINKS: FooterLink[] = [
 ]
 
 const SUPPORT_LINKS: FooterLink[] = [
-  { label: 'Help Centre', href: '/faq' },
+  { label: 'FAQ', href: '/faq' },
   { label: 'WhatsApp Support', href: 'https://wa.me/27000000000' },
   { label: 'Contact Us', href: '/contact' },
   { label: 'Feature Requests', href: '/feedback' },
@@ -32,7 +33,7 @@ const SUPPORT_LINKS: FooterLink[] = [
 const LEGAL_LINKS: FooterLink[] = [
   { label: 'Privacy Policy', href: '/privacy' },
   { label: 'Terms of Service', href: '/terms' },
-  { label: 'POPIA Compliance', href: '/popia' },
+  { label: 'GDPR / POPIA Compliance', href: '/popia' },
   { label: 'Cookie Policy', href: '/cookies' },
 ]
 
@@ -43,6 +44,9 @@ const SOCIAL_LINKS = [
 ]
 
 function FooterColumn({ title, links }: { title: string; links: FooterLink[] }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+
   return (
     <div>
       <h4 className="text-sm font-semibold text-white mb-4">{title}</h4>
@@ -93,8 +97,12 @@ function FooterColumn({ title, links }: { title: string; links: FooterLink[] }) 
                 <button
                   type="button"
                   onClick={() => {
-                    const id = link.href.replace('/#', '#')
-                    document.querySelector(id)?.scrollIntoView({ behavior: 'smooth' })
+                    const hash = link.href.replace('/#', '#')
+                    if (location.pathname === '/') {
+                      document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
+                    } else {
+                      navigate(`/${hash}`)
+                    }
                   }}
                   className="text-sm text-slate-400 hover:text-white transition-colors duration-200 text-left"
                 >

@@ -4,7 +4,7 @@ import {
   ChevronLeft, ChevronRight, FolderOpen, Folder, Trash2, Tag, Plus,
   Upload, Link, Copy, FileText, BookOpen, Bookmark, MessageCircle,
   ChevronDown, Download, X, Sparkles, ArrowUpDown,
-  BookMarked, Check, ExternalLink,
+  BookMarked, Check,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useWebLibraryStore } from '../../store/webLibraryStore'
@@ -509,7 +509,6 @@ export default function WebLibraryPage() {
   const {
     documents, folders, visibleColumns,
     createFolder, addColumn, removeColumn, reorderColumns,
-    deleteDocument,
   } = useWebLibraryStore()
 
   const [activeLocation,  setActiveLocation]  = useState<ActiveLocation>('all')
@@ -608,7 +607,7 @@ export default function WebLibraryPage() {
 
   const handleUpload = (files: File[], folderId: string | null = null) => {
     files.forEach(file => {
-      useWebLibraryStore.getState().addDocument({
+      void useWebLibraryStore.getState().addDocument({
         title:    file.name.replace(/\.[^.]+$/, ''),
         docType:  'Journal Article',
         filePath: URL.createObjectURL(file),

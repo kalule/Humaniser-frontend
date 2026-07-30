@@ -3,9 +3,14 @@ import { grammarApi } from '../api/grammar'
 import { useGrammarStore } from '../store/grammarStore'
 
 export function useGrammar() {
-  const { inputText, context, enabledCategories, setLoading, setError, setResult } = useGrammarStore()
+  const { context, enabledCategories, setLoading, setError, setResult } = useGrammarStore()
 
   const check = async () => {
+    // Read inputText fresh from the store rather than the closure — callers may
+    // set the text and immediately invoke check() in the same handler (e.g. "Try
+    // sample"), before this hook's own re-render has captured the new value.
+    const inputText = useGrammarStore.getState().inputText
+
     if (!inputText.trim() || inputText.trim().split(/\s+/).length < 2) {
       toast.error('Enter at least a few words to check.')
       return

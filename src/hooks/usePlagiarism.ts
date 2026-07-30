@@ -23,7 +23,7 @@ export function usePlagiarism() {
 
     try {
       const result = await plagiarismApi.check({ text })
-      setResult(result)
+      setResult(result, text)
       return result
     } catch (err: unknown) {
       const apiErr = err as { message?: string; upgradeRequired?: boolean }

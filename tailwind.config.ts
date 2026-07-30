@@ -42,6 +42,9 @@ const config: Config = {
         'red-accent':      'var(--color-red)',
         'red-tint':        'var(--color-red-tint)',
         'red-text':        'var(--color-red-text)',
+        'coral-accent':    'var(--color-coral)',
+        'coral-tint':      'var(--color-coral-tint)',
+        'coral-text':      'var(--color-coral-text)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

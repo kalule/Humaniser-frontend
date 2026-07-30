@@ -55,7 +55,7 @@ function TypingDots() {
 
 function PageChip({ page }: { page: number }) {
   return (
-    <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-orange-500/15 border border-orange-500/20 text-orange-400 font-medium">
+    <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-purple-tint border border-purple-accent/20 text-purple-text font-medium">
       <BookOpen size={9} /> p.{page}
     </span>
   )
@@ -66,15 +66,15 @@ function MessageBubble({ msg }: { msg: DocChatMessage }) {
   return (
     <div className={cn('flex gap-2', isUser ? 'justify-end' : 'justify-start')}>
       {!isUser && (
-        <div className="w-6 h-6 rounded-md bg-orange-500/20 border border-orange-500/25 flex items-center justify-center shrink-0 mt-0.5">
-          <MessageSquare size={11} className="text-orange-400" />
+        <div className="w-6 h-6 rounded-md bg-purple-tint border border-purple-accent/25 flex items-center justify-center shrink-0 mt-0.5">
+          <MessageSquare size={11} className="text-purple-accent" />
         </div>
       )}
       <div className={cn('max-w-[84%] space-y-1.5', isUser && 'items-end flex flex-col')}>
         <div className={cn(
           'px-3 py-2.5 rounded-xl text-[13px] leading-relaxed',
           isUser
-            ? 'bg-sky-50 border border-sky-200 text-sky-900 rounded-br-sm'
+            ? 'bg-purple-tint border border-purple-accent/20 text-purple-text rounded-br-sm'
             : 'bg-gray-50 border border-gray-100 text-gray-800 rounded-bl-sm',
         )}>
           {msg.isLoading ? (
@@ -143,7 +143,7 @@ function CanvasUploadZone({ onUpload, disabled }: { onUpload: (f: File) => void;
         <button
           disabled={disabled}
           onClick={e => { e.stopPropagation(); inputRef.current?.click() }}
-          className="mt-1 px-5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+          className="mt-1 px-5 py-2 bg-purple-accent text-white text-sm font-medium rounded-lg hover:bg-purple-deep transition-colors disabled:opacity-50"
         >
           Choose file
         </button>
@@ -374,7 +374,7 @@ export default function DocumentChatPage() {
               className={cn(
                 'px-3.5 h-full text-[13px] font-medium transition-colors border-b-2 capitalize',
                 activeTab === tab
-                  ? 'border-orange-500 text-orange-600'
+                  ? 'border-neutral-900 text-neutral-900'
                   : 'border-transparent text-slate-500 hover:text-slate-700',
               )}
             >
@@ -393,7 +393,7 @@ export default function DocumentChatPage() {
           {isReady && (
             <button
               onClick={() => toast('Podcast feature coming soon', { icon: '🎙' })}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-medium transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-[12px] font-medium transition-colors"
             >
               <Mic size={13} /> Podcast
             </button>
@@ -422,14 +422,15 @@ export default function DocumentChatPage() {
               </button>
               <span className="text-[12px] text-slate-500">Page</span>
               <input
-                value={pageInput}
+                value={isReady ? pageInput : ''}
                 onChange={e => setPageInput(e.target.value)}
                 onBlur={commitPage}
                 onKeyDown={e => e.key === 'Enter' && commitPage()}
                 disabled={!isReady}
-                className="w-8 h-6 text-center text-[12px] text-slate-700 border border-slate-200 rounded outline-none focus:border-orange-400 disabled:opacity-40 bg-white"
+                placeholder="–"
+                className="w-8 h-6 text-center text-[12px] text-slate-700 border border-slate-200 rounded outline-none focus:border-purple-accent disabled:opacity-40 disabled:placeholder-slate-300 bg-white"
               />
-              <span className="text-[12px] text-slate-400">/ {numPages || '—'}</span>
+              <span className="text-[12px] text-slate-400">{isReady ? `/ ${numPages}` : '/ –'}</span>
               <button onClick={goNext} disabled={currentPage >= numPages || !isReady}
                 className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 transition-colors">
                 <ChevronRight size={14} />
@@ -439,12 +440,14 @@ export default function DocumentChatPage() {
             <div className="w-px h-5 bg-slate-200" />
 
             {/* Grid view toggle */}
-            <button className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+            <button disabled={!isReady}
+              className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors">
               <Grid3x3 size={13} />
             </button>
 
             {/* Search */}
-            <button className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+            <button disabled={!isReady}
+              className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors">
               <Search size={13} />
             </button>
 
@@ -452,15 +455,15 @@ export default function DocumentChatPage() {
 
             {/* Zoom controls */}
             <div className="flex items-center gap-1">
-              <button onClick={() => setZoomIdx(i => Math.max(0, i - 1))} disabled={zoomIdx === 0}
-                className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 transition-colors">
+              <button onClick={() => setZoomIdx(i => Math.max(0, i - 1))} disabled={!isReady || zoomIdx === 0}
+                className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors">
                 <ZoomOut size={13} />
               </button>
               <span className="w-12 text-center text-[12px] text-slate-600 font-medium tabular-nums">
-                {Math.round(zoom * 100)}%
+                {isReady ? `${Math.round(zoom * 100)}%` : '–'}
               </span>
-              <button onClick={() => setZoomIdx(i => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1}
-                className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 transition-colors">
+              <button onClick={() => setZoomIdx(i => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={!isReady || zoomIdx === ZOOM_STEPS.length - 1}
+                className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors">
                 <ZoomIn size={13} />
               </button>
             </div>
@@ -468,7 +471,8 @@ export default function DocumentChatPage() {
             {/* Fullscreen */}
             <button
               onClick={() => pdfScrollRef.current?.requestFullscreen?.()}
-              className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              disabled={!isReady}
+              className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
             >
               <Maximize2 size={13} />
             </button>
@@ -568,7 +572,7 @@ export default function DocumentChatPage() {
                     <button
                       onClick={handleGenerateSummary}
                       disabled={genSummary}
-                      className="mt-4 text-[13px] text-orange-500 hover:text-orange-600 flex items-center gap-1 disabled:opacity-50"
+                      className="mt-4 text-[13px] text-purple-accent hover:text-purple-deep flex items-center gap-1 disabled:opacity-50"
                     >
                       {genSummary ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
                       Regenerate summary
@@ -576,8 +580,8 @@ export default function DocumentChatPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-5 py-16 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-orange-50 border border-orange-200 flex items-center justify-center">
-                      <BookOpen size={22} className="text-orange-500" />
+                    <div className="w-14 h-14 rounded-2xl bg-purple-tint border border-purple-accent/20 flex items-center justify-center">
+                      <BookOpen size={22} className="text-purple-accent" />
                     </div>
                     <div>
                       <p className="text-slate-700 font-semibold text-[15px]">No summary yet</p>
@@ -586,7 +590,7 @@ export default function DocumentChatPage() {
                     <button
                       onClick={handleGenerateSummary}
                       disabled={genSummary || !isReady}
-                      className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-medium transition-colors flex items-center gap-2"
+                      className="px-5 py-2 rounded-xl bg-purple-accent hover:bg-purple-deep disabled:opacity-50 text-white text-sm font-medium transition-colors flex items-center gap-2"
                     >
                       {genSummary && <Loader2 size={14} className="animate-spin" />}
                       Generate Summary
@@ -607,7 +611,7 @@ export default function DocumentChatPage() {
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   placeholder="Write your notes here… (auto-saved locally)"
-                  className="flex-1 resize-none bg-white border border-slate-200 rounded-xl p-4 text-[14px] text-slate-700 placeholder-slate-300 outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/20 min-h-[300px] shadow-sm transition-colors"
+                  className="flex-1 resize-none bg-white border border-slate-200 rounded-xl p-4 text-[14px] text-slate-700 placeholder-slate-300 outline-none focus:border-purple-accent focus:ring-1 focus:ring-purple-accent/20 min-h-[300px] shadow-sm transition-colors"
                 />
               </div>
             )}
@@ -622,18 +626,18 @@ export default function DocumentChatPage() {
 
         {/* ── Header ──────────────────────────────────────────────────────────── */}
         <div className="h-11 border-b border-gray-100 bg-white flex items-center px-4 gap-2.5 shrink-0">
-          <div className="w-6 h-6 rounded-md bg-orange-500/20 border border-orange-500/25 flex items-center justify-center">
-            <MessageSquare size={12} className="text-orange-400" />
+          <div className="w-6 h-6 rounded-md bg-purple-tint border border-purple-accent/25 flex items-center justify-center">
+            <MessageSquare size={12} className="text-purple-accent" />
           </div>
           <span className="text-gray-700 text-[14px] font-semibold flex-1">Chat</span>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-gray-500">HQ</span>
+          <div className="flex items-center gap-1.5" title="High quality: searches more of the document and uses a stronger model for deeper, more detailed answers — responses take a little longer.">
+            <span className="text-[11px] text-gray-500 cursor-default">HQ</span>
             <button
-              title="High quality — uses more tokens for deeper, more detailed answers"
+              aria-label="Toggle high-quality mode: searches more of the document and uses a stronger model for deeper answers, at the cost of response speed"
               onClick={() => setHighQuality(v => !v)}
               className={cn(
                 'relative w-8 h-4 rounded-full transition-colors duration-200',
-                highQuality ? 'bg-orange-500' : 'bg-gray-200',
+                highQuality ? 'bg-neutral-900' : 'bg-gray-200',
               )}
             >
               <span className={cn(
@@ -647,7 +651,9 @@ export default function DocumentChatPage() {
           </button>
         </div>
 
-        {/* ── Pinned suggestion chips — only when document is loaded ──────────── */}
+        {/* ── Pinned suggestion chips — only when document is loaded ────────────
+            Coral, not brand purple: these are suggested prompts, not a
+            committed/primary action, so they shouldn't read as "active." */}
         <AnimatePresence>
           {isReady && (
             <motion.div
@@ -664,7 +670,7 @@ export default function DocumentChatPage() {
                     key={chip}
                     onClick={() => handleChipClick(chip)}
                     disabled={isQuerying}
-                    className="px-2.5 py-1 rounded-full text-[11.5px] font-medium border border-orange-500/40 text-orange-400 hover:bg-orange-500/10 hover:border-orange-500/60 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
+                    className="px-2.5 py-1 rounded-full text-[11.5px] font-medium border border-coral-accent/40 text-coral-accent hover:bg-coral-tint hover:border-coral-accent/60 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
                   >
                     {chip}
                   </button>
@@ -732,7 +738,7 @@ export default function DocumentChatPage() {
                 {!showMore && extraCount > 0 && (
                   <button
                     onClick={() => setShowMore(true)}
-                    className="w-full text-center py-1.5 text-[11px] text-orange-400 hover:text-orange-300 transition-colors font-medium"
+                    className="w-full text-center py-1.5 text-[11px] text-purple-accent hover:text-purple-deep transition-colors font-medium"
                   >
                     +{extraCount} more
                   </button>
@@ -774,7 +780,7 @@ export default function DocumentChatPage() {
           <div className={cn(
             'flex items-end gap-2 border rounded-xl px-3 py-2.5 transition-colors',
             isReady
-              ? 'bg-gray-50 border-gray-200 focus-within:border-orange-400'
+              ? 'bg-gray-50 border-gray-200 focus-within:border-purple-accent'
               : 'bg-gray-50 border-gray-200',
           )}>
             <textarea
@@ -798,7 +804,7 @@ export default function DocumentChatPage() {
                 className={cn(
                   'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all duration-150',
                   inputText.trim() && !isQuerying
-                    ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                    ? 'bg-purple-accent hover:bg-purple-deep text-white'
                     : 'bg-gray-100 text-gray-300 cursor-not-allowed',
                 )}
               >

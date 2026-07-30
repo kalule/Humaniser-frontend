@@ -6,9 +6,10 @@ import { Sidebar } from './Sidebar'
 import { AppNavbar } from './AppNavbar'
 import { OnboardingModal } from '../ui/OnboardingModal'
 import { WordLimitModal } from '../ui/WordLimitModal'
+import { CreditLimitModal } from '../ui/CreditLimitModal'
 
 const BOTTOM_TABS = [
-  { to: '/app/humaniser', label: 'Humanise', icon: Wand2 },
+  { to: '/app/humaniser', label: 'Rewrite', icon: Wand2 },
   { to: '/app/detector', label: 'Detector', icon: Brain },
   { to: '/app/history', label: 'History', icon: Clock },
   { to: '/app/account', label: 'Account', icon: Settings },
@@ -21,16 +22,16 @@ export function AppShell() {
   const closeMobile = useCallback(() => setMobileOpen(false), [])
 
   return (
-    <div className="flex min-h-screen overflow-hidden" style={{ background: 'var(--surface-page)' }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--surface-page)' }}>
       <a href="#main-content" className="skip-to-content">
         Skip to main content
       </a>
 
       <Sidebar mobileOpen={mobileOpen} onMobileClose={closeMobile} />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <AppNavbar onMobileMenuClick={openMobile} />
-        <main id="main-content" className="flex-1 pb-16 md:pb-0 overflow-auto" tabIndex={-1}>
+        <main id="main-content" className="flex-1 min-h-0 pb-16 md:pb-0 overflow-auto" tabIndex={-1}>
           <Outlet />
         </main>
       </div>
@@ -66,6 +67,7 @@ export function AppShell() {
 
       <OnboardingModal />
       <WordLimitModal />
+      <CreditLimitModal />
     </div>
   )
 }

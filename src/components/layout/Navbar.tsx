@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, Shield, Menu, X, ChevronDown, Zap, LogOut, User, CreditCard, Clock,
@@ -26,21 +26,21 @@ const FEATURE_CATEGORIES: { label: string; items: FeatureItem[] }[] = [
   {
     label: 'Writing & Editing',
     items: [
-      { icon: Sparkles,     iconCls: 'text-indigo-600',  bgCls: 'bg-indigo-50',  label: 'AI Humaniser',     desc: 'Make AI text sound naturally human',             to: '/app/humaniser' },
-      { icon: Shield,       iconCls: 'text-emerald-600', bgCls: 'bg-emerald-50', label: 'AI Detector',      desc: 'Sentence-level human score analysis',            to: '/app/detector' },
-      { icon: RefreshCw,    iconCls: 'text-violet-600',  bgCls: 'bg-violet-50',  label: 'Paraphraser',      desc: 'Rewrite while preserving meaning and tone',     to: '/app/paraphrase' },
+      { icon: Sparkles,     iconCls: 'text-indigo-600',  bgCls: 'bg-indigo-50',  label: 'AI Humaniser',     desc: 'Rewrite AI text so it reads naturally human',    to: '/app/humaniser' },
+      { icon: Shield,       iconCls: 'text-emerald-600', bgCls: 'bg-emerald-50', label: 'AI Detector',      desc: 'Check if text was written by ChatGPT or other AI', to: '/app/detector' },
+      { icon: RefreshCw,    iconCls: 'text-violet-600',  bgCls: 'bg-violet-50',  label: 'Paraphraser',      desc: 'Rewrite sentences while keeping the meaning',    to: '/app/paraphrase' },
       { icon: SpellCheck,   iconCls: 'text-amber-600',   bgCls: 'bg-amber-50',   label: 'Grammar Checker',  desc: 'Fix errors and improve writing clarity',         to: '/app/grammar' },
-      { icon: BookOpen,     iconCls: 'text-rose-600',    bgCls: 'bg-rose-50',    label: 'Source Check',     desc: 'Detect copied or plagiarised content',           to: '/app/plagiarism' },
+      { icon: BookOpen,     iconCls: 'text-rose-600',    bgCls: 'bg-rose-50',    label: 'Source Check',     desc: 'Academic plagiarism checker for essays and papers', to: '/app/plagiarism' },
       { icon: Scissors,     iconCls: 'text-cyan-600',    bgCls: 'bg-cyan-50',    label: 'Summariser',       desc: 'Condense long text to key points',               to: '/app/summarise' },
     ],
   },
   {
     label: 'Research & Study',
     items: [
-      { icon: ScrollText,   iconCls: 'text-blue-600',    bgCls: 'bg-blue-50',    label: 'Proposal Studio',  desc: 'Write research proposals and literature reviews', to: '/app/proposal-studio', badge: 'New' },
-      { icon: BarChart2,    iconCls: 'text-purple-600',  bgCls: 'bg-purple-50',  label: 'Data Analyst',     desc: 'Analyse datasets and produce summaries',         to: '/app/analyst',         badge: 'New' },
+      { icon: ScrollText,   iconCls: 'text-blue-600',    bgCls: 'bg-blue-50',    label: 'Proposal Studio',  desc: 'AI literature review and research proposal writer', to: '/app/proposal-studio', badge: 'New' },
+      { icon: BarChart2,    iconCls: 'text-purple-600',  bgCls: 'bg-purple-50',  label: 'Data Analyst',     desc: 'Upload data and get statistical analysis',       to: '/app/analyst',         badge: 'New' },
       { icon: MessageSquare,iconCls: 'text-teal-600',    bgCls: 'bg-teal-50',    label: 'Document Chat',    desc: 'Ask questions about PDFs and papers',            to: '/app/document-chat',   badge: 'New' },
-      { icon: BookMarked,   iconCls: 'text-orange-600',  bgCls: 'bg-orange-50',  label: 'Citations',        desc: 'Generate references in any citation style',      to: '/app/citations',       badge: 'New' },
+      { icon: BookMarked,   iconCls: 'text-orange-600',  bgCls: 'bg-orange-50',  label: 'Citations',        desc: 'Generate APA, Harvard, and MLA references',      to: '/app/citations',       badge: 'New' },
       { icon: Brain,        iconCls: 'text-green-600',   bgCls: 'bg-green-50',   label: 'Flashcards',       desc: 'Create study cards from any text',               to: '/app/flashcards',      badge: 'New' },
       { icon: Mic,          iconCls: 'text-pink-600',    bgCls: 'bg-pink-50',    label: 'Lecture Notes',    desc: 'Transcribe and summarise lectures',              to: '/app/lecture',         badge: 'New' },
     ],
@@ -167,11 +167,19 @@ export function Navbar() {
   const featuresRef = useRef<HTMLDivElement>(null)
   const userRef = useRef<HTMLDivElement>(null)
 
+  const navigate = useNavigate()
+  const location = useLocation()
+
   const { isAuthenticated, user } = useAuthStore()
   const wordsUsed = user?.wordsUsed ?? 0
   const wordsLimit = user?.wordsLimit ?? 1
   const usagePct = Math.min((wordsUsed / wordsLimit) * 100, 100)
   const isNearLimit = usagePct >= 80
+
+  const creditsUsed = user?.creditsUsed ?? 0
+  const creditsLimit = user?.creditsLimit ?? 1
+  const creditsPct = Math.min((creditsUsed / creditsLimit) * 100, 100)
+  const isNearCreditLimit = creditsPct >= 80
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
@@ -205,11 +213,13 @@ export function Navbar() {
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
 
-  const handleNavClick = (href: string) => {
+  const handleNavClick = (hash: string) => {
     setMobileOpen(false)
     setFeaturesOpen(false)
-    if (href.startsWith('#')) {
-      document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' })
+    if (location.pathname === '/') {
+      document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
+    } else {
+      navigate(`/${hash}`)
     }
   }
 
@@ -324,7 +334,13 @@ export function Navbar() {
 
                       {/* Footer CTA */}
                       <div className="border-t border-[#e0e0da] px-5 py-3 bg-slate-50 flex items-center justify-between">
-                        <p className="text-xs text-[#888888]">16 tools to supercharge your writing</p>
+                        <Link
+                          to="/features"
+                          onClick={() => setFeaturesOpen(false)}
+                          className="text-xs text-[#888888] hover:text-[#1a1a18] transition-colors"
+                        >
+                          16 tools for AI writing and academic research →
+                        </Link>
                         <Link
                           to="/register"
                           onClick={() => setFeaturesOpen(false)}
@@ -338,13 +354,12 @@ export function Navbar() {
                 </AnimatePresence>
               </div>
 
-              <button
-                type="button"
-                onClick={() => handleNavClick('#pricing')}
+              <Link
+                to="/pricing"
                 className="px-4 py-2 text-sm text-[#555555] hover:text-[#1a1a18] rounded-lg hover:bg-[#f1f5f9] transition-colors"
               >
                 Pricing
-              </button>
+              </Link>
               <button
                 type="button"
                 onClick={() => handleNavClick('#how-it-works')}
@@ -352,6 +367,12 @@ export function Navbar() {
               >
                 How it Works
               </button>
+              <Link
+                to="/faq"
+                className="px-4 py-2 text-sm text-[#555555] hover:text-[#1a1a18] rounded-lg hover:bg-[#f1f5f9] transition-colors"
+              >
+                FAQ
+              </Link>
             </nav>
 
             {/* Right side */}
@@ -370,6 +391,22 @@ export function Navbar() {
                       <div
                         className={cn('h-full rounded-full', isNearLimit ? 'bg-amber-500' : 'bg-[#7c3aed]')}
                         style={{ width: `${usagePct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Credits pill */}
+                  <div
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#f1f5f9] border text-xs',
+                      isNearCreditLimit ? 'border-amber-300 text-amber-700' : 'border-[#e0e0da] text-[#555555]',
+                    )}
+                  >
+                    <span>{creditsUsed.toLocaleString()}/{creditsLimit.toLocaleString()} credits</span>
+                    <div className="w-12 h-1.5 rounded-full bg-[#e0e0da] overflow-hidden">
+                      <div
+                        className={cn('h-full rounded-full', isNearCreditLimit ? 'bg-amber-500' : 'bg-[#7c3aed]')}
+                        style={{ width: `${creditsPct}%` }}
                       />
                     </div>
                   </div>
@@ -500,13 +537,13 @@ export function Navbar() {
 
               <div className="border-t border-[#e0e0da] my-1" />
 
-              <button
-                type="button"
-                onClick={() => handleNavClick('#pricing')}
+              <Link
+                to="/pricing"
+                onClick={() => setMobileOpen(false)}
                 className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[#555555] hover:text-[#1a1a18] hover:bg-[#f1f5f9] transition-colors text-left"
               >
                 Pricing
-              </button>
+              </Link>
               <button
                 type="button"
                 onClick={() => handleNavClick('#how-it-works')}
@@ -514,6 +551,13 @@ export function Navbar() {
               >
                 How it Works
               </button>
+              <Link
+                to="/faq"
+                onClick={() => setMobileOpen(false)}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-[#555555] hover:text-[#1a1a18] hover:bg-[#f1f5f9] transition-colors text-left"
+              >
+                FAQ
+              </Link>
 
               <div className="border-t border-[#e0e0da] my-1" />
 

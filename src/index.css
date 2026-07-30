@@ -13,22 +13,33 @@
   --surface-card:       #ffffff;
   --surface-input:      #ffffff;
 
-  /* Brand / Accent */
+  /* Brand / Accent — purple means primary action, active nav state, and
+     user-authored content (e.g. chat bubbles). One concept, reused
+     deliberately across those three contexts. */
   --color-purple:       #7c3aed;
   --color-purple-tint:  #ede9fe;
   --color-purple-text:  #5b21b6;
   --color-purple-deep:  #4c1d95;
 
   /* Status */
-  --color-green:        #10b981;
+  --color-green:        #10b981;  /* success / completed states */
   --color-green-tint:   #d1fae5;
   --color-green-text:   #065f46;
-  --color-amber:        #f59e0b;
+  --color-amber:        #f59e0b;  /* the only document-kind tag using amber (Lit. Review);
+                                      also used for warning/caution badges in the Systematic
+                                      Review workflow, a separate status-color convention */
   --color-amber-tint:   #fef3c7;
   --color-amber-text:   #92400e;
-  --color-red:          #ef4444;
+  --color-red:          #ef4444;  /* errors and destructive actions only */
   --color-red-tint:     #fee2e2;
   --color-red-text:     #991b1b;
+
+  /* Suggested / optional actions (e.g. Document Chat's prompt chips) — a
+     distinct hue from brand purple so "suggested, not yet committed" never
+     reads as "primary/active/mine." */
+  --color-coral:        #e8623f;
+  --color-coral-tint:   #fdeae3;
+  --color-coral-text:   #9a3a1e;
 
   /* Borders */
   --border-hairline:    #e0e0da;
@@ -185,6 +196,16 @@
   }
   .btn-ghost:hover {
     background: var(--surface-rail);
+  }
+
+  /* Shared textarea body-text scale — every tool page's input/output panel
+     (Humaniser, Detector, Paraphraser, Grammar, Summariser, Plagiarism,
+     Document Reviewer) uses this so reading/editing long pasted content
+     stays comfortable. */
+  .textarea-body,
+  .textarea-body::placeholder {
+    font-size: 16px;
+    line-height: 1.6;
   }
 
   .animated-gradient-bg {

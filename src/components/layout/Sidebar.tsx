@@ -2,45 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sparkles, Shield, RefreshCw, BookOpen, Scissors, SpellCheck, BarChart2,
-  History, Settings, CreditCard, ChevronLeft, ChevronRight, ChevronUp, X, LogOut,
-  Layers, MessageSquare, BookMarked, Brain, Mic, Library, FileText, Globe, ScrollText,
+  Sparkles, History, Settings, CreditCard, ChevronLeft, ChevronRight, ChevronUp, X, LogOut,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 import { authApi } from '../../api/auth';
+import { NAV_SECTIONS, isNavItemActive, type NavItem } from '../../config/navigation';
 
 interface SidebarProps {
   mobileOpen: boolean;
   onMobileClose: () => void;
 }
 
-const TOOLS: {
-  label: string;
-  icon: React.ElementType;
-  link: string;
-  matchPrefix?: string;
-  disabled?: boolean;
-  badge?: string;
-}[] = [
-  { label: 'My Library',      icon: Library,       link: '/app/library',         badge: 'New' },
-  { label: 'Web Library',     icon: Globe,          link: '/app/web-library',     badge: 'New' },
-  { label: 'Doc Writer',      icon: FileText,       link: '/app/editor/new',      badge: 'New' },
-  { label: 'Proposal Studio', icon: ScrollText,     link: '/app/proposal-studio', matchPrefix: '/app/research-agent', badge: 'New' },
-  { label: 'Voice Editor',    icon: Sparkles,       link: '/app/humaniser' },
-  { label: 'AI Detector',     icon: Shield,         link: '/app/detector' },
-  { label: 'Paraphraser',     icon: RefreshCw,      link: '/app/paraphrase' },
-  { label: 'Grammar',         icon: SpellCheck,     link: '/app/grammar' },
-  { label: 'Source Check',    icon: BookOpen,       link: '/app/plagiarism' },
-  { label: 'Summariser',      icon: Scissors,       link: '/app/summarise' },
-  { label: 'Data Analyst',    icon: BarChart2,      link: '/app/analyst',         badge: 'New' },
-  { label: 'Document Chat',   icon: MessageSquare,  link: '/app/document-chat',   badge: 'New' },
-  { label: 'Citations',       icon: BookMarked,     link: '/app/citations',       badge: 'New' },
-  { label: 'Flashcards',      icon: Brain,          link: '/app/flashcards',      badge: 'New' },
-  { label: 'Lecture Notes',   icon: Mic,            link: '/app/lecture',         badge: 'New' },
-  { label: 'Workbench',       icon: Layers,         link: '/app/workbench',       badge: 'Beta' },
-];
+const TOOL_SECTIONS = NAV_SECTIONS;
 
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const location = useLocation();
@@ -74,10 +49,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     navigate('/login');
   };
 
-  const isActive = (tool: typeof TOOLS[0]) => {
-    if (tool.matchPrefix && location.pathname.startsWith(tool.matchPrefix)) return true;
-    return location.pathname === tool.link || (tool.link === '/app/humaniser' && location.pathname === '/app');
-  };
+  const isActive = (tool: NavItem) => isNavItemActive(tool, location.pathname);
 
   const wordsUsed   = user?.wordsUsed  ?? 0;
   const wordsLimit  = user?.wordsLimit ?? 500;
@@ -87,6 +59,16 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const progressColor = usagePct > 90
     ? 'var(--color-red)'
     : usagePct > 70
+    ? 'var(--color-amber)'
+    : 'var(--color-purple)';
+
+  const creditsUsed      = user?.creditsUsed  ?? 0;
+  const creditsLimit     = user?.creditsLimit ?? 20;
+  const creditsUnlimited = plan === 'Unlimited' || creditsLimit >= 1_000_000;
+  const creditsPct       = creditsUnlimited ? 0 : creditsLimit > 0 ? (creditsUsed / creditsLimit) * 100 : 0;
+  const creditsColor = creditsPct > 90
+    ? 'var(--color-red)'
+    : creditsPct > 70
     ? 'var(--color-amber)'
     : 'var(--color-purple)';
 
@@ -215,70 +197,77 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
         {/* Tool list */}
         <div className="flex-1 overflow-y-auto py-4 scrollbar-thin">
-          {!compact && (
-            <p className="text-[10px] uppercase tracking-widest px-5 mb-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Tools</p>
-          )}
-          <div className="space-y-0.5 px-2 mb-6">
-            {TOOLS.map((t) => {
-              const active = isActive(t);
-              if (t.disabled) {
-                return (
-                  <button
-                    key={t.label}
-                    onClick={() => toast('Coming Phase 2')}
-                    className={cn(
-                      'w-full h-10 px-3 rounded-lg flex items-center gap-3 transition-all duration-150',
-                      compact && 'justify-center',
-                    )}
-                    style={{ color: 'var(--text-muted)' }}
-                    title={compact ? t.label : undefined}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-rail)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-                  >
-                    <t.icon size={18} />
-                    {!compact && <span className="text-sm font-medium">{t.label}</span>}
-                    {!compact && t.badge && (
-                      <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--color-purple-tint)', color: 'var(--color-purple-text)' }}>{t.badge}</span>
-                    )}
-                  </button>
-                );
-              }
-              return (
-                <Link
-                  key={t.label}
-                  to={t.link}
-                  onClick={onMobileClose}
-                  className={cn(
-                    'h-10 px-3 rounded-lg flex items-center gap-3 transition-all duration-150',
-                    compact && 'justify-center',
-                  )}
-                  style={{
-                    background: active ? 'var(--color-purple-tint)' : 'transparent',
-                    color: active ? 'var(--color-purple)' : 'var(--text-muted)',
-                  }}
-                  title={compact ? t.label : undefined}
-                  onMouseEnter={e => {
-                    if (!active) {
-                      e.currentTarget.style.background = 'var(--surface-rail)';
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!active) {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = 'var(--text-muted)';
-                    }
-                  }}
-                >
-                  <t.icon size={18} />
-                  {!compact && <span className="text-sm font-medium">{t.label}</span>}
-                  {!compact && t.badge && (
-                    <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--color-purple-tint)', color: 'var(--color-purple-text)' }}>{t.badge}</span>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
+          {TOOL_SECTIONS.map((sec, i) => (
+            <div key={sec.section} className={cn(i > 0 && 'mt-5')}>
+              {!compact && (
+                <>
+                  {i > 0 && <div className="mx-5 mb-3" style={{ borderTop: '0.5px solid var(--border-sidebar)' }} />}
+                  <p className="text-[10px] uppercase tracking-widest px-5 mb-2 font-semibold" style={{ color: 'var(--text-muted)' }}>{sec.section}</p>
+                </>
+              )}
+              <div className="space-y-0.5 px-2 mb-2">
+                {sec.items.map((t) => {
+                  const active = isActive(t);
+                  if (t.disabled) {
+                    return (
+                      <button
+                        key={t.label}
+                        onClick={() => toast('Coming Phase 2')}
+                        className={cn(
+                          'w-full h-10 px-3 rounded-lg flex items-center gap-3 transition-all duration-150',
+                          compact && 'justify-center',
+                        )}
+                        style={{ color: 'var(--text-muted)' }}
+                        title={compact ? t.label : undefined}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-rail)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                      >
+                        <t.icon size={18} />
+                        {!compact && <span className="text-[15px] font-medium">{t.label}</span>}
+                        {!compact && t.badge && (
+                          <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--color-purple-tint)', color: 'var(--color-purple-text)' }}>{t.badge}</span>
+                        )}
+                      </button>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={t.label}
+                      to={t.link}
+                      onClick={onMobileClose}
+                      className={cn(
+                        'h-10 px-3 rounded-lg flex items-center gap-3 transition-all duration-150',
+                        compact && 'justify-center',
+                      )}
+                      style={{
+                        background: active ? 'var(--color-purple-tint)' : 'transparent',
+                        color: active ? 'var(--color-purple)' : 'var(--text-muted)',
+                      }}
+                      title={compact ? t.label : undefined}
+                      onMouseEnter={e => {
+                        if (!active) {
+                          e.currentTarget.style.background = 'var(--surface-rail)';
+                          e.currentTarget.style.color = 'var(--text-secondary)';
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (!active) {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.color = 'var(--text-muted)';
+                        }
+                      }}
+                    >
+                      <t.icon size={18} />
+                      {!compact && <span className="text-[15px] font-medium">{t.label}</span>}
+                      {!compact && t.badge && (
+                        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--color-purple-tint)', color: 'var(--color-purple-text)' }}>{t.badge}</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Footer: user + usage */}
@@ -317,21 +306,52 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             {!compact ? (
               <>
                 <div className="mb-3 px-2">
+                  <p className="text-[13px] mb-1" style={{ color: 'var(--text-muted)' }}>Words used this month</p>
+                  <div className="flex justify-between items-end mb-2">
+                    <p className="text-[16px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {isUnlimited
+                        ? `${wordsUsed.toLocaleString()} words used`
+                        : `${wordsUsed.toLocaleString()} of ${wordsLimit.toLocaleString()} used`}
+                    </p>
+                    {!isUnlimited && (
+                      <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+                        {Math.max(wordsLimit - wordsUsed, 0).toLocaleString()} remaining
+                      </p>
+                    )}
+                  </div>
+                  {!isUnlimited && (
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border-hairline)' }}>
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(usagePct, 100)}%`, background: progressColor }}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="mb-3 px-2">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Words used this month</p>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)] animate-pulse" />
+                    <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Credits used this month</p>
                   </div>
                   <div className="flex justify-between items-end mb-2">
-                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                      {wordsUsed.toLocaleString()} / {isUnlimited ? 'Unlimited' : wordsLimit.toLocaleString()}
+                    <p className="text-[16px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {creditsUnlimited
+                        ? `${creditsUsed.toLocaleString()} credits used`
+                        : `${creditsUsed.toLocaleString()} of ${creditsLimit.toLocaleString()} used`}
                     </p>
+                    {!creditsUnlimited && (
+                      <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+                        {Math.max(creditsLimit - creditsUsed, 0).toLocaleString()} remaining
+                      </p>
+                    )}
                   </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border-hairline)' }}>
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(usagePct, 100)}%`, background: progressColor }}
-                    />
-                  </div>
+                  {!creditsUnlimited && (
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border-hairline)' }}>
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(creditsPct, 100)}%`, background: creditsColor }}
+                      />
+                    </div>
+                  )}
                 </div>
                 {plan === 'Free' && (
                   <Link to="/app/billing" onClick={onMobileClose}>

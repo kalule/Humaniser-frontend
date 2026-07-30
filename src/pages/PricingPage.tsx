@@ -20,6 +20,7 @@ import { useAuthStore } from '../store/authStore'
 import { subscriptionApi } from '../api/subscription'
 import { Navbar } from '../components/layout/Navbar'
 import { Footer } from '../components/layout/Footer'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 // ─── Price IDs ────────────────────────────────────────────────────────────────
 
@@ -299,6 +300,11 @@ function PlanCard({
 // ─── Main PricingPage ─────────────────────────────────────────────────────────
 
 export function PricingPage() {
+  useDocumentTitle(
+    'Pricing — AI Humaniser & Research Tools | HumaniseAI South Africa',
+    'Simple ZAR pricing for South Africa\'s AI humaniser, detector, and research toolkit. Free plan available, Pro from R149/month, no credit card required.',
+    '/pricing',
+  )
   const [isAnnual, setIsAnnual] = useState(false)
   const [checkoutPlan, setCheckoutPlan] = useState<'pro' | 'unlimited' | null>(null)
   const navigate = useNavigate()

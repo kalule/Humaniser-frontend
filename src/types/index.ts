@@ -25,6 +25,8 @@ export interface UserDto {
   plan: Plan
   wordsUsed: number
   wordsLimit: number
+  creditsUsed: number
+  creditsLimit: number
   isEmailVerified: boolean
   role?: string
   createdAt: string
@@ -34,6 +36,7 @@ export interface UserDto {
 
 export interface UserProfile extends UserDto {
   wordsRemaining: number
+  creditsRemaining: number
   lastLoginAt?: string
   activeSubscription?: SubscriptionDto
 }
@@ -42,6 +45,9 @@ export interface UsageStats {
   wordsUsedThisMonth: number
   wordsLimit: number
   wordsRemaining: number
+  creditsUsed: number
+  creditsLimit: number
+  creditsRemaining: number
   resetDate: string
   totalWordsAllTime: number
   dailyUsage: DailyUsage[]
@@ -60,11 +66,13 @@ export interface HumaniseRequest {
   text: string
   tone: Tone
   strength: Strength
+  integrityMode?: boolean
+  preserveLength?: boolean
 }
 
 export type Tone = 'casual' | 'professional' | 'academic' | 'conversational'
 
-export type Strength = 'light' | 'medium' | 'heavy'
+export type Strength = 'light' | 'balanced' | 'aggressive' | 'maximum' | 'medium' | 'heavy'
 
 export interface HumaniseResponse {
   humanisedText: string

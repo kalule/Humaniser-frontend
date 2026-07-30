@@ -20,13 +20,13 @@
   align-items: center;
   height: 100%;
   overflow: hidden;
-  padding: 16px 0 0;
+  padding: 8px 0 0;
 }
 
 /* ── White document card — fills remaining height, clips overflow ─────────── */
 .doc-page-surface {
   width: 100%;
-  max-width: 760px;
+  max-width: 960px;
   flex: 1;
   min-height: 0;
   background: #FFFFFF;
@@ -161,6 +161,31 @@
   100% { background-position: -200% 0; }
 }
 
+/* ── Live streaming preview (replaces skeleton once the first SSE chunk arrives) ───────── */
+.streaming-preview {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: var(--editor-font-size, 16px);
+  line-height: 1.7;
+  color: #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: #185FA5;
+  animation: streaming-cursor-blink 0.9s step-end infinite;
+}
+
+@keyframes streaming-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
 /* ── Empty state ──────────────────────────────────────────────────────────── */
 .doc-empty-state {
   flex: 0 0 auto;
@@ -246,12 +271,23 @@
 }
 
 /* ── TipTap rich-text editor ─────────────────────────────────────────────── */
+/* Body text sizing/measure only — the toolbar, sidebar, and word-count/badge
+   chrome around it use their own fixed px sizes and are unaffected. Headings
+   below are set in `em` off this font-size, so they scale with it rather than
+   staying fixed. max-width+margin:auto narrows the reading column to ~70-80
+   characters without narrowing the white document card itself (.doc-page-surface
+   stays 960px; the toolbar lives in a separate flex sibling — .doc-card-sticky —
+   so its sticky positioning is unaffected by this element's size). */
 .tiptap-doc-editor .ProseMirror {
   outline: none;
   min-height: 320px;
   font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 13.5px;
-  line-height: 1.9;
+  /* Set on the .tiptap-doc-editor wrapper via inline style from the optional
+     A-/A+ control (uiStore's docEditorFontSize) — 16px is the baseline default. */
+  font-size: var(--editor-font-size, 16px);
+  line-height: 1.75;
+  max-width: 760px;
+  margin: 0 auto;
   color: #1F2937;
   caret-color: #185FA5;
   word-break: break-word;
@@ -282,6 +318,45 @@
   transition: background-color 700ms ease-out;
 }
 
+/* Clickable in-text citation — resolved against project literature, opens a
+   reference popover on click (see CitationPopover / DocumentSurface's CitationLink). */
+.tiptap-doc-editor .ProseMirror .citation-ref {
+  color: #7C3AED;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 120ms ease-out;
+}
+.tiptap-doc-editor .ProseMirror .citation-ref:hover {
+  background-color: #EDE9FE;
+  text-decoration: underline;
+}
+
+/* Citation-integrity flag indicator — additive only, never overrides .citation-ref's own
+   color/style (a prior audit already flagged unexplained citation color variation as a UX
+   issue; this must read as a deliberate, separate signal, not a repeat of that ambiguity). */
+.tiptap-doc-editor .ProseMirror .citation-ref--flagged {
+  border-bottom: 1.5px dotted #D97706;
+}
+.tiptap-doc-editor .ProseMirror .citation-ref--flagged::after {
+  content: '\26A0';
+  display: inline-block;
+  margin-left: 1px;
+  font-size: 0.7em;
+  color: #D97706;
+  vertical-align: super;
+}
+
+/* StarterKit bundles a Link mark by default (no color override), so any AI-generated
+   content that happens to arrive as an actual markdown link `[text](url)` — rather than
+   plain text matched by CitationLink's regex scanner above — would otherwise render in
+   the browser's default link blue, reading as an unexplained second citation color. */
+.tiptap-doc-editor .ProseMirror a {
+  color: #7C3AED;
+}
+.tiptap-doc-editor .ProseMirror a:hover {
+  background-color: #EDE9FE;
+}
+
 /* Block elements */
 .tiptap-doc-editor .ProseMirror p { margin-bottom: 0.8em; }
 .tiptap-doc-editor .ProseMirror h1 { font-size: 1.5em; font-weight: 700; margin: 1em 0 0.4em; font-family: 'Inter', system-ui, sans-serif; }
@@ -290,6 +365,17 @@
 .tiptap-doc-editor .ProseMirror ul,
 .tiptap-doc-editor .ProseMirror ol { padding-left: 1.6em; margin-bottom: 0.8em; }
 .tiptap-doc-editor .ProseMirror li { margin-bottom: 0.2em; }
+.tiptap-doc-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.6em auto;
+  border-radius: 6px;
+}
+.tiptap-doc-editor .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid #7C3AED;
+  outline-offset: 2px;
+}
 .tiptap-doc-editor .ProseMirror blockquote {
   border-left: 3px solid #CBD5E1;
   padding-left: 1em;
@@ -302,3 +388,58 @@
 .tiptap-doc-editor .ProseMirror [style*="text-align: center"] { text-align: center; }
 .tiptap-doc-editor .ProseMirror [style*="text-align: right"]  { text-align: right; }
 .tiptap-doc-editor .ProseMirror [style*="text-align: justify"]{ text-align: justify; }
+
+/* Tables — @tiptap/extension-table renders a bare <table> with no browser default styling
+   beyond borders-nowhere/collapse:separate, which looks broken inside the serif document body.
+   Sans-serif (Inter) for cell text, matching every other structured/UI element (headings, the
+   reference list) rather than the surrounding Georgia prose — a table is a data structure, not
+   running prose. */
+.tiptap-doc-editor .ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 1em 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.85em;
+}
+.tiptap-doc-editor .ProseMirror th,
+.tiptap-doc-editor .ProseMirror td {
+  border: 1px solid #E2E8F0;
+  padding: 0.5em 0.7em;
+  vertical-align: top;
+  text-align: left;
+}
+.tiptap-doc-editor .ProseMirror th {
+  background: #F8FAFC;
+  font-weight: 600;
+  color: #334155;
+}
+.tiptap-doc-editor .ProseMirror td > p,
+.tiptap-doc-editor .ProseMirror th > p {
+  margin-bottom: 0;
+}
+.tiptap-doc-editor .ProseMirror .selectedCell {
+  background: #EDE9FE;
+}
+
+/* ── Compiled document view (DocumentViewPage) ───────────────────────────── */
+.doc-citation-pill {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 1px;
+  border-radius: 5px;
+  background: #ECFDF5;
+  color: #047857;
+  font-size: 0.85em;
+  font-family: 'Inter', system-ui, sans-serif;
+  white-space: nowrap;
+}
+
+.tiptap-doc-editor .ProseMirror .doc-reference-list {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.tiptap-doc-editor .ProseMirror .doc-reference-list li {
+  margin-bottom: 0.6em;
+  font-size: 0.95em;
+}
