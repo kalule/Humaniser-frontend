@@ -14,7 +14,7 @@ export function useCreditGate() {
   return function hasEnoughCredits(cost: number): boolean {
     if (!user) return true
     if (user.plan === 'Unlimited') return true
-    if (user.creditsLimit - user.creditsUsed >= cost) return true
+    if (user.creditsLimit + (user.bonusCredits ?? 0) - user.creditsUsed >= cost) return true
 
     useUiStore.getState().openCreditLimitModal({
       used: user.creditsUsed,

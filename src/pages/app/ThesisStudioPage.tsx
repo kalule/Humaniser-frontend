@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import toast from 'react-hot-toast'
 import {
   FileText, Eye, Download, FileType2, Trash2, RefreshCw, Loader2,
   GraduationCap, ScrollText, Upload, X,
@@ -11,7 +12,8 @@ import ConfirmActionModal from '../../components/app/ConfirmActionModal'
 import { ToolCard } from '../../components/app/ToolCard'
 import { DocumentList, type DocumentListEntry } from '../../components/app/DocumentList'
 import { Tooltip } from '../../components/ui/Tooltip'
-import type { ResearchProject } from '../../types/research'
+import type { ApiError } from '../../types'
+import type { ResearchProject, UploadExternalProposalResult } from '../../types/research'
 
 // ── Status derived from progress ────────────────────────────────────────────
 // ResearchProject has no explicit status field — progressPct is the source of
@@ -41,6 +43,21 @@ function formatDate(iso: string) {
 }
 
 const PAGE_SIZE = 25
+const MAX_EXTERNAL_PROPOSAL_BYTES = 50 * 1024 * 1024
+const EXTERNAL_PROPOSAL_MIME_TYPES = new Map([
+  ['.pdf', 'application/pdf'],
+  ['.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+])
+
+export function validateExternalProposalFile(file: Pick<File, 'name' | 'type' | 'size'>): string | null {
+  const extension = file.name.toLowerCase().match(/\.[^.]+$/)?.[0] ?? ''
+  const expectedMime = EXTERNAL_PROPOSAL_MIME_TYPES.get(extension)
+  if (!expectedMime || (file.type && file.type !== expectedMime))
+    return 'Unsupported file type. Upload a PDF or Word (.docx) document.'
+  if (file.size > MAX_EXTERNAL_PROPOSAL_BYTES)
+    return 'This document is larger than the 50 MB upload limit.'
+  return null
+}
 
 // ── Upload an already-approved external proposal ────────────────────────────
 // Entry point for students whose proposal was written/approved outside this
@@ -52,20 +69,27 @@ const PAGE_SIZE = 25
 function ThesisUploadModal({
   onClose,
   onUpload,
+  onConfirm,
+  onDiscard,
 }: {
   onClose:  () => void
-  onUpload: (file: File) => Promise<void>
+  onUpload: (file: File) => Promise<UploadExternalProposalResult>
+  onConfirm: (result: UploadExternalProposalResult) => void
+  onDiscard: (result: UploadExternalProposalResult) => Promise<void>
 }) {
   const [file, setFile]       = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
+  const [result, setResult]   = useState<UploadExternalProposalResult | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const pick = (f: File | undefined) => {
     if (!f) return
-    if (!f.name.toLowerCase().endsWith('.pdf')) {
-      setError('Only PDF files are supported for now.')
+    const validationError = validateExternalProposalFile(f)
+    if (validationError) {
+      setFile(null)
+      setError(validationError)
       return
     }
     setError(null)
@@ -77,9 +101,10 @@ function ThesisUploadModal({
     setLoading(true)
     setError(null)
     try {
-      await onUpload(file)
-    } catch {
-      setError('Could not process this document. Please try again.')
+      setResult(await onUpload(file))
+      setLoading(false)
+    } catch (err) {
+      setError((err as ApiError | undefined)?.message ?? 'Could not process this document. Please try again.')
       setLoading(false)
     }
   }
@@ -94,22 +119,46 @@ function ThesisUploadModal({
         className="relative bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md p-6"
       >
         {!loading && (
-          <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors">
+          <button
+            onClick={() => result ? void onDiscard(result) : onClose()}
+            className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors"
+          >
             <X size={16} />
           </button>
         )}
 
         <div className="mb-5">
           <p className="text-[11px] text-purple-text font-semibold uppercase tracking-widest mb-1">Thesis Studio</p>
-          <h3 className="text-[17px] font-bold text-slate-900">Upload your approved proposal</h3>
+          <h3 className="text-[17px] font-bold text-slate-900">{result ? 'Review imported proposal' : 'Upload your approved proposal'}</h3>
           <p className="text-[13px] text-slate-500 mt-1">
-            For a proposal written or approved outside Humaniser. We'll extract what we can and
-            flag it as unverified until you confirm the details — nothing here overwrites your
-            existing Proposal Studio work.
+            {result
+              ? 'Confirm the extracted structure before continuing. Citations remain unverified until the integrity checks complete.'
+              : <>For a proposal written or approved outside Humaniser. We'll extract what we can and
+                flag it as unverified until you confirm the details — nothing here overwrites your
+                existing Proposal Studio work.</>}
           </p>
         </div>
 
-        <div
+        {result ? (
+          <div className="space-y-3 mb-5 text-[12px]">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg bg-emerald-50 p-3"><strong className="block text-emerald-700 text-base">{result.review?.matchedSectionCodes.length ?? 0}</strong>Matched sections</div>
+              <div className="rounded-lg bg-amber-50 p-3"><strong className="block text-amber-700 text-base">{result.review?.unverifiedHeadings.length ?? 0}</strong>Headings to review</div>
+              <div className="rounded-lg bg-violet-50 p-3"><strong className="block text-violet-700 text-base">{result.review?.citationsPendingVerification.length ?? 0}</strong>Pending citations</div>
+            </div>
+            {result.advisoryMessages.map(message => (
+              <p key={message} className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">{message}</p>
+            ))}
+            {!!result.review?.unverifiedHeadings.length && (
+              <div className="max-h-32 overflow-y-auto rounded-lg border border-slate-200 p-3">
+                <p className="font-semibold text-slate-700 mb-2">Possible headings — please confirm in the editor</p>
+                {result.review.unverifiedHeadings.map((heading, index) => (
+                  <p key={`${heading.text}-${index}`} className="text-slate-600">{heading.text} · {Math.round(heading.confidence * 100)}% confidence</p>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : <div
           onDragOver={e => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
           onDrop={e => { e.preventDefault(); setDragging(false); pick(e.dataTransfer.files[0]) }}
@@ -126,28 +175,31 @@ function ThesisUploadModal({
             <p className="text-[13px] font-medium text-slate-700">{file.name}</p>
           ) : (
             <>
-              <p className="text-[13px] font-medium text-slate-700">Drag and drop your PDF here</p>
-              <p className="text-[11px] text-slate-400">or click to browse — PDF only, max 50 MB</p>
+              <p className="text-[13px] font-medium text-slate-700">Drag and drop your PDF or DOCX here</p>
+              <p className="text-[11px] text-slate-400">or click to browse — PDF or Word (.docx), max 50 MB</p>
             </>
           )}
-        </div>
-        <input
-          ref={inputRef} type="file" accept=".pdf" className="hidden"
+        </div>}
+        {!result && <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          className="hidden"
           onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }}
-        />
+        />}
 
         {error && <p className="text-[12px] text-red-500 mb-3">{error}</p>}
 
         <div className="flex gap-2 justify-end">
-          <button onClick={onClose} disabled={loading} className="px-4 py-2 text-[13px] text-slate-500 hover:text-slate-800 transition-colors disabled:opacity-40">
-            Cancel
+          <button onClick={() => result ? void onDiscard(result) : onClose()} disabled={loading} className="px-4 py-2 text-[13px] text-slate-500 hover:text-slate-800 transition-colors disabled:opacity-40">
+            {result ? 'Discard import' : 'Cancel'}
           </button>
           <button
-            onClick={handleSubmit}
-            disabled={loading || !file}
+            onClick={() => result ? onConfirm(result) : void handleSubmit()}
+            disabled={loading || (!file && !result)}
             className="flex items-center gap-2 px-5 py-2 rounded-xl bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {loading ? <><Loader2 size={14} className="animate-spin" /> Extracting…</> : 'Upload & continue'}
+            {loading ? <><Loader2 size={14} className="animate-spin" /> Extracting…</> : result ? 'Confirm & continue' : 'Upload & review'}
           </button>
         </div>
       </motion.div>
@@ -213,15 +265,15 @@ export default function ThesisStudioPage() {
     setExportingId(project.id)
     try {
       await researchStore.exportThesisDocx(project.id)
+    } catch (err) {
+      toast.error((err as ApiError | undefined)?.message ?? 'Thesis export was blocked.')
     } finally {
       setExportingId(null)
     }
   }
 
   const handleUploadExternalProposal = async (file: File) => {
-    const project = await researchStore.uploadExternalProposal(file)
-    setUploadOpen(false)
-    navigate(`/app/research-agent/${project.id}/dashboard`)
+    return researchStore.uploadExternalProposal(file)
   }
 
   const documentEntries: DocumentListEntry[] = visibleTheses.map(project => {
@@ -289,7 +341,7 @@ export default function ThesisStudioPage() {
               icon={<GraduationCap size={16} />}
               iconClassName="bg-violet-50 text-violet-600"
               title="Upload an externally approved proposal"
-              description="Already have an approved proposal from elsewhere? Upload it (PDF) to begin the same methodology-aware audit."
+              description="Already have an approved proposal from elsewhere? Upload a PDF or Word (.docx) document to begin the same methodology-aware audit."
               ctaLabel="Upload proposal"
               onCta={() => setUploadOpen(true)}
             />
@@ -345,6 +397,15 @@ export default function ThesisStudioPage() {
           <ThesisUploadModal
             onClose={() => setUploadOpen(false)}
             onUpload={handleUploadExternalProposal}
+            onConfirm={(result) => {
+              setUploadOpen(false)
+              navigate(`/app/research-agent/${result.project.id}/dashboard`)
+            }}
+            onDiscard={async (result) => {
+              await researchStore.deleteProject(result.project.id)
+              setUploadOpen(false)
+              toast.success('Imported proposal discarded.')
+            }}
           />
         )}
       </AnimatePresence>

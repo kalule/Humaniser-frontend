@@ -209,6 +209,11 @@ export const systematicReviewApi = {
       `/api/v1/systematicreview/${id}/screening/full-text/use-abstract-for-all`,
     )),
 
+  recoverAbstracts: async (id: string): Promise<import('../types/systematicReview').RecoverAbstractsResult> =>
+    unwrap(await client.post<Wrap<import('../types/systematicReview').RecoverAbstractsResult>>(
+      `/api/v1/systematicreview/${id}/recover-abstracts`,
+    )),
+
   runFullTextScreening: async (id: string): Promise<{ jobId: string }> =>
     unwrap(await client.post<Wrap<{ jobId: string }>>(`/api/v1/systematicreview/${id}/screening/full-text/run`)),
 
@@ -234,18 +239,32 @@ export const systematicReviewApi = {
     unwrap(await client.get<Wrap<import('../types/systematicReview').ExtractionVariable[]>>(`/api/v1/systematicreview/${id}/extraction-variables`)),
 
   addExtractionVariable: async (
-    id: string, name: string, isAiSuggested = false
+    id: string, name: string, isAiSuggested = false, isOutcome = false
   ): Promise<import('../types/systematicReview').ExtractionVariable> =>
     unwrap(await client.post<Wrap<import('../types/systematicReview').ExtractionVariable>>(
-      `/api/v1/systematicreview/${id}/extraction-variables`, { name, isAiSuggested },
+      `/api/v1/systematicreview/${id}/extraction-variables`, { name, isAiSuggested, isOutcome },
     )),
 
-  suggestExtractionVariables: async (id: string): Promise<string[]> => {
-    const res = unwrap(await client.post<Wrap<{ suggestions: string[] }>>(
+  // Suggestions now carry isOutcome. Evidence Grading rates certainty per OUTCOME, so before this
+  // every review reached that step with nothing to grade unless someone knew to go back to Data
+  // Extraction and tick a variable by hand.
+  suggestExtractionVariables: async (
+    id: string,
+  ): Promise<import('../types/systematicReview').SuggestedExtractionVariable[]> => {
+    const res = unwrap(await client.post<Wrap<{
+      suggestions: import('../types/systematicReview').SuggestedExtractionVariable[]
+    }>>(
       `/api/v1/systematicreview/${id}/extraction-variables/suggest`,
     ))
     return res.suggestions
   },
+
+  // For reviews created before variable suggestions carried the outcome flag: asks which of the
+  // EXISTING variables are outcomes and flags them. Only ever sets the flag.
+  suggestOutcomeFlags: async (id: string): Promise<number> =>
+    unwrap(await client.post<Wrap<number>>(
+      `/api/v1/systematicreview/${id}/extraction-variables/suggest-outcomes`,
+    )),
 
   deleteExtractionVariable: async (id: string, variableId: string): Promise<void> => {
     await client.delete(`/api/v1/systematicreview/${id}/extraction-variables/${variableId}`)
@@ -402,10 +421,21 @@ export const systematicReviewApi = {
   getManuscript: async (id: string): Promise<import('../types/systematicReview').Manuscript | null> =>
     unwrap(await client.get<Wrap<import('../types/systematicReview').Manuscript | null>>(`/api/v1/systematicreview/${id}/write-slr`)),
 
-  /** Generates every section from scratch and fixes a fresh citation numbering snapshot — can take a while (one Claude call per section). */
-  generateManuscript: async (id: string): Promise<import('../types/systematicReview').Manuscript> =>
+  /**
+   * Generates every section from scratch and fixes a fresh citation numbering snapshot — can take a
+   * while (one Claude call per section).
+   *
+   * Rejects with a MANUSCRIPT_NOT_READY ApiError (409) when screening has not finished: records
+   * still unscreened, or flagged for manual review and never adjudicated. Pass
+   * `acknowledgeIncomplete` to write it up anyway, in which case the manuscript is required to
+   * disclose the incompleteness in its Abstract, Methods and Results.
+   */
+  generateManuscript: async (
+    id: string, acknowledgeIncomplete = false,
+  ): Promise<import('../types/systematicReview').Manuscript> =>
     unwrap(await client.post<Wrap<import('../types/systematicReview').Manuscript>>(
-      `/api/v1/systematicreview/${id}/write-slr/generate`, null, { timeout: 240_000 },
+      `/api/v1/systematicreview/${id}/write-slr/generate`, null,
+      { timeout: 240_000, params: { acknowledgeIncomplete } },
     )),
 
   regenerateManuscriptSection: async (
@@ -422,8 +452,11 @@ export const systematicReviewApi = {
       `/api/v1/systematicreview/${id}/write-slr/sections/${sectionKey}`, { content },
     )),
 
-  exportManuscript: async (id: string): Promise<Blob> =>
-    (await client.get<Blob>(`/api/v1/systematicreview/${id}/write-slr/export`, { responseType: 'blob' })).data,
+  exportManuscript: async (id: string, acknowledgeConflicts = false): Promise<Blob> =>
+    (await client.get<Blob>(
+      `/api/v1/systematicreview/${id}/write-slr/export`,
+      { responseType: 'blob', params: acknowledgeConflicts ? { acknowledgeConflicts: true } : undefined },
+    )).data,
 
   // ── Export step ───────────────────────────────────────────────────────────
 
@@ -452,10 +485,16 @@ export const systematicReviewApi = {
     unwrap(await client.get<Wrap<import('../types/systematicReview').PrismaFlow>>(`/api/v1/systematicreview/${id}/export/prisma`)),
 
   // ── Citation Chaining (Snowballing) step ─────────────────────────────────────
-  // Synchronous — bounded server-side to a fixed number of source papers, but backward +
-  // forward OpenAlex lookups across dozens of papers can still take a while.
-  runSnowballSearch: async (id: string): Promise<import('../types/systematicReview').SnowballResult> =>
-    unwrap(await client.post<Wrap<import('../types/systematicReview').SnowballResult>>(
-      `/api/v1/systematicreview/${id}/snowball/run`, null, { timeout: 120_000 },
+  // Runs as a background job (2026-09-05): start it, then poll status. It used to run inline on
+  // the request, which is the only reason its per-paper reference caps were low enough to sample
+  // rather than cover a reference list.
+  runSnowballSearch: async (id: string): Promise<import('../types/systematicReview').SnowballStatus> =>
+    unwrap(await client.post<Wrap<import('../types/systematicReview').SnowballStatus>>(
+      `/api/v1/systematicreview/${id}/snowball/run`, null,
+    )),
+
+  getSnowballStatus: async (id: string): Promise<import('../types/systematicReview').SnowballStatus> =>
+    unwrap(await client.get<Wrap<import('../types/systematicReview').SnowballStatus>>(
+      `/api/v1/systematicreview/${id}/snowball/status`,
     )),
 }

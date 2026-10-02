@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -7,6 +7,7 @@ import {
   RefreshCw, Upload, Sparkles, Clipboard, Check, Download, ArrowUpDown,
 } from 'lucide-react'
 import { useDetectorStore } from '../store/detectorStore'
+import { useToolTransferStore } from '../store/toolTransferStore'
 import { useDetector } from '../hooks/useDetector'
 import { useDragDrop } from '../hooks/useDragDrop'
 import { DropOverlay } from '../components/ui/DropOverlay'
@@ -16,23 +17,35 @@ import { OutputActionButton } from '../components/ui/OutputActionButton'
 import { ClearButton } from '../components/ui/ClearButton'
 import { UtilityButton } from '../components/ui/UtilityButton'
 import { Skeleton } from '../components/ui/Skeleton'
+import { ResultsPanelHeader } from '../components/ui/ResultsPanelHeader'
+import { PanelFooterBar } from '../components/ui/PanelFooterBar'
+import { ToolBottomActionRow } from '../components/ui/ToolBottomActionRow'
+import { ToolWorkspaceCard } from '../components/shared/ToolWorkspaceCard'
 import { HumanisePopover } from '../components/app/HumanisePopover'
 import { primaryButtonClass } from '../lib/utils'
+import { humaniseApi } from '../api/humanise'
 import type { DetectResponse } from '../types/detector'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type DetectorState = 'idle' | 'analysing' | 'complete'
 type VerdictType = 'likely-ai' | 'mixed' | 'likely-human'
-type ConfidenceType = 'high' | 'medium' | 'low'
+// Backend's DetectionService.IsLowConfidence is exactly `wordCount < 200` (see
+// DetectionService.cs) — a binary flag, not a graded scale. There is no real
+// "medium" confidence tier; showing one would be inventing a distinction the
+// detector doesn't make.
+type ConfidenceType = 'high' | 'low'
 
 interface SentenceResult {
   id: string
   text: string
   aiProbability: number
+  startOffset: number
+  length: number
 }
 
 interface DetectorUIResult {
+  detectionResultId: string | null
   overallAiPct: number
   verdict: VerdictType
   confidence: ConfidenceType
@@ -41,7 +54,35 @@ interface DetectorUIResult {
   analysedAt: string
 }
 
+// ── Score tiers — single source of truth for the Likely AI / Mixed / Likely
+// human three-way classification, shared by the highlight legend, the inline
+// text highlights, and the flagged-sentence list markers so all three use one
+// colour mapping and one threshold instead of three independently-maintained
+// copies. ──────────────────────────────────────────────────────────────────
+
+const SCORE_TIERS = [
+  { id: 'ai',    min: 70, label: 'Likely AI',    dot: 'bg-red-400',   text: 'text-red-500',   swatch: 'bg-red-100',   softBg: 'bg-red-50 hover:bg-red-100',     selectedBg: 'bg-red-50 border-red-100',   selectedBorder: 'border-l-2 border-red-400' },
+  { id: 'mixed', min: 40, label: 'Mixed',        dot: 'bg-amber-400', text: 'text-amber-500', swatch: 'bg-amber-100', softBg: 'bg-amber-50 hover:bg-amber-100', selectedBg: 'bg-amber-50 border-amber-100', selectedBorder: 'border-l-2 border-amber-400' },
+  { id: 'human', min: 0,  label: 'Likely human', dot: 'bg-green-500', text: 'text-green-600', swatch: 'bg-green-100', softBg: 'bg-green-50 hover:bg-green-100', selectedBg: 'bg-green-50 border-green-100', selectedBorder: 'border-l-2 border-green-500' },
+] as const
+
+function tierFor(pct: number) {
+  return SCORE_TIERS.find(t => pct >= t.min) ?? SCORE_TIERS[SCORE_TIERS.length - 1]
+}
+
+function aiBarColor(aiPct: number): string {
+  return tierFor(aiPct).dot
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Matches DetectionThresholds.HumaniseFlagThreshold on the backend — the real threshold that
+// decides which sentences the bulk "Humanise flagged sentences" call will actually rewrite.
+// It's intentionally separate from the Likely AI / Mixed / Likely human tiers above (a sentence
+// can be "Mixed" and still be worth an eligible flag) — every sentence that meets it is marked
+// with a "Flagged" chip in the list below, so the number on the button always matches what's
+// visibly marked, not a separately-derived count.
+const HUMANISE_FLAG_THRESHOLD = 60
 
 const SAMPLE_TEXT_AI = `Artificial intelligence has transformed the way we approach problem-solving across industries. The utilisation of machine learning algorithms enables organisations to process vast datasets with unprecedented efficiency. Furthermore, the integration of natural language processing capabilities has facilitated more sophisticated human-computer interaction paradigms. It is important to note that these technological advancements present both opportunities and challenges for contemporary society. The systematic implementation of AI-driven solutions requires careful consideration of ethical implications and potential societal impacts.`
 
@@ -50,16 +91,17 @@ const SAMPLE_TEXT_HUMAN = `Honestly, I didn't think the trip would go this well.
 function adaptResponse(r: DetectResponse): DetectorUIResult {
   const verdict: VerdictType =
     r.aiScore >= 70 ? 'likely-ai' : r.aiScore >= 40 ? 'mixed' : 'likely-human'
-  const confidence: ConfidenceType =
-    r.isLowConfidence ? 'low' : r.wordCount >= 200 ? 'high' : r.wordCount >= 100 ? 'medium' : 'low'
   return {
+    detectionResultId: r.id ?? null,
     overallAiPct: r.aiScore,
     verdict,
-    confidence,
+    confidence: r.isLowConfidence ? 'low' : 'high',
     sentences: r.sentenceScores.map((s, i) => ({
       id: `s${i}`,
       text: s.sentence,
       aiProbability: s.aiProbability,
+      startOffset: s.startOffset,
+      length: s.length,
     })),
     wordCount: r.wordCount,
     analysedAt: new Date().toISOString(),
@@ -74,8 +116,8 @@ Verdict: ${
   : result.verdict === 'mixed' ? 'Mixed — AI and human'
   : 'Likely human-written'
 }
-AI probability: ${result.overallAiPct}%
-Confidence: ${result.confidence}
+Estimated AI probability: ${result.overallAiPct}%
+Confidence: ${result.confidence === 'low' ? 'Low' : 'High'}
 Words analysed: ${result.wordCount}
 
 Top flagged sentences:
@@ -119,12 +161,6 @@ function VerdictBadge({ verdict }: { verdict: VerdictType }) {
   )
 }
 
-// ── Score colour helper (shared thresholds for bar + dots + highlights) ──────
-
-function aiBarColor(aiPct: number): string {
-  return aiPct >= 70 ? 'bg-red-400' : aiPct >= 40 ? 'bg-amber-400' : 'bg-green-500'
-}
-
 // ── SentenceResultRow ─────────────────────────────────────────────────────────
 
 function SentenceResultRow({
@@ -147,30 +183,35 @@ function SentenceResultRow({
   onOpenInEditor: (text: string) => void
 }) {
   const { aiProbability: pct, text } = sentence
-
-  const pctColor =
-    pct >= 70 ? 'text-red-500'
-    : pct >= 40 ? 'text-amber-500'
-    : 'text-green-600'
-
-  const selectedBg =
-    pct >= 70 ? 'bg-red-50 border-red-100'
-    : pct >= 40 ? 'bg-amber-50 border-amber-100'
-    : 'bg-green-50 border-green-100'
+  const tier = tierFor(pct)
+  const isFlagged = pct >= HUMANISE_FLAG_THRESHOLD
 
   return (
     <div
+      id={`flagged-anchor-${sentence.id}`}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={`Sentence, ${pct}% estimated AI probability, ${tier.label}${isFlagged ? ', flagged for humanising' : ''}`}
       onClick={onClick}
-      className={`relative p-3 rounded-lg border cursor-pointer transition-colors ${
-        selected ? selectedBg : 'bg-white border-gray-100 hover:bg-gray-50'
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+      className={`relative p-3 rounded-lg border cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-purple-accent/40 ${
+        selected ? tier.selectedBg : 'bg-white border-gray-100 hover:bg-gray-50'
       }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 flex-1 min-w-0">
-          <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${aiBarColor(pct)}`} aria-hidden="true" />
+          <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${tier.dot}`} aria-hidden="true" />
           <p className="text-xs text-gray-700 leading-relaxed line-clamp-2">{text}</p>
         </div>
-        <span className={`text-sm font-medium flex-shrink-0 ${pctColor}`}>{pct}%</span>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className={`text-sm font-medium ${tier.text}`}>{pct}%</span>
+          {isFlagged && (
+            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200 whitespace-nowrap">
+              Flagged
+            </span>
+          )}
+        </div>
       </div>
 
       {pct >= 40 && (
@@ -218,59 +259,90 @@ function SentenceResultRow({
 // ── SentenceHighlightView ─────────────────────────────────────────────────────
 
 function SentenceHighlightView({
+  inputText,
   sentences,
   selectedId,
   onSelect,
 }: {
+  inputText: string
   sentences: SentenceResult[]
   selectedId: string | null
   onSelect: (id: string | null) => void
 }) {
+  // Keeps the corresponding sentence in view when it's selected from the flagged-sentence
+  // list on the right — the two representations (highlighted text / flagged cards) share
+  // selectedId, so this is the text-side half of that connection.
+  useEffect(() => {
+    if (!selectedId) return
+    document.getElementById(`sentence-anchor-${selectedId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [selectedId])
+
+  // Renders from inputText + offsets rather than joining sentence.text with a literal space,
+  // so whitespace and paragraph breaks between sentences survive exactly as typed instead of
+  // collapsing to single spaces.
+  let cursor = 0
+  const nodes: React.ReactNode[] = []
+
+  sentences.forEach(s => {
+    const gap = inputText.slice(cursor, s.startOffset)
+    if (gap) nodes.push(<span key={`gap-${s.id}`}>{gap}</span>)
+
+    const isSelected = s.id === selectedId
+    const tier = tierFor(s.aiProbability)
+
+    nodes.push(
+      <span
+        key={s.id}
+        id={`sentence-anchor-${s.id}`}
+        role="button"
+        tabIndex={0}
+        aria-pressed={isSelected}
+        aria-label={`Sentence, ${s.aiProbability}% estimated AI probability, ${tier.label}`}
+        onClick={() => onSelect(isSelected ? null : s.id)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(isSelected ? null : s.id) } }}
+        className={`inline cursor-pointer rounded px-0.5 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-accent/40 ${tier.softBg} ${
+          isSelected ? tier.selectedBorder : 'border-l-2 border-transparent'
+        }`}
+      >
+        {s.text}
+      </span>
+    )
+    cursor = s.startOffset + s.length
+  })
+
+  const trailing = inputText.slice(cursor)
+  if (trailing) nodes.push(<span key="gap-trailing">{trailing}</span>)
+
   return (
-    <div className="textarea-body flex-1 overflow-y-auto px-4 py-3 text-gray-800">
-      {sentences.map(s => {
-        const isSelected = s.id === selectedId
-        const bg =
-          s.aiProbability >= 70 ? 'bg-red-50 hover:bg-red-100'
-          : s.aiProbability >= 40 ? 'bg-amber-50 hover:bg-amber-100'
-          : 'bg-green-50 hover:bg-green-100'
-        const border = isSelected
-          ? s.aiProbability >= 70 ? 'border-l-2 border-red-400'
-            : s.aiProbability >= 40 ? 'border-l-2 border-amber-400'
-            : 'border-l-2 border-green-500'
-          : 'border-l-2 border-transparent'
-        return (
-          <span
-            key={s.id}
-            onClick={() => onSelect(isSelected ? null : s.id)}
-            className={`inline cursor-pointer rounded px-0.5 transition-colors ${bg} ${border}`}
-          >
-            {s.text}{' '}
-          </span>
-        )
-      })}
+    <div className="textarea-body flex-1 overflow-y-auto px-4 py-3 text-gray-800 whitespace-pre-wrap">
+      {nodes}
 
       <div className="flex items-center gap-4 mt-6 pt-4 border-t border-gray-100">
         <span className="text-xs text-gray-400">Highlight key:</span>
-        <span className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span className="w-3 h-3 rounded-sm bg-red-100 inline-block" />Likely AI
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span className="w-3 h-3 rounded-sm bg-amber-100 inline-block" />Mixed
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span className="w-3 h-3 rounded-sm bg-green-100 inline-block" />Likely human
-        </span>
+        {SCORE_TIERS.map(t => (
+          <span key={t.id} className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span className={`w-3 h-3 rounded-sm inline-block ${t.swatch}`} />{t.label}
+          </span>
+        ))}
       </div>
     </div>
   )
 }
 
-// ── InputPanel ────────────────────────────────────────────────────────────────
+// ── useInputPanelSlots ───────────────────────────────────────────────────────
 
 const MAX_CHARS = 10_000
 
-function InputPanel({
+interface WorkspaceSlots {
+  header: React.ReactNode
+  body: React.ReactNode
+  footer?: React.ReactNode
+}
+
+// Returns {header, body, footer} for ToolWorkspaceCard's leftPanel rather than
+// one JSX root — a hook (not a component) so the useDragDrop/state calls inside
+// stay valid despite not rendering a single element themselves.
+function useInputPanelSlots({
   text,
   onTextChange,
   detectorState,
@@ -290,7 +362,7 @@ function InputPanel({
   onSelect: (id: string | null) => void
   onAnalyse: () => void
   onReset: () => void
-}) {
+}): WorkspaceSlots {
   const { isDragging, isProcessing, dragHandlers, openFilePicker, fileInputElement } = useDragDrop({
     onText: onTextChange,
     disabled: detectorState === 'analysing',
@@ -310,48 +382,34 @@ function InputPanel({
   const isOverLimit = charCount > MAX_CHARS
   const belowMinimum = wordCount < 50
 
+  // "200+ words" is the backend's real low-confidence cutoff (DetectionService.IsLowConfidence),
+  // so it's honest to reference — but phrased as a reliability note, never as "add N words" to
+  // avoid reading like padding advice for a better score.
   const footerHint =
     isOverLimit ? `Too long — ${charCount.toLocaleString()} / ${MAX_CHARS.toLocaleString()} characters`
     : wordCount >= 200 ? 'Optimal length for accurate detection'
-    : wordCount >= 50 ? `${200 - wordCount} more words for best accuracy`
-    : wordCount > 0 ? `${50 - wordCount} more words needed`
-    : 'Min. 50 words · 200+ for best accuracy'
+    : wordCount >= 50 ? 'Results are more reliable at 200+ words'
+    : wordCount > 0 ? `${50 - wordCount} more words needed to analyse`
+    : 'Minimum 50 words · most reliable at 200+'
 
   const footerColor =
     isOverLimit ? 'text-red-500'
     : wordCount >= 50 ? 'text-green-600'
     : 'text-gray-400'
 
-  return (
-    <div className="flex flex-col h-full min-h-0 bg-white relative" {...dragHandlers}>
-      {fileInputElement}
-      <DropOverlay isDragging={isDragging} isProcessing={isProcessing} />
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
-        <PanelLabel label="Your text" count={wordCount} />
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <UtilityButton
-              icon={<Clipboard size={16} />}
-              label="Paste"
-              onClick={handlePasteFromClipboard}
-              disabled={detectorState === 'analysing'}
-            />
-            <UtilityButton
-              icon={<Upload size={16} />}
-              label="Upload"
-              onClick={openFilePicker}
-              disabled={detectorState === 'analysing' || isProcessing}
-            />
-          </div>
-        </div>
+  return {
+    header: (
+      <div className="flex items-center px-4 py-2.5 border-b border-[#e0e0da] shrink-0">
+        <PanelLabel label="Your text" />
       </div>
-
-      {/* Content */}
-      <div className="flex-1 min-h-0 flex flex-col">
+    ),
+    body: (
+      <div className="flex-1 min-h-0 flex flex-col relative" {...dragHandlers}>
+        {fileInputElement}
+        <DropOverlay isDragging={isDragging} isProcessing={isProcessing} />
         {detectorState === 'complete' && result ? (
           <SentenceHighlightView
+            inputText={text}
             sentences={result.sentences}
             selectedId={selectedId}
             onSelect={onSelect}
@@ -388,32 +446,58 @@ function InputPanel({
           </div>
         )}
       </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 shrink-0">
-        <div className="flex items-center gap-3">
-          <ClearButton
-            onClick={onReset}
-            disabled={!text || detectorState === 'analysing'}
-          />
-          <span className={`text-[13px] ${footerColor}`}>{footerHint}</span>
-        </div>
-        <button
-          type="button"
-          onClick={onAnalyse}
-          disabled={belowMinimum || isOverLimit || detectorState === 'analysing'}
-          title={belowMinimum ? 'Please enter at least 50 words to begin analysis.' : undefined}
-          className={primaryButtonClass(!(belowMinimum || isOverLimit || detectorState === 'analysing'))}
-        >
-          {detectorState === 'analysing' ? (
-            <><RefreshCw size={14} className="animate-spin" /> Analysing…</>
-          ) : (
-            'Analyse text'
-          )}
-        </button>
-      </div>
-    </div>
-  )
+    ),
+    footer: (
+      <>
+        <PanelFooterBar
+          metadata={<span className="text-xs font-normal tabular-nums text-gray-400">{wordCount} words</span>}
+          actions={
+            <>
+              <UtilityButton
+                icon={<Clipboard size={14} />}
+                label="Paste"
+                className="h-8 px-3 text-[13px]"
+                onClick={handlePasteFromClipboard}
+                disabled={detectorState === 'analysing'}
+              />
+              <UtilityButton
+                icon={<Upload size={14} />}
+                label="Upload"
+                className="h-8 px-3 text-[13px]"
+                onClick={openFilePicker}
+                disabled={detectorState === 'analysing' || isProcessing}
+              />
+            </>
+          }
+        />
+        <ToolBottomActionRow
+          clearButton={<ClearButton onClick={onReset} disabled={!text || detectorState === 'analysing'} />}
+          hint={<span className={footerColor}>{footerHint}</span>}
+          primaryButton={
+            <button
+              type="button"
+              onClick={onAnalyse}
+              disabled={belowMinimum || isOverLimit || detectorState === 'analysing'}
+              title={
+                belowMinimum ? 'Please enter at least 50 words to begin analysis.'
+                : detectorState === 'complete' ? 'Re-run analysis on the current text'
+                : undefined
+              }
+              className={primaryButtonClass(!(belowMinimum || isOverLimit || detectorState === 'analysing'))}
+            >
+              {detectorState === 'analysing' ? (
+                <><RefreshCw size={14} className="animate-spin" /> Analysing…</>
+              ) : detectorState === 'complete' ? (
+                'Reanalyse'
+              ) : (
+                'Analyse text'
+              )}
+            </button>
+          }
+        />
+      </>
+    ),
+  }
 }
 
 // ── ResultsEmptyState ─────────────────────────────────────────────────────────
@@ -441,11 +525,13 @@ function ResultsEmptyState() {
   )
 }
 
-// ── ResultsPanel ──────────────────────────────────────────────────────────────
+// ── useResultsPanelSlots ─────────────────────────────────────────────────────
 
 const SENTENCES_INITIAL_VISIBLE = 10
 
-function ResultsPanel({
+// Returns {header, body} for ToolWorkspaceCard's rightPanel — see
+// useInputPanelSlots above for why this is a hook rather than a component.
+function useResultsPanelSlots({
   result,
   isLoading,
   error,
@@ -465,7 +551,7 @@ function ResultsPanel({
   rewrittenIds: Set<string>
   onAcceptRewrite: (sentenceId: string, originalText: string, newText: string) => void
   onOpenInEditor: (text: string) => void
-}) {
+}): WorkspaceSlots {
   const [copied, setCopied] = useState(false)
   const [downloaded, setDownloaded] = useState(false)
   const [sortMode, setSortMode] = useState<'severity' | 'order'>(() => {
@@ -477,6 +563,18 @@ function ResultsPanel({
 
   // Collapse back to the capped list whenever a fresh analysis comes in.
   useEffect(() => { setShowAllSentences(false); setOpenPopoverId(null) }, [result?.analysedAt])
+
+  // If a sentence is selected from the highlighted text and it's beyond the initial cap,
+  // expand the list and bring its card into view — the text-side half of this lives in
+  // SentenceHighlightView's own effect.
+  useEffect(() => {
+    if (!selectedId) return
+    setShowAllSentences(true)
+    const id = requestAnimationFrame(() => {
+      document.getElementById(`flagged-anchor-${selectedId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [selectedId])
 
   const handleCopyReport = async () => {
     if (!result) return
@@ -504,29 +602,44 @@ function ResultsPanel({
     sessionStorage.setItem('detector_sentence_sort', mode)
   }
 
-  return (
-    <div className="flex flex-col h-full min-h-0 bg-white">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
-        <PanelLabel label="Analysis report" />
-        {result && (
-          <div className="flex items-center gap-1.5">
-            <OutputActionButton icon={copied ? <Check size={11} className="text-green-500" /> : <Clipboard size={11} />} onClick={handleCopyReport}>
-              {copied ? 'Copied' : 'Copy report'}
-            </OutputActionButton>
-            <OutputActionButton
-              icon={downloaded ? <Check size={11} className="text-green-500" /> : <Download size={11} />}
-              onClick={handleDownloadReport}
-              title="Download report as .txt"
-            >
-              {downloaded ? 'Saved' : 'Download .txt'}
-            </OutputActionButton>
-          </div>
-        )}
-      </div>
+  const header = (
+    <ResultsPanelHeader
+      title={<PanelLabel label="Analysis report" />}
+    />
+  )
 
+  const footer = result && (
+    <PanelFooterBar
+      metadata={
+        <span className="text-xs font-normal tabular-nums text-gray-400">
+          {result.wordCount} words analysed · {result.confidence === 'low' ? 'Low' : 'High'} confidence
+        </span>
+      }
+      actions={
+        <>
+          <OutputActionButton icon={copied ? <Check size={11} className="text-green-500" /> : <Clipboard size={11} />} onClick={handleCopyReport}>
+            {copied ? 'Copied' : 'Copy report'}
+          </OutputActionButton>
+          <OutputActionButton
+            icon={downloaded ? <Check size={11} className="text-green-500" /> : <Download size={11} />}
+            onClick={handleDownloadReport}
+            title="Download report as .txt"
+          >
+            {downloaded ? 'Saved' : 'Download .txt'}
+          </OutputActionButton>
+        </>
+      }
+    />
+  )
+
+  const body = (
+    <>
       {isLoading ? (
         <div className="flex-1 px-5 py-4">
+          <div className="flex items-center gap-2 mb-4">
+            <RefreshCw size={14} className="animate-spin text-purple-accent" />
+            <span className="text-sm text-purple-accent font-medium">Analysing your text…</span>
+          </div>
           <Skeleton variant="text" tone="light" lines={6} />
         </div>
       ) : !result && error ? (
@@ -550,13 +663,16 @@ function ResultsPanel({
         <ResultsEmptyState />
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
-          {/* Verdict + score — pinned, stays visible while the sentence list scrolls */}
+          {/* Result — pinned, stays visible while the sentence list scrolls. This is the
+              single place the overall score is shown; nothing repeats it in a sidebar. */}
           <div className="px-5 py-5 border-b border-gray-100 shrink-0">
             <VerdictBadge verdict={result.verdict} />
-            <ScoreBar score={result.overallAiPct} label="AI probability" colorForScore={aiBarColor} className="mt-4" />
-            <p className="text-[13px] text-gray-400 mt-2">
-              Based on {result.wordCount} words · {result.confidence} confidence
-            </p>
+            <ScoreBar score={result.overallAiPct} label="Estimated AI probability" colorForScore={aiBarColor} className="mt-4" />
+            {result.confidence === 'low' && (
+              <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+                Low confidence — texts under 200 words can produce less reliable results.
+              </p>
+            )}
           </div>
 
           {/* Sentence breakdown — scrolls independently of the score above */}
@@ -624,8 +740,10 @@ function ResultsPanel({
           </div>
         </div>
       )}
-    </div>
+    </>
   )
+
+  return { header, body, footer }
 }
 
 // ── DetectorPage ──────────────────────────────────────────────────────────────
@@ -636,11 +754,37 @@ export default function DetectorPage() {
   const navigate = useNavigate()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [rewrittenIds, setRewrittenIds] = useState<Set<string>>(new Set())
+  const [isBulkHumanising, setIsBulkHumanising] = useState(false)
+
+  // Receive text sent from another tool via SendToMenu. Clear any previous
+  // result so the report never describes text that's no longer in the input.
+  useEffect(() => {
+    const { text, clearTransfer } = useToolTransferStore.getState()
+    if (text) {
+      setInputText(text)
+      setResult(null)
+      clearTransfer()
+      toast('Text transferred — ready to scan!', { icon: '🛡️' })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const detectorState: DetectorState =
     isLoading ? 'analysing' : result ? 'complete' : 'idle'
 
-  const uiResult = result ? adaptResponse(result) : null
+  // Memoized so `analysedAt` (used as a "fresh analysis arrived" effect
+  // dependency downstream) stays stable across re-renders that don't change
+  // `result` itself — e.g. opening a sentence's rewrite popover, which
+  // otherwise re-triggered adaptResponse's `new Date().toISOString()` on
+  // every render and immediately reset the just-opened popover closed again.
+  const uiResult = useMemo(() => (result ? adaptResponse(result) : null), [result])
+
+  // Single source of truth for "how many sentences the bulk action will touch" — used for
+  // both the button's label and (via HUMANISE_FLAG_THRESHOLD in SentenceResultRow) the
+  // "Flagged" chips in the list, so the two numbers can't drift apart.
+  const flaggedSentenceCount = uiResult
+    ? uiResult.sentences.filter(s => s.aiProbability >= HUMANISE_FLAG_THRESHOLD).length
+    : 0
 
   const handleAnalyse = async () => {
     if (wordCount < 50 || isLoading || inputText.length > MAX_CHARS) return
@@ -676,37 +820,90 @@ export default function DetectorPage() {
     navigate(`/app/paraphrase?text=${encodeURIComponent(text)}&mode=fluency`)
   }
 
+  // One call replaces both the editor text and the full analysis report — no follow-up
+  // "analyse text" call. The individual "Humanise this sentence" flow (HumanisePopover, via
+  // handleAcceptRewrite above) is completely independent of this and keeps working unchanged.
+  const handleBulkHumanise = async () => {
+    if (!uiResult?.detectionResultId || isBulkHumanising) return
+    setIsBulkHumanising(true)
+    try {
+      const response = await humaniseApi.bulkHumaniseSentences({
+        detectionResultId: uiResult.detectionResultId,
+      })
+      setInputText(response.text)
+      setResult(response.analysis)
+      setSelectedId(null)
+      setRewrittenIds(new Set())
+      if (response.sentencesFailed > 0) {
+        toast.error(
+          `Humanised ${response.sentencesHumanised} sentence${response.sentencesHumanised !== 1 ? 's' : ''}, ` +
+          `${response.sentencesFailed} failed and were left unchanged`,
+          { duration: 5000 },
+        )
+      } else {
+        toast.success(`Humanised ${response.sentencesHumanised} sentence${response.sentencesHumanised !== 1 ? 's' : ''}`)
+      }
+    } catch (err: unknown) {
+      const apiErr = err as { message?: string; upgradeRequired?: boolean }
+      if (apiErr?.upgradeRequired) {
+        toast.error('Word limit reached. Upgrade your plan to continue.', { duration: 5000 })
+      } else {
+        toast.error(apiErr?.message ?? 'Bulk humanise failed. Please try again.')
+      }
+    } finally {
+      setIsBulkHumanising(false)
+    }
+  }
+
+  const inputSlots = useInputPanelSlots({
+    text: inputText,
+    onTextChange: setInputText,
+    detectorState,
+    wordCount,
+    result: uiResult,
+    selectedId,
+    onSelect: setSelectedId,
+    onAnalyse: handleAnalyse,
+    onReset: handleReset,
+  })
+
+  const resultsSlots = useResultsPanelSlots({
+    result: uiResult,
+    isLoading,
+    error,
+    onRetry: handleAnalyse,
+    selectedId,
+    onSelect: setSelectedId,
+    rewrittenIds,
+    onAcceptRewrite: handleAcceptRewrite,
+    onOpenInEditor: handleOpenInEditor,
+  })
+
   return (
     <div className="min-h-0 bg-transparent px-4 py-6 w-full">
-      <div
-        className="bg-white border border-[#e0e0da] rounded-2xl overflow-hidden flex flex-col shadow-card"
+      <ToolWorkspaceCard
+        className="lg:sticky lg:top-4"
         style={{ height: 'calc(100vh - 7rem)' }}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[#e0e0da] flex-1 min-h-0">
-          <InputPanel
-            text={inputText}
-            onTextChange={setInputText}
-            detectorState={detectorState}
-            wordCount={wordCount}
-            result={uiResult}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            onAnalyse={handleAnalyse}
-            onReset={handleReset}
-          />
-          <ResultsPanel
-            result={uiResult}
-            isLoading={isLoading}
-            error={error}
-            onRetry={handleAnalyse}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            rewrittenIds={rewrittenIds}
-            onAcceptRewrite={handleAcceptRewrite}
-            onOpenInEditor={handleOpenInEditor}
-          />
-        </div>
-      </div>
+        leftPanel={inputSlots}
+        rightPanel={resultsSlots}
+        // Result → evidence (sentence breakdown, above) → action (here). Kept as a distinct
+        // full-width row so it reads as "what you can do next," not the page's main CTA —
+        // "Analyse text" in the left footer stays the only primary action.
+        bottomActionBar={uiResult && flaggedSentenceCount > 0 && uiResult.detectionResultId && (
+          <button
+            type="button"
+            onClick={handleBulkHumanise}
+            disabled={isBulkHumanising}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-[13px] font-semibold bg-purple-accent hover:bg-purple-deep text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isBulkHumanising ? (
+              <><RefreshCw size={13} className="animate-spin" /> Humanising {flaggedSentenceCount} sentence{flaggedSentenceCount !== 1 ? 's' : ''}…</>
+            ) : (
+              <><Sparkles size={13} /> Humanise {flaggedSentenceCount} flagged sentence{flaggedSentenceCount !== 1 ? 's' : ''}</>
+            )}
+          </button>
+        )}
+      />
     </div>
   )
 }

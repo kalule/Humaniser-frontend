@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Share2, ChevronDown, Sparkles, RefreshCw, SpellCheck, Scissors } from 'lucide-react'
+import { Share2, ChevronDown, Sparkles, Shield, RefreshCw, SpellCheck, Scissors } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useToolTransferStore } from '../../store/toolTransferStore'
 
 const DESTINATIONS = [
   { label: 'Rewrite',    path: '/app/humaniser',  Icon: Sparkles  },
+  { label: 'AI Detector',   path: '/app/detector',   Icon: Shield     },
   { label: 'Paraphraser',   path: '/app/paraphrase', Icon: RefreshCw  },
   { label: 'Grammar',       path: '/app/grammar',    Icon: SpellCheck },
   { label: 'Summariser',    path: '/app/summarise',  Icon: Scissors   },
@@ -14,10 +15,16 @@ const DESTINATIONS = [
 interface SendToMenuProps {
   text: string
   className?: string
+  /** Expand the destination list in flow instead of as a floating popover. */
+  inline?: boolean
 }
 
-export function SendToMenu({ text, className }: SendToMenuProps) {
+export function SendToMenu({ text, className, inline = false }: SendToMenuProps) {
   const [open, setOpen] = useState(false)
+  // Decided when the menu opens, from where the button sits in the viewport, so the
+  // list never runs off the right edge or into the card's top/bottom edge.
+  const [alignRight, setAlignRight] = useState(false)
+  const [openUp, setOpenUp] = useState(true)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -40,7 +47,14 @@ export function SendToMenu({ text, className }: SendToMenuProps) {
     <div className={cn('relative', className)} ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (!open && ref.current) {
+            const r = ref.current.getBoundingClientRect()
+            setAlignRight(r.left > window.innerWidth / 2)
+            setOpenUp(window.innerHeight - r.bottom < 240)
+          }
+          setOpen((v) => !v)
+        }}
         className="inline-flex items-center gap-1 h-6 px-2 rounded text-[11px] text-text-sec border border-[#e0e0da] bg-white hover:border-[#d1d5db] hover:text-text-pri transition-colors"
       >
         <Share2 size={11} />
@@ -52,7 +66,18 @@ export function SendToMenu({ text, className }: SendToMenuProps) {
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-1.5 left-0 z-50 w-44 bg-white border border-gray-200 rounded-xl shadow-elevated overflow-hidden">
+        <div className={cn(
+          'bg-white overflow-hidden',
+          // Inline: expands in normal flow so it can live inside another
+          // menu without being clipped by that menu's overflow-hidden.
+          inline
+            ? 'mt-0.5'
+            : cn(
+                'absolute z-50 w-44 border border-gray-200 rounded-xl shadow-elevated',
+                openUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5',
+                alignRight ? 'right-0' : 'left-0',
+              ),
+        )}>
           {destinations.map(({ label, path, Icon }) => (
             <button
               key={path}

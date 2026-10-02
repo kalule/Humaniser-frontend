@@ -11,6 +11,7 @@ import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import Highlight from '@tiptap/extension-highlight'
 import Placeholder from '@tiptap/extension-placeholder'
+import { TableKit } from '@tiptap/extension-table'
 import {
   ChevronLeft, Cloud, CloudOff, Loader2, AlignLeft, AlignCenter,
   AlignRight, AlignJustify, Bold, Italic, Underline as UnderlineIcon,
@@ -21,13 +22,21 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useLibraryStore } from '../../store/libraryStore'
+import { useEditorFlushStore } from '../../store/editorFlushStore'
+import { resolveEditorHeaderTitle } from '../../config/navigation'
+import { AccountMenu } from '../../components/layout/AccountMenu'
 import { useCitationStore } from '../../store/citationStore'
 import { useCitation } from '../../hooks/useCitation'
 import type { CitationDto, FormatStyle } from '../../types/citation'
-import type { WriteWithAiResponse, ReviewDocumentResponse } from '../../types/workbench'
+import { FORMAT_LABELS, FORMAT_STYLES } from '../../types/citation'
+import type { WriteWithAiResponse, WriteWithAiReference, EssayCitationStyle, ReviewDocumentResponse } from '../../types/workbench'
 import { WriteWithAiModal } from '../../components/app/WriteWithAiModal'
 import { ReviewResultsModal } from '../../components/app/ReviewResultsModal'
 import { workbenchApi } from '../../api/workbench'
+import { formatEssayInTextCitation, formatEssayNarrativeCitation, formatEssayReferenceListEntry, groupConsecutiveAuthorDateCitations, type EssayCitationStyleName } from '../../lib/citationFormat'
+import { orderEssayReferences } from '../../lib/essayReferenceOrder'
+import { renderCaseStudyParagraphs } from '../../lib/caseStudyTableFormat'
+import { exportAsWord } from '../../lib/wordExport'
 import toast from 'react-hot-toast'
 
 // ── Citation TipTap Node ──────────────────────────────────────────────────────
@@ -88,14 +97,6 @@ const FontSize = Extension.create({
 
 // ── Citation helpers ──────────────────────────────────────────────────────────
 
-const FORMAT_LABELS: Record<FormatStyle, string> = {
-  apa7:    'APA 7',
-  harvard: 'Harvard',
-  ieee:    'IEEE',
-  mla:     'MLA 9',
-}
-const FORMAT_STYLES = Object.keys(FORMAT_LABELS) as FormatStyle[]
-
 function inlineCiteLabel(cit: CitationDto, style: FormatStyle, orderIndex: number): string {
   const year    = cit.publicationYear ?? 'n.d.'
   const a0last  = cit.authors[0]?.lastName ?? 'Unknown'
@@ -107,19 +108,23 @@ function inlineCiteLabel(cit: CitationDto, style: FormatStyle, orderIndex: numbe
     : `${a0last} et al.`
 
   switch (style) {
-    case 'apa7':    return `(${authorPart}, ${year})`
-    case 'harvard': return `(${authorPart}, ${year})`
-    case 'mla':     return `(${a0last})`
-    case 'ieee':    return `[${orderIndex + 1}]`
+    case 'apa7':      return `(${authorPart}, ${year})`
+    case 'harvard':   return `(${authorPart}, ${year})`
+    case 'mla':       return `(${a0last})`
+    case 'ieee':      return `[${orderIndex + 1}]`
+    case 'chicago':   return `(${a0last} ${year})`
+    case 'vancouver': return `[${orderIndex + 1}]`
   }
 }
 
 function refFormatted(cit: CitationDto, style: FormatStyle): string {
   const map: Record<FormatStyle, string | null> = {
-    apa7:    cit.cachedApa7,
-    harvard: cit.cachedHarvard,
-    ieee:    cit.cachedIeee,
-    mla:     cit.cachedMla,
+    apa7:      cit.cachedApa7,
+    harvard:   cit.cachedHarvard,
+    ieee:      cit.cachedIeee,
+    mla:       cit.cachedMla,
+    chicago:   cit.cachedChicago,
+    vancouver: cit.cachedVancouver,
   }
   return map[style] ?? cit.title
 }
@@ -145,27 +150,59 @@ function getWordCount(text: string): number {
   return t === '' ? 0 : t.split(/\s+/).length
 }
 
-function exportAsWord(title: string, bodyHtml: string, refs: { label: string; text: string }[]) {
-  const refsHtml = refs.length === 0 ? '' : `
-    <h2 style="font-size:14pt;font-weight:700;margin:2em 0 0.5em">References</h2>
-    <ol style="padding-left:1.5em;font-size:11pt;line-height:1.5">
-      ${refs.map(r => `<li style="margin-bottom:0.5em">${r.text}</li>`).join('')}
-    </ol>`
-  const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-<head><meta charset='utf-8'><title>${title}</title>
-<style>
-  body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.15; margin: 2.54cm; color: #1a1a1a; }
-  h1 { font-size: 20pt; } h2 { font-size: 15pt; } h3 { font-size: 12pt; }
-  cite { color: #4f46e5; font-style: normal; }
-</style></head>
-<body>${bodyHtml}${refsHtml}</body></html>`
-  const blob = new Blob([html], { type: 'application/msword' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `${title}.doc`
-  a.click()
-  URL.revokeObjectURL(a.href)
+function extractNodeText(node: any): string {
+  if (!node) return ''
+  if (node.type === 'text') return node.text ?? ''
+  if (!node.content) return ''
+  return node.content.map(extractNodeText).join('')
 }
+
+// The displayed word count should reflect the document's own prose, not the auto-appended
+// References list (appendReferences below always inserts it as a final "References" H2 heading
+// plus its entries) — otherwise every citation added inflates a count the user reads as "how
+// long is what I wrote," and the figure would stop matching the backend's own WordCount (computed
+// from the generated prose before references are appended, never with reference text at all).
+function getWordCountExcludingReferences(editorJson: any): number {
+  const nodes: any[] = editorJson?.content ?? []
+  const referencesIndex = nodes.findIndex(
+    n => n.type === 'heading' && /^references$/i.test(extractNodeText(n).trim()),
+  )
+  const proseNodes = referencesIndex === -1 ? nodes : nodes.slice(0, referencesIndex)
+  return getWordCount(proseNodes.map(extractNodeText).join(' '))
+}
+
+// Converts a section's blank-line-separated text into paragraph HTML. `allowSubheadings` scopes
+// the short-line thematic-subheading heuristic to MAIN BODY only — Title/Introduction/Conclusion
+// headings are now rendered directly from WriteWithAiResponse.sections (backend-owned, see
+// WorkbenchService.ParseEssaySections) rather than guessed from raw prose.
+// Display headings for CaseStudySections — WriteWithAiResponse only carries section content, not
+// the case-type-adaptive heading labels the backend used while drafting (WorkbenchService.
+// BuildCaseStructure), so this is a fixed, generic label per section key rather than a duplicate
+// of that per-case-type mapping.
+const CASE_SECTION_HEADINGS: Record<string, string> = {
+  executiveSummary: 'EXECUTIVE SUMMARY',
+  introduction: 'INTRODUCTION',
+  caseBackground: 'CASE BACKGROUND',
+  problemIdentification: 'PROBLEM IDENTIFICATION',
+  analysis: 'ANALYSIS',
+  alternatives: 'ALTERNATIVES',
+  recommendations: 'RECOMMENDATIONS',
+  implementationConsiderations: 'IMPLEMENTATION CONSIDERATIONS',
+  conclusion: 'CONCLUSION',
+  appendices: 'APPENDICES',
+}
+
+function renderEssayParagraphs(text: string, allowSubheadings: boolean): string {
+  return text
+    .split(/\n\n+/)
+    .map(p => {
+      const trimmed = p.trim()
+      if (allowSubheadings && trimmed.split(/\s+/).length <= 10 && !/[.!?]$/.test(trimmed)) return `<h3>${trimmed}</h3>`
+      return `<p>${p.replace(/\n/g, '<br>')}</p>`
+    })
+    .join('')
+}
+
 
 // ── Editor CSS ────────────────────────────────────────────────────────────────
 
@@ -192,6 +229,12 @@ const EDITOR_STYLES = `
     color: #aaa; content: attr(data-placeholder); float: left; height: 0; pointer-events: none;
   }
   .tiptap-paper mark { background: #ffee88; border-radius: 2px; padding: 0 1px; }
+  .tiptap-paper .ProseMirror .tableWrapper { overflow-x: auto; margin: 0.5em 0 1em; }
+  .tiptap-paper .ProseMirror table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+  .tiptap-paper .ProseMirror th, .tiptap-paper .ProseMirror td {
+    border: 1px solid #d0d0d0; padding: 6px 8px; font-size: 10pt; vertical-align: top; text-align: left;
+  }
+  .tiptap-paper .ProseMirror th { background: #f5f5f5; font-weight: 700; }
 `
 
 // ── Debounce ──────────────────────────────────────────────────────────────────
@@ -378,6 +421,7 @@ export default function DocumentEditorPage() {
   useCitation() // ensure citations are fetched from API on editor mount
 
   const [syncState,      setSyncState]      = useState<SyncState>('saved')
+  const [creatingNew,    setCreatingNew]    = useState(false)
   const [showOutline,    setShowOutline]     = useState(true)
   const [showCitePanel,  setShowCitePanel]   = useState(false)
   const [docTitle,       setDocTitle]        = useState('Untitled document')
@@ -397,6 +441,12 @@ export default function DocumentEditorPage() {
   const [showReviewModal, setShowReviewModal]   = useState(false)
 
   const doc = documents.find(d => d.id === documentId)
+
+  // Same resolver AppNavbar's (now-hidden-on-desktop) breadcrumb used — this row is
+  // the sole header on desktop now, so it needs the same loading-aware title instead
+  // of docTitle's own default, which would otherwise flash "Untitled document" for a
+  // named document while the library is still loading on a fresh deep link/refresh.
+  const resolvedTitle = resolveEditorHeaderTitle(documentId, libraryLoaded, documents)
 
   // Guards against StrictMode's dev-only double-invoke of this effect, which would
   // otherwise create two documents per "New document" click and orphan one of them.
@@ -473,6 +523,14 @@ export default function DocumentEditorPage() {
       Highlight.configure({ multicolor: true }),
       Placeholder.configure({ placeholder: 'Start typing your document…' }),
       CitationNode,
+      // Case Study Phase 2, Part 2 — same TableKit + resizable:false config already established
+      // in DocumentSurface.tsx (research-agent). This editor is HTML-native (setContent/getHTML,
+      // not the Markdown extension DocumentSurface uses), so TableKit's own HTML parseHTML/
+      // renderHTML rules are what let a real <table> survive setContent/insertContent and come
+      // back out of getHTML() unchanged for export — no extra glue needed for that half; the
+      // other half (turning a case-study draft's GitHub-Flavored-Markdown table text into actual
+      // <table> HTML before it reaches the editor) is renderCaseStudyParagraphs, below.
+      TableKit.configure({ table: { resizable: false } }),
     ],
     content: doc?.content
       ? (() => { try { return JSON.parse(doc.content!) } catch { return doc.content } })()
@@ -483,6 +541,30 @@ export default function DocumentEditorPage() {
       setEditorVersion(v => v + 1)
     },
   })
+
+  // Read imperatively inside flushPendingSave rather than closed over directly, so that
+  // function doesn't need to change identity (and re-register) on every keystroke —
+  // syncState flips constantly while typing.
+  const syncStateRef = useRef(syncState)
+  useEffect(() => { syncStateRef.current = syncState }, [syncState])
+
+  // Single implementation of "save whatever's pending before leaving the editor" —
+  // the in-editor "← Back to Library" button below calls this directly; the global
+  // "Documents" breadcrumb (AppNavbar, which has no access to this component's state)
+  // calls the same function via useEditorFlushStore instead of a second copy.
+  // Mirrors save()'s own never-throws behaviour: a failed save still resolves (save
+  // catches internally and just sets syncState to 'error'), so a caller that awaits
+  // this always proceeds to navigate, exactly like the back button does today.
+  const flushPendingSave = useCallback(async () => {
+    if (editor && syncStateRef.current === 'unsaved') {
+      await save(JSON.stringify(editor.getJSON()))
+    }
+  }, [editor, save])
+
+  useEffect(() => {
+    useEditorFlushStore.getState().register(flushPendingSave)
+    return () => useEditorFlushStore.getState().unregister()
+  }, [flushPendingSave])
 
   // The library now loads asynchronously from the API, so on a hard refresh of an
   // existing document the editor can mount before `doc` is available (initializing
@@ -553,7 +635,7 @@ export default function DocumentEditorPage() {
 
   const wordCount = useMemo(() => {
     if (!editor) return 0
-    return getWordCount(editor.getText())
+    return getWordCountExcludingReferences(editor.getJSON())
   }, [editor, editorVersion])
 
   const headings = useMemo(() => {
@@ -570,10 +652,16 @@ export default function DocumentEditorPage() {
   // ── Helpers ───────────────────────────────────────────────────────────────────
 
   const handleNewDocument = useCallback(async () => {
-    if (syncState === 'unsaved' && editor) await save(JSON.stringify(editor.getJSON()))
-    const newDoc = await createDocument({ title: 'Untitled document' })
-    navigate(`/app/editor/${newDoc.id}`)
-  }, [syncState, editor, save, createDocument, navigate])
+    if (creatingNew) return // guards a double-click; createDocument's clientRequestId is the server-side backstop
+    setCreatingNew(true)
+    try {
+      if (syncState === 'unsaved' && editor) await save(JSON.stringify(editor.getJSON()))
+      const newDoc = await createDocument({ title: 'Untitled document' })
+      navigate(`/app/editor/${newDoc.id}`)
+    } finally {
+      setCreatingNew(false)
+    }
+  }, [creatingNew, syncState, editor, save, createDocument, navigate])
 
   const handleTitleSave = () => {
     if (!documentId) return
@@ -594,27 +682,146 @@ export default function DocumentEditorPage() {
     toast.success(`Citation inserted: ${label}`)
   }, [editor, citationStyle])
 
-  const appendReferences = (bodyHtml: string, references: { title: string; url: string | null }[]) => {
+  // Uppercase to match every other section heading (INTRODUCTION, CASE BACKGROUND, MAIN BODY, …).
+  const REFERENCES_HEADING = '<h2>REFERENCES</h2>'
+
+  const appendReferences = (
+    bodyHtml: string,
+    references: WriteWithAiReference[],
+    style: EssayCitationStyleName,
+  ) => {
     if (references.length === 0) return bodyHtml
-    const refsHtml = '<h2>References</h2>' + references
-      .map((r, i) => `<p>${i + 1}. ${r.title}${r.url ? ` — ${r.url}` : ''}</p>`)
+    const refsHtml = REFERENCES_HEADING + references
+      .map((r, i) => `<p>${formatEssayReferenceListEntry(r, style, i)}</p>`)
       .join('')
     return bodyHtml + refsHtml
   }
 
-  const handleAiGenerated = useCallback((result: WriteWithAiResponse) => {
+  // Write On (and re-running Write with AI on a non-empty document) both insert new content at
+  // the document's end — naively appending would leave a prior generation's References heading
+  // sitting in the middle of the document, with the new body prose landing after it and a second
+  // References heading tacked onto the true end (confirmed live: 3 separate References sections
+  // after 2 Write On calls). Instead: find the LAST References section, insert the new body ahead
+  // of it, and merge both reference lists into one section at the true end — skipping any new
+  // entry whose formatted text already appears in the existing list, so re-citing the same source
+  // across calls doesn't duplicate the entry.
+  const insertBodyMergingReferences = (
+    bodyHtml: string,
+    references: WriteWithAiReference[],
+    style: EssayCitationStyleName,
+  ) => {
+    if (!editor) return
+    const currentHtml = editor.getHTML()
+    const headingIndex = currentHtml.lastIndexOf(REFERENCES_HEADING)
+    const hasExistingReferences = headingIndex !== -1
+    const bodyWithoutReferences = hasExistingReferences ? currentHtml.slice(0, headingIndex) : currentHtml
+    const existingReferencesHtml = hasExistingReferences
+      ? currentHtml.slice(headingIndex + REFERENCES_HEADING.length) : ''
+
+    const newReferencesHtml = references
+      .map((r, i) => `<p>${formatEssayReferenceListEntry(r, style, i)}</p>`)
+      .filter(entryHtml => !existingReferencesHtml.includes(entryHtml))
+      .join('')
+
+    const combinedReferencesSection = existingReferencesHtml || newReferencesHtml
+      ? `${REFERENCES_HEADING}${existingReferencesHtml}${newReferencesHtml}`
+      : ''
+
+    editor.commands.setContent(bodyWithoutReferences + bodyHtml + combinedReferencesSection, { emitUpdate: true })
+  }
+
+  const handleAiGenerated = useCallback((result: WriteWithAiResponse, essayCitationStyle: EssayCitationStyle) => {
     if (!editor) return
 
-    const bodyHtml = result.content
-      .split(/\n\n+/)
-      .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
-      .join('')
-    const html = appendReferences(bodyHtml, result.references)
+    // result.content / result.sections / result.caseSections contain [S1]-style internal
+    // scholarly-source tokens (see WorkbenchService.WriteWithAiAsync) — never the actual display
+    // form. Replace each with a real citation in the requested style before the text becomes
+    // document content; an unresolvable token (shouldn't happen, the backend already rejects
+    // unknown identifiers) is dropped rather than shown raw. Case studies additionally carry
+    // [CF#] case-fact grounding tokens (WorkbenchService.WriteCaseStudyAsync) — an internal
+    // verification marker only, never meant to be a visible citation, so it's stripped rather
+    // than resolved to display text.
+    // Alphabetical (author-date) or first-cited (numbered) order, with 2020a/2020b labels for
+    // same-author same-year works. In-text numbers index into this same array, so a numbered
+    // citation and its reference-list position can never disagree.
+    const references = orderEssayReferences(result.references, essayCitationStyle, [
+      result.content,
+      ...(result.researchPaperSectionResults ?? []).map(s => s.content ?? ''),
+      ...(result.literatureReviewSections ?? []).map(s => s.content),
+    ].join(' '))
+    const renderOne = (num: string, narrative: boolean) => {
+      const idx = references.findIndex(r => r.sourceId === `S${num}`)
+      if (idx === -1) return ''
+      return narrative
+        ? formatEssayNarrativeCitation(references[idx], essayCitationStyle, idx)
+        : formatEssayInTextCitation(references[idx], essayCitationStyle, idx)
+    }
+
+    // The grouped form ("[S1, S12]") is matched alongside the single one. The backend now rejects
+    // it outright (SourceTokenGate, docs/OPEN_ITEMS.md #99), but this half is not redundant: before
+    // that gate existed a grouped token matched NEITHER this resolver nor the backend's own
+    // ExtractCitedSourceIds, so it leaked into the document raw AND both of its references were
+    // dropped from the reference list as uncited. Resolving it here means a response from a backend
+    // without the gate degrades to a correct citation rather than to visible breakage plus silent
+    // reference loss. Only the first source in a grouped narrative citation renders in narrative
+    // form — "Smith (2019) and Jones (2020) argue" reads correctly, "Smith (2019) Jones (2020)"
+    // does not — and groupConsecutiveAuthorDateCitations then merges the parentheticals.
+    const resolveCitations = (text: string) => groupConsecutiveAuthorDateCitations(text
+      .replace(/\[CF\d+\]\s?/g, '')
+      .replace(/\[(N:)?S(\d+)((?:\s*[,;]\s*S\d+)*)\]/g,
+        (_match, narrative: string | undefined, num: string, rest: string | undefined) => {
+          const extra = (rest ?? '').split(/[,;]/).map(t => t.trim().slice(1)).filter(Boolean)
+          return [renderOne(num, Boolean(narrative)), ...extra.map(n => renderOne(n, false))]
+            .filter(Boolean)
+            .join(' ')
+        }))
+
+    // Structural headings come from the backend's own parse (WorkbenchService.ParseEssaySections/
+    // ParseCaseSections), guaranteed present by the structural validation gate before this
+    // response is ever returned — no more guessing section boundaries from raw prose with a
+    // marker regex here.
+    const bodyHtml = result.isEssay && result.sections
+      ? `<h2>INTRODUCTION</h2>${renderEssayParagraphs(resolveCitations(result.sections.introduction), false)}` +
+        `<h2>MAIN BODY</h2>${renderEssayParagraphs(resolveCitations(result.sections.mainBody), true)}` +
+        `<h2>CONCLUSION</h2>${renderEssayParagraphs(resolveCitations(result.sections.conclusion), false)}`
+      : result.isCaseStudy && result.caseSections
+        ? Object.entries(result.caseSections)
+            .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
+            .map(([key, text]) => `<h2>${CASE_SECTION_HEADINGS[key] ?? key}</h2>${renderCaseStudyParagraphs(resolveCitations(text), true)}`)
+            .join('')
+        : result.isResearchPaper && result.researchPaperSectionResults?.length
+          ? result.researchPaperSectionResults
+              .map(section => section.status === 'Generated' && section.content
+                ? `<h2>${section.heading}</h2>${renderEssayParagraphs(resolveCitations(section.content), false)}`
+                : section.status === 'EvidenceRequired'
+                  ? `<h2>${section.heading}</h2><p><em>Evidence required: ${section.reason ?? 'Required research evidence is unavailable.'} ${section.requiredAction ?? ''}</em></p>`
+                  : '')
+              .join('')
+        : result.isResearchPaper && result.researchPaperSections
+          ? ([
+              ['Abstract', result.researchPaperSections.abstract],
+              ['Introduction', result.researchPaperSections.introduction],
+              ['Literature Review', result.researchPaperSections.literatureReview],
+              ['Methods', result.researchPaperSections.methods],
+              ['Results', result.researchPaperSections.results],
+              ['Discussion', result.researchPaperSections.discussion],
+              ['Conclusion', result.researchPaperSections.conclusion],
+            ] as [string, string | null | undefined][])
+              .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
+              .map(([heading, text]) => `<h2>${heading}</h2>${renderEssayParagraphs(resolveCitations(text), false)}`)
+              .join('')
+        : result.isLiteratureReview && result.literatureReviewSections?.length
+          ? result.literatureReviewSections
+              .filter(section => section.content.trim().length > 0)
+              .map(section => `<h2>${section.heading}</h2>${renderEssayParagraphs(resolveCitations(section.content), false)}`)
+              .join('')
+        : renderEssayParagraphs(resolveCitations(result.content), false)
+    const titledBody = result.isEssay || result.isCaseStudy || result.isResearchPaper || result.isLiteratureReview ? `<h1>${result.title}</h1>${bodyHtml}` : bodyHtml
 
     if (editor.isEmpty) {
-      editor.commands.setContent(html, { emitUpdate: true })
+      editor.commands.setContent(appendReferences(titledBody, references, essayCitationStyle), { emitUpdate: true })
     } else {
-      editor.chain().focus('end').insertContent(html).run()
+      insertBodyMergingReferences(titledBody, references, essayCitationStyle)
     }
 
     if (!docTitle.trim() || docTitle === 'Untitled document') {
@@ -622,11 +829,35 @@ export default function DocumentEditorPage() {
       if (documentId) void updateDocument(documentId, { title: result.title })
     }
 
+    // PR20 — write-once link back to the WorkbenchGenerationAudit row this content came from
+    // (citation floor achieved/target, any integrity flags — see LibraryDocument's doc comment).
+    // Only set on a successful generation (see WriteWithAiResponse.generationAuditId's doc
+    // comment for why a blocked one never reaches here at all) and only from this save path —
+    // never from the general title/content edit flow.
+    if (documentId && result.generationAuditId)
+      void updateDocument(documentId, { workbenchGenerationAuditId: result.generationAuditId })
+
     setSyncState('unsaved')
     debouncedSave(JSON.stringify(editor.getJSON()))
     setEditorVersion(v => v + 1)
     toast.success('Content generated')
   }, [editor, docTitle, documentId, updateDocument, debouncedSave])
+
+  // OPEN_ITEMS.md #5(c) — regenerating against a non-empty document redrafts every section from
+  // scratch and appends the new draft below existing content (see insertBodyMergingReferences),
+  // rather than updating in place. That can duplicate already-approved sections and introduce a
+  // freshly-fetched, unpinned citation set. Warn before that happens; a blank document has
+  // nothing to lose, so it opens the modal directly.
+  const handleOpenWriteAiModal = useCallback(() => {
+    if (editor && !editor.isEmpty) {
+      const proceed = window.confirm(
+        'This will regenerate the entire document and may replace citations that have already ' +
+        'been reviewed, appending the new draft below your existing content. Continue?',
+      )
+      if (!proceed) return
+    }
+    setShowWriteAiModal(true)
+  }, [editor])
 
   const handleWriteOn = useCallback(async () => {
     if (!editor || writeOnLoading) return
@@ -645,7 +876,7 @@ export default function DocumentEditorPage() {
         .split(/\n\n+/)
         .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
         .join('')
-      editor.chain().focus('end').insertContent(appendReferences(bodyHtml, result.references)).run()
+      insertBodyMergingReferences(bodyHtml, result.references, 'Harvard')
       setSyncState('unsaved')
       debouncedSave(JSON.stringify(editor.getJSON()))
       setEditorVersion(v => v + 1)
@@ -716,19 +947,31 @@ export default function DocumentEditorPage() {
       {/* ── Top bar ───────────────────────────────────────────────────────────── */}
       <div className="shrink-0 bg-white border-b border-slate-200">
 
-        {/* Row 1: navigation + title + actions */}
+        {/* Row 1: navigation + title + actions. AppNavbar (the global header) hides
+            itself on this route from `md` up, so from `md` this row is the sole
+            header — the "Documents /" breadcrumb below takes over its job; the plain
+            back-chevron stays for mobile, where AppNavbar's own breadcrumb is still
+            showing above this row. */}
         <div className="h-12 flex items-center px-4 gap-2">
           <button
-            onClick={() => { if (editor && syncState === 'unsaved') save(JSON.stringify(editor.getJSON())); navigate('/app/library') }}
+            onClick={() => { void flushPendingSave(); navigate('/app/library') }}
             title="Back to Library"
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors shrink-0"
+            className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors shrink-0"
           >
             <ChevronLeft size={18} />
           </button>
           <button
-            onClick={handleNewDocument}
+            onClick={async () => { await flushPendingSave(); navigate('/app/library') }}
+            className="hidden md:inline text-[15px] font-medium text-slate-400 hover:text-slate-600 hover:underline transition-colors shrink-0"
+          >
+            Documents
+          </button>
+          <span className="hidden md:inline text-[15px] text-slate-300 shrink-0">/</span>
+          <button
+            onClick={() => void handleNewDocument()}
+            disabled={creatingNew}
             title="New document"
-            className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-slate-200 shrink-0"
+            className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-slate-200 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FilePlus size={13} /> New
           </button>
@@ -742,9 +985,14 @@ export default function DocumentEditorPage() {
               onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') handleTitleSave() }}
               className="text-[15px] font-semibold text-slate-800 outline-none border-b border-slate-300 bg-transparent px-0.5 min-w-0 max-w-[220px]"
             />
+          ) : resolvedTitle.breadcrumbTitle === null ? (
+            <span
+              className="inline-block h-4 w-32 rounded bg-slate-200 animate-pulse"
+              aria-label="Loading document title"
+            />
           ) : (
             <button onClick={() => setTitleEditing(true)} className="text-[15px] font-semibold text-slate-800 hover:text-slate-900 truncate max-w-[220px]">
-              {docTitle || 'Untitled document'}
+              {resolvedTitle.breadcrumbTitle}
             </button>
           )}
 
@@ -768,7 +1016,7 @@ export default function DocumentEditorPage() {
 
           {/* AI badges */}
           <button
-            onClick={() => setShowWriteAiModal(true)}
+            onClick={handleOpenWriteAiModal}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-medium transition-colors shrink-0"
           >
             <Sparkles size={12} /> Write with AI
@@ -787,6 +1035,13 @@ export default function DocumentEditorPage() {
           >
             {reviewLoading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />} Review On
           </button>
+
+          {/* AppNavbar hides its own AccountMenu on this route from `md` up (see above) —
+              render it here instead so desktop doesn't lose plan badge / avatar access.
+              Mobile keeps using AppNavbar's copy, which is still fully visible there. */}
+          <div className="hidden md:block shrink-0 pl-1">
+            <AccountMenu />
+          </div>
         </div>
 
         {/* Row 2: menu bar */}
@@ -1068,7 +1323,7 @@ export default function DocumentEditorPage() {
             {/* References section — auto-generated */}
             {citedRefs.length > 0 && (
               <div className="mt-12 pt-6 border-t border-slate-200">
-                <h2 className="text-[14pt] font-bold text-slate-900 mb-4">References</h2>
+                <h2 className="text-[14pt] font-bold text-slate-900 mb-4">REFERENCES</h2>
                 <ol className="space-y-2 text-[10pt] text-slate-700 leading-relaxed list-decimal pl-5">
                   {citedRefs.map((cit) => (
                     <li key={cit.id} className="pl-1">

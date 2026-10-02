@@ -1,6 +1,6 @@
 import { useEffect, lazy, Suspense, Component } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { Toaster } from 'react-hot-toast'
@@ -23,7 +23,14 @@ const EditorPage = lazy(() => import('./pages/app/EditorPage'))
 const HistoryPage = lazy(() => import('./pages/app/HistoryPage'))
 const AccountPage = lazy(() => import('./pages/app/AccountPage'))
 const BillingPage = lazy(() => import('./pages/app/BillingPage'))
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const MockCheckoutPage = lazy(() => import('./pages/app/MockCheckoutPage'))
+const AdminOverviewPage = lazy(() => import('./pages/admin/AdminOverviewPage'))
+const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage'))
+const AdminUserDetailPage = lazy(() => import('./pages/admin/AdminUserDetailPage'))
+const AdminSubscriptionsPage = lazy(() => import('./pages/admin/AdminSubscriptionsPage'))
+const AdminPaymentsPage = lazy(() => import('./pages/admin/AdminPaymentsPage'))
+const AdminPlansPage = lazy(() => import('./pages/admin/AdminPlansPage'))
+const AdminAuditLogPage = lazy(() => import('./pages/admin/AdminAuditLogPage'))
 const DetectorPage = lazy(() => import('./pages/DetectorPage'))
 const DetectorHistoryPage = lazy(() => import('./pages/DetectorHistoryPage'))
 const FaqPage = lazy(() => import('./pages/FaqPage'))
@@ -49,6 +56,10 @@ const LecturePage      = lazy(() => import('./pages/app/LecturePage'))
 const LibraryPage      = lazy(() => import('./pages/app/LibraryPage'))
 const DocumentEditorPage = lazy(() => import('./pages/app/DocumentEditorPage'))
 const WebLibraryPage      = lazy(() => import('./pages/app/WebLibraryPage'))
+const FindPapersPage      = lazy(() => import('./pages/app/FindPapersPage'))
+const CollectionsPage     = lazy(() => import('./pages/app/CollectionsPage'))
+const CollectionDetailPage = lazy(() => import('./pages/app/CollectionDetailPage'))
+const WebLibraryPdfViewerPage = lazy(() => import('./pages/app/WebLibraryPdfViewerPage'))
 const ProposalStudioPage  = lazy(() => import('./pages/app/ProposalStudioPage'))
 const ThesisStudioPage    = lazy(() => import('./pages/app/ThesisStudioPage'))
 const ResearchAgentPage   = lazy(() => import('./pages/app/ResearchAgentPage'))
@@ -60,6 +71,7 @@ const LiteratureReviewPage          = lazy(() => import('./pages/app/LiteratureR
 const LiteratureDiscoveryProgressPage = lazy(() => import('./pages/app/LiteratureDiscoveryProgressPage'))
 const ReviewerPage                  = lazy(() => import('./pages/app/ReviewerPage'))
 const ReviewerWorkspacePage         = lazy(() => import('./pages/app/ReviewerWorkspacePage'))
+const CitationIntegrityPage         = lazy(() => import('./pages/app/CitationIntegrityPage'))
 
 class ChunkErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false }
@@ -108,7 +120,11 @@ function PageLoader() {
 
 function ProtectedRoute() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  if (!isAuthenticated) return <Navigate to="/login" replace />
+  const location = useLocation()
+  if (!isAuthenticated) {
+    const from = `${location.pathname}${location.search}${location.hash}`
+    return <Navigate to="/login" replace state={{ from }} />
+  }
   return <Outlet />
 }
 
@@ -210,6 +226,7 @@ function AppInner() {
             <Route path="account" element={<AccountPage />} />
             <Route path="billing" element={<BillingPage />} />
             <Route path="upgrade" element={<PricingPage />} />
+            <Route path="checkout/mock/:sessionId" element={<MockCheckoutPage />} />
             <Route path="detector/history" element={<DetectorHistoryPage />} />
             <Route path="analyst"       element={<AnalystPage />} />
             <Route path="document-chat" element={<DocumentChatPage />} />
@@ -221,6 +238,10 @@ function AppInner() {
             <Route path="editor/new"              element={<DocumentEditorPage />} />
             <Route path="editor/:documentId"      element={<DocumentEditorPage />} />
             <Route path="web-library"             element={<WebLibraryPage />} />
+            <Route path="web-library/find"        element={<FindPapersPage />} />
+            <Route path="web-library/collections" element={<CollectionsPage />} />
+            <Route path="web-library/collections/:collectionId" element={<CollectionDetailPage />} />
+            <Route path="web-library/papers/:workId/pdf" element={<WebLibraryPdfViewerPage />} />
             <Route path="proposal-studio"           element={<ProposalStudioPage />} />
             <Route path="thesis-studio"              element={<ThesisStudioPage />} />
             <Route path="research-agent/:projectId" element={<ResearchAgentPage />} />
@@ -232,14 +253,19 @@ function AppInner() {
             <Route path="literature-review/discovery" element={<LiteratureDiscoveryProgressPage />} />
             <Route path="reviewer"     element={<ReviewerPage />} />
             <Route path="reviewer/:id" element={<ReviewerWorkspacePage />} />
+            <Route path="citation-integrity" element={<CitationIntegrityPage />} />
           </Route>
         </Route>
 
         {/* Admin routes */}
         <Route element={<AdminRoute />}>
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/users" element={<AdminDashboard />} />
-          <Route path="/admin/stats" element={<AdminDashboard />} />
+          <Route path="/admin" element={<AdminOverviewPage />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/admin/users/:id" element={<AdminUserDetailPage />} />
+          <Route path="/admin/subscriptions" element={<AdminSubscriptionsPage />} />
+          <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+          <Route path="/admin/plans" element={<AdminPlansPage />} />
+          <Route path="/admin/audit-log" element={<AdminAuditLogPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -16,11 +16,11 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Undo2, Redo2,
   Sparkles, RefreshCw, ThumbsUp, Loader2, Check,
-  CheckCircle2, ShieldCheck, ImageIcon, Upload, Globe,
+  CheckCircle2, ShieldCheck, ImageIcon, Upload, Globe, AlertTriangle,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { countBodyWords } from '../../lib/wordCount'
-import type { SectionStatus, CitationStyle, CitationFlag, FetchedLiterature } from '../../types/research'
+import type { SectionStatus, CitationFixAction, CitationStyle, CitationFlag, FetchedLiterature } from '../../types/research'
 import type { ParsedReference } from '../../lib/citationFormat'
 import {
   scanTextForCitations, resolveHitAgainstLiterature, resolveIeeeHit, findFlagForHit,
@@ -62,14 +62,33 @@ interface DocumentSurfaceProps {
   // already run by the time this is ever true; only claim/journal/author mismatch flags can
   // still land after this clears.
   citationsPendingVerification?: boolean
+  isUnderReferenced?: boolean
+  citationTarget?: number
+  resolvedCitationCount?: number
+  // docs/OPEN_ITEMS.md #42 piece (b) — non-null only for a hardcoded, temporary set of known
+  // (project, section) pairs; see ResearchService.MethodologyReviewAdvisory's own doc comment.
+  methodologyReviewAdvisory?: string | null
   onContentChange:   (content: string) => void
   onSave:            () => void
   onGenerate:        (wordCount: number) => void
+  generateImmediately?: boolean
+  defaultTargetWordCount?: number
   onRegenerate:      () => void
   onApprove:         () => void
   onCitationInserted?: (text: string) => void
   onRequestBibliography?: () => void
-  onDismissCitationFlag?: (flagId: string) => void
+  // Called (at most once per popover open) when a clicked citation resolves to "Unmatched" —
+  // literature is only refetched on mount and after this section finishes generating, so a
+  // source added to the project's pool any other way (background enrichment, a different
+  // section's generation run) leaves an already-fetched `literature` array stale: the modal
+  // shows "no matching source" even though the source exists server-side. This gives the popover
+  // a chance to pick up the latest pool before settling on "genuinely unmatched".
+  onRequestLiteratureRefresh?: () => void
+  onResolveCitationGap?: () => void
+  busyCitationFlagId?: string | null
+  onRepairCitationFlag?: (flagId: string, action: CitationFixAction, replacementLiteratureId?: string) => void
+  onRemoveCitationClaim?: (flagId: string) => void
+  onDismissCitationFlag?: (flagId: string, reason?: string) => void
 }
 
 export interface DocumentSurfaceHandle {
@@ -185,12 +204,12 @@ const CitationLink = Extension.create<{ dataRef: { current: CitationLinkData } }
               for (const hit of scanTextForCitations(node.text, style, knownMlaSurnames)) {
                 // Only resolve to check for a citation-integrity flag when there are flags to
                 // find at all — skips the resolve cost entirely for sections with none.
-                const resolved = citationFlags.length === 0 ? null
+                const resolvedList = citationFlags.length === 0 ? null
                   : style === 'ieee'
-                    ? resolveIeeeHit(hit, bibliography, literature)
+                    ? (() => { const r = resolveIeeeHit(hit, bibliography, literature); return r ? [r] : null })()
                     : resolveHitAgainstLiterature(hit, style, literature)
-                const flagged = resolved?.matchedSource
-                  && citationFlags.some(f => f.status === 'Open' && f.doi.toLowerCase() === (resolved.doi ?? '').toLowerCase())
+                const flagged = resolvedList?.some(resolved => resolved.matchedSource
+                  && citationFlags.some(f => f.status === 'Open' && f.doi.toLowerCase() === (resolved.doi ?? '').toLowerCase()))
 
                 decos.push(Decoration.inline(pos + hit.from, pos + hit.to, {
                   class: flagged ? 'citation-ref citation-ref--flagged' : 'citation-ref',
@@ -280,13 +299,24 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
   bibliography,
   citationFlags,
   citationsPendingVerification,
+  isUnderReferenced,
+  citationTarget,
+  resolvedCitationCount,
+  methodologyReviewAdvisory,
   onContentChange,
   onSave,
   onGenerate,
+  generateImmediately = false,
+  defaultTargetWordCount = 500,
   onRegenerate,
   onApprove,
   onCitationInserted,
   onRequestBibliography,
+  onRequestLiteratureRefresh,
+  onResolveCitationGap,
+  busyCitationFlagId,
+  onRepairCitationFlag,
+  onRemoveCitationClaim,
   onDismissCitationFlag,
 }, ref) {
   const docEditorFontSize    = useUiStore(s => s.docEditorFontSize)
@@ -394,6 +424,7 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
   }, [editor])
   const canUndo = editor?.can().undo() ?? false
   const canRedo = editor?.can().redo() ?? false
+  const hasUnresolvedCitationGap = /\[\s*CITATION\s+NEEDED\s*\]/i.test(content)
 
   // ── Clickable citations ─────────────────────────────────────────────────────
   // MLA has no year marker, so decoration is gated on the surname actually
@@ -448,29 +479,50 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
     return () => dom.removeEventListener('click', handleClick)
   }, [editor, bibliography, onRequestBibliography])
 
-  const citationPopoverData: ResolvedCitation | 'loading' | null = (() => {
+  // A clicked span can hold a grouped Harvard/APA citation ("(Alabi, 2020; Moodley, 2024)") —
+  // resolveHitAgainstLiterature now resolves each `;`-separated clause independently, so this
+  // is always a list (one entry for a single citation, several for a grouped one).
+  const citationPopoverData: ResolvedCitation[] | 'loading' | null = (() => {
     if (!activeCitation) return null
     if (activeCitation.style === 'ieee') {
       if (!bibliography) return 'loading'
-      return resolveIeeeHit(activeCitation.hit, bibliography, literature ?? [])
-        ?? { displayTitle: `[${activeCitation.hit.inner}]`, matchedSource: false }
+      const resolved = resolveIeeeHit(activeCitation.hit, bibliography, literature ?? [])
+      return [resolved ?? { displayTitle: `[${activeCitation.hit.inner}]`, matchedSource: false }]
     }
     if (!literature) return 'loading'
     return resolveHitAgainstLiterature(activeCitation.hit, activeCitation.style, literature)
-      ?? { displayTitle: `(${activeCitation.hit.inner})`, matchedSource: false }
+      ?? [{ displayTitle: `(${activeCitation.hit.inner})`, matchedSource: false }]
   })()
 
-  // Best-effort: when the resolved citation's source carries an open integrity flag, surface it
-  // in the popover. Disambiguates by proximity when the same source is cited more than once in
-  // this section (see findFlagForHit) using the text immediately around the clicked occurrence.
-  const activeCitationFlag = (() => {
-    if (!activeCitation || !editor || !citationFlags?.length) return undefined
-    if (citationPopoverData === 'loading' || !citationPopoverData?.matchedSource) return undefined
+  // A popover open on an Unmatched citation may just be looking at a stale `literature` array
+  // (see onRequestLiteratureRefresh's own doc comment) rather than a genuinely absent source.
+  // Ask the parent to refetch once per popover-open — keyed on the clicked span's position so
+  // re-opening the same citation (e.g. after the refetch still leaves it unmatched) doesn't loop.
+  const refreshedForCitationRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!activeCitation) { refreshedForCitationRef.current = null; return }
+    if (citationPopoverData === 'loading' || !citationPopoverData) return
+    if (refreshedForCitationRef.current === activeCitation.hit.from) return
+    if (citationPopoverData.some(entry => !entry.matchedSource)) {
+      refreshedForCitationRef.current = activeCitation.hit.from
+      onRequestLiteratureRefresh?.()
+    }
+  }, [activeCitation, citationPopoverData, onRequestLiteratureRefresh])
+
+  // Best-effort: when a resolved source carries an open integrity flag, surface it in the
+  // popover next to that specific entry. Disambiguates by proximity when the same source is
+  // cited more than once in this section (see findFlagForHit) using the text immediately
+  // around the clicked occurrence. Indexed by position in citationPopoverData so a grouped
+  // citation can show a flag on just the clause it belongs to.
+  const activeCitationFlags: (CitationFlag | undefined)[] = (() => {
+    if (!activeCitation || !editor || !citationFlags?.length) return []
+    if (citationPopoverData === 'loading' || !citationPopoverData) return []
     const docSize = editor.state.doc.content.size
     const from = Math.max(0, activeCitation.hit.from - 300)
     const to   = Math.min(docSize, activeCitation.hit.to + 300)
     const surrounding = editor.state.doc.textBetween(from, to, ' ')
-    return findFlagForHit(citationPopoverData.doi, surrounding, citationFlags)
+    return citationPopoverData.map(entry =>
+      entry.matchedSource ? findFlagForHit(entry.doi, surrounding, citationFlags) : undefined)
   })()
 
   const handleRemoveCitation = () => {
@@ -505,6 +557,19 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
   // stays in sync with every keystroke via onContentChange, so this doesn't lag typing.
   const wordCount      = countBodyWords(content)
   const isApproved     = status === 'Approved'
+  const openFlags      = (citationFlags ?? []).filter(f =>
+    f.status === 'Open' &&
+    f.mismatchTypes.some(m =>
+      m === 'ClaimContentMismatch' || m === 'ImplausibleYear' || m === 'UnresolvedCitation'
+      || m === 'GeographicMismatch' || m === 'GeneralizationBeyondSample'
+      || m === 'PopulationScopeViolation'
+      // A reference-list line with no author/prose around it (see ResearchService's
+      // ExtractAndResolveCitations) — the pre-approval signal that was missing entirely before
+      // the 2026-08 "3.1 Problem Statement" remediation: this section's body may be reference-list
+      // shaped rather than prose, and the student should see a warning before clicking Approve.
+      || m === 'MalformedCitationShape')
+  )
+  const hasOpenFlags   = openFlags.length > 0 || content.includes('[CITATION NEEDED]')
 
   // ── Word Count Modal ────────────────────────────────────────────────────────
   const [showWCModal,     setShowWCModal]     = useState(false)
@@ -597,12 +662,14 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
         <CitationPopover
           anchor={activeCitation.anchor}
           data={citationPopoverData}
-          flag={activeCitationFlag}
+          flags={activeCitationFlags}
+          literature={literature ?? []}
+          busyFlagId={busyCitationFlagId}
           onClose={() => setActiveCitation(null)}
           onRemove={handleRemoveCitation}
-          onDismissFlag={activeCitationFlag && onDismissCitationFlag
-            ? () => { onDismissCitationFlag(activeCitationFlag.id); setActiveCitation(null) }
-            : undefined}
+          onRepairFlag={onRepairCitationFlag}
+          onRemoveClaim={onRemoveCitationClaim}
+          onDismissFlag={onDismissCitationFlag}
         />
       )}
 
@@ -748,12 +815,9 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
                   </button>
                   <button
                     onMouseDown={e => { e.preventDefault(); onApprove() }}
-                    disabled={isApproved}
+                    disabled={isApproved && !hasOpenFlags}
                     className={cn(
                       'flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors',
-                      isApproved
-                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default'
-                        : 'bg-emerald-500 hover:bg-emerald-600 text-white',
                     )}
                   >
                     <ThumbsUp size={12} />
@@ -762,7 +826,14 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
                 </>
               ) : (
                 <button
-                  onMouseDown={e => { e.preventDefault(); setShowWCModal(true) }}
+                  onMouseDown={e => {
+                    e.preventDefault()
+                    if (generateImmediately) {
+                      onGenerate(defaultTargetWordCount)
+                    } else {
+                      setShowWCModal(true)
+                    }
+                  }}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-[13px] font-semibold transition-colors"
                 >
                   <Sparkles size={13} /> Generate Entire Section
@@ -770,6 +841,40 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
               )}
             </div>
           </div>
+
+          {/* docs/OPEN_ITEMS.md #42 piece (b) — non-null only for a hardcoded, temporary set of
+              known (project, section) pairs; see ResearchService.MethodologyReviewAdvisory. No
+              dismiss action: the underlying issue is resolved by regenerating the section, not by
+              acknowledging this banner. */}
+          {methodologyReviewAdvisory && (
+            <div className="flex items-start gap-2 px-6 py-3 border-b border-amber-200 bg-amber-50">
+              <AlertTriangle size={15} className="text-amber-500 mt-0.5 shrink-0" />
+              <p className="text-[12.5px] text-amber-800 leading-relaxed">{methodologyReviewAdvisory}</p>
+            </div>
+          )}
+
+          {hasUnresolvedCitationGap && (
+            <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-red-200 bg-red-50">
+              <div className="flex items-start gap-2 min-w-0">
+                <AlertTriangle size={15} className="text-red-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[12.5px] font-semibold text-red-800">A source is missing from this draft</p>
+                  <p className="text-[11.5px] text-red-700 leading-relaxed">
+                    Replace [CITATION NEEDED] with a verified project reference before approval or export.
+                  </p>
+                </div>
+              </div>
+              {onResolveCitationGap && (
+                <button
+                  type="button"
+                  onMouseDown={e => { e.preventDefault(); onResolveCitationGap() }}
+                  className="shrink-0 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-[11.5px] font-semibold text-red-700 hover:bg-red-100 transition-colors"
+                >
+                  Open references
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Formatting toolbar — a single sticky row, grouped into zones by vertical
               dividers. No floating/bubble menu — everything lives here so nothing can
@@ -1006,6 +1111,15 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
                 title="Checking each citation's claim, journal, and authors against the real source — mismatches (if any) will appear as flags in a few seconds."
               >
                 <Loader2 size={10} className="animate-spin" /> Verifying citations…
+              </span>
+            )}
+
+            {isUnderReferenced && (
+              <span
+                className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700"
+                title="A bounded regeneration retry still did not reach this section's configured distinct-source target. Review citation fit before approval."
+              >
+                <AlertTriangle size={11} /> Under-referenced: {resolvedCitationCount ?? 0}/{citationTarget ?? 0}
               </span>
             )}
 

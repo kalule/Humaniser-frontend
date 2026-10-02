@@ -72,6 +72,7 @@ interface SystematicReviewStore {
   uploadPdf:                     (id: string, paperId: string, file: File) => Promise<import('../types/systematicReview').FullTextScreeningRecord>
   useAbstractFallback:           (id: string, paperId: string) => Promise<import('../types/systematicReview').FullTextScreeningRecord>
   useAbstractFallbackForAll:     (id: string) => Promise<{ affectedCount: number }>
+  recoverAbstracts:              (id: string) => Promise<import('../types/systematicReview').RecoverAbstractsResult>
   runFullTextScreening:          (id: string) => Promise<{ jobId: string }>
   getFullTextScreeningRunStatus: (id: string) => Promise<import('../types/systematicReview').FullTextScreeningRunStatus>
   getPaperFullText:              (id: string, paperId: string) => Promise<{ fullTextContent: string | null }>
@@ -80,8 +81,9 @@ interface SystematicReviewStore {
   getReviewSummary: (id: string) => Promise<import('../types/systematicReview').ReviewSummary>
 
   // ── Data Extraction step ──────────────────────────────────────────────────
-  addExtractionVariable:       (id: string, name: string, isAiSuggested?: boolean) => Promise<import('../types/systematicReview').ExtractionVariable>
-  suggestExtractionVariables:  (id: string) => Promise<string[]>
+  addExtractionVariable:       (id: string, name: string, isAiSuggested?: boolean, isOutcome?: boolean) => Promise<import('../types/systematicReview').ExtractionVariable>
+  suggestExtractionVariables:  (id: string) => Promise<import('../types/systematicReview').SuggestedExtractionVariable[]>
+  suggestOutcomeFlags:         (id: string) => Promise<number>
   deleteExtractionVariable:    (id: string, variableId: string) => Promise<void>
   clearExtractionVariables:    (id: string) => Promise<{ removedVariableCount: number; removedValueCount: number }>
   getExtractionRecords:        (id: string, params?: { search?: string; source?: string; filter?: import('../types/systematicReview').ExtractionFilter; page?: number; pageSize?: number }) => Promise<import('../types/systematicReview').PaginatedExtraction>
@@ -116,10 +118,11 @@ interface SystematicReviewStore {
 
   // ── Write SLR step ──────────────────────────────────────────────────────────
   getManuscript:                (id: string) => Promise<import('../types/systematicReview').Manuscript | null>
-  generateManuscript:           (id: string) => Promise<void>
+  /** Rejects with a MANUSCRIPT_NOT_READY ApiError when screening is unfinished, unless acknowledged. */
+  generateManuscript:           (id: string, acknowledgeIncomplete?: boolean) => Promise<void>
   regenerateManuscriptSection:  (id: string, sectionKey: import('../types/systematicReview').ManuscriptSectionKey) => Promise<import('../types/systematicReview').ManuscriptSection>
   updateManuscriptSection:      (id: string, sectionKey: import('../types/systematicReview').ManuscriptSectionKey, content: string) => Promise<import('../types/systematicReview').ManuscriptSection>
-  exportManuscript:             (id: string) => Promise<Blob>
+  exportManuscript:             (id: string, acknowledgeConflicts?: boolean) => Promise<Blob>
 
   // ── Export step ──────────────────────────────────────────────────────────
   exportPapersCsv:          (id: string) => Promise<Blob>
@@ -132,7 +135,8 @@ interface SystematicReviewStore {
   getPrismaFlow:            (id: string) => Promise<import('../types/systematicReview').PrismaFlow>
 
   // ── Citation Chaining (Snowballing) step ──────────────────────────────────
-  runSnowballSearch: (id: string) => Promise<import('../types/systematicReview').SnowballResult>
+  runSnowballSearch: (id: string) => Promise<import('../types/systematicReview').SnowballStatus>
+  getSnowballStatus: (id: string) => Promise<import('../types/systematicReview').SnowballStatus>
 }
 
 const safeLocalStorage: StateStorage = {
@@ -321,6 +325,7 @@ export const useSystematicReviewStore = create<SystematicReviewStore>()(
       uploadPdf: async (id, paperId, file) => systematicReviewApi.uploadPdf(id, paperId, file),
       useAbstractFallback: async (id, paperId) => systematicReviewApi.useAbstractFallback(id, paperId),
       useAbstractFallbackForAll: async (id) => systematicReviewApi.useAbstractFallbackForAll(id),
+      recoverAbstracts: async (id) => systematicReviewApi.recoverAbstracts(id),
       runFullTextScreening: async (id) => systematicReviewApi.runFullTextScreening(id),
       getFullTextScreeningRunStatus: async (id) => systematicReviewApi.getFullTextScreeningRunStatus(id),
       getPaperFullText: async (id, paperId) => systematicReviewApi.getPaperFullText(id, paperId),
@@ -329,8 +334,8 @@ export const useSystematicReviewStore = create<SystematicReviewStore>()(
       getReviewSummary: async (id) => systematicReviewApi.getReviewSummary(id),
 
       // ── Data Extraction step ────────────────────────────────────────────
-      addExtractionVariable: async (id, name, isAiSuggested) => {
-        const variable = await systematicReviewApi.addExtractionVariable(id, name, isAiSuggested)
+      addExtractionVariable: async (id, name, isAiSuggested, isOutcome) => {
+        const variable = await systematicReviewApi.addExtractionVariable(id, name, isAiSuggested, isOutcome)
         set(s => {
           const detail = s.details[id]
           if (!detail) return {}
@@ -340,6 +345,8 @@ export const useSystematicReviewStore = create<SystematicReviewStore>()(
       },
 
       suggestExtractionVariables: async (id) => systematicReviewApi.suggestExtractionVariables(id),
+
+      suggestOutcomeFlags: async (id) => systematicReviewApi.suggestOutcomeFlags(id),
 
       deleteExtractionVariable: async (id, variableId) => {
         await systematicReviewApi.deleteExtractionVariable(id, variableId)
@@ -440,8 +447,8 @@ export const useSystematicReviewStore = create<SystematicReviewStore>()(
       // ── Write SLR step ───────────────────────────────────────────────
       getManuscript: async (id) => systematicReviewApi.getManuscript(id),
 
-      generateManuscript: async (id) => {
-        const manuscript = await systematicReviewApi.generateManuscript(id)
+      generateManuscript: async (id, acknowledgeIncomplete = false) => {
+        const manuscript = await systematicReviewApi.generateManuscript(id, acknowledgeIncomplete)
         set(s => {
           const detail = s.details[id]
           if (!detail) return {}
@@ -485,7 +492,7 @@ export const useSystematicReviewStore = create<SystematicReviewStore>()(
         return section
       },
 
-      exportManuscript: async (id) => systematicReviewApi.exportManuscript(id),
+      exportManuscript: async (id, acknowledgeConflicts) => systematicReviewApi.exportManuscript(id, acknowledgeConflicts),
 
       // ── Export step ────────────────────────────────────────────────
       exportPapersCsv: async (id) => systematicReviewApi.exportPapersCsv(id),
@@ -498,20 +505,13 @@ export const useSystematicReviewStore = create<SystematicReviewStore>()(
       getPrismaFlow: async (id) => systematicReviewApi.getPrismaFlow(id),
 
       // ── Citation Chaining (Snowballing) step ───────────────────────────
-      runSnowballSearch: async (id) => {
-        const result = await systematicReviewApi.runSnowballSearch(id)
-        if (result.newPapersAdded > 0) {
-          set(s => {
-            const detail = s.details[id]
-            if (!detail) return {}
-            return {
-              reviews: s.reviews.map(r => (r.id === id ? { ...r, paperCount: r.paperCount + result.newPapersAdded } : r)),
-              details: { ...s.details, [id]: { ...detail, paperCount: detail.paperCount + result.newPapersAdded } },
-            }
-          })
-        }
-        return result
-      },
+      runSnowballSearch: async (id) => systematicReviewApi.runSnowballSearch(id),
+
+      // No optimistic paperCount update here, unlike the old synchronous version. That call fired
+      // exactly once, so adding newPapersAdded to the cached count was safe; a polled status can be
+      // read any number of times — including after a remount — and would add the same papers again
+      // each time. The step reloads the review when the run finishes, which is the accurate count.
+      getSnowballStatus: async (id) => systematicReviewApi.getSnowballStatus(id),
     }),
     {
       name: 'humanise-systematic-review',

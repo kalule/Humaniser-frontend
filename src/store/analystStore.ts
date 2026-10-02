@@ -12,6 +12,13 @@ import type {
 type WizardStep = 'objectives' | 'variables' | 'blueprint' | null
 
 interface AnalystStore {
+  // Every dataset uploaded this session — the sidebar's source of truth.
+  datasets:            DatasetSchema[]
+  // Which uploaded datasets are checked "in" for the next query. selectedDatasetIds[0]
+  // is the "primary" dataset — datasetId/schema below always mirror it, so every
+  // single-dataset tool (profile/clean/wizard/outliers/methodology) keeps working
+  // unchanged regardless of how many datasets are selected for the query itself.
+  selectedDatasetIds:  string[]
   datasetId:     string | null
   schema:        DatasetSchema | null
   messages:      AnalystMessage[]
@@ -34,7 +41,9 @@ interface AnalystStore {
   blueprint:             PreparationBlueprint | null
   isGeneratingBlueprint: boolean
 
-  setDataset:            (id: string, schema: DatasetSchema) => void
+  addDataset:            (id: string, schema: DatasetSchema) => void
+  toggleDatasetSelected: (id: string) => void
+  setPrimaryDataset:     (id: string) => void
   addMessage:            (msg: AnalystMessage) => void
   updateMessage:         (id: string, patch: Partial<AnalystMessage>) => void
   setUploading:          (v: boolean) => void
@@ -59,6 +68,8 @@ interface AnalystStore {
 }
 
 export const useAnalystStore = create<AnalystStore>((set) => ({
+  datasets:     [],
+  selectedDatasetIds: [],
   datasetId:    null,
   schema:       null,
   messages:     [],
@@ -79,12 +90,56 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
   blueprint:             null,
   isGeneratingBlueprint: false,
 
-  setDataset: (datasetId, schema) =>
-    set({
+  // A freshly-uploaded dataset becomes the sole selected + primary dataset — matches the
+  // pre-multi-dataset single-upload UX with zero extra clicks. The user then multi-selects
+  // in the sidebar if they want a joint query.
+  addDataset: (datasetId, schema) =>
+    set((s) => ({
+      datasets: [...s.datasets.filter((d) => d.datasetId !== datasetId), schema],
+      selectedDatasetIds: [datasetId],
       datasetId, schema, messages: [],
       healthReport: null, isCleaned: false,
       wizardStep: 'objectives', blueprint: null,
       sessionId: null, stepCount: 0,
+    })),
+
+  toggleDatasetSelected: (id) =>
+    set((s) => {
+      const isSelected = s.selectedDatasetIds.includes(id)
+      // Never allow deselecting down to zero — a query always needs at least one dataset.
+      if (isSelected && s.selectedDatasetIds.length === 1) return s
+
+      const nextSelected = isSelected
+        ? s.selectedDatasetIds.filter((d) => d !== id)
+        : [...s.selectedDatasetIds, id]
+
+      const primaryId = nextSelected[0]
+      const primarySchema = s.datasets.find((d) => d.datasetId === primaryId) ?? null
+
+      return {
+        selectedDatasetIds: nextSelected,
+        datasetId: primaryId ?? null,
+        schema:    primarySchema,
+      }
+    }),
+
+  setPrimaryDataset: (id) =>
+    set((s) => {
+      const schema = s.datasets.find((d) => d.datasetId === id)
+      if (!schema) return s
+
+      const nextSelected = s.selectedDatasetIds.includes(id)
+        ? [id, ...s.selectedDatasetIds.filter((d) => d !== id)]
+        : [id, ...s.selectedDatasetIds]
+
+      return {
+        selectedDatasetIds: nextSelected,
+        datasetId: id,
+        schema,
+        // Stale for whichever dataset was previously primary — recomputed on demand.
+        healthReport: null, isCleaned: false,
+        wizardStep: null, blueprint: null,
+      }
     }),
 
   addMessage: (msg) =>
@@ -104,7 +159,10 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
   setExporting:    (isExporting) => set({ isExporting }),
 
   applyCleanResult: (schema) =>
-    set({ schema, isCleaned: true, healthReport: null }),
+    set((s) => ({
+      schema, isCleaned: true, healthReport: null,
+      datasets: s.datasets.map((d) => (d.datasetId === s.datasetId ? schema : d)),
+    })),
 
   setWizardStep:          (wizardStep) => set({ wizardStep }),
   setBlueprint:           (blueprint)  => set({ blueprint }),
@@ -112,11 +170,12 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
   skipWizard: () => set({ wizardStep: null, blueprint: null }),
 
   completeWizard: (schema, primedMessage) =>
-    set({
+    set((s) => ({
       schema,
       isCleaned:  true,
       wizardStep: null,
       blueprint:  null,
+      datasets: s.datasets.map((d) => (d.datasetId === s.datasetId ? schema : d)),
       messages: [{
         id:        nanoid(),
         role:      'assistant',
@@ -124,9 +183,10 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
         status:    'complete',
         createdAt: new Date().toISOString(),
       }],
-    }),
+    })),
 
   reset: () => set({
+    datasets: [], selectedDatasetIds: [],
     datasetId: null, schema: null, messages: [],
     healthReport: null, isCleaned: false,
     wizardStep: null, blueprint: null, isGeneratingBlueprint: false,

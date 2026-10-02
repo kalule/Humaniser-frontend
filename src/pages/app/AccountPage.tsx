@@ -369,11 +369,14 @@ function BillingTab() {
     queryFn: () => userApi.getUsage().then((r) => r.data),
   })
 
-  const { data: subscription, isLoading: subLoading } = useQuery({
+  const { data: subscriptionStatus, isLoading: subLoading } = useQuery({
     queryKey: ['subscription'],
+    // GET /subscription/status returns { plan, hasActiveSubscription, subscription } — unwrap
+    // the nested subscription below rather than treating the wrapper as the subscription itself.
     queryFn: () => subscriptionApi.getStatus().then((r) => r.data),
     enabled: user?.plan !== 'Free',
   })
+  const subscription = subscriptionStatus?.subscription ?? undefined
 
   const portalMutation = useMutation({
     mutationFn: () => subscriptionApi.getPortalUrl().then((r) => r.data),
@@ -392,7 +395,7 @@ function BillingTab() {
         : ('plan-free' as const)
 
   const planPrice =
-    planLabel === 'Pro' ? 'R149/month' : planLabel === 'Unlimited' ? 'R299/month' : 'Free'
+    planLabel === 'Pro' ? '$10/month' : planLabel === 'Unlimited' ? '$20/month' : 'Free'
 
   return (
     <div className="space-y-6 max-w-lg">
@@ -456,7 +459,7 @@ function BillingTab() {
               <span
                 className={cn(
                   'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                  subscription.status === 'active'
+                  subscription.status === 'Active'
                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                     : 'bg-amber-50 text-amber-700 border border-amber-200',
                 )}

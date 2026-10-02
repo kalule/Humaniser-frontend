@@ -4,49 +4,97 @@ import type {
   AlignmentIssue,
   AlignmentValidationResult,
   ApproveCorpusPayload,
+  CanonicalResearchPlan,
   CitationFlag,
+  CitationFixAction,
   CitationStyle,
   DefencePreparation,
   DimensionCoverageSummary,
   DiscoveryConfig,
   DiscoveryStatus,
+  DiversifiedShortlist,
   DocumentMode,
   ImportManualPaperPayload,
   ExternalProposalJobResult,
   FactConflict,
   ExternalFact,
   FetchedLiterature,
+  DashboardLiteratureFilter,
+  DashboardLiteraturePage,
+  LiteratureCitationSummary,
   GatherMode,
   GeneratedTitle,
   GenerationStatus,
   GeneratorMode,
   GraphGap,
+  InstrumentDetail,
+  InstrumentSource,
+  InstrumentStatus,
+  InstrumentSummary,
+  InstrumentType,
   LiteratureCsvImportResult,
   LiteratureDimension,
   LiteratureSearchQuery,
   MethodologyAnchorCandidate,
+  ConfirmMethodologyPayload,
+  MethodologyChangeImpact,
   MilestoneStatus,
   ProjectAnalysisPlan,
+  ProjectDataset,
   ProjectHypothesis,
   ProjectSection,
+  ProjectSectionVersion,
+  ProposalThesisMappingResult,
   ReadinessEvaluation,
   ResearchProject,
   ResearchRoadmap,
+  ResearchState,
   ResearchTopic,
   ScreeningCandidate,
   ScreeningCandidateFilters,
   ScreeningCandidateList,
   ScreeningStatus,
+  SectionEvidenceCoverageAudit,
   SectionFixPreview,
   ThesisAuditResult,
+  ThesisChapterPlan,
+  TopicScope,
+  UniversityTemplateDetail,
+  UniversityTemplateSummary,
   UpdateHypothesisPayload,
   ValidationSummary,
+  EthicsChecklist,
+  EthicsDocument,
+  EthicsDocumentStatus,
+  MethodologyClassification,
+  ConfirmMethodologyClassificationPayload,
 } from '../types/research'
 
 type Wrap<T> = { success: boolean; data: T }
 const unwrap = <T>(res: { data: Wrap<T> }): T => res.data.data ?? (res.data as unknown as T)
 
 // ── Payloads ──────────────────────────────────────────────────────────────────
+
+// Backend response shape for POST .../methodology-recommendation — mirrors
+// src/lib/methodologyRecommendation.ts's MethodologyRecommendation minus inputFingerprint/version,
+// which the caller attaches locally (frontend-only bookkeeping, not something the backend needs
+// to know about).
+export interface BackendMethodologyRecommendation {
+  approach: 'Qualitative' | 'Quantitative' | 'Mixed Methods' | 'Undetermined'
+  design?: string | null
+  dataCollection: string[]
+  analysis: string[]
+  timeFrame: 'Cross-sectional' | 'Longitudinal' | 'Unspecified'
+  rationale: string
+  signals: string[]
+  assumptions: string[]
+  missingInformation: string[]
+  confidence: 'High' | 'Moderate' | 'Low'
+  confidenceReason: string
+  alternative?: string | null
+  clarificationQuestion?: string | null
+  clarificationOptions: string[]
+}
 
 export interface CreateProjectPayload {
   generatorMode: GeneratorMode
@@ -110,6 +158,42 @@ export const researchApi = {
       { chosenTopic, academicLevel },
     )),
 
+  // AI-driven methodology suggestion — reads the project's own current Title/topic/location/
+  // population/level server-side (no body needed). Shape matches
+  // src/lib/methodologyRecommendation.ts's MethodologyRecommendation minus inputFingerprint/
+  // version, which the caller attaches locally since those are frontend-only bookkeeping.
+  recommendMethodology: async (
+    projectId: string,
+    clarificationAnswer?: string,
+  ): Promise<BackendMethodologyRecommendation> =>
+    unwrap(await client.post<Wrap<BackendMethodologyRecommendation>>(
+      `/api/v1/research/projects/${projectId}/methodology-recommendation`,
+      clarificationAnswer ? { clarificationAnswer } : {},
+    )),
+
+  // docs/OPEN_ITEMS.md #81 — the explicit "Confirm Methodology" action. Distinct from `sync`
+  // above (which still only writes the free-editing scratch methodologyType/methodologySubType
+  // fields) — this is what unlocks generation/approval for methodology-sensitive sections.
+  confirmMethodology: async (
+    projectId: string,
+    payload: ConfirmMethodologyPayload,
+  ): Promise<ResearchProject> =>
+    unwrap(await client.post<Wrap<ResearchProject>>(
+      `/api/v1/research/projects/${projectId}/methodology/confirm`,
+      payload,
+    )),
+
+  // "Impact warning before changing methodology" — read-only preview of what confirming
+  // `candidateMethodologyType` would invalidate, before the student commits.
+  previewMethodologyChangeImpact: async (
+    projectId: string,
+    candidateMethodologyType: string,
+  ): Promise<MethodologyChangeImpact> =>
+    unwrap(await client.get<Wrap<MethodologyChangeImpact>>(
+      `/api/v1/research/projects/${projectId}/methodology/change-impact`,
+      { params: { candidateMethodologyType } },
+    )),
+
   delete: async (id: string): Promise<void> => {
     await client.delete(`/api/v1/research/projects/${id}`)
   },
@@ -131,10 +215,10 @@ export const researchApi = {
   // minutes and no longer happens inline, so this call itself only does fast validation and
   // returns almost immediately. A short timeout is intentional; the sections poll (see
   // ResearchAgentPage's isGenerating effect) is what tracks the run to completion.
-  generateSection: async (projectId: string, code: string, prompt: string, targetWordCount?: number): Promise<ProjectSection> =>
+  generateSection: async (projectId: string, code: string, targetWordCount?: number): Promise<ProjectSection> =>
     unwrap(await client.post<Wrap<ProjectSection>>(
       `/api/v1/research/projects/${projectId}/sections/generate`,
-      { prompt },
+      null,
       { params: { code, ...(targetWordCount ? { target_word_count: targetWordCount } : {}) }, timeout: 20_000 },
     )),
 
@@ -153,19 +237,20 @@ export const researchApi = {
     )),
 
   // Same enqueue-and-return contract as generateSection above — see its comment.
-  regenerateSection: async (projectId: string, code: string, prompt: string): Promise<ProjectSection> =>
+  regenerateSection: async (projectId: string, code: string): Promise<ProjectSection> =>
     unwrap(await client.post<Wrap<ProjectSection>>(
       `/api/v1/research/projects/${projectId}/sections/regenerate`,
-      { prompt },
+      null,
       { params: { code }, timeout: 20_000 },
     )),
 
   // ── Autonomous generation (AI Thesis) — server-driven, survives tab close ───
 
-  generateAutonomous: async (projectId: string, targetWordCount: number): Promise<GenerationStatus> =>
+  generateAutonomous: async (projectId: string, targetWordCount: number, autoRepairValidation = false): Promise<GenerationStatus> =>
     unwrap(await client.post<Wrap<GenerationStatus>>(
       `/api/v1/research/projects/${projectId}/generate-autonomous`,
-      { targetWordCount },
+      { targetWordCount, autoRepairValidation },
+      { timeout: autoRepairValidation ? 45_000 : 20_000 },
     )),
 
   getGenerationStatus: async (projectId: string): Promise<GenerationStatus> =>
@@ -214,9 +299,30 @@ export const researchApi = {
       `/api/v1/research/projects/${projectId}/sections/${sectionCode}/citation-flags`,
     )),
 
-  dismissCitationFlag: async (projectId: string, flagId: string): Promise<void> => {
-    await client.post(`/api/v1/research/projects/${projectId}/citation-flags/${flagId}/dismiss`)
+  dismissCitationFlag: async (projectId: string, flagId: string, reason?: string): Promise<void> => {
+    await client.post(`/api/v1/research/projects/${projectId}/citation-flags/${flagId}/dismiss`, { reason })
   },
+
+  previewCitationFix: async (
+    projectId: string, flagId: string, action: CitationFixAction, replacementLiteratureId?: string,
+  ): Promise<SectionFixPreview> =>
+    unwrap(await client.post<Wrap<SectionFixPreview>>(
+      `/api/v1/research/projects/${projectId}/citation-flags/${flagId}/fix`,
+      { action, replacementLiteratureId },
+    )),
+
+  confirmCitationFix: async (
+    projectId: string, flagId: string, action: CitationFixAction, proposedContent: string,
+  ): Promise<ProjectSection> =>
+    unwrap(await client.post<Wrap<ProjectSection>>(
+      `/api/v1/research/projects/${projectId}/citation-flags/${flagId}/fix/confirm`,
+      { action, proposedContent },
+    )),
+
+  removeCitationClaim: async (projectId: string, flagId: string): Promise<ProjectSection> =>
+    unwrap(await client.post<Wrap<ProjectSection>>(
+      `/api/v1/research/projects/${projectId}/citation-flags/${flagId}/remove-claim`,
+    )),
 
   getFactConflicts: async (projectId: string): Promise<FactConflict[]> =>
     unwrap(await client.get<Wrap<FactConflict[]>>(
@@ -249,10 +355,10 @@ export const researchApi = {
     return res.bibliography
   },
 
-  exportDocx: async (projectId: string): Promise<Blob> => {
+  exportDocx: async (projectId: string, acknowledgeCitationIssues = false): Promise<Blob> => {
     const res = await client.get<Blob>(
       `/api/v1/research/projects/${projectId}/export-docx`,
-      { responseType: 'blob' },
+      { responseType: 'blob', params: { acknowledgeCitationIssues } },
     )
     return res.data
   },
@@ -262,6 +368,27 @@ export const researchApi = {
       `/api/v1/research/projects/${projectId}/literature`,
     )),
 
+  // Promote/demote one source in the project's approved corpus. Nothing else in the proposal flow
+  // could set IncludedByStudent, which left every approved-corpus-gated feature dead — see the
+  // backend's SetLiteratureInclusionAsync for the full account.
+  setLiteratureInclusion: async (
+    projectId: string, literatureId: string, included: boolean,
+  ): Promise<FetchedLiterature> =>
+    unwrap(await client.put<Wrap<FetchedLiterature>>(
+      `/api/v1/research/projects/${projectId}/literature/${literatureId}/inclusion`,
+      { included },
+    )),
+
+  getDashboardLiterature: async (
+    projectId: string,
+    params: { filter: DashboardLiteratureFilter; search?: string; page: number; pageSize?: number },
+    signal?: AbortSignal,
+  ): Promise<DashboardLiteraturePage> =>
+    unwrap(await client.get<Wrap<DashboardLiteraturePage>>(
+      `/api/v1/research/projects/${projectId}/dashboard-literature`,
+      { params, signal },
+    )),
+
   // ── Sprint 3: Hypotheses & Analysis Plan ──────────────────────────────────
 
   getHypotheses: async (projectId: string): Promise<ProjectHypothesis[]> =>
@@ -269,9 +396,11 @@ export const researchApi = {
       `/api/v1/research/projects/${projectId}/hypotheses`,
     )),
 
-  generateHypotheses: async (projectId: string): Promise<ProjectHypothesis[]> =>
+  generateHypotheses: async (projectId: string, force = false): Promise<ProjectHypothesis[]> =>
     unwrap(await client.post<Wrap<ProjectHypothesis[]>>(
       `/api/v1/research/projects/${projectId}/hypotheses/generate`,
+      null,
+      { params: { force } },
     )),
 
   updateHypothesis: async (hypothesisId: string, payload: UpdateHypothesisPayload): Promise<ProjectHypothesis> =>
@@ -323,6 +452,22 @@ export const researchApi = {
       { sessionId },
     )),
 
+  getLiteratureCitationSummary: async (projectId: string): Promise<LiteratureCitationSummary> =>
+    unwrap(await client.get<Wrap<LiteratureCitationSummary>>(
+      `/api/v1/research/projects/${projectId}/literature/citation-summary`,
+    )),
+
+  getProjectDatasets: async (projectId: string): Promise<ProjectDataset[]> =>
+    unwrap(await client.get<Wrap<ProjectDataset[]>>(
+      `/api/v1/research/projects/${projectId}/datasets`,
+    )),
+
+  linkDataset: async (projectId: string, datasetId: string): Promise<ProjectDataset> =>
+    unwrap(await client.post<Wrap<ProjectDataset>>(
+      `/api/v1/research/projects/${projectId}/datasets/link`,
+      { datasetId },
+    )),
+
   generateDefence: async (projectId: string): Promise<DefencePreparation> =>
     unwrap(await client.post<Wrap<DefencePreparation>>(
       `/api/v1/research/projects/${projectId}/generate-defence`,
@@ -363,6 +508,63 @@ export const researchApi = {
       { timeout: 120_000 },
     )),
 
+  // ── Thesis Foundation (Phase 1) ─────────────────────────────────────────────
+
+  setResearchState: async (projectId: string, researchState: ResearchState): Promise<ResearchProject> =>
+    unwrap(await client.patch<Wrap<ResearchProject>>(
+      `/api/v1/research/projects/${projectId}/research-state`,
+      { researchState },
+    )),
+
+  getCanonicalResearchPlans: async (projectId: string): Promise<CanonicalResearchPlan[]> =>
+    unwrap(await client.get<Wrap<CanonicalResearchPlan[]>>(
+      `/api/v1/research/projects/${projectId}/canonical-plan`,
+    )),
+
+  getThesisChapterPlan: async (projectId: string): Promise<ThesisChapterPlan> =>
+    unwrap(await client.get<Wrap<ThesisChapterPlan>>(
+      `/api/v1/research/projects/${projectId}/thesis-chapter-plan`,
+    )),
+
+  listUniversityTemplates: async (): Promise<UniversityTemplateSummary[]> =>
+    unwrap(await client.get<Wrap<UniversityTemplateSummary[]>>('/api/v1/university-templates')),
+
+  getUniversityTemplate: async (id: string): Promise<UniversityTemplateDetail> =>
+    unwrap(await client.get<Wrap<UniversityTemplateDetail>>(`/api/v1/university-templates/${id}`)),
+
+  setUniversityTemplate: async (projectId: string, universityTemplateId: string | null): Promise<ResearchProject> =>
+    unwrap(await client.patch<Wrap<ResearchProject>>(
+      `/api/v1/research/projects/${projectId}/university-template`,
+      { universityTemplateId },
+    )),
+
+  // ── Thesis Foundation (Phase 2) ─────────────────────────────────────────────
+
+  getSectionVersions: async (projectId: string, code: string): Promise<ProjectSectionVersion[]> =>
+    unwrap(await client.get<Wrap<ProjectSectionVersion[]>>(
+      `/api/v1/research/projects/${projectId}/sections/${code}/versions`,
+    )),
+
+  restoreSectionVersion: async (projectId: string, code: string, versionNumber: number): Promise<ProjectSection> =>
+    unwrap(await client.post<Wrap<ProjectSection>>(
+      `/api/v1/research/projects/${projectId}/sections/${code}/versions/${versionNumber}/restore`,
+    )),
+
+  previewContentMapping: async (projectId: string): Promise<ProposalThesisMappingResult> =>
+    unwrap(await client.get<Wrap<ProposalThesisMappingResult>>(
+      `/api/v1/research/projects/${projectId}/thesis/content-mapping/preview`,
+    )),
+
+  applyContentMapping: async (projectId: string): Promise<ProposalThesisMappingResult> =>
+    unwrap(await client.post<Wrap<ProposalThesisMappingResult>>(
+      `/api/v1/research/projects/${projectId}/thesis/content-mapping/apply`,
+    )),
+
+  getEvidenceCoverageAudit: async (projectId: string, code: string): Promise<SectionEvidenceCoverageAudit> =>
+    unwrap(await client.get<Wrap<SectionEvidenceCoverageAudit>>(
+      `/api/v1/research/projects/${projectId}/sections/${code}/evidence-coverage-audit`,
+    )),
+
   uploadExternalProposal: async (file: File): Promise<{ jobId: string }> => {
     const form = new FormData()
     form.append('file', file)
@@ -393,11 +595,19 @@ export const researchApi = {
 
   updateDiscoveryConfig: async (
     projectId: string,
-    payload: { strategy: string; candidateCap: number; selectedDatabases: string[]; dimensions: LiteratureDimension[] },
+    payload: {
+      strategy: string; candidateCap: number; selectedDatabases: string[]
+      topicScope?: TopicScope; dimensions: LiteratureDimension[]
+    },
   ): Promise<DiscoveryConfig> =>
     unwrap(await client.put<Wrap<DiscoveryConfig>>(
       `/api/v1/research/projects/${projectId}/literature-discovery/config`,
       payload,
+    )),
+
+  generateTopicScope: async (projectId: string): Promise<TopicScope> =>
+    unwrap(await client.post<Wrap<TopicScope>>(
+      `/api/v1/research/projects/${projectId}/literature-discovery/topic-scope/generate`,
     )),
 
   generateDiscoveryDimensions: async (projectId: string): Promise<LiteratureDimension[]> =>
@@ -495,6 +705,11 @@ export const researchApi = {
       `/api/v1/research/projects/${projectId}/screening/dimension-coverage`,
     )),
 
+  getDiversifiedShortlist: async (projectId: string): Promise<DiversifiedShortlist> =>
+    unwrap(await client.get<Wrap<DiversifiedShortlist>>(
+      `/api/v1/research/projects/${projectId}/screening/shortlist`,
+    )),
+
   getScreeningCandidates: async (
     projectId: string, filters: ScreeningCandidateFilters,
   ): Promise<ScreeningCandidateList> =>
@@ -533,6 +748,73 @@ export const researchApi = {
     unwrap(await client.patch<Wrap<ResearchRoadmap>>(
       `/api/v1/research/projects/${projectId}/roadmap/${milestoneKey}`,
       { status, notes },
+    )),
+
+  // ── Instrument Designer ──────────────────────────────────────────────────────
+
+  getAvailableInstrumentTypes: async (projectId: string): Promise<InstrumentType[]> =>
+    unwrap(await client.get<Wrap<InstrumentType[]>>(
+      `/api/v1/instruments/projects/${projectId}/available-types`,
+    )),
+
+  getInstruments: async (projectId: string): Promise<InstrumentSummary[]> =>
+    unwrap(await client.get<Wrap<InstrumentSummary[]>>(
+      `/api/v1/instruments/projects/${projectId}`,
+    )),
+
+  createInstrument: async (
+    projectId: string, instrumentType: InstrumentType, title: string,
+  ): Promise<InstrumentSummary> =>
+    unwrap(await client.post<Wrap<InstrumentSummary>>(
+      `/api/v1/instruments/projects/${projectId}`,
+      { instrumentType, title },
+    )),
+
+  importInstrument: async (
+    projectId: string, instrumentType: InstrumentType, title: string,
+    source: Exclude<InstrumentSource, 'AiGenerated'>, content: string, fileName?: string | null,
+    file?: File | null,
+  ): Promise<InstrumentDetail> => {
+    const form = new FormData()
+    form.append('instrumentType', instrumentType)
+    form.append('title', title)
+    form.append('source', source)
+    form.append('content', content)
+    if (fileName) form.append('fileName', fileName)
+    if (file) form.append('file', file)
+    return unwrap(await client.post<Wrap<InstrumentDetail>>(
+      `/api/v1/instruments/projects/${projectId}/import`,
+      form,
+    ))
+  },
+
+  downloadInstrumentFile: async (instrumentId: string): Promise<Blob> => {
+    const res = await client.get<Blob>(
+      `/api/v1/instruments/${instrumentId}/file`,
+      { responseType: 'blob' },
+    )
+    return res.data
+  },
+
+  generateInstrumentItems: async (
+    instrumentId: string, researchQuestionNumbers?: number[],
+  ): Promise<InstrumentDetail> =>
+    unwrap(await client.post<Wrap<InstrumentDetail>>(
+      `/api/v1/instruments/${instrumentId}/generate`,
+      { researchQuestionNumbers: researchQuestionNumbers ?? null },
+    )),
+
+  getInstrument: async (instrumentId: string): Promise<InstrumentDetail> =>
+    unwrap(await client.get<Wrap<InstrumentDetail>>(
+      `/api/v1/instruments/${instrumentId}`,
+    )),
+
+  updateInstrumentStatus: async (
+    instrumentId: string, status: InstrumentStatus,
+  ): Promise<InstrumentDetail> =>
+    unwrap(await client.patch<Wrap<InstrumentDetail>>(
+      `/api/v1/instruments/${instrumentId}`,
+      { status },
     )),
 
   // ── Readiness Engine ───────────────────────────────────────────────────────
@@ -582,4 +864,25 @@ export const researchApi = {
       { accept },
     )
   },
+
+  getEthicsChecklist: async (projectId: string): Promise<EthicsChecklist> =>
+    unwrap(await client.get<Wrap<EthicsChecklist>>(`/api/v1/ethics/projects/${projectId}/documents`)),
+
+  proposeEthicsClassification: async (projectId: string): Promise<MethodologyClassification> =>
+    unwrap(await client.post<Wrap<MethodologyClassification>>(`/api/v1/ethics/projects/${projectId}/classify`)),
+
+  confirmEthicsClassification: async (
+    projectId: string, payload: ConfirmMethodologyClassificationPayload,
+  ): Promise<EthicsChecklist> =>
+    unwrap(await client.post<Wrap<EthicsChecklist>>(`/api/v1/ethics/projects/${projectId}/classify/confirm`, payload)),
+
+  draftEthicsDocument: async (projectId: string, documentType: string): Promise<EthicsDocument> =>
+    unwrap(await client.post<Wrap<EthicsDocument>>(`/api/v1/ethics/projects/${projectId}/documents/${encodeURIComponent(documentType)}/draft`)),
+
+  updateEthicsDocumentStatus: async (
+    projectId: string, documentType: string, status: Exclude<EthicsDocumentStatus, 'Required' | 'NotApplicable'>,
+  ): Promise<EthicsDocument> =>
+    unwrap(await client.patch<Wrap<EthicsDocument>>(
+      `/api/v1/ethics/projects/${projectId}/documents/${encodeURIComponent(documentType)}/status`, { status },
+    )),
 }

@@ -575,7 +575,7 @@ export function GenerationPanel({ gen, onToggleArticleView, onCancel, onClose, o
     Generating: `Writing ${gen.currentLabel}…`,
     Completed:  'Proposal generated!',
     Cancelled:  `Cancelled after ${gen.index} of ${PROPOSAL_SECTION_COUNT} sections`,
-    Error:      'Generation hit an error — it may still resume automatically. Check back shortly.',
+    Error:      'The agent could not continue after automatic retries. Your completed sections are safe.',
   }
 
   return (
@@ -638,6 +638,9 @@ export function GenerationPanel({ gen, onToggleArticleView, onCancel, onClose, o
             {gen.phase === 'Completed' && <Check size={26} className="text-emerald-500" />}
             <p className="text-[13px] font-medium text-slate-700">{statusText[gen.phase]}</p>
             {gen.phase === 'Starting' && <p className="text-[12px] text-slate-400">Preparing sections…</p>}
+            {gen.phase === 'Starting' && gen.index > 0 && (
+              <p className="text-[12px] text-violet-600">The agent is continuing automatically from your saved progress.</p>
+            )}
             {isActive && gen.stalled && (
               <p className="text-[12px] text-amber-600 max-w-xs text-center">
                 This is taking longer than usual. It should recover automatically within a
@@ -649,7 +652,7 @@ export function GenerationPanel({ gen, onToggleArticleView, onCancel, onClose, o
                 {gen.failedCount} section{gen.failedCount === 1 ? '' : 's'} failed and can be retried from the document editor.
               </p>
             )}
-            {(gen.phase === 'Completed' || gen.phase === 'Cancelled') && (
+            {(gen.phase === 'Completed' || gen.phase === 'Cancelled' || gen.phase === 'Error') && (
               <button
                 onClick={onOpenDocument}
                 className="mt-2 px-5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#4c1d95] text-white text-[13px] font-semibold transition-colors"
@@ -668,6 +671,41 @@ export function GenerationPanel({ gen, onToggleArticleView, onCancel, onClose, o
 // Wraps state/effects for the Autonomous Proposal creation + progress-polling
 // flow, so a consuming page (Proposal Studio) just needs to render the modal/
 // panel components above wired to the values returned here.
+
+// The backend's ProposalGenerationJob has no notion of "the user has seen and
+// dismissed this outcome" — Error/Cancelled jobs sit at completedCount <
+// totalCount forever, even after the student finishes the rest of the
+// document by hand in the editor. Without this, the reattach effect below
+// would keep resurrecting the same stale banner on every remount (nav away
+// and back, refresh, etc.) since nothing server-side ever changes. Keyed on
+// the exact status+count signature so a job that later actually resumes
+// progress (new count) still surfaces normally.
+const DISMISSED_STORAGE_KEY = 'humaniser:dismissedProposalGenerations'
+
+function generationSignature(status: { status: string; completedCount: number }): string {
+  return `${status.status}|${status.completedCount}`
+}
+
+function readDismissedSignature(projectId: string): string | null {
+  try {
+    const raw = window.localStorage.getItem(DISMISSED_STORAGE_KEY)
+    if (!raw) return null
+    return (JSON.parse(raw) as Record<string, string>)[projectId] ?? null
+  } catch {
+    return null
+  }
+}
+
+function writeDismissedSignature(projectId: string, signature: string) {
+  try {
+    const raw = window.localStorage.getItem(DISMISSED_STORAGE_KEY)
+    const map = raw ? (JSON.parse(raw) as Record<string, string>) : {}
+    map[projectId] = signature
+    window.localStorage.setItem(DISMISSED_STORAGE_KEY, JSON.stringify(map))
+  } catch {
+    // Best-effort — worst case the banner can resurface once more.
+  }
+}
 
 export function useAutonomousProposalFlow() {
   const navigate      = useNavigate()
@@ -699,7 +737,11 @@ export function useAutonomousProposalFlow() {
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
       if (!candidate) return
       return researchStore.getGenerationStatus(candidate.id).then(status => {
-        if (status.status === 'Starting' || status.status === 'Generating') {
+        const active = status.status === 'Starting' || status.status === 'Generating'
+        const incompleteTerminal = status.completedCount < status.totalCount
+          && (status.status === 'Error' || status.status === 'Cancelled' || status.status === 'Completed')
+        const dismissed = incompleteTerminal && readDismissedSignature(candidate.id) === generationSignature(status)
+        if (active || (incompleteTerminal && !dismissed)) {
           progressRef.current = {
             projectId: candidate.id,
             key:       `${status.completedCount}|${status.currentSection}|${status.wordsWritten}`,
@@ -732,6 +774,7 @@ export function useAutonomousProposalFlow() {
     const projectId = gen.projectId
     let cancelled = false
     let timer: number | null = null
+    let consecutiveFailures = 0
 
     // Stuck-job threshold — well under the backend's own stale-generation reconciliation
     // window (5 min sweep interval, 10 min staleness — see
@@ -744,6 +787,7 @@ export function useAutonomousProposalFlow() {
       try {
         const status = await researchStore.getGenerationStatus(projectId)
         if (cancelled) return
+        consecutiveFailures = 0
 
         const key = `${status.completedCount}|${status.currentSection}|${status.wordsWritten}`
         const now = Date.now()
@@ -770,7 +814,14 @@ export function useAutonomousProposalFlow() {
           researchStore.loadProjects().catch(() => {})
         }
       } catch {
-        if (!cancelled) timer = window.setTimeout(poll, 5000)
+        consecutiveFailures++
+        if (!cancelled && consecutiveFailures < 3) {
+          timer = window.setTimeout(poll, 5000)
+        } else if (!cancelled) {
+          // Stop an unhealthy endpoint from being polled forever. A page refresh or a new
+          // generation action can reattach after the backend has recovered.
+          setGen(g => (g && g.projectId === projectId) ? { ...g, phase: 'Error', stalled: true } : g)
+        }
       }
     }
 
@@ -849,7 +900,17 @@ export function useAutonomousProposalFlow() {
 
   const onToggleArticleView = () => setGen(g => g ? { ...g, articleView: !g.articleView } : g)
   const onCancelGeneration  = () => { if (gen) researchStore.cancelGeneration(gen.projectId).catch(() => {}) }
-  const onCloseGeneration   = () => { if (gen) { researchStore.cancelGeneration(gen.projectId).catch(() => {}); setGen(null) } }
+  const onCloseGeneration   = () => {
+    if (!gen) return
+    const projectId = gen.projectId
+    researchStore.cancelGeneration(projectId)
+      .then(status => writeDismissedSignature(projectId, generationSignature(status)))
+      // The job was already terminal (Error/Cancelled/Completed) — cancelGeneration
+      // rejects in that case, but the shown gen.phase is still the right signature
+      // to dismiss so this exact outcome doesn't resurrect on next mount.
+      .catch(() => writeDismissedSignature(projectId, generationSignature({ status: gen.phase, completedCount: gen.index })))
+    setGen(null)
+  }
   const onOpenGeneratedDocument = () => { if (gen) navigate(`/app/research-agent/${gen.projectId}`) }
 
   return {

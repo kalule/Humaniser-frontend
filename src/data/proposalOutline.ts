@@ -26,6 +26,7 @@ export const STEPS: {
   { id: '4.1',            label: '4.1 Research Questions',      group: 'chapters', type: 'chapter', sectionKey: '4.1' },
   { id: '4.2',            label: '4.2 General Objective',       group: 'chapters', type: 'chapter', sectionKey: '4.2' },
   { id: '4.3',            label: '4.3 Specific Objectives',     group: 'chapters', type: 'chapter', sectionKey: '4.3' },
+  { id: '4.4',            label: '4.4 Hypotheses',              group: 'chapters', type: 'chapter', sectionKey: '4.4' },
   { id: '5.1',            label: '5.1 Study Area',              group: 'chapters', type: 'chapter', sectionKey: '5.1' },
   { id: '5.2',            label: '5.2 Study Design',            group: 'chapters', type: 'chapter', sectionKey: '5.2' },
   { id: '5.3',            label: '5.3 Study Population',        group: 'chapters', type: 'chapter', sectionKey: '5.3' },
@@ -33,6 +34,11 @@ export const STEPS: {
   { id: '5.5',            label: '5.5 Sample Size',             group: 'chapters', type: 'chapter', sectionKey: '5.5' },
   { id: '5.6',            label: '5.6 Sampling Procedure',      group: 'chapters', type: 'chapter', sectionKey: '5.6' },
   { id: '5.7',            label: '5.7 Study Variables',         group: 'chapters', type: 'chapter', sectionKey: '5.7' },
+  // Split out of 5.7 on 2026-09-05 — see ResearchService._proposalSectionDefs for why this is a
+  // sub-number and not a renumbering of 5.8+ (the backend section prompts cross-reference each
+  // other by number in their own guidance text). Must stay in sync with
+  // AutonomousChapterCodes.Ordered.
+  { id: '5.7a',           label: '5.7a Data Analysis Plan',     group: 'chapters', type: 'chapter', sectionKey: '5.7a' },
   { id: '5.8',            label: '5.8 Data Collection',         group: 'chapters', type: 'chapter', sectionKey: '5.8' },
   { id: '5.9',            label: '5.9 Quality Assurance',       group: 'chapters', type: 'chapter', sectionKey: '5.9' },
   { id: '5.10',           label: '5.10 Data Management',        group: 'chapters', type: 'chapter', sectionKey: '5.10' },
@@ -72,13 +78,15 @@ export const SECTION_PROMPTS: Record<string, { heading: string; prompt: string }
   '4.1':  { heading: 'Research Questions',    prompt: 'State the primary and secondary research questions that your study aims to answer.' },
   '4.2':  { heading: 'General Objective',     prompt: 'State the overarching goal of the study in one clear sentence.' },
   '4.3':  { heading: 'Specific Objectives',   prompt: 'List 3–5 measurable specific objectives that align with the research questions.' },
+  '4.4':  { heading: 'Hypotheses',             prompt: 'State null and alternative hypotheses for each quantitative objective, including the variables and planned statistical test.' },
   '5.1':  { heading: 'Study Area',            prompt: 'Describe the geographic, institutional, or conceptual scope of the study area, including relevant characteristics.' },
   '5.2':  { heading: 'Study Design',          prompt: 'Specify the research design (e.g., cross-sectional, longitudinal, case study) and justify your choice.' },
   '5.3':  { heading: 'Study Population',      prompt: 'Define the target population, including key demographic characteristics and relevance to the study.' },
   '5.4':  { heading: 'Inclusion/Exclusion Criteria', prompt: 'List clear criteria for who or what will be included and excluded from the study, and justify each criterion.' },
   '5.5':  { heading: 'Sample Size',           prompt: 'Describe the sample size calculation method and the determined sample size with statistical justification.' },
   '5.6':  { heading: 'Sampling Procedure',    prompt: 'Describe the sampling technique (random, stratified, purposive, etc.) and the step-by-step procedure.' },
-  '5.7':  { heading: 'Study Variables',       prompt: 'List and define the independent, dependent, and confounding variables. Describe measurement scales.' },
+  '5.7':  { heading: 'Study Variables',       prompt: 'List and define the independent, dependent, and confounding variables, and state each one’s role. Describe measurement scales and how any composite score is built.' },
+  '5.7a': { heading: 'Data Analysis Plan',    prompt: 'Map every research question to the exact statistical test that answers it, with assumptions, covariate entry, and the missing-data strategy.' },
   '5.8':  { heading: 'Data Collection',       prompt: 'Describe the instruments, tools, and methods used to collect data, including validation approaches.' },
   '5.9':  { heading: 'Quality Assurance',     prompt: 'Explain measures taken to ensure data quality including training, pre-testing, and supervision protocols.' },
   '5.10': { heading: 'Data Management',       prompt: 'Describe how data will be stored, coded, cleaned, and backed up. Address data security and access controls.' },

@@ -13,9 +13,9 @@ const POLL_TIMEOUT_MS  = 300_000  // 5 min — retries can wait up to 3 × 90s f
 
 export function useAnalyst() {
   const {
-    datasetId, schema, mode,
+    datasetId, schema, mode, selectedDatasetIds,
     sessionId, academicLevel, stepCount,
-    setDataset, addMessage, updateMessage,
+    addDataset, addMessage, updateMessage,
     setUploading, setQuerying, setExporting,
     setHealthReport, setProfiling, setCleaning, applyCleanResult,
     setWizardStep, setBlueprint, setGeneratingBlueprint, skipWizard, completeWizard,
@@ -25,30 +25,53 @@ export function useAnalyst() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // ── Upload ─────────────────────────────────────────────────────────────────
+  // Accepts one or more files (multi-select / multi-drop) — each is validated and uploaded
+  // independently via the existing single-file backend endpoint, then appended to the
+  // dataset list rather than replacing whatever was already loaded.
 
-  const upload = useCallback(async (file: File) => {
+  const upload = useCallback(async (files: File[] | FileList, isSyntheticData?: boolean) => {
+    const fileArray = Array.from(files)
+    if (fileArray.length === 0) return
+
     const MAX_MB = 50
-    if (file.size > MAX_MB * 1024 * 1024) {
-      toast.error(`File exceeds ${MAX_MB} MB limit.`)
-      return
+    const ALLOWED_EXTS = ['csv', 'xlsx', 'xls', 'dta', 'rds', 'rdata', 'omv']
+
+    const validFiles: File[] = []
+    for (const file of fileArray) {
+      if (file.size > MAX_MB * 1024 * 1024) {
+        toast.error(`${file.name} exceeds ${MAX_MB} MB limit.`)
+        continue
+      }
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      if (!ext || !ALLOWED_EXTS.includes(ext)) {
+        toast.error(`${file.name}: unsupported format. Use CSV, Excel, Stata (.dta), R (.rds/.rdata), or Jamovi (.omv)`)
+        continue
+      }
+      validFiles.push(file)
     }
-    const ext = file.name.split('.').pop()?.toLowerCase()
-    if (!ext || !['csv', 'xlsx', 'xls', 'dta', 'rds', 'rdata', 'omv'].includes(ext)) {
-      toast.error('Supported formats: CSV, Excel, Stata (.dta), R (.rds/.rdata), Jamovi (.omv)')
-      return
-    }
+    if (validFiles.length === 0) return
 
     setUploading(true)
+    const loaded: string[] = []
     try {
-      const res = await analystApi.upload(file)
-      setDataset(res.datasetId, res.schema)
-      toast.success(`Loaded: ${res.schema.rowCount.toLocaleString()} rows × ${res.schema.columnCount} columns`)
-    } catch {
-      toast.error('Failed to upload file. Please try again.')
+      for (const file of validFiles) {
+        try {
+          const res = await analystApi.upload(file, isSyntheticData)
+          addDataset(res.datasetId, res.schema)
+          loaded.push(`${res.schema.fileName} (${res.schema.rowCount.toLocaleString()} rows)`)
+        } catch {
+          toast.error(`Failed to upload ${file.name}. Please try again.`)
+        }
+      }
+      if (loaded.length === 1) {
+        toast.success(`Loaded: ${loaded[0]}`)
+      } else if (loaded.length > 1) {
+        toast.success(`Loaded ${loaded.length} datasets: ${loaded.join(', ')}`)
+      }
     } finally {
       setUploading(false)
     }
-  }, [setDataset, setUploading])
+  }, [addDataset, setUploading])
 
   // ── Query ──────────────────────────────────────────────────────────────────
 
@@ -72,12 +95,17 @@ export function useAnalyst() {
     setQuerying(true)
 
     try {
+      const additionalDatasetIds = selectedDatasetIds.filter((id) => id !== datasetId)
+
       const job = await analystApi.query({
         datasetId,
         query:        text.trim(),
         mode,
         sessionId,                               // null → backend creates a new session
         academicLevel: ACADEMIC_LEVEL_MAP[academicLevel],
+        // Only takes effect when creating a new session — the backend fixes the dataset
+        // combination for the life of a session and re-derives it on follow-up queries.
+        additionalDatasetIds: additionalDatasetIds.length > 0 ? additionalDatasetIds : undefined,
       })
 
       // Persist the session ID returned from the first query
@@ -157,7 +185,7 @@ export function useAnalyst() {
       setQuerying(false)
       if (classified.kind !== 'offline') toast.error(classified.message)
     }
-  }, [datasetId, schema, mode, sessionId, academicLevel, addMessage, updateMessage, setQuerying, setSession])
+  }, [datasetId, schema, mode, sessionId, academicLevel, selectedDatasetIds, addMessage, updateMessage, setQuerying, setSession])
 
   // ── Literature cross-check ─────────────────────────────────────────────────
 

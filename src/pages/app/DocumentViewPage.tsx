@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { X, Download, Loader2, Copy, CheckCircle2, AlertCircle } from 'lucide-react'
+import toast from 'react-hot-toast'
+import type { ApiError } from '../../types'
 import { useResearchStore } from '../../store/researchStore'
 import { researchApi } from '../../api/research'
 import type { ProjectSection } from '../../types/research'
@@ -121,6 +123,15 @@ export default function DocumentViewPage() {
         await exportThesisDocx(project.id)
       } else {
         await exportDocx(project.id)
+      }
+    } catch (err) {
+      const errorCode = (err as ApiError | undefined)?.code
+      if (errorCode === 'UNRESOLVED_CITATION_GAP') {
+        toast.error('Export blocked: one or more sections still have an unresolved "[CITATION NEEDED]" gap. Review or approve that section in the editor.')
+      } else if (errorCode === 'CITATION_INTEGRITY_BLOCKED') {
+        toast.error('Export blocked: one or more sections have a flagged citation (unsupported by real source, or implausible year). Review or approve that section in the editor.')
+      } else {
+        toast.error((err as ApiError | undefined)?.message ?? 'Thesis export was blocked.')
       }
     } finally {
       setExporting(false)

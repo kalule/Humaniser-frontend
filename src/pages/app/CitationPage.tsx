@@ -4,16 +4,9 @@ import { X, Loader2, Check, Copy } from 'lucide-react'
 import { useCitation } from '../../hooks/useCitation'
 import { TwoColumnModulePage } from '../../components/shared/TwoColumnModulePage'
 import type { CitationAuthor, CitationDto, FormatStyle, ResolvedCitation, SaveCitationRequest } from '../../types/citation'
+import { FORMAT_LABELS, FORMAT_STYLES as FORMATS } from '../../types/citation'
 
 // ── Format config ──────────────────────────────────────────────────────────────
-
-const FORMAT_LABELS: Record<FormatStyle, string> = {
-  apa7:    'APA 7',
-  harvard: 'Harvard',
-  ieee:    'IEEE',
-  mla:     'MLA 9',
-}
-const FORMATS: FormatStyle[] = ['apa7', 'harvard', 'ieee', 'mla']
 
 const INPUT_TABS = [
   { id: 'doi'  as const, label: 'DOI',       placeholder: '10.1016/j.example.2023.001' },
@@ -34,18 +27,22 @@ function formatAuthorsShort(authors: CitationAuthor[]): string {
 
 function getCitationText(citation: CitationDto, format: FormatStyle): string {
   return (
-    format === 'apa7'    ? citation.cachedApa7 :
-    format === 'harvard' ? citation.cachedHarvard :
-    format === 'ieee'    ? citation.cachedIeee :
+    format === 'apa7'      ? citation.cachedApa7 :
+    format === 'harvard'   ? citation.cachedHarvard :
+    format === 'ieee'      ? citation.cachedIeee :
+    format === 'chicago'   ? citation.cachedChicago :
+    format === 'vancouver' ? citation.cachedVancouver :
     citation.cachedMla
   ) ?? ''
 }
 
 function getResolvedText(resolved: ResolvedCitation, format: FormatStyle): string {
   return (
-    format === 'apa7'    ? resolved.apa7 :
-    format === 'harvard' ? resolved.harvard :
-    format === 'ieee'    ? resolved.ieee :
+    format === 'apa7'      ? resolved.apa7 :
+    format === 'harvard'   ? resolved.harvard :
+    format === 'ieee'      ? resolved.ieee :
+    format === 'chicago'   ? resolved.chicago :
+    format === 'vancouver' ? resolved.vancouver :
     resolved.mla
   ) ?? ''
 }
@@ -410,6 +407,8 @@ function CitationsMainArea({
       cachedHarvard:   resolved.harvard,
       cachedIeee:      resolved.ieee,
       cachedMla:       resolved.mla,
+      cachedChicago:   resolved.chicago,
+      cachedVancouver: resolved.vancouver,
     })
     setInputValue('')
   }

@@ -60,6 +60,54 @@ export interface ResearchProject {
   studyPopulation?: string
   gatherMode?:     GatherMode
   selectedLibraryDocumentIds?: string[]
+  researchState?:  string  // Thesis Foundation (Phase 1) — see ResearchState in this file
+  universityTemplateId?: string | null
+  // docs/OPEN_ITEMS.md #81 — null means methodologyType/methodologySubType above are still just
+  // free-editing scratch values (Setup autosave, AI recommendation pre-fill, external-upload
+  // extraction pre-fill) that have never been explicitly confirmed. Only present when the caller
+  // (get/list) included it — never infer "confirmed" from methodologyType being non-empty.
+  confirmedMethodology?: MethodologyProfile | null
+}
+
+// docs/OPEN_ITEMS.md #81 — the canonical, versioned methodology record. See
+// ResearchService.ConfirmMethodologyAsync / MethodologyProfileDto.
+export interface MethodologyProfile {
+  methodologyType:        string
+  methodologySubType:     string
+  researchDesign:         string
+  timeHorizon:             string
+  dataCollectionApproach: string
+  dataAnalysisApproach:   string
+  version:                number
+  confirmedAtUtc:         string
+}
+
+export interface ConfirmMethodologyPayload {
+  methodologyType:         string
+  methodologySubType?:     string
+  researchDesign?:         string
+  timeHorizon?:            string
+  dataCollectionApproach?: string
+  dataAnalysisApproach?:   string
+}
+
+export interface MethodologyChangeImpact {
+  isGenuineChange:              boolean
+  affectedApprovedSectionCodes: string[]
+  affectedDraftSectionCodes:    string[]
+}
+
+// Mirrors MethodologyViolationDto — a single flagged passage from the deterministic or
+// AI-semantic methodology consistency check, returned in the METHODOLOGY_VIOLATION error's
+// `details.violations`.
+export interface MethodologyViolation {
+  sectionCode:          string
+  quote:                string
+  expectedMethodology:  string
+  ruleCode:             string
+  severity:             'Blocking' | 'Advisory'
+  explanation:          string
+  suggestedCorrection:  string
 }
 
 // ── Literature Discovery (Gather step's second tab) ──────────────────────────
@@ -69,6 +117,24 @@ export interface LiteratureDimension {
   name:     string
   keywords: string
   enabled:  boolean
+}
+
+// Structured topic decomposition — feeds ranking (LiteratureTopicMatcher on the backend) and
+// geography-aware query wording. Geography/population/methodology default to empty when not
+// applicable to the topic (e.g. a purely theoretical topic has no geography) — this is a signal
+// being excluded, not a miss to display as an empty/incomplete state.
+export interface TopicScope {
+  primaryConcepts: string[]
+  relationship:    string
+  population:      string[]
+  setting:         string[]
+  geography:       string[]
+  studyType:       string
+  methodology:     string
+  synonyms:        Record<string, string[]>
+  // Named official survey/dataset (e.g. "SADHS", "DHS", "NHANES") detected in the topic — see
+  // TopicScopeDto.DatasetTerms on the backend. Empty when the topic doesn't name a recognized survey.
+  datasetTerms:    string[]
 }
 
 export interface DiscoveryDatabase {
@@ -96,6 +162,7 @@ export interface DiscoveryConfig {
   strategy:     string
   candidateCap: number
   databases:    DiscoveryDatabase[]
+  topicScope:   TopicScope
   dimensions:   LiteratureDimension[]
   queries:      LiteratureSearchQuery[]
 }
@@ -204,6 +271,12 @@ export interface ScreeningCandidate {
   manualDecision:          ManualDecision
   finalDecision:           FinalDecision
   hasFullText:             boolean
+  // Deterministic weighted-signal score (0-100), available immediately after Discovery, before
+  // Screening's own Claude judgement (screeningRelevanceScore) exists — see LiteratureTopicMatcher.
+  topicMatchScore:         number
+  matchedConcepts:         string[]
+  matchedPopulation:       string[]
+  matchedGeography:        string[]
 }
 
 export interface ScreeningCandidateList {
@@ -211,6 +284,18 @@ export interface ScreeningCandidateList {
   totalCount: number
   page:       number
   pageSize:   number
+}
+
+// ── Diversified "best matches" shortlist ────────────────────────────────────────
+
+export interface ShortlistBucket {
+  label:   string
+  reason:  string
+  items:   ScreeningCandidate[]
+}
+
+export interface DiversifiedShortlist {
+  buckets: ShortlistBucket[]
 }
 
 export interface ScreeningCandidateFilters {
@@ -229,7 +314,13 @@ export interface ScreeningCandidateFilters {
 export type SectionStatus = 'NotStarted' | 'Generating' | 'Draft' | 'Edited' | 'Approved'
 
 export interface ProjectSection {
-  code:         string        // "1.0", "2.0", etc.
+  code:         string        // "1.0", "2.0", etc. — real identifier, always use for API calls
+  // Reader-facing chapter label — usually equal to `code`, but diverges for proposal-stage
+  // administrative sections (Timeline/Budget/Dissemination) relocated to an appendix once the
+  // project transitions to Thesis/Dissertation, so they no longer collide with the real thesis
+  // chapter numbering (e.g. "6.0 Results"). Always render this, never `code`, for the visible
+  // chapter number/heading. See OPEN_ITEMS.md #20.
+  displayCode:  string
   title:        string
   order:        number
   content:      string
@@ -249,13 +340,42 @@ export interface ProjectSection {
   // failure could happen, so this (surfaced via the sections poll) is the only way the student
   // learns why it reverted to NotStarted. Null otherwise.
   generationError: string | null
+  hasUnusedMethodologyAnchor: boolean
+  isUnderReferenced: boolean
+  citationTarget: number
+  resolvedCitationCount: number
+  citationShortfallRetryAttempted: boolean
+  citationTargetResolution: 'exempt' | 'met' | 'flagged' | 'blocked'
+  // docs/OPEN_ITEMS.md #42 piece (b) — non-null only for a hardcoded, temporary set of known
+  // (project, section) pairs confirmed to carry a fabricated mixed-methods design description
+  // from before the sub-type-aware prompt fix shipped. Null for every other section/project.
+  methodologyReviewAdvisory: string | null
+  // docs/OPEN_ITEMS.md #48 Part C — true when this "6.0"/"7.0" section was Approved under
+  // AnalysisCompleted/CompletedResearch and the project's Research State has since moved back
+  // below that tier. Approval status itself is untouched; only a re-review nudge.
+  requiresReReview: boolean
+  reReviewReason: string | null
+  // docs/OPEN_ITEMS.md #81 — false only when the confirmed methodology structurally excludes this
+  // section (e.g. "4.4" Hypotheses for a Qualitative study). True (including when no methodology
+  // is confirmed yet) means applicable — this is a hide/explain signal only, not a substitute for
+  // the METHODOLOGY_NOT_CONFIRMED generation/approval gate.
+  isApplicableForMethodology: boolean
+  notApplicableReason: string | null
+  // True when this section's approved/drafted content was generated against a methodology version
+  // the project has since moved past (a genuine Confirm-Methodology change) and needs re-review.
+  isMethodologyStale: boolean
+  methodologyStaleReason: string | null
 }
 
-// Only 'LlmJudged' issues (the validators' own coherence/quality criteria) are eligible for
-// "Apply fix" — the other sources are folded into the same list but already have their own
-// dedicated remediation path (FactConflictsPanel, inline citation caution indicators, the
-// Literature panel) that a blind section rewrite would bypass or duplicate.
-export type IssueSource = 'LlmJudged' | 'FactConflict' | 'CitationMismatch' | 'OrphanedCitation' | 'UnderReferencing'
+// 'LlmJudged' issues (the validators' own coherence/quality criteria) and 'ReviewerFinding'
+// issues (a Document Reviewer finding routed here via ReviewFindingSectionLocator — see
+// api/reviewer.ts) are eligible for "Apply fix" — the other sources are folded into the same
+// list but already have their own dedicated remediation path (FactConflictsPanel, inline
+// citation caution indicators, the Literature panel) that a blind section rewrite would bypass
+// or duplicate.
+export type IssueSource =
+  | 'LlmJudged' | 'FactConflict' | 'CitationMismatch' | 'OrphanedCitation' | 'UnderReferencing'
+  | 'ReviewerFinding'
 
 export interface AlignmentIssue {
   sectionCode:         string
@@ -339,6 +459,7 @@ export interface UpdateHypothesisPayload {
 // ── Literature ────────────────────────────────────────────────────────────────
 
 export interface FetchedLiterature {
+  id:                string
   title:             string
   authors:           string
   year:              number
@@ -349,6 +470,56 @@ export interface FetchedLiterature {
   apaCitation:       string
   source:            string
   includedByStudent: boolean
+  citationCount:     number
+  citedInSections:   string[]
+}
+
+export interface UnresolvedCitation {
+  rawText:         string
+  occurrenceCount: number
+  sections:        string[]
+}
+
+export interface LiteratureCitationSummary {
+  resolvedOccurrenceCount:   number
+  resolvedDistinctSourceCount: number
+  unresolvedOccurrenceCount: number
+  unresolvedCitations:       UnresolvedCitation[]
+}
+
+export type DashboardLiteratureFilter = 'all' | 'cited' | 'unresolved' | 'prioritised' | 'available' | 'excluded'
+
+export interface DashboardLiteratureCard {
+  id: string
+  title: string
+  authors: string
+  year: number
+  doi?: string
+  source: string
+  includedByStudent: boolean
+  citationCount: number
+  citedInSections: string[]
+}
+
+export interface DashboardLiteratureCounts {
+  all: number
+  cited: number
+  unresolved: number
+  prioritised: number
+  available: number
+  excluded: number
+}
+
+export interface DashboardLiteraturePage {
+  items: DashboardLiteratureCard[]
+  page: number
+  pageSize: number
+  totalCount: number
+  matchingCount: number
+  counts: DashboardLiteratureCounts
+  citationIndexStatus: 'Ready' | 'Pending' | 'Stale'
+  citationIndexMessage?: string
+  unresolvedCitations: UnresolvedCitation[]
 }
 
 // ── Citation integrity verification ───────────────────────────────────────────
@@ -356,14 +527,33 @@ export interface FetchedLiterature {
 export type CitationMismatchType =
   | 'ClaimContentMismatch' | 'JournalMismatch' | 'AuthorMismatch'
   | 'VenueMismatch' | 'UnresolvedCitation' | 'MissingSourceData'
-  | 'OverusedInSection' | 'ClaimPartialMatch'
+  | 'OverusedInSection' | 'ClaimPartialMatch' | 'ImplausibleYear'
+  | 'UnresolvedGapMarker' | 'OrphanedReference'
+  | 'BibliographicDetailMismatch' | 'TemporallyImpossibleSource'
+  | 'GeographicMismatch' | 'GeneralizationBeyondSample' | 'PopulationScopeViolation'
+  // A parenthetical shaped like a Harvard reference-LIST line ("Author (Year) 'Title'...") that
+  // leaked into prose text with no author before the paren — not an unresolved in-text citation,
+  // but a reference-list line with no prose around it (see ResearchService.ExtractAndResolveCitations'
+  // harvard/apa7 branch; 2026-08 remediation of the "3.1 Problem Statement" defect).
+  | 'MalformedCitationShape'
 
-export type CitationFlagStatus = 'Open' | 'AutoCorrected' | 'Dismissed' | 'Removed'
+export type CitationFlagStatus = 'Open' | 'AutoCorrected' | 'Dismissed' | 'Removed' | 'Superseded'
+export type CitationFixAction = 'RewriteClaim' | 'ReplaceCitation' | 'MarkResearcherProposed'
+
+// Null/undefined for flag types with no abstract-vs-full-text judgement at all (e.g.
+// UnresolvedCitation) — Dismiss stays available for those. Otherwise Dismiss requires
+// 'RelevantFullText'; 'MetadataOnly'/'Abstract' means the verdict was only checked against the
+// abstract, which the backend also enforces (DismissCitationFlagAsync rejects it either way).
+export type EvidenceCoverage = 'MetadataOnly' | 'Abstract' | 'RelevantFullText'
 
 export interface CitationFlag {
   id:                    string
   sectionCode:           string
+  literatureId?:         string
   doi:                   string
+  sourceTitle?:           string
+  sourceAuthors?:         string
+  sourceYear?:            number
   citationRawText:       string
   claimSentence:         string
   mismatchTypes:         CitationMismatchType[]
@@ -375,6 +565,20 @@ export interface CitationFlag {
   llmReasoning?:         string
   status:                CitationFlagStatus
   createdAt:             string
+  dismissedReason?:      string
+  coverage?:             EvidenceCoverage
+  // Which repair actions can actually resolve THIS flag. Optional so a cached/older response still
+  // renders — treat a missing list as "all available", which is the pre-2026-09-04 behaviour.
+  fixActions?:           CitationFixOption[]
+}
+
+// `reason` is null exactly when `available` — it explains why the action cannot resolve this flag,
+// and is surfaced as the disabled control's tooltip. Same posture as the `coverage` Dismiss gate:
+// an affordance, not the guard. The backend rejects every unavailable combination independently.
+export interface CitationFixOption {
+  action:    CitationFixAction
+  available: boolean
+  reason?:   string
 }
 
 // ── Facts registry / cross-section consistency ────────────────────────────────
@@ -466,11 +670,176 @@ export interface ThesisAuditResult {
   unresolvedFlags: string[]
   roadmap:         ThesisRoadmap
   unlockCondition: UnlockCondition
+  // Thesis Foundation (Phase 1)
+  currentResearchState:   string
+  misalignedRequirements: string[]
+  // Business-rules audit Phase 2 (2026-08-28) — a hypothesis whose recorded outcome implies real
+  // analysis ran, but whose planned test family never appears in the project's real analysis
+  // results. Same flag-only posture as misalignedRequirements; not yet surfaced in any UI.
+  testTypeMismatches: string[]
+}
+
+// ── Thesis Foundation (Phase 1) ──────────────────────────────────────────────
+
+// Mirrors HumaniseAI.Domain.Entities.ResearchState — most values are a free self-declaration;
+// AnalysisCompleted is server-verified against a linked, actually-completed Data Analyst session.
+export type ResearchState =
+  | 'Proposal' | 'StudyDesigned' | 'DataCollection' | 'DataAvailable'
+  | 'AnalysisCompleted' | 'CompletedResearch' | 'LiteratureOnly'
+
+export const RESEARCH_STATE_OPTIONS: { value: ResearchState; label: string; description: string }[] = [
+  { value: 'Proposal',          label: 'Proposal',              description: 'Still planning the study — no data collection has started.' },
+  { value: 'StudyDesigned',     label: 'Study Designed',         description: 'Methodology and instruments are finalised; data collection has not started.' },
+  { value: 'DataCollection',    label: 'Data Collection',        description: 'Actively collecting data.' },
+  { value: 'DataAvailable',     label: 'Data Available',         description: 'Data collection is complete; analysis has not started or is in progress.' },
+  { value: 'AnalysisCompleted', label: 'Analysis Completed',     description: 'Analysis is verified complete — requires a linked, completed Data Analyst session.' },
+  { value: 'CompletedResearch', label: 'Completed Research',     description: 'The full study, including analysis, is complete.' },
+  { value: 'LiteratureOnly',    label: 'Literature-Only Thesis', description: 'A theoretical/literature-based thesis with no empirical data collection.' },
+]
+
+export interface ProjectDataset {
+  datasetId:      string
+  fileName:       string
+  rowCount:       number
+  columnCount:    number
+  fileSizeBytes:  number
+  uploadedAt:     string
+  isLinked:       boolean
+  analysisStatus: 'not-started' | 'in-progress' | 'complete'
+  completedSessionId?: string | null
+}
+
+export interface ResearchQuestionSnapshot {
+  number:                 number
+  questionText:           string
+  linkedObjectiveNumber:  number | null
+}
+
+export interface ObjectiveSnapshot {
+  number:         number
+  objectiveType:  string
+  objectiveText:  string
+  linkedRqNumber: number | null
+}
+
+export interface CanonicalResearchPlan {
+  id:                       string
+  version:                  number
+  titleSnapshot:            string
+  researchQuestions:        ResearchQuestionSnapshot[]
+  objectives:               ObjectiveSnapshot[]
+  studyDesignSnapshot:      string
+  samplingStrategySnapshot: string
+  methodologyType:          string
+  methodologySubType:       string
+  createdReason:            string
+  createdAt:                string
+}
+
+export interface ThesisChapterPlanEntry {
+  sectionCode:      string
+  title:            string
+  displayOrder:     number
+  status:           ProjectSection['status']
+  currentWordCount: number
+  targetWordCount:  number | null
+  locked:           boolean
+  lockedReason:     string | null
+}
+
+export interface ThesisChapterPlan {
+  researchState: string
+  chapters:      ThesisChapterPlanEntry[]
+}
+
+export interface UniversityTemplateSummary {
+  id:             string
+  name:           string
+  isIllustrative: boolean
+  citationStyle:  string
+  sectionCount:   number
+}
+
+export interface UniversityTemplateSectionEntry {
+  sectionCode:     string
+  title:           string
+  displayOrder:    number
+  targetWordCount: number
+  isRequired:      boolean
+  category:        'Core' | 'WizardOnly' | 'Thesis'
+}
+
+// Thesis Foundation (Phase 2) — section content version history.
+export interface ProjectSectionVersion {
+  id:            string
+  versionNumber: number
+  content:       string
+  changeOrigin:  string  // Generated | Regenerated | StudentEdited | Restored | ImportedFromProposal
+  wordCount:     number
+  createdAt:     string
+}
+
+// Thesis Foundation (Phase 2), Step 2 — proposal-to-thesis content mapping.
+export interface ProposalThesisSectionMapping {
+  sectionCode:        string
+  chapterLabel:        string
+  title:               string
+  classification:      string  // ReusableUnchanged | ReusableWithExpansion | RequiresUpdating | Contradictory | Obsolete | Missing
+  reason:              string
+  requiredUpdates:     string[]
+  detectedConflicts:   string[]
+}
+
+export interface ProposalThesisMappingResult {
+  sections: ProposalThesisSectionMapping[]
+}
+
+// Thesis Foundation (Phase 2), Step 4 — post-generation, advisory evidence-coverage audit.
+export interface EvidenceClaimCoverage {
+  claim:                   string
+  recommendedSourceCount:  number
+  isShortfall:             boolean
+}
+
+export interface OffPlanCitation {
+  citationText:    string
+  literatureTitle: string
+  literatureId:    string
+}
+
+export interface SectionEvidenceCoverageAudit {
+  sectionCode:         string
+  claimCoverage:       EvidenceClaimCoverage[]
+  offPlanCitations:    OffPlanCitation[]
+  hasShortfalls:       boolean
+  hasOffPlanCitations: boolean
+}
+
+export interface UniversityTemplateDetail {
+  id:                     string
+  name:                   string
+  isIllustrative:         boolean
+  citationStyle:          string
+  ethicsApprovalBody:     string | null
+  ethicsGuidanceOverride: string | null
+  notes:                  string | null
+  sections:               UniversityTemplateSectionEntry[]
+  createdAt:              string
+  updatedAt:              string
 }
 
 export interface UploadExternalProposalResult {
   project:           ResearchProject
   extractedFactKeys: string[]
+  advisoryMessages:  string[]
+  review?: {
+    format: 'pdf' | 'docx'
+    hasTrackedChanges: boolean
+    hasComments: boolean
+    matchedSectionCodes: string[]
+    unverifiedHeadings: Array<{ text: string; level: number; confidence: number; needsConfirmation: boolean }>
+    citationsPendingVerification: string[]
+  }
 }
 
 export interface ExternalProposalJobResult {
@@ -506,6 +875,51 @@ export interface ResearchRoadmap {
   progressPercent: number
   completedCount:  number
   requiredCount:   number
+}
+
+// ── Instrument Designer ────────────────────────────────────────────────────────
+
+export type InstrumentType = 'InterviewGuide' | 'Questionnaire' | 'ObservationChecklist' | 'FocusGroupGuide'
+export type InstrumentStatus = 'Draft' | 'Approved'
+export type InstrumentSource = 'AiGenerated' | 'Imported' | 'ManuallyEntered'
+
+export interface InstrumentSummary {
+  id:             string
+  instrumentType: InstrumentType
+  title:          string
+  status:         InstrumentStatus
+  source:         InstrumentSource
+  itemCount:      number
+  createdAt:      string
+  approvedAt:     string | null
+  hasStoredFile:  boolean
+}
+
+export interface InstrumentItemDetail {
+  id:             string
+  orderIndex:     number
+  text:           string
+  responseFormat: string
+}
+
+export interface ResearchQuestionGroup {
+  number:       number
+  questionText: string
+  items:        InstrumentItemDetail[]
+}
+
+export interface InstrumentDetail {
+  id:              string
+  instrumentType:  InstrumentType
+  title:           string
+  status:          InstrumentStatus
+  source:          InstrumentSource
+  content:         string | null
+  fileName:        string | null
+  researchQuestions: ResearchQuestionGroup[]
+  createdAt:       string
+  approvedAt:      string | null
+  hasStoredFile:   boolean
 }
 
 // ── Readiness Engine ───────────────────────────────────────────────────────────
@@ -559,12 +973,18 @@ export interface ValidationResult {
   message:         string
   recommendation:  string | null
   evaluatedAt:     string
+  // The chapter SectionCode this result actually concerns, resolved server-side from relatedId
+  // (falling back to subjectId) — see ValidationService.ToDto. Null for project-level checks not
+  // tied to one specific section (e.g. sample_size_adequate).
+  sectionCode:     string | null
 }
 
 export interface ValidationSummary {
   fails:    ValidationResult[]
   warnings: ValidationResult[]
   passes:   ValidationResult[]
+  lastValidatedAt?: string
+  freshness: 'NotValidated' | 'OutOfDate' | 'Current'
 }
 
 // ── Methodology-anchor citations ────────────────────────────────────────────────
@@ -584,4 +1004,41 @@ export interface MethodologyAnchorCandidate {
   confidence:   number
   llmReasoning: string
   status:       'Pending' | 'Accepted' | 'Rejected'
+}
+
+export type EthicsDataCollectionMethod =
+  | 'Interview' | 'Survey' | 'FocusGroup' | 'Experiment'
+  | 'Observation' | 'SecondaryData' | 'Other'
+
+export type EthicsDocumentStatus =
+  | 'NotApplicable' | 'Required' | 'Drafted' | 'UnderReview' | 'Approved'
+
+export interface MethodologyClassification {
+  dataCollectionMethods: EthicsDataCollectionMethod[]
+  involvesVulnerablePopulation: boolean
+  participantsIdentifiable: boolean
+  involvesSensitiveTopics: boolean
+  isConfirmedByStudent: boolean
+  isStale: boolean
+  classifiedAt: string
+}
+
+export interface EthicsDocument {
+  documentType: string
+  status: EthicsDocumentStatus
+  content: string | null
+  isStale: boolean
+  draftedAt: string | null
+}
+
+export interface EthicsChecklist {
+  classification: MethodologyClassification | null
+  documents: EthicsDocument[]
+}
+
+export interface ConfirmMethodologyClassificationPayload {
+  dataCollectionMethods: EthicsDataCollectionMethod[]
+  involvesVulnerablePopulation: boolean
+  participantsIdentifiable: boolean
+  involvesSensitiveTopics: boolean
 }

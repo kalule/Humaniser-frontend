@@ -297,6 +297,15 @@ export interface SessionSummary {
   updatedAt:        string
 }
 
+// Phase 4 — jobs eligible to link to a Research Paper's Results/Discussion generation.
+export interface AnalystJobSummary {
+  jobId:           string
+  query:           string
+  datasetFileName: string
+  statisticCount:  number
+  createdAt:       string
+}
+
 export interface SessionStep {
   stepNumber:        number
   query:             string
@@ -325,11 +334,14 @@ export interface UploadDatasetResponse {
 }
 
 export interface AnalystQueryRequest {
-  datasetId:     string
-  query:         string
-  mode?:         WorkbenchMode
-  sessionId?:    string | null        // null = create new session
-  academicLevel: number               // 0=Undergraduate, 1=Masters, 2=Doctoral
+  datasetId:            string
+  query:                string
+  mode?:                WorkbenchMode
+  sessionId?:           string | null        // null = create new session
+  academicLevel:        number               // 0=Undergraduate, 1=Masters, 2=Doctoral
+  // Extra datasets to join alongside datasetId for a joint/merged analysis. Only honoured
+  // when creating a new session — see AnalystService.QueryAsync on the backend.
+  additionalDatasetIds?: string[]
 }
 
 export interface AnalystJobResponse {

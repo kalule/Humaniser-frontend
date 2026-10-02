@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { GrammarCheckResponse, GrammarContext, GrammarLanguage, ErrorCategory } from '../types/grammar'
 
 const ALL_CATEGORIES: ErrorCategory[] = [
@@ -25,10 +26,13 @@ interface GrammarStore {
   reset: () => void;
 }
 
-export const useGrammarStore = create<GrammarStore>((set) => ({
+// Mode and dialect are remembered across sessions: they describe the user, not the
+// document. British is the default because the product itself is written in British
+// English; with an American default it flagged "Humanise" as a spelling error.
+export const useGrammarStore = create<GrammarStore>()(persist((set) => ({
   inputText: '',
   context: 'General',
-  language: 'AmericanEnglish',
+  language: 'BritishEnglish',
   enabledCategories: ALL_CATEGORIES,
   isLoading: false,
   error: null,
@@ -47,4 +51,7 @@ export const useGrammarStore = create<GrammarStore>((set) => ({
   setError: (error) => set({ error }),
   setResult: (result) => set({ result }),
   reset: () => set({ result: null, error: null }),
+}), {
+  name: 'grammar-prefs',
+  partialize: (s) => ({ context: s.context, language: s.language }),
 }))

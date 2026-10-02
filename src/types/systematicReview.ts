@@ -349,11 +349,23 @@ export interface ExtractionRecord {
   values:              ExtractedValueItem[]
 }
 
+/// A variable the AI proposes for data extraction. `isOutcome` marks the ones that record a RESULT
+/// the review measures (efficacy, symptom scores, adverse events) rather than a descriptive field —
+/// those become the rows Evidence Grading rates.
+export interface SuggestedExtractionVariable {
+  name:      string
+  isOutcome: boolean
+}
+
 export interface ExtractionSummary {
   total:        number
   extracted:    number
   needsPdf:     number
   abstractOnly: number
+  // Papers with neither an uploaded PDF nor any abstract text. Distinct from needsPdf (no source
+  // decision made yet): these have one, and it resolves to nothing readable, so no re-run can
+  // ever extract them. Counted separately so the step can name the problem instead of waiting.
+  noUsableText: number
 }
 
 export type ExtractionFilter = 'all' | 'needsPdf' | 'abstractOnly'
@@ -414,6 +426,7 @@ export interface RiskOfBiasRecord {
 export interface RiskOfBiasSummary {
   total:        number
   pending:      number
+  noUsableText: number
   low:          number
   someConcerns: number
   high:         number
@@ -490,6 +503,7 @@ export interface RobinsISummary {
   noInformation: number
   needsPdf:      number
   abstractOnly:  number
+  noUsableText:  number
 }
 
 export interface PaginatedRobinsI {
@@ -628,9 +642,16 @@ export interface PrismaFlow {
   titleAbstractIncluded:          number
   titleAbstractExcluded:          number
   titleAbstractNeedsManualReview: number
+  // Papers screening has not resolved yet. This and the two full-text buckets below complete each
+  // stage's partition: without them the counts cannot sum to their stage total, which is what left
+  // 277 records unaccounted for in a real review's flow diagram. PrismaFlowLogic.Validate asserts
+  // included + excluded + needsManualReview + pending == the stage total.
+  titleAbstractPending:           number
   fullTextAssessed:               number
   fullTextIncluded:               number
   fullTextExcluded:               number
+  fullTextNeedsManualReview:      number
+  fullTextPending:                number
   fullTextNeedsPdf:               number
 }
 
@@ -647,4 +668,31 @@ export interface SnowballResult {
   backwardReferencesFound: number
   forwardCitationsFound:   number
   newPapersAdded:          number
+  // How many seed papers had their list cut off at the per-paper cap. Non-zero means the counts
+  // above are a SAMPLE, not the whole reference list — say so, or a capped result reads as
+  // complete. `refsPerPaperCap` is the cap in force so the message can name the real number.
+  backwardTruncatedPapers: number
+  forwardTruncatedPapers:  number
+  refsPerPaperCap:         number
+  // Added papers whose source carried no abstract and for which one was recovered from PubMed or
+  // Crossref before the filters below ran — the difference between entering screening and being
+  // excluded for having no abstract.
+  abstractsRecovered:      number
+  // The protocol's mechanical filters applied to what THIS run added. Snowballing runs after the
+  // Deduplication & filters step, so these exclusions are its own and are reported here.
+  excludedWithoutAbstract:    number
+  excludedByPublicationDate:  number
+  excludedByCitationThreshold: number
+}
+
+export interface RecoverAbstractsResult {
+  attempted:    number
+  recovered:    number
+  stillMissing: number
+  noDoi:        number
+}
+
+export interface SnowballStatus {
+  isRunning: boolean
+  result:    SnowballResult | null
 }

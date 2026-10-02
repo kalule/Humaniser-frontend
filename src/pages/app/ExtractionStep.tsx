@@ -11,8 +11,7 @@ import { CREDIT_COSTS } from '../../config/creditCosts'
 import ConfirmActionModal from '../../components/app/ConfirmActionModal'
 import type {
   ExtractedValueItem, ExtractionFilter, ExtractionRecord, ExtractionRunStatus, ExtractionSummary,
-  SystematicReviewDetail,
-} from '../../types/systematicReview'
+  SuggestedExtractionVariable, SystematicReviewDetail } from '../../types/systematicReview'
 
 interface ExtractionStepProps {
   reviewId: string
@@ -49,8 +48,10 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
   const skipExtractionAction = useSystematicReviewStore(s => s.skipExtraction)
   const uploadPdfAction = useSystematicReviewStore(s => s.uploadPdf)
   const applyAbstractFallback = useSystematicReviewStore(s => s.useAbstractFallback)
+  const applyAbstractFallbackForAll = useSystematicReviewStore(s => s.useAbstractFallbackForAll)
   const getPaperFullTextAction = useSystematicReviewStore(s => s.getPaperFullText)
   const loadDetail = useSystematicReviewStore(s => s.loadDetail)
+  const recoverAbstractsAction = useSystematicReviewStore(s => s.recoverAbstracts)
 
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -69,22 +70,27 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
 
   const [runStatus, setRunStatus] = useState<ExtractionRunStatus | null>(null)
   const [isRunningJob, setIsRunningJob] = useState(false)
+  // One reconcile per mount, so the refresh cannot loop.
+  const reconciledRef = useRef(false)
   const [statusChecking, setStatusChecking] = useState(true)
   const [runError, setRunError] = useState<string | null>(null)
 
   const [newVariableName, setNewVariableName] = useState('')
   const [addingVariable, setAddingVariable] = useState(false)
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<SuggestedExtractionVariable[]>([])
   const [suggesting, setSuggesting] = useState(false)
   const [suggestError, setSuggestError] = useState<string | null>(null)
   const [addingSuggestionIndex, setAddingSuggestionIndex] = useState<number | null>(null)
   const [addingAllSuggestions, setAddingAllSuggestions] = useState(false)
   const [pendingClearVariables, setPendingClearVariables] = useState(false)
   const [pendingSkip, setPendingSkip] = useState(false)
+  const [pendingBulkFallback, setPendingBulkFallback] = useState(false)
+  const [bulkFallbackBusy, setBulkFallbackBusy] = useState(false)
 
   const [editingValueId, setEditingValueId] = useState<string | null>(null)
   const [expandedExcerpts, setExpandedExcerpts] = useState<Set<string>>(new Set())
   const [rerunningPaperId, setRerunningPaperId] = useState<string | null>(null)
+  const [recoveringAbstracts, setRecoveringAbstracts] = useState(false)
 
   const [uploadingPaperId, setUploadingPaperId] = useState<string | null>(null)
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({})
@@ -142,7 +148,9 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
     ;(async () => {
       try {
         const result = await suggestExtractionVariables(reviewId)
-        await Promise.all(result.map(name => addExtractionVariable(reviewId, name, true)))
+        // isOutcome carried through: these become the rows Evidence Grading rates, and nothing
+        // else ever sets the flag automatically.
+        await Promise.all(result.map(v => addExtractionVariable(reviewId, v.name, true, v.isOutcome)))
         await loadDetail(reviewId).catch(() => {})
         onSaved()
       } catch {
@@ -185,7 +193,18 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
       getExtractionRunStatus(reviewId).then(status => {
         if (cancelled) return
         setRunStatus(status)
-        if (status.isRunning) setIsRunningJob(true)
+        if (status.isRunning) {
+          setIsRunningJob(true)
+        } else if (!reconciledRef.current) {
+          // Same reconcile-on-mount as RiskOfBiasStep. The completion branch above only fires for
+          // a running -> finished transition this component personally witnessed; if the job
+          // finished while the user was elsewhere (another step, a reload, another tab), that
+          // transition never happens here and the workspace keeps the summary it loaded BEFORE
+          // the run. The step's "Next" gate reads that summary, so finished work can still look
+          // unfinished and block the step.
+          reconciledRef.current = true
+          loadDetail(reviewId).catch(() => {})
+        }
       }).catch(() => {}).finally(() => {
         if (!cancelled) setStatusChecking(false)
       })
@@ -227,7 +246,7 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
     setSuggestError(null)
     try {
       const result = await suggestExtractionVariables(reviewId)
-      setSuggestions(result.filter(name => !variables.some(v => v.name.toLowerCase() === name.toLowerCase())))
+      setSuggestions(result.filter(s => !variables.some(v => v.name.toLowerCase() === s.name.toLowerCase())))
     } catch {
       setSuggestError('Could not generate suggestions. Please try again.')
     } finally {
@@ -236,10 +255,10 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
   }
 
   const addSuggestion = async (index: number) => {
-    const name = suggestions[index]
+    const suggestion = suggestions[index]
     setAddingSuggestionIndex(index)
     try {
-      await addExtractionVariable(reviewId, name, true)
+      await addExtractionVariable(reviewId, suggestion.name, true, suggestion.isOutcome)
       setSuggestions(prev => prev.filter((_, i) => i !== index))
       await loadDetail(reviewId).catch(() => {})
       onSaved()
@@ -251,7 +270,7 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
   const addAllSuggestions = async () => {
     setAddingAllSuggestions(true)
     try {
-      await Promise.all(suggestions.map(name => addExtractionVariable(reviewId, name, true)))
+      await Promise.all(suggestions.map(v => addExtractionVariable(reviewId, v.name, true, v.isOutcome)))
       setSuggestions([])
       await loadDetail(reviewId).catch(() => {})
       onSaved()
@@ -285,6 +304,35 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
     onSaved()
   }
 
+  // The record's own source did not carry an abstract; another one may. Re-asks PubMed and
+  // Crossref by DOI for the included papers that have neither an abstract nor a PDF — the exact
+  // set that can otherwise be neither read nor advanced past.
+  const handleRecoverAbstracts = async () => {
+    setRecoveringAbstracts(true)
+    try {
+      const result = await recoverAbstractsAction(reviewId)
+      if (result.recovered > 0) {
+        toast.success(result.recovered === 1
+          ? 'Recovered 1 abstract.'
+          : `Recovered ${result.recovered} abstracts.`)
+        await loadRecords()
+        await loadDetail(reviewId).catch(() => {})
+        onSaved()
+      } else if (result.noDoi > 0 && result.attempted === 0) {
+        // Nothing was even lookup-able — say that rather than implying the lookup came back empty.
+        toast(`${result.noDoi === 1 ? '1 paper has' : `${result.noDoi} papers have`} no DOI to look up. Upload the PDF instead.`)
+      } else {
+        toast('No abstracts found in PubMed or Crossref for these DOIs. Upload the PDF instead.')
+      }
+    } catch (err) {
+      console.error('Failed to recover abstracts', err)
+      const message = (err as { message?: string })?.message
+      toast.error(message && message.trim().length > 0 ? message : "Couldn't reach PubMed or Crossref just now.")
+    } finally {
+      setRecoveringAbstracts(false)
+    }
+  }
+
   const handleRerunRow = async (paperId: string) => {
     setRerunningPaperId(paperId)
     try {
@@ -294,6 +342,12 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
       onSaved()
     } catch (err) {
       console.error('Failed to re-run extraction for paper', err)
+      // The common failure here is "this paper has no text to read", which the API now reports
+      // with the fix in the message — showing it is the whole point of the change.
+      const message = (err as { message?: string })?.message
+      toast.error(message && message.trim().length > 0
+        ? message
+        : "Couldn't re-run extraction for this paper.")
     } finally {
       setRerunningPaperId(null)
     }
@@ -347,6 +401,29 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
       onSaved()
     } catch (err) {
       console.error('Failed to set abstract fallback', err)
+    }
+  }
+
+  // Same escape hatch Full Text Screening offers on its identical "needs a PDF" banner. Without
+  // it these papers can only be resolved one row at a time, and until they are the extraction job
+  // skips them entirely (it only reads PdfUploaded or UseAbstractFallback papers), so the step's
+  // "everything extracted" gate can never be satisfied.
+  const handleBulkFallback = async () => {
+    setBulkFallbackBusy(true)
+    try {
+      const { affectedCount } = await applyAbstractFallbackForAll(reviewId)
+      setPendingBulkFallback(false)
+      await loadRecords()
+      await loadDetail(reviewId).catch(() => {})
+      onSaved()
+      toast.success(
+        `${affectedCount} paper${affectedCount === 1 ? '' : 's'} set to use their abstract — run extraction to fill them in.`)
+    } catch (err) {
+      console.error('Failed to apply bulk abstract fallback', err)
+      setPendingBulkFallback(false)
+      toast.error("Couldn't switch those papers to their abstracts. Please try again.")
+    } finally {
+      setBulkFallbackBusy(false)
     }
   }
 
@@ -456,9 +533,16 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {suggestions.map((name, i) => (
-                  <span key={`${name}-${i}`} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg pl-2.5 pr-1.5 py-1">
-                    <span className="text-[12px] font-medium text-slate-800">{name}</span>
+                {suggestions.map((suggestion, i) => (
+                  <span key={`${suggestion.name}-${i}`} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg pl-2.5 pr-1.5 py-1">
+                    <span className="text-[12px] font-medium text-slate-800">{suggestion.name}</span>
+                    {/* Outcomes are the rows Evidence Grading rates, so show which ones they are
+                        before they're added rather than making it a hidden property. */}
+                    {suggestion.isOutcome && (
+                      <span className="text-[9.5px] font-semibold uppercase tracking-wide text-violet-600 bg-violet-50 border border-violet-200 rounded px-1 py-0.5">
+                        Outcome
+                      </span>
+                    )}
                     <button
                       onClick={() => addSuggestion(i)}
                       disabled={addingSuggestionIndex === i}
@@ -559,13 +643,45 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
               <span className="text-[12px] text-slate-500 font-medium">Showing {records.length} of {total}</span>
             </div>
 
-            {summary && summary.needsPdf > 0 && (
+            {summary && summary.noUsableText > 0 && (
               <div className="flex items-start gap-2.5 bg-amber-tint border border-amber-accent/40 rounded-xl px-4 py-3 mb-4">
                 <AlertTriangle size={16} className="text-amber-text shrink-0 mt-0.5" />
                 <p className="text-[12px] text-amber-text leading-relaxed">
-                  {summary.needsPdf} papers still need a PDF or abstract decision before they can be extracted — upload a
-                  PDF or use their abstract from the table below.
+                  {summary.noUsableText === 1 ? '1 paper has' : `${summary.noUsableText} papers have`} no
+                  abstract and no uploaded PDF, so there is nothing to extract from &mdash; the source that supplied
+                  the record did not carry an abstract. Upload the PDF to extract{' '}
+                  {summary.noUsableText === 1 ? 'it' : 'them'}, or continue: the review will report{' '}
+                  {summary.noUsableText === 1 ? 'it' : 'them'} as not extracted.
                 </p>
+                <button
+                  onClick={handleRecoverAbstracts}
+                  disabled={recoveringAbstracts}
+                  title="Some sources return a record without its abstract. This re-asks PubMed and Crossref by DOI."
+                  className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-amber-accent/60 text-amber-text text-[11px] font-semibold hover:bg-amber-accent/10 transition-colors disabled:opacity-60"
+                >
+                  {recoveringAbstracts ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                  Try to recover
+                </button>
+              </div>
+            )}
+
+            {summary && summary.needsPdf > 0 && (
+              <div className="flex items-start justify-between gap-4 bg-amber-tint border border-amber-accent/40 rounded-xl px-4 py-3 mb-4">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle size={16} className="text-amber-text shrink-0 mt-0.5" />
+                  <p className="text-[12px] text-amber-text leading-relaxed">
+                    {summary.needsPdf} papers still need a PDF or abstract decision before they can be extracted — upload a
+                    PDF or use their abstract from the table below, or switch all of them to their abstracts at once.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setPendingBulkFallback(true)}
+                  disabled={bulkFallbackBusy}
+                  className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-amber-accent/60 text-amber-text text-[11px] font-semibold hover:bg-amber-accent/10 transition-colors disabled:opacity-60"
+                >
+                  {bulkFallbackBusy ? <Loader2 size={11} className="animate-spin" /> : <ClipboardCheck size={11} />}
+                  Use abstract for all
+                </button>
               </div>
             )}
 
@@ -616,6 +732,11 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
                     <tbody className="divide-y divide-slate-100">
                       {records.map(r => {
                         const hasUsableText = r.fullTextStatus === 'PdfUploaded' || r.useAbstractFallback
+                        // A source decision is not the same as source text: a paper can be opted
+                        // into the abstract fallback and carry no abstract at all. Nothing can
+                        // extract from it, so it gets its own state rather than a Re-run button
+                        // that spins and changes nothing.
+                        const hasNoText = r.fullTextStatus !== 'PdfUploaded' && r.abstract.trim().length === 0
                         const view = textView[r.paperId] ?? 'abstract'
                         return (
                           <tr key={r.paperId} className="hover:bg-slate-50/50 transition-colors group">
@@ -631,7 +752,9 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
 
                             <td className="px-4 py-4 align-top border-l border-slate-100">
                               <div className="flex flex-wrap gap-1.5 mb-2">
-                                {!hasUsableText ? (
+                                {hasNoText ? (
+                                  <span className="text-[10px] font-semibold bg-amber-tint text-amber-text px-2 py-0.5 rounded">no abstract available &mdash; upload the PDF</span>
+                                ) : !hasUsableText ? (
                                   <span className="text-[10px] font-semibold bg-amber-tint text-amber-text px-2 py-0.5 rounded">needs PDF upload</span>
                                 ) : r.useAbstractFallback ? (
                                   <span className="text-[10px] font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded">Manually confirmed from the abstract</span>
@@ -680,7 +803,7 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
                                     Upload PDF
                                   </button>
                                 )}
-                                {hasUsableText && (
+                                {hasUsableText && !hasNoText && (
                                   <button
                                     onClick={() => handleRerunRow(r.paperId)}
                                     disabled={rerunningPaperId === r.paperId}
@@ -700,7 +823,9 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
                               <p className="text-[12px] text-slate-600 leading-relaxed line-clamp-4">
                                 {view === 'fullText'
                                   ? (fullTextLoading.has(r.paperId) ? 'Loading full text…' : (fullTextCache[r.paperId] ?? 'Full text not available.'))
-                                  : r.abstract}
+                                  : r.abstract.trim().length > 0
+                                  ? r.abstract
+                                  : <span className="italic text-slate-400">No abstract was returned for this record by the source that supplied it.</span>}
                               </p>
                             </td>
 
@@ -811,6 +936,15 @@ export default function ExtractionStep({ reviewId, detail, onSaved }: Extraction
             confirmLabel="Clear all"
             onClose={() => setPendingClearVariables(false)}
             onConfirm={handleClearVariables}
+          />
+        )}
+        {pendingBulkFallback && summary && (
+          <ConfirmActionModal
+            title="Extract the remaining papers from their abstracts?"
+            message={`This will extract ${summary.needsPdf} papers from their abstract instead of full text — continue?`}
+            confirmLabel="Use abstract for all"
+            onClose={() => setPendingBulkFallback(false)}
+            onConfirm={handleBulkFallback}
           />
         )}
         {pendingSkip && (

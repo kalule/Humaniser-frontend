@@ -3,8 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, Shield, Menu, X, ChevronDown, Zap, LogOut, User, CreditCard, Clock,
-  RefreshCw, BookOpen, Scissors, SpellCheck, BarChart2, Layers, MessageSquare,
-  BookMarked, Brain, Mic, Library, FileText, Globe, ScrollText,
+  RefreshCw, Scissors, SpellCheck,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/authStore'
@@ -24,34 +23,13 @@ type FeatureItem = {
 
 const FEATURE_CATEGORIES: { label: string; items: FeatureItem[] }[] = [
   {
-    label: 'Writing & Editing',
+    label: 'AI Writing Tools',
     items: [
-      { icon: Sparkles,     iconCls: 'text-indigo-600',  bgCls: 'bg-indigo-50',  label: 'AI Humaniser',     desc: 'Rewrite AI text so it reads naturally human',    to: '/app/humaniser' },
-      { icon: Shield,       iconCls: 'text-emerald-600', bgCls: 'bg-emerald-50', label: 'AI Detector',      desc: 'Check if text was written by ChatGPT or other AI', to: '/app/detector' },
+      { icon: Sparkles,     iconCls: 'text-indigo-600',  bgCls: 'bg-indigo-50',  label: 'AI Humaniser',     desc: 'Make AI text sound naturally human',    to: '/app/humaniser' },
+      { icon: Shield,       iconCls: 'text-emerald-600', bgCls: 'bg-emerald-50', label: 'AI Detector',      desc: 'Check whether text is likely AI-generated', to: '/app/detector' },
       { icon: RefreshCw,    iconCls: 'text-violet-600',  bgCls: 'bg-violet-50',  label: 'Paraphraser',      desc: 'Rewrite sentences while keeping the meaning',    to: '/app/paraphrase' },
       { icon: SpellCheck,   iconCls: 'text-amber-600',   bgCls: 'bg-amber-50',   label: 'Grammar Checker',  desc: 'Fix errors and improve writing clarity',         to: '/app/grammar' },
-      { icon: BookOpen,     iconCls: 'text-rose-600',    bgCls: 'bg-rose-50',    label: 'Source Check',     desc: 'Academic plagiarism checker for essays and papers', to: '/app/plagiarism' },
       { icon: Scissors,     iconCls: 'text-cyan-600',    bgCls: 'bg-cyan-50',    label: 'Summariser',       desc: 'Condense long text to key points',               to: '/app/summarise' },
-    ],
-  },
-  {
-    label: 'Research & Study',
-    items: [
-      { icon: ScrollText,   iconCls: 'text-blue-600',    bgCls: 'bg-blue-50',    label: 'Proposal Studio',  desc: 'AI literature review and research proposal writer', to: '/app/proposal-studio', badge: 'New' },
-      { icon: BarChart2,    iconCls: 'text-purple-600',  bgCls: 'bg-purple-50',  label: 'Data Analyst',     desc: 'Upload data and get statistical analysis',       to: '/app/analyst',         badge: 'New' },
-      { icon: MessageSquare,iconCls: 'text-teal-600',    bgCls: 'bg-teal-50',    label: 'Document Chat',    desc: 'Ask questions about PDFs and papers',            to: '/app/document-chat',   badge: 'New' },
-      { icon: BookMarked,   iconCls: 'text-orange-600',  bgCls: 'bg-orange-50',  label: 'Citations',        desc: 'Generate APA, Harvard, and MLA references',      to: '/app/citations',       badge: 'New' },
-      { icon: Brain,        iconCls: 'text-green-600',   bgCls: 'bg-green-50',   label: 'Flashcards',       desc: 'Create study cards from any text',               to: '/app/flashcards',      badge: 'New' },
-      { icon: Mic,          iconCls: 'text-pink-600',    bgCls: 'bg-pink-50',    label: 'Lecture Notes',    desc: 'Transcribe and summarise lectures',              to: '/app/lecture',         badge: 'New' },
-    ],
-  },
-  {
-    label: 'Workspace',
-    items: [
-      { icon: Library,      iconCls: 'text-slate-700',   bgCls: 'bg-slate-100',  label: 'My Library',       desc: 'Organise papers, PDFs, and documents',           to: '/app/library',         badge: 'New' },
-      { icon: Globe,        iconCls: 'text-sky-600',     bgCls: 'bg-sky-50',     label: 'Web Library',      desc: 'Save and organise web sources',                  to: '/app/web-library',     badge: 'New' },
-      { icon: FileText,     iconCls: 'text-indigo-600',  bgCls: 'bg-indigo-50',  label: 'Doc Writer',       desc: 'Create and edit academic documents',             to: '/app/editor/new',      badge: 'New' },
-      { icon: Layers,       iconCls: 'text-gray-500',    bgCls: 'bg-gray-100',   label: 'Workbench',        desc: 'Advanced multi-tool workspace',                  to: '/app/workbench',       badge: 'Beta' },
     ],
   },
 ]
@@ -280,12 +258,12 @@ export function Navbar() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 6, scale: 0.99 }}
                       transition={{ duration: 0.15, ease: 'easeOut' }}
-                      className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-[720px] max-w-[calc(100vw-32px)] bg-white border border-[#e0e0da] rounded-2xl shadow-2xl shadow-black/10 z-50 overflow-hidden"
+                      className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-[280px] max-w-[calc(100vw-32px)] bg-white border border-[#e0e0da] rounded-2xl shadow-2xl shadow-black/10 z-50 overflow-hidden"
                     >
                       {/* Top accent line */}
                       <div className="h-0.5 bg-gradient-to-r from-violet-500 via-indigo-500 to-emerald-500" />
 
-                      <div className="p-5 grid grid-cols-3 gap-2">
+                      <div className="p-5 grid grid-cols-1 gap-2">
                         {FEATURE_CATEGORIES.map((cat) => (
                           <div key={cat.label}>
                             <p className="text-[10px] font-bold text-[#888888] uppercase tracking-widest px-2 mb-2">
@@ -339,7 +317,7 @@ export function Navbar() {
                           onClick={() => setFeaturesOpen(false)}
                           className="text-xs text-[#888888] hover:text-[#1a1a18] transition-colors"
                         >
-                          16 tools for AI writing and academic research →
+                          See all features →
                         </Link>
                         <Link
                           to="/register"

@@ -1,5 +1,6 @@
 import client from './client'
 import type { HumaniseRequest, HumaniseResponse, HistoryItem, PagedResult, Tone } from '../types'
+import type { BulkHumaniseSentencesRequest, BulkHumaniseSentencesResponse } from '../types/detector'
 
 export interface GetHistoryParams {
   page?: number
@@ -18,4 +19,10 @@ export const humaniseApi = {
 
   deleteHistory: (id: string) =>
     client.delete<void>(`/api/v1/humanise/history/${id}`),
+
+  bulkHumaniseSentences: async (dto: BulkHumaniseSentencesRequest): Promise<BulkHumaniseSentencesResponse> => {
+    const res = await client.post<{ success: boolean; data: BulkHumaniseSentencesResponse }>(
+      '/api/v1/humanise/bulk-sentences', dto)
+    return res.data.data ?? (res.data as unknown as BulkHumaniseSentencesResponse)
+  },
 }

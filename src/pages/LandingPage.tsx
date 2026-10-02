@@ -5,14 +5,13 @@ import {
   Sparkles, ArrowRight, ChevronDown,
   Layers, Brain, Zap,
   Lock, RefreshCw, ShieldCheck, Headphones,
-  ScrollText, BarChart2, Upload,
+  Shield,
 } from 'lucide-react'
 import { Navbar } from '../components/layout/Navbar'
 import { Footer } from '../components/layout/Footer'
 import { AnnouncementBanner } from '../components/Landing/AnnouncementBanner'
-import { ProposalPillar } from '../components/Landing/ProposalPillar'
-import { DataAnalystPillar } from '../components/Landing/DataAnalystPillar'
 import { FullSuiteGrid } from '../components/Landing/FullSuiteGrid'
+import { FeaturesSection } from '../components/Landing/FeaturesSection'
 import { HowItWorks } from '../components/Landing/HowItWorks'
 import { SADifferentiators } from '../components/Landing/SADifferentiators'
 import { Testimonials } from '../components/Landing/Testimonials'
@@ -21,27 +20,15 @@ import { FinalCTA } from '../components/Landing/FinalCTA'
 
 // ── Stats bar ─────────────────────────────────────────────────────────────────
 const STATS = [
-  { icon: Layers, value: '16', label: 'AI & research tools' },
+  { icon: Layers, value: '5', label: 'AI writing tools' },
   { icon: Brain, value: 'Claude AI', label: 'Powered by' },
-  { icon: Zap, value: 'R149/mo', label: 'Pro plan' },
-  { icon: Sparkles, value: '🇿🇦 ZAR', label: 'Local pricing' },
+  { icon: Zap, value: '$10/mo', label: 'Starter plan' },
+  { icon: Sparkles, value: '🌍 USD', label: 'Global pricing' },
 ]
 
 // ── Hero demo panels ───────────────────────────────────────────────────────────
 
-const HERO_PROPOSAL_CITATIONS = [
-  { text: 'Bonanomi et al. (2023). Social media and student wellbeing.', journal: 'J. Educational Psychology, 115(4)' },
-  { text: 'Lau (2022). Social media and academic performance in South Africa.', journal: 'Computers & Education, 180' },
-  { text: 'Smith & van der Merwe (2021). Digital distraction in higher education.', journal: 'Higher Ed. Research, 40(3)' },
-]
-
-const HERO_BARS = [
-  { label: 'Strongly Agree', value: 68, color: '#6366f1' },
-  { label: 'Agree', value: 24, color: '#818cf8' },
-  { label: 'Neutral', value: 5, color: '#334155' },
-]
-
-function ProposalHeroPanel() {
+function HumaniserHeroPanel() {
   return (
     <div className="bg-[#0d1117] rounded-xl border border-white/10 shadow-xl shadow-black/30 overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10">
@@ -51,36 +38,30 @@ function ProposalHeroPanel() {
           <span className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
         </div>
         <div className="flex items-center gap-1.5">
-          <ScrollText size={11} className="text-slate-400" />
-          <span className="text-slate-300 text-xs font-medium">Proposal Studio</span>
+          <Sparkles size={11} className="text-slate-400" />
+          <span className="text-slate-300 text-xs font-medium">AI Humaniser</span>
         </div>
-        <span className="text-[10px] text-emerald-400 font-medium">12 sources</span>
+        <span className="text-[10px] text-emerald-400 font-medium">Natural tone</span>
       </div>
       <div className="p-4 space-y-3">
         <div>
-          <p className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mb-1">Research Proposal</p>
-          <p className="text-slate-200 text-[11px] font-semibold leading-snug">
-            Social Media Use and Academic Performance Among SA University Students
+          <p className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mb-1">Before</p>
+          <p className="text-slate-500 text-[11px] leading-snug italic">
+            "It is imperative to note that the utilisation of this approach facilitates..."
           </p>
         </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-[9px] font-mono uppercase tracking-widest text-slate-500">References</p>
-            <span className="text-[9px] text-indigo-400 font-medium">APA 7th</span>
-          </div>
-          {HERO_PROPOSAL_CITATIONS.map((c, i) => (
-            <div key={i} className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.05]">
-              <p className="text-[10px] text-slate-400 leading-snug">{c.text}</p>
-              <p className="text-[9px] text-indigo-400/60 mt-0.5 italic">{c.journal}</p>
-            </div>
-          ))}
+        <div className="p-2.5 rounded-lg bg-emerald-500/[0.08] border border-emerald-500/20">
+          <p className="text-[9px] font-mono uppercase tracking-widest text-emerald-400 mb-1">After</p>
+          <p className="text-slate-200 text-[11px] leading-snug">
+            "Worth noting — this approach makes it much easier to..."
+          </p>
         </div>
       </div>
     </div>
   )
 }
 
-function DataAnalystHeroPanel() {
+function DetectorHeroPanel() {
   return (
     <div className="bg-[#0d1117] rounded-xl border border-white/10 shadow-xl shadow-black/30 overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10">
@@ -90,42 +71,28 @@ function DataAnalystHeroPanel() {
           <span className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
         </div>
         <div className="flex items-center gap-1.5">
-          <BarChart2 size={11} className="text-slate-400" />
-          <span className="text-slate-300 text-xs font-medium">Data Analyst</span>
+          <Shield size={11} className="text-slate-400" />
+          <span className="text-slate-300 text-xs font-medium">AI Detector</span>
         </div>
-        <span className="text-[10px] text-purple-400 font-medium">Analysis ready</span>
+        <span className="text-[10px] text-purple-400 font-medium">Scan complete</span>
       </div>
       <div className="p-4 space-y-3">
-        <div className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.04] border border-white/[0.06]">
-          <Upload size={12} className="text-purple-400 shrink-0" />
+        <div className="flex items-center gap-3">
+          <div className="relative w-14 h-14 shrink-0">
+            <svg viewBox="0 0 36 36" className="w-14 h-14 -rotate-90">
+              <circle cx="18" cy="18" r="15.5" fill="none" stroke="#1e293b" strokeWidth="3" />
+              <circle cx="18" cy="18" r="15.5" fill="none" stroke="#a78bfa" strokeWidth="3" strokeDasharray="62 100" strokeLinecap="round" />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-200">62%</span>
+          </div>
           <div>
-            <p className="text-[10px] text-slate-200 font-medium">survey_responses.csv</p>
-            <p className="text-[9px] text-slate-500">247 rows · 8 columns</p>
+            <p className="text-[10px] text-slate-200 font-medium">Likely AI-generated</p>
+            <p className="text-[9px] text-slate-500">Probabilistic estimate, not a guarantee</p>
           </div>
         </div>
-        <div>
-          <p className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mb-2">Survey Agreement</p>
-          <div className="space-y-1.5">
-            {HERO_BARS.map((bar, i) => (
-              <div key={bar.label} className="flex items-center gap-2">
-                <span className="text-[9px] text-slate-500 w-[70px] text-right shrink-0">{bar.label}</span>
-                <div className="flex-1 h-3 bg-slate-800/60 rounded-sm overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-sm"
-                    style={{ backgroundColor: bar.color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(bar.value / 68) * 100}%` }}
-                    transition={{ duration: 0.6, delay: 0.6 + i * 0.1, ease: 'easeOut' }}
-                  />
-                </div>
-                <span className="text-[9px] font-mono text-slate-400 w-6 shrink-0">{bar.value}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="rounded-lg bg-emerald-500/[0.08] border border-emerald-500/20 px-2.5 py-2">
-          <p className="text-[9px] font-mono uppercase tracking-widest text-emerald-400 mb-0.5">Key Finding</p>
-          <p className="text-[10px] text-slate-300">r = 0.71, p &lt; 0.001 — significant positive correlation</p>
+        <div className="rounded-lg bg-white/[0.03] border border-white/[0.05] px-2.5 py-2">
+          <p className="text-[9px] font-mono uppercase tracking-widest text-slate-500 mb-1">Flagged pattern</p>
+          <p className="text-[10px] text-slate-300">Repetitive sentence structure, low burstiness</p>
         </div>
       </div>
     </div>
@@ -135,24 +102,39 @@ function DataAnalystHeroPanel() {
 // ── FAQ ────────────────────────────────────────────────────────────────────────
 const FAQS = [
   {
-    question: 'Will my text pass AI detection tools?',
+    question: 'What is an AI humanizer?',
     answer:
-      'HumaniseAI is designed to produce text that reads naturally and authentically human. While no tool can guarantee 100% bypass rates, our Heavy rewriting mode significantly reduces AI detection scores across tools like GPTZero, Turnitin, and Originality.ai.',
+      'An AI humanizer (or humaniser) rewrites AI-generated text so it reads more naturally, with the rhythm, tone, and phrasing of human writing — while keeping your original meaning intact.',
   },
   {
-    question: 'What exactly counts as "AI text"?',
+    question: 'Will my text pass AI detection tools?',
     answer:
-      'AI text is any content generated by large language models like ChatGPT, Claude, Gemini, Copilot, or similar tools. This typically sounds formal, repetitive, or overly structured. HumaniseAI transforms it to sound more natural and human-written.',
+      'HumaniseAI is designed to produce text that reads naturally and authentically human. No tool can guarantee 100% bypass rates, but our Heavy rewriting mode significantly reduces AI detection scores across common detectors.',
+  },
+  {
+    question: 'Can an AI detector be completely accurate?',
+    answer:
+      'No — AI detection is probabilistic, not definitive. Our AI Detector gives you a clear human/AI likelihood score and highlights flagged patterns, but no detector, including ours, can guarantee a certain result.',
+  },
+  {
+    question: 'What is a paraphrasing tool?',
+    answer:
+      'A paraphrasing tool rewrites sentences and paragraphs in different words while preserving the original meaning — useful for improving clarity, avoiding repetition, or adjusting tone.',
+  },
+  {
+    question: 'What does the Grammar Checker do?',
+    answer:
+      'It scans your writing for grammar, spelling, punctuation, and clarity issues, and suggests fixes so your final text reads clean and polished.',
+  },
+  {
+    question: 'What is an AI summariser?',
+    answer:
+      'An AI summariser (or summarizer) condenses long text — articles, reports, documents — into a shorter summary that keeps the key ideas, so you can grasp the content quickly.',
   },
   {
     question: "Can I get a refund if I'm not satisfied?",
     answer:
       "Yes. We offer a 7-day money-back guarantee on all paid plans. If you're not satisfied within your first 7 days, contact our support team and we'll issue a full refund, no questions asked.",
-  },
-  {
-    question: 'What are the writing tones?',
-    answer:
-      'We offer four tones: Casual (friendly, conversational), Professional (polished, business-appropriate), Academic (scholarly, structured), and Conversational (natural dialogue-like flow). Each is tuned for different contexts.',
   },
   {
     question: 'What is the monthly word limit?',
@@ -162,27 +144,12 @@ const FAQS = [
   {
     question: 'Does HumaniseAI support SA English?',
     answer:
-      "Yes — HumaniseAI is tuned for South African English. It writes 'colour' not 'color', 'organise' not 'organize'. Output sounds like it was written here, because it was tuned here. Afrikaans support is in development.",
+      "Yes — HumaniseAI is tuned for South African English. It writes 'colour' not 'color', 'organise' not 'organize'. Output sounds like it was written here, because it was tuned here.",
   },
   {
     question: 'Can I cancel my subscription at any time?',
     answer:
       'Absolutely. Cancel at any time from your Billing page. Your plan remains active until the end of the current billing period, after which you revert to the Free tier.',
-  },
-  {
-    question: 'How does Proposal Studio find real citations?',
-    answer:
-      'Proposal Studio searches live academic databases including CrossRef, Semantic Scholar, and Google Scholar. It retrieves metadata for real peer-reviewed papers and formats them in your chosen citation style (APA, Harvard, MLA, and 30+ others).',
-  },
-  {
-    question: 'What file types does Data Analyst support?',
-    answer:
-      'Data Analyst supports CSV, Excel (.xlsx), and SPSS (.sav) files. R datasets (.rds, .RData) and Jamovi (.omv) files are in active development. You can analyse survey results, experiment data, and quantitative research datasets.',
-  },
-  {
-    question: 'Is the data I upload to Data Analyst kept private?',
-    answer:
-      'Yes. Uploaded files are processed in a secure, isolated session and never stored permanently or used to train any AI models. Files are deleted automatically after your session ends. We are fully POPIA compliant.',
   },
 ]
 
@@ -297,7 +264,7 @@ export function LandingPage() {
             >
               <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#ede9fe] border border-violet-200 text-[#5b21b6] text-sm font-medium mb-4">
                 <Sparkles size={14} />
-                AI Research Platform
+                AI Writing Tools
               </span>
             </motion.div>
 
@@ -306,9 +273,9 @@ export function LandingPage() {
               transition={{ duration: 0.5 }}
               className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-[#1a1a18] mb-4"
             >
-              Humanise Your Writing.{' '}
+              Write Better.{' '}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600">
-                Supercharge Your Research.
+                Sound More Human.
               </span>
             </motion.h1>
 
@@ -317,8 +284,8 @@ export function LandingPage() {
               transition={{ duration: 0.5 }}
               className="text-[#555555] text-lg leading-relaxed"
             >
-              South Africa's all-in-one AI toolkit — humanise AI text, check for AI and plagiarism,
-              write fully cited research proposals, and analyse your data. 16 tools, one workspace.
+              Humaniser gives you five focused AI writing tools to make your writing more natural,
+              clear, and polished — humanise, detect, paraphrase, check grammar, and summarise.
             </motion.p>
           </motion.div>
 
@@ -336,8 +303,8 @@ export function LandingPage() {
               }}
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
-              <ProposalHeroPanel />
-              <DataAnalystHeroPanel />
+              <HumaniserHeroPanel />
+              <DetectorHeroPanel />
             </div>
           </motion.div>
 
@@ -381,17 +348,16 @@ export function LandingPage() {
                   whileTap={{ scale: 0.98 }}
                   className="flex items-center gap-2 px-8 py-4 rounded-xl text-base font-semibold bg-[#7c3aed] hover:bg-[#4c1d95] text-white transition-colors shadow-lg shadow-violet-200"
                 >
-                  Start Your Research Free
+                  Start Writing Free
                   <ArrowRight size={16} />
                 </motion.button>
               </Link>
-              <button
-                type="button"
-                onClick={() => document.querySelector('#how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+              <Link
+                to="/features"
                 className="flex items-center gap-2 px-8 py-4 rounded-xl text-base font-medium text-[#555555] hover:text-[#1a1a18] border border-[#d1d5db] hover:border-[#7c3aed] bg-white transition-all"
               >
-                See How It Works
-              </button>
+                Explore All Tools
+              </Link>
             </motion.div>
 
             {/* Pricing anchor */}
@@ -400,8 +366,8 @@ export function LandingPage() {
               transition={{ duration: 0.4 }}
               className="text-[#888888] text-sm"
             >
-              Free plan available · Pro from{' '}
-              <span className="text-[#555555] font-medium">R149/month</span>
+              Free plan available · Starter from{' '}
+              <span className="text-[#555555] font-medium">$10/month</span>
               {' '}· No credit card required
             </motion.p>
 
@@ -443,14 +409,13 @@ export function LandingPage() {
         </motion.div>
       </div>
 
-      {/* ── Full suite ── */}
+      {/* ── Five core services ── */}
       <FullSuiteGrid />
 
-      {/* ── Flagship sections ── */}
-      <ProposalPillar />
-      <DataAnalystPillar />
+      {/* ── Why they work together ── */}
+      <FeaturesSection />
 
-      {/* ── Research workflow ── */}
+      {/* ── How it works ── */}
       <HowItWorks />
 
       {/* ── SA differentiators ── */}

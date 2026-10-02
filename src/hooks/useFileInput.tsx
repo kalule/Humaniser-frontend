@@ -4,10 +4,11 @@ import { extractTextFromFile, isSupportedFile, ACCEPTED_EXTENSIONS } from '../li
 
 interface UseFileInputOptions {
   onText: (text: string, filename: string) => void
+  onFile?: (file: File) => void
   maxWords?: number
 }
 
-export function useFileInput({ onText, maxWords }: UseFileInputOptions) {
+export function useFileInput({ onText, onFile, maxWords }: UseFileInputOptions) {
   const [isProcessing, setIsProcessing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -30,6 +31,7 @@ export function useFileInput({ onText, maxWords }: UseFileInputOptions) {
       }
 
       onText(text, file.name)
+      onFile?.(file)
       toast.success(`Loaded: ${file.name}`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to read file.'
@@ -40,7 +42,7 @@ export function useFileInput({ onText, maxWords }: UseFileInputOptions) {
       if (inputRef.current) inputRef.current.value = ''
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onText, maxWords])
+  }, [onText, onFile, maxWords])
 
   const openFilePicker = () => inputRef.current?.click()
 

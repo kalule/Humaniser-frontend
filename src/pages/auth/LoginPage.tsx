@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { GoogleButton } from '../../components/ui/GoogleButton'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -46,11 +46,29 @@ type LoginFormData = z.infer<typeof loginSchema>
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { login } = useAuthStore()
+  const location = useLocation()
+  const login = useAuthStore((state) => state.login)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [shakeKey, setShakeKey] = useState(0)
   const [apiError, setApiError] = useState<string | null>(null)
+
+  // Authentication is the source of truth for leaving this page. Keeping the
+  // redirect reactive covers email login, Google login, and a session restored
+  // while /login is already mounted; it also avoids coupling navigation to the
+  // lifetime of one submit callback.
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const requestedPath = (location.state as { from?: unknown } | null)?.from
+    const destination = typeof requestedPath === 'string' &&
+      (requestedPath === '/app' || requestedPath.startsWith('/app/'))
+      ? requestedPath
+      : '/app'
+
+    navigate(destination, { replace: true })
+  }, [isAuthenticated, location.state, navigate])
 
   const {
     register,
@@ -68,7 +86,6 @@ export function LoginPage() {
       const res = await authApi.login({ email: data.email, password: data.password })
       login(res.data)
       toast.success('Welcome back!')
-      navigate('/app')
     } catch (err: unknown) {
       setApiError(getLoginErrorMessage(err))
       setShakeKey((k) => k + 1)

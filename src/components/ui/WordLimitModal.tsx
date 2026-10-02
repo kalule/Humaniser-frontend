@@ -82,9 +82,8 @@ export function WordLimitModal() {
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Upgrade to continue</p>
 
               {[
-                { name: 'Student', words: '10 000', price: 'R49', highlight: false },
-                { name: 'Pro', words: '50 000', price: 'R99', highlight: true },
-                { name: 'Business', words: '200 000', price: 'R249', highlight: false },
+                { name: 'Starter', words: '50,000', price: '$10', highlight: true },
+                { name: 'Professional', words: 'Unlimited', price: '$20', highlight: false },
               ].map((plan) => (
                 <div
                   key={plan.name}
@@ -116,13 +115,25 @@ export function WordLimitModal() {
             </div>
 
             {/* CTA */}
-            <Link
-              to="/pricing"
-              onClick={closeWordLimitModal}
-              className="block w-full text-center py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-semibold text-sm transition-opacity"
-            >
-              See all plans
-            </Link>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  closeWordLimitModal()
+                  useUiStore.getState().openTopUpModal()
+                }}
+                className="block w-full text-center py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-semibold text-sm transition-opacity"
+              >
+                Buy a one-time top-up
+              </button>
+              <Link
+                to="/pricing"
+                onClick={closeWordLimitModal}
+                className="block w-full text-center py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800/60 font-medium text-sm transition-colors"
+              >
+                See all plans
+              </Link>
+            </div>
           </div>
         </motion.div>
       </motion.div>

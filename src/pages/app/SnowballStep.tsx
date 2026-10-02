@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowRight, GitBranch, Loader2, Sparkles } from 'lucide-react'
 import { useSystematicReviewStore } from '../../store/systematicReviewStore'
@@ -21,24 +21,76 @@ function StatTile({ label, value }: { label: string; value: number }) {
 
 export default function SnowballStep({ reviewId, detail, onSaved }: SnowballStepProps) {
   const runSnowballSearch = useSystematicReviewStore(s => s.runSnowballSearch)
+  const getSnowballStatus = useSystematicReviewStore(s => s.getSnowballStatus)
   const [, setSearchParams] = useSearchParams()
 
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<SnowballResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Guards the one-shot reload when a run finishes, so a poll that arrives after it cannot fire a
+  // second refresh.
+  const finishedRef = useRef(false)
 
   const includedCount = detail.fullTextScreeningSummary?.included ?? 0
+
+  // Citation chaining is a background job now, so a run in flight survives a refresh or a different
+  // device — pick up whatever state the server reports on mount, and keep polling while it runs.
+  const poll = useCallback(async () => {
+    try {
+      const status = await getSnowballStatus(reviewId)
+      setRunning(status.isRunning)
+      if (status.result) setResult(status.result)
+      if (!status.isRunning && status.result && !finishedRef.current) {
+        finishedRef.current = true
+        onSaved()
+      }
+      return status.isRunning
+    } catch {
+      setRunning(false)
+      return false
+    }
+  }, [getSnowballStatus, reviewId, onSaved])
+
+  // The polling loop lives in refs rather than inside the mount effect because it has to be
+  // restartable from handleRun. Previously the loop existed only inside that effect: on mount it
+  // polled once, saw nothing running, and scheduled no follow-up — correctly, since there was
+  // nothing to watch. Clicking Run then set `running` (spinner on) but changed none of the effect's
+  // dependencies, so the loop was never started and nothing ever observed the job finishing. The
+  // job completed normally within seconds; the spinner ran until the page was reloaded. Confirmed
+  // against a live review (Hangfire showed SnowballSearchJob succeeded, and the row had
+  // IsSnowballing=false with a full result JSON) while the UI was still showing "Searching...".
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const stoppedRef = useRef(false)
+
+  const startPolling = useCallback(() => {
+    clearTimeout(pollTimerRef.current)
+    const tick = async () => {
+      if (stoppedRef.current) return
+      const stillRunning = await poll()
+      if (!stoppedRef.current && stillRunning) pollTimerRef.current = setTimeout(tick, 2000)
+    }
+    void tick()
+  }, [poll])
+
+  useEffect(() => {
+    stoppedRef.current = false
+    startPolling()
+    return () => { stoppedRef.current = true; clearTimeout(pollTimerRef.current) }
+  }, [startPolling])
 
   const handleRun = async () => {
     setRunning(true)
     setError(null)
+    setResult(null)
+    finishedRef.current = false
     try {
-      const res = await runSnowballSearch(reviewId)
-      setResult(res)
-      onSaved()
+      const status = await runSnowballSearch(reviewId)
+      setRunning(status.isRunning)
+      if (status.result) setResult(status.result)
+      // Start watching the job we just enqueued. Without this the spinner has nothing behind it.
+      if (status.isRunning) startPolling()
     } catch {
-      setError('Could not run citation chaining. Please try again.')
-    } finally {
+      setError('Could not start citation chaining. Please try again.')
       setRunning(false)
     }
   }
@@ -67,7 +119,7 @@ export default function SnowballStep({ reviewId, detail, onSaved }: SnowballStep
         <div className="border border-slate-200 rounded-xl p-4 mb-6 bg-white">
           <p className="text-[13px] text-slate-700 mb-3">
             <span className="font-semibold">{includedCount}</span> included paper{includedCount === 1 ? '' : 's'} available
-            to seed the search{includedCount > 30 ? ' (only the first 30 are processed per run — re-run to cover more)' : ''}.
+            to seed the search{includedCount > 50 ? ' (only the first 50 are processed per run — re-run to cover more)' : ''}.
           </p>
           <button
             onClick={handleRun}
@@ -93,17 +145,57 @@ export default function SnowballStep({ reviewId, detail, onSaved }: SnowballStep
             <StatTile label="New candidates added" value={result.newPapersAdded} />
           </div>
 
+          {(result.backwardTruncatedPapers > 0 || result.forwardTruncatedPapers > 0) && (
+            <p className="text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4 leading-relaxed">
+              {/* A capped list must never read as a complete one — these counts are a sample of
+                  those papers' references, not the whole list. */}
+              Capped at {result.refsPerPaperCap} per paper:{' '}
+              {result.backwardTruncatedPapers > 0 && (
+                <>{result.backwardTruncatedPapers} paper{result.backwardTruncatedPapers === 1 ? ' had' : 's had'} more references than were searched</>
+              )}
+              {result.backwardTruncatedPapers > 0 && result.forwardTruncatedPapers > 0 && ', and '}
+              {result.forwardTruncatedPapers > 0 && (
+                <>{result.forwardTruncatedPapers} paper{result.forwardTruncatedPapers === 1 ? ' had' : 's had'} more citing works than were searched</>
+              )}
+              . These counts are a sample of those papers' citation lists, not the full set.
+            </p>
+          )}
+
           {result.sourcePapersSkippedNoDoi > 0 && (
             <p className="text-[12px] text-slate-400 mb-4">
               {result.sourcePapersSkippedNoDoi} included paper{result.sourcePapersSkippedNoDoi === 1 ? '' : 's'} skipped — no DOI on record.
             </p>
           )}
 
+          {result.abstractsRecovered > 0 && (
+            <p className="text-[12px] text-slate-500 mb-4 leading-relaxed">
+              {/* OpenAlex omits abstracts for several publishers. Recovering them BEFORE the
+                  filters run is the difference between a paper entering screening and being
+                  excluded for having no abstract — so it is worth reporting, not silent. */}
+              {result.abstractsRecovered} added paper{result.abstractsRecovered === 1 ? '' : 's'} arrived without an abstract
+              and had one recovered from PubMed or Crossref.
+            </p>
+          )}
+
+          {(result.excludedWithoutAbstract > 0 || result.excludedByPublicationDate > 0 || result.excludedByCitationThreshold > 0) && (
+            <p className="text-[12px] text-slate-500 mb-4 leading-relaxed">
+              {/* These exclusions belong to this run: snowballing adds papers after the
+                  Deduplication & filters step has already run, so its own step reports them. */}
+              Your selection filters excluded{' '}
+              {[
+                result.excludedWithoutAbstract > 0 && `${result.excludedWithoutAbstract} with no abstract`,
+                result.excludedByPublicationDate > 0 && `${result.excludedByPublicationDate} outside the date range`,
+                result.excludedByCitationThreshold > 0 && `${result.excludedByCitationThreshold} below the citation threshold`,
+              ].filter(Boolean).join(', ')}
+              {' '}of the papers added here.
+            </p>
+          )}
+
           {result.newPapersAdded > 0 ? (
             <div className="flex items-center justify-between gap-4 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
               <p className="text-[12px] text-violet-900 leading-relaxed">
-                {result.newPapersAdded} new candidate{result.newPapersAdded === 1 ? '' : 's'} added — they still need to pass
-                deduplication and mechanical filters before they appear in screening.
+                {result.newPapersAdded} new candidate{result.newPapersAdded === 1 ? '' : 's'} added and filtered against your
+                protocol. Re-run deduplication to check them against papers already in the review.
               </p>
               <button
                 onClick={goToDedup}

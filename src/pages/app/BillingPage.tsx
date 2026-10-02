@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
   Zap,
@@ -20,78 +20,45 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { cn, formatNumber, formatDate } from '../../lib/utils'
+import { currencySymbol } from '../../lib/currency'
 import { useAuthStore } from '../../store/authStore'
+import { useUiStore } from '../../store/uiStore'
 import { userApi } from '../../api/user'
 import { subscriptionApi } from '../../api/subscription'
-import type { Plan } from '../../types'
+import type { Plan, PlanDefinitionDto } from '../../types'
 
-// ─── Price config ─────────────────────────────────────────────────────────────
+// ─── Plan presentation config ──────────────────────────────────────────────────
+// Pricing/features come from the backend (GET /subscription/plans) — this table only
+// supplies presentation details (icon, accent color) that aren't part of the pricing data.
 
-const PRICE_IDS = {
-  pro_monthly: 'price_pro_monthly',
-  pro_annual: 'price_pro_annual',
-  unlimited_monthly: 'price_unlimited_monthly',
-  unlimited_annual: 'price_unlimited_annual',
+const PLAN_PRESENTATION: Record<Plan, { Icon: React.ElementType; accentColor: string; featured?: boolean }> = {
+  Free: { Icon: Zap, accentColor: '#888888' },
+  Pro: { Icon: Crown, accentColor: '#7c3aed', featured: true },
+  Unlimited: { Icon: InfinityIcon, accentColor: '#0ea5e9' },
 }
 
-interface PlanConfig {
-  id: Plan
+interface GroupedPlan {
+  tier: Plan
   name: string
-  Icon: React.ElementType
-  priceMonthly: number
-  priceAnnual: number
-  accentColor: string
-  featured?: boolean
-  features: string[]
+  monthly?: PlanDefinitionDto
+  annual?: PlanDefinitionDto
 }
 
-const PLANS: PlanConfig[] = [
-  {
-    id: 'Free',
-    name: 'Free',
-    Icon: Zap,
-    priceMonthly: 0,
-    priceAnnual: 0,
-    accentColor: '#888888',
-    features: [
-      '500 words / month',
-      '4 writing tones',
-      'All strength levels',
-      'Up to 5 history items',
-    ],
-  },
-  {
-    id: 'Pro',
-    name: 'Pro',
-    Icon: Crown,
-    priceMonthly: 149,
-    priceAnnual: 1428,
-    accentColor: '#7c3aed',
-    featured: true,
-    features: [
-      '50,000 words / month',
-      'All tones & strengths',
-      'Unlimited history',
-      'Priority support',
-      'Advanced analytics',
-    ],
-  },
-  {
-    id: 'Unlimited',
-    name: 'Unlimited',
-    Icon: InfinityIcon,
-    priceMonthly: 299,
-    priceAnnual: 2868,
-    accentColor: '#0ea5e9',
-    features: [
-      'Unlimited words / month',
-      'Everything in Pro',
-      'API access',
-      'Dedicated support',
-      'Custom integrations',
-    ],
-  },
-]
+function groupPlansByTier(plans: PlanDefinitionDto[]): GroupedPlan[] {
+  const order: Plan[] = ['Free', 'Pro', 'Unlimited']
+  return order
+    .map((tier): GroupedPlan | null => {
+      const rows = plans.filter((p) => p.tier === tier)
+      if (rows.length === 0) return null
+      return {
+        tier,
+        name: rows[0].name,
+        monthly: rows.find((p) => p.billingInterval === 'Monthly'),
+        annual: rows.find((p) => p.billingInterval === 'Annual'),
+      }
+    })
+    .filter((g): g is GroupedPlan => g !== null)
+}
 
 // ─── SVG usage ring ───────────────────────────────────────────────────────────
 
@@ -225,10 +192,13 @@ export function BillingPage() {
   const [params] = useSearchParams()
   const user = useAuthStore((s) => s.user)
   const currentPlan = (user?.plan ?? 'Free') as Plan
+  const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (params.get('success') === '1') toast.success('Subscription activated! Welcome aboard.')
-    if (params.get('cancelled') === '1') toast('Checkout was cancelled.', { icon: '↩' })
+    const checkout = params.get('checkout')
+    if (checkout === 'success') toast.success('Payment successful — your plan is now active.')
+    else if (checkout === 'failed') toast.error('Payment could not be completed. No subscription was activated.')
+    else if (checkout === 'cancelled') toast('Payment cancelled. You have not been charged.', { icon: '↩' })
   }, [params])
 
   const { data: usage, isLoading: usageLoading } = useQuery({
@@ -236,10 +206,25 @@ export function BillingPage() {
     queryFn: () => userApi.getUsage().then((r) => r.data),
   })
 
-  const { data: subscription, isLoading: subLoading } = useQuery({
+  const { data: subscriptionStatus, isLoading: subLoading } = useQuery({
     queryKey: ['subscription'],
+    // GET /subscription/status returns { plan, hasActiveSubscription, subscription }, not the
+    // subscription itself — unwrap it here so callers below get the real SubscriptionDto (or
+    // undefined), not the wrapper object.
     queryFn: () => subscriptionApi.getStatus().then((r) => r.data),
     enabled: currentPlan !== 'Free',
+  })
+  const subscription = subscriptionStatus?.subscription ?? undefined
+
+  const { data: plans } = useQuery({
+    queryKey: ['plans'],
+    queryFn: () => subscriptionApi.getPlans().then((r) => r.data),
+  })
+  const groupedPlans = groupPlansByTier(plans ?? [])
+
+  const { data: payments } = useQuery({
+    queryKey: ['payments'],
+    queryFn: () => subscriptionApi.getPayments().then((r) => r.data),
   })
 
   const portalMutation = useMutation({
@@ -249,36 +234,47 @@ export function BillingPage() {
   })
 
   const checkoutMutation = useMutation({
-    mutationFn: (priceId: string) =>
+    mutationFn: (planDefinitionId: string) =>
       subscriptionApi
         .createCheckout(
-          priceId,
-          `${window.location.origin}/app/billing?success=1`,
-          `${window.location.origin}/app/billing?cancelled=1`,
+          planDefinitionId,
+          `${window.location.origin}/app/billing?checkout=success`,
+          `${window.location.origin}/app/billing?checkout=cancelled`,
         )
         .then((r) => r.data),
     onSuccess: (d) => { window.location.href = d.url },
-    onError: () => {
-      toast.error('Failed to start checkout')
+    onError: (err: any) => {
+      toast.error(err?.message ?? 'Failed to start checkout')
       setCheckoutPlan(null)
     },
   })
 
+  const cancelMutation = useMutation({
+    mutationFn: () => subscriptionApi.cancelSubscription(),
+    onSuccess: () => {
+      toast.success('Your subscription will cancel at the end of the current period.')
+      queryClient.invalidateQueries({ queryKey: ['subscription'] })
+    },
+    onError: () => toast.error('Could not cancel subscription'),
+  })
+
   const handleUpgrade = (plan: Plan) => {
     if (plan === 'Free' || plan === currentPlan) return
+    const group = groupedPlans.find((g) => g.tier === plan)
+    const selected = isAnnual ? group?.annual : group?.monthly
+    if (!selected) return
     setCheckoutPlan(plan)
-    const priceId =
-      plan === 'Pro'
-        ? isAnnual ? PRICE_IDS.pro_annual : PRICE_IDS.pro_monthly
-        : isAnnual ? PRICE_IDS.unlimited_annual : PRICE_IDS.unlimited_monthly
-    checkoutMutation.mutate(priceId)
+    checkoutMutation.mutate(selected.id)
   }
 
   const usagePct = usage ? Math.min((usage.wordsUsedThisMonth / usage.wordsLimit) * 100, 100) : 0
   const ringColor =
     usagePct >= 100 ? '#ef4444' : usagePct >= 80 ? '#f59e0b' : 'var(--color-purple)'
 
-  const planDisplayPrice = { Free: 'R0/month', Pro: 'R149/month', Unlimited: 'R299/month' }[currentPlan]
+  const currentPlanMonthly = groupedPlans.find((g) => g.tier === currentPlan)?.monthly
+  const planDisplayPrice = currentPlanMonthly
+    ? `${currencySymbol(currentPlanMonthly.currency)}${currentPlanMonthly.price}/month`
+    : '—'
 
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6" style={{ background: 'var(--surface-page)' }}>
@@ -380,6 +376,19 @@ export function BillingPage() {
                     <RotateCcw size={10} />
                     Resets {formatDate(usage.resetDate)}
                   </div>
+                  {((user?.bonusWords ?? 0) > 0 || (user?.bonusCredits ?? 0) > 0) && (
+                    <div className="text-xs" style={{ color: 'var(--color-purple)' }}>
+                      + {formatNumber(user?.bonusWords ?? 0)} bonus words · {formatNumber(user?.bonusCredits ?? 0)} bonus credits (never expires)
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => useUiStore.getState().openTopUpModal()}
+                    className="text-xs font-medium underline underline-offset-2"
+                    style={{ color: 'var(--color-purple)' }}
+                  >
+                    Buy a one-time top-up
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -425,6 +434,17 @@ export function BillingPage() {
                   Invoices, receipts & card details
                 </p>
               )}
+              {currentPlan !== 'Free' && subscription && !subscription.cancelAtPeriodEnd && (
+                <button
+                  type="button"
+                  onClick={() => cancelMutation.mutate()}
+                  disabled={cancelMutation.isPending}
+                  className="text-[11px] font-medium underline underline-offset-2 disabled:opacity-50"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  {cancelMutation.isPending ? 'Cancelling…' : 'Cancel subscription'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -439,7 +459,7 @@ export function BillingPage() {
                   <span
                     className={cn(
                       'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border',
-                      subscription.status === 'active'
+                      subscription.status === 'Active'
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : 'bg-amber-50 text-amber-700 border-amber-200',
                     )}
@@ -447,7 +467,7 @@ export function BillingPage() {
                     <span
                       className={cn(
                         'w-1.5 h-1.5 rounded-full',
-                        subscription.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500',
+                        subscription.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500',
                       )}
                     />
                     {subscription.status.charAt(0).toUpperCase() +
@@ -605,7 +625,22 @@ export function BillingPage() {
 
             {/* Plan cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {PLANS.map((plan, i) => {
+              {groupedPlans.map((group, i) => {
+                const presentation = PLAN_PRESENTATION[group.tier]
+                const priceMonthly = group.monthly?.price ?? 0
+                const priceAnnual = group.annual?.price ?? 0
+                const currency = group.monthly?.currency ?? group.annual?.currency ?? 'USD'
+                const features = (isAnnual ? group.annual : group.monthly)?.features ?? []
+                const plan = {
+                  id: group.tier,
+                  name: group.name,
+                  priceMonthly,
+                  priceAnnual,
+                  currency,
+                  features,
+                  accentColor: presentation.accentColor,
+                  featured: presentation.featured,
+                }
                 const isCurrent = plan.id === currentPlan
                 const monthlyEq =
                   isAnnual && plan.priceMonthly > 0
@@ -613,7 +648,7 @@ export function BillingPage() {
                     : plan.priceMonthly
                 const annualSaving = plan.priceMonthly * 12 - plan.priceAnnual
                 const isLoading = checkoutPlan === plan.id && checkoutMutation.isPending
-                const { Icon } = plan
+                const Icon = presentation.Icon
 
                 return (
                   <motion.div
@@ -686,7 +721,7 @@ export function BillingPage() {
                           className="text-2xl font-bold"
                           style={{ color: 'var(--text-primary)' }}
                         >
-                          {plan.priceMonthly === 0 ? 'R0' : `R${monthlyEq}`}
+                          {plan.priceMonthly === 0 ? `${currencySymbol(plan.currency)}0` : `${currencySymbol(plan.currency)}${monthlyEq}`}
                         </span>
                         <span className="text-xs pb-0.5" style={{ color: 'var(--text-muted)' }}>
                           /mo
@@ -695,9 +730,9 @@ export function BillingPage() {
                       {plan.priceMonthly > 0 &&
                         (isAnnual ? (
                           <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                            R{plan.priceAnnual.toLocaleString()}/yr ·{' '}
+                            {currencySymbol(plan.currency)}{plan.priceAnnual.toLocaleString()}/yr ·{' '}
                             <span className="text-emerald-600 font-medium">
-                              save R{annualSaving}
+                              save {currencySymbol(plan.currency)}{annualSaving}
                             </span>
                           </p>
                         ) : (
@@ -785,6 +820,50 @@ export function BillingPage() {
               })}
             </div>
           </motion.div>
+        )}
+
+        {/* ── Payment history ───────────────────────────────────────────────── */}
+        {payments && payments.length > 0 && (
+          <div
+            className="rounded-xl border p-5"
+            style={{ background: 'var(--surface-card)', borderColor: 'var(--border-hairline)' }}
+          >
+            <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+              Payment history
+            </h2>
+            <div className="space-y-2">
+              {payments.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between text-xs py-2 border-b last:border-b-0"
+                  style={{ borderColor: 'var(--border-hairline)' }}
+                >
+                  <div>
+                    <span style={{ color: 'var(--text-primary)' }}>{formatDate(p.createdAt)}</span>
+                    <span className="ml-2" style={{ color: 'var(--text-muted)' }}>
+                      {p.currency} {p.amount.toFixed(2)}
+                    </span>
+                    {p.provider === 'Mock' && (
+                      <span className="ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                        Test payment
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      'px-2 py-0.5 rounded-full text-[11px] font-medium border',
+                      p.status === 'Succeeded' && 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                      p.status === 'Failed' && 'bg-red-50 text-red-700 border-red-200',
+                      p.status === 'Cancelled' && 'bg-[#f5f5f3] text-text-sec border-[#d1d5db]',
+                      p.status === 'Pending' && 'bg-amber-50 text-amber-700 border-amber-200',
+                    )}
+                  >
+                    {p.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* ── Trust strip ───────────────────────────────────────────────────── */}

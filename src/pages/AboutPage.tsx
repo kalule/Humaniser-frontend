@@ -5,7 +5,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 export function AboutPage() {
   useDocumentTitle(
     'About HumaniseAI — Built in South Africa',
-    'HumaniseAI is a South African-built AI toolkit for students and researchers, combining an AI humaniser and detector with a full academic research suite.',
+    'HumaniseAI is a South African-built AI writing toolkit — an AI humaniser, detector, paraphraser, grammar checker, and summariser in one workspace.',
     '/about',
   )
 
@@ -13,24 +13,21 @@ export function AboutPage() {
     <StaticPageLayout
       icon={Building2}
       badge="About Us"
-      title="Built in South Africa, for South African students"
-      subtitle="HumaniseAI started as a way to solve two problems local students and researchers kept running into: AI-flagged writing, and slow, expensive research tooling."
+      title="Built in South Africa, for writers everywhere"
+      subtitle="HumaniseAI started as a way to solve a problem writers kept running into: AI-flagged writing that needed to sound natural again."
     >
       <StaticSection heading="Why we built this">
         <p>
-          Most AI writing and detection tools are built for a US or UK market — priced in dollars, tuned for
-          American English, and disconnected from the actual research workflow a student or academic goes
-          through. We built HumaniseAI to close that gap: tools that speak South African English, price in
-          ZAR, and cover the full journey from a research question to a finished, cited submission.
+          We started HumaniseAI to build focused writing tools that do a small number of jobs well
+          instead of trying to do everything. It's tuned for South African English from day one, and
+          today it's used by writers everywhere — priced simply in USD.
         </p>
       </StaticSection>
 
       <StaticSection heading="What we've built so far">
         <p>
-          The platform now spans 16 tools across two pillars — Writing &amp; Editing (AI Humaniser, AI
-          Detector, Paraphraser, Grammar Checker, Source Check, Summariser) and Research &amp; Study
-          (Proposal Studio, Data Analyst, Document Chat, Citations, Flashcards, Lecture Notes) — backed by a
-          shared workspace for organising papers, sources, and documents.
+          HumaniseAI gives you five focused tools — an AI Humaniser, AI Detector, Paraphraser, Grammar
+          Checker, and Summariser — in one clean workspace, with full history and simple USD pricing.
         </p>
       </StaticSection>
 

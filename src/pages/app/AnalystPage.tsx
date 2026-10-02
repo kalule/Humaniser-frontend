@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback, lazy, Suspense } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import toast from 'react-hot-toast'
@@ -25,6 +26,7 @@ import { useAnalyst } from '../../hooks/useAnalyst'
 import { useSuggestedQuestions } from '../../hooks/useSuggestedQuestions'
 import { useWorkbench } from '../../hooks/useWorkbench'
 import { analystApi } from '../../api/analyst'
+import { researchApi } from '../../api/research'
 import type {
   AnalystResult, ColumnSchema, WorkbenchMode,
   AcademicStyleGuide, RegressionTelemetry, FormattedCitations,
@@ -2057,6 +2059,11 @@ function ConversationPanel({
   const messages    = useAnalystStore((s) => s.messages)
   const schema      = useAnalystStore((s) => s.schema)
   const sessionId   = useAnalystStore((s) => s.sessionId)
+  const datasets           = useAnalystStore((s) => s.datasets)
+  const selectedDatasetIds = useAnalystStore((s) => s.selectedDatasetIds)
+  const selectedDatasetNames = selectedDatasetIds
+    .map((id) => datasets.find((d) => d.datasetId === id)?.fileName)
+    .filter((name): name is string => !!name)
 
   const user = useAuthStore((s) => s.user)
   const queryCost = CREDIT_COSTS.dataAnalystQuery
@@ -2170,6 +2177,12 @@ function ConversationPanel({
 
       {/* Input */}
       <div className="pt-4" style={{ borderTop: '0.5px solid #ebebea' }}>
+        {selectedDatasetIds.length > 1 && (
+          <p className="flex items-center gap-1.5 text-[11px] text-violet-700 font-medium mb-2">
+            <FileSpreadsheet size={11} />
+            Joint analysis: {selectedDatasetNames.join(' + ')}
+          </p>
+        )}
         <div className="flex gap-3 items-end rounded-2xl px-4 py-3 transition-colors" style={{ background: '#f8f9fa', border: '0.5px solid #e0e0da' }}>
           <textarea
             ref={textareaRef}
@@ -2605,48 +2618,67 @@ function UploadZone() {
   const isUploading  = useAnalystStore((s) => s.isUploading)
   const inputRef     = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  // Self-declared, not inferred. Left unchecked, nothing is sent (stays "not declared" — see
+  // AnalystDataset.IsSyntheticData) rather than defaulting every upload to an affirmative "real,"
+  // which would silently overstate what's actually known about the data's provenance.
+  const [isSynthetic, setIsSynthetic] = useState(false)
 
   const handleFiles = (files: FileList | null) => {
-    if (files?.[0]) void upload(files[0])
+    if (files && files.length > 0) void upload(files, isSynthetic || undefined)
   }
 
   return (
-    <div
-      onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(e) => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files) }}
-      onClick={() => !isUploading && inputRef.current?.click()}
-      className={cn(
-        'flex flex-col items-center justify-center gap-5 rounded-2xl cursor-pointer transition-all duration-200 py-14 px-8 text-center select-none bg-white',
-        dragging
-          ? 'border-[1.5px] border-dashed border-violet-500 bg-violet-50/40'
-          : 'border-[1.5px] border-dashed border-[#d1d5db] hover:border-violet-400 hover:bg-violet-50/20',
-        isUploading && 'pointer-events-none opacity-60',
-      )}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".csv,.xlsx,.xls,.dta,.rds,.rdata,.omv"
-        className="hidden"
-        onChange={(e) => handleFiles(e.target.files)}
-      />
-      {isUploading ? (
-        <>
-          <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-500 text-sm">Parsing & profiling dataset…</p>
-        </>
-      ) : (
-        <>
-          <div className="w-14 h-14 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center">
-            <UploadCloud size={26} className="text-violet-500" />
-          </div>
-          <div>
-            <p className="text-[15px] font-semibold text-slate-800 mb-1">Drop your dataset here</p>
-            <p className="text-sm text-slate-500">CSV, Excel, Stata (.dta), R (.rds), Jamovi (.omv) · max 50 MB</p>
-          </div>
-        </>
-      )}
+    <div className="flex flex-col gap-3">
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files) }}
+        onClick={() => !isUploading && inputRef.current?.click()}
+        className={cn(
+          'flex flex-col items-center justify-center gap-5 rounded-2xl cursor-pointer transition-all duration-200 py-14 px-8 text-center select-none bg-white',
+          dragging
+            ? 'border-[1.5px] border-dashed border-violet-500 bg-violet-50/40'
+            : 'border-[1.5px] border-dashed border-[#d1d5db] hover:border-violet-400 hover:bg-violet-50/20',
+          isUploading && 'pointer-events-none opacity-60',
+        )}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept=".csv,.xlsx,.xls,.dta,.rds,.rdata,.omv"
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+        {isUploading ? (
+          <>
+            <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-slate-500 text-sm">Parsing & profiling dataset…</p>
+          </>
+        ) : (
+          <>
+            <div className="w-14 h-14 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center">
+              <UploadCloud size={26} className="text-violet-500" />
+            </div>
+            <div>
+              <p className="text-[15px] font-semibold text-slate-800 mb-1">Drop your dataset(s) here</p>
+              <p className="text-sm text-slate-500">CSV, Excel, Stata (.dta), R (.rds), Jamovi (.omv) · max 50 MB each · multiple files supported</p>
+            </div>
+          </>
+        )}
+      </div>
+      <label
+        className="flex items-center gap-2 justify-center text-xs text-slate-500 cursor-pointer select-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <input
+          type="checkbox"
+          checked={isSynthetic}
+          onChange={(e) => setIsSynthetic(e.target.checked)}
+          className="w-3.5 h-3.5 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+        />
+        This is synthetic or practice data, not real collected data
+      </label>
     </div>
   )
 }
@@ -2654,14 +2686,19 @@ function UploadZone() {
 // ── Dataset sidebar (left panel) ──────────────────────────────────────────────
 
 function DatasetSidebar() {
-  const { upload }  = useAnalyst()
-  const schema      = useAnalystStore((s) => s.schema)
-  const isUploading = useAnalystStore((s) => s.isUploading)
-  const reset       = useAnalystStore((s) => s.reset)
-  const inputRef    = useRef<HTMLInputElement>(null)
+  const { upload }          = useAnalyst()
+  const datasets            = useAnalystStore((s) => s.datasets)
+  const selectedDatasetIds  = useAnalystStore((s) => s.selectedDatasetIds)
+  const datasetId           = useAnalystStore((s) => s.datasetId)
+  const schema              = useAnalystStore((s) => s.schema)
+  const isUploading         = useAnalystStore((s) => s.isUploading)
+  const reset               = useAnalystStore((s) => s.reset)
+  const toggleDatasetSelected = useAnalystStore((s) => s.toggleDatasetSelected)
+  const setPrimaryDataset     = useAnalystStore((s) => s.setPrimaryDataset)
+  const inputRef            = useRef<HTMLInputElement>(null)
 
   const handleFiles = (files: FileList | null) => {
-    if (files?.[0]) void upload(files[0])
+    if (files && files.length > 0) void upload(files)
   }
 
   return (
@@ -2684,6 +2721,7 @@ function DatasetSidebar() {
         <input
           ref={inputRef}
           type="file"
+          multiple
           accept=".csv,.xlsx,.xls,.dta,.rds,.rdata,.omv"
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
@@ -2692,7 +2730,7 @@ function DatasetSidebar() {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        {!schema ? (
+        {datasets.length === 0 ? (
           <div className="flex-1 flex items-center justify-center p-6">
             <div className="text-center">
               <FileSpreadsheet size={28} className="text-slate-300 mx-auto mb-2" />
@@ -2703,28 +2741,66 @@ function DatasetSidebar() {
           </div>
         ) : (
           <>
-            {/* Active dataset row */}
-            <div className="mx-3 mt-3 mb-1 flex items-start gap-2.5 px-2.5 py-2 rounded-lg shrink-0" style={{ background: '#ede9fe', borderLeft: '2px solid #7c3aed' }}>
-              <FileSpreadsheet size={14} className="text-violet-600 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-violet-900 truncate">{schema.fileName}</p>
-                <p className="text-[10px] mt-0.5 tabular-nums" style={{ color: '#5b21b6' }}>
-                  {schema.rowCount.toLocaleString()} rows · {schema.columnCount} cols
-                </p>
+            {/* Dataset list — checkbox selects a dataset into the next query (multiple =
+                joint analysis); clicking the row body makes that dataset "primary" so the
+                schema/health/wizard panel below reflects it. */}
+            <div className="mx-3 mt-3 mb-1 space-y-1 shrink-0 max-h-48 overflow-y-auto scrollbar-none">
+              {datasets.map((ds) => {
+                const isSelected = selectedDatasetIds.includes(ds.datasetId)
+                const isPrimary  = ds.datasetId === datasetId
+                return (
+                  <div
+                    key={ds.datasetId}
+                    onClick={() => setPrimaryDataset(ds.datasetId)}
+                    title={isPrimary ? undefined : 'Click to view this dataset\'s schema & tools'}
+                    className={cn(
+                      'flex items-start gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors',
+                      isPrimary ? '' : 'hover:bg-slate-50',
+                    )}
+                    style={isPrimary ? { background: '#ede9fe', borderLeft: '2px solid #7c3aed' } : { borderLeft: '2px solid transparent' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => toggleDatasetSelected(ds.datasetId)}
+                      className="mt-0.5 w-3.5 h-3.5 rounded border-slate-300 text-violet-600 focus:ring-violet-500 shrink-0"
+                    />
+                    <FileSpreadsheet size={14} className={cn('shrink-0 mt-0.5', isPrimary ? 'text-violet-600' : 'text-slate-400')} />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn('text-xs font-semibold truncate', isPrimary ? 'text-violet-900' : 'text-slate-700')}>{ds.fileName}</p>
+                      <p className="text-[10px] mt-0.5 tabular-nums" style={{ color: isPrimary ? '#5b21b6' : '#94a3b8' }}>
+                        {ds.rowCount.toLocaleString()} rows · {ds.columnCount} cols
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {selectedDatasetIds.length > 1 && (
+              <div className="mx-3 mb-1 px-2.5 py-1.5 rounded-lg text-[10px] text-violet-700 shrink-0" style={{ background: '#f5f3ff' }}>
+                Joint analysis: {selectedDatasetIds.length} datasets selected
               </div>
+            )}
+
+            <div className="mx-3 mb-2 shrink-0">
               <button
                 onClick={reset}
-                title="Load new file"
-                className="shrink-0 p-1 rounded transition-colors text-violet-400 hover:text-violet-600"
+                title="Clear all datasets"
+                className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition-colors"
               >
-                <RefreshCcw size={11} />
+                <RefreshCcw size={10} /> Clear all
               </button>
             </div>
 
-            {/* Schema detail — schema panel already shows filename/reset; hide its header */}
-            <div className="flex-1 overflow-hidden flex flex-col px-3 pb-3">
-              <SchemaPanel onReset={reset} showHeader={false} />
-            </div>
+            {/* Schema detail for the primary dataset — schema panel already shows
+                filename/reset; hide its header since the list above covers it. */}
+            {schema && (
+              <div className="flex-1 overflow-hidden flex flex-col px-3 pb-3">
+                <SchemaPanel onReset={reset} showHeader={false} />
+              </div>
+            )}
           </>
         )}
       </div>
@@ -2735,6 +2811,8 @@ function DatasetSidebar() {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AnalystPage() {
+  const navigate    = useNavigate()
+  const [searchParams] = useSearchParams()
   const schema      = useAnalystStore((s) => s.schema)
   const messages    = useAnalystStore((s) => s.messages)
   const mode        = useAnalystStore((s) => s.mode)
@@ -2743,6 +2821,101 @@ export default function AnalystPage() {
   const stepCount   = useAnalystStore((s) => s.stepCount)
   const { pinChart } = useWorkbench()
   const { clearSession } = useAnalyst()
+  const [researchProjects, setResearchProjects] = useState<Array<{ id: string; title: string }>>([])
+  const [selectedProjectId, setSelectedProjectId] = useState('')
+  const [linkedProjectId, setLinkedProjectId] = useState('')
+  const [loadingProjects, setLoadingProjects] = useState(false)
+  const [linkingProject, setLinkingProject] = useState(false)
+
+  useEffect(() => {
+    const requestedSessionId = searchParams.get('sessionId')
+    const requestedProjectId = searchParams.get('projectId')
+    const requestedDatasetId = searchParams.get('datasetId')
+    if (!requestedSessionId || !requestedProjectId || !requestedDatasetId || sessionId === requestedSessionId) return
+
+    Promise.all([
+      analystApi.getSession(requestedSessionId),
+      researchApi.getProjectDatasets(requestedProjectId),
+    ]).then(([session, datasets]) => {
+      const dataset = datasets.find(item => item.datasetId === requestedDatasetId)
+      if (!dataset) throw new Error('The linked dataset is no longer available.')
+
+      const resumedSchema = {
+        datasetId: dataset.datasetId,
+        fileName: dataset.fileName,
+        rowCount: dataset.rowCount,
+        columnCount: dataset.columnCount,
+        columns: [],
+        fileSizeBytes: dataset.fileSizeBytes,
+        uploadedAt: dataset.uploadedAt,
+      }
+
+      useAnalystStore.setState({
+        datasetId: dataset.datasetId,
+        schema: resumedSchema,
+        // Session resume only surfaces the primary dataset — a resumed multi-dataset
+        // session still queries correctly (the backend re-derives the full combination),
+        // but the sidebar here only shows the primary until full resume UI is built.
+        datasets: [resumedSchema],
+        selectedDatasetIds: [dataset.datasetId],
+        sessionId: session.sessionId,
+        stepCount: session.stepCount,
+        academicLevel: session.academicLevel === 0 ? 'undergraduate' : session.academicLevel === 2 ? 'doctoral' : 'masters',
+        wizardStep: null,
+        isCleaned: true,
+        messages: session.steps.flatMap(step => [
+          {
+            id: `session-${session.sessionId}-${step.stepNumber}-question`,
+            role: 'user' as const,
+            content: step.query,
+            status: 'complete' as const,
+            createdAt: step.timestamp,
+          },
+          {
+            id: `session-${session.sessionId}-${step.stepNumber}-answer`,
+            role: 'assistant' as const,
+            content: step.interpretedResult,
+            results: step.results,
+            status: 'complete' as const,
+            createdAt: step.timestamp,
+          },
+        ]),
+      })
+    }).catch(error => {
+      toast.error((error as { message?: string })?.message ?? 'Could not restore the completed analysis.')
+    })
+  }, [searchParams, sessionId])
+
+  useEffect(() => {
+    if (!sessionId || stepCount < 1) return
+    setLoadingProjects(true)
+    researchApi.list()
+      .then(projects => setResearchProjects(projects.map(project => ({
+        id: project.id,
+        title: project.title || 'Untitled research project',
+      }))))
+      .catch(() => toast.error('Could not load your research projects.'))
+      .finally(() => setLoadingProjects(false))
+  }, [sessionId, stepCount])
+
+  useEffect(() => {
+    setLinkedProjectId('')
+    setSelectedProjectId('')
+  }, [sessionId])
+
+  const linkAnalysisToProject = async () => {
+    if (!sessionId || !selectedProjectId) return
+    setLinkingProject(true)
+    try {
+      await researchApi.linkSession(selectedProjectId, sessionId)
+      setLinkedProjectId(selectedProjectId)
+      toast.success('Completed analysis linked to the research project.')
+    } catch (error) {
+      toast.error((error as { message?: string })?.message ?? 'Could not link this analysis session.')
+    } finally {
+      setLinkingProject(false)
+    }
+  }
 
   const latestPythonCode = [...messages]
     .reverse()
@@ -2844,11 +3017,37 @@ export default function AnalystPage() {
               >
                 {/* Session continuity banner */}
                 {sessionId && (
-                  <div className="mx-4 mt-3 flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-violet-700 shrink-0" style={{ background: '#f5f3ff', border: '0.5px solid #ddd6fe' }}>
+                  <div className="mx-4 mt-3 flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-violet-700 shrink-0" style={{ background: '#f5f3ff', border: '0.5px solid #ddd6fe' }}>
                     <GraduationCap size={12} className="shrink-0 text-violet-600" />
                     <span className="flex-1">
                       Session active — <span className="font-semibold text-violet-800">{stepCount}</span> {stepCount === 1 ? 'analysis' : 'analyses'} in context
                     </span>
+                    {stepCount > 0 && !linkedProjectId && <>
+                      <select
+                        aria-label="Research project"
+                        value={selectedProjectId}
+                        disabled={loadingProjects || linkingProject}
+                        onChange={event => setSelectedProjectId(event.target.value)}
+                        className="max-w-64 rounded-lg border border-violet-200 bg-white px-2 py-1 text-[11px] text-slate-700 disabled:opacity-50"
+                      >
+                        <option value="">{loadingProjects ? 'Loading projects…' : 'Select research project…'}</option>
+                        {researchProjects.map(project => <option key={project.id} value={project.id}>{project.title}</option>)}
+                      </select>
+                      <button
+                        disabled={!selectedProjectId || linkingProject}
+                        onClick={() => void linkAnalysisToProject()}
+                        className="flex items-center gap-1 rounded-lg bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
+                      >
+                        {linkingProject ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                        Link analysis
+                      </button>
+                    </>}
+                    {linkedProjectId && <button
+                      onClick={() => navigate(`/app/research-agent/${linkedProjectId}/dashboard`)}
+                      className="flex items-center gap-1 rounded-lg bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-800"
+                    >
+                      <Check size={10} /> Linked · Open project
+                    </button>}
                     <button
                       onClick={clearSession}
                       className="flex items-center gap-1 px-2 py-1 rounded-lg text-violet-600 hover:text-violet-800 hover:bg-violet-100 transition-colors"

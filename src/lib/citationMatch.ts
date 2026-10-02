@@ -19,6 +19,7 @@ export interface CitationHit {
 
 const YEAR_STYLE_RE = /\(([^()]{3,100})\)/g
 const YEAR_SUFFIX_RE = /,?\s*(\d{4}[a-z]?)\s*$/
+const NARRATIVE_AUTHOR_TAIL_RE = /((?:[A-Z][\p{L}'\p{Pd}-]*)(?:(?:\s+(?:de|van|von|der|den|el|al|bin|ibn|da|dos|das|la|le|du|di)\s+[A-Z][\p{L}'\p{Pd}-]*)|(?:\s+(?:and|&)\s+[A-Z][\p{L}'\p{Pd}-]*)|(?:\s+et\s+al\.?))?)\s*$/u
 const MLA_RE  = /\(([A-Z][\p{L}'-]+)\)/gu
 const IEEE_RE = /\[(\d{1,3})\]/g
 
@@ -49,9 +50,17 @@ export function scanTextForCitations(
 
   // apa7 / harvard
   for (const m of text.matchAll(YEAR_STYLE_RE)) {
-    if (YEAR_SUFFIX_RE.test(m[1])) {
-      hits.push({ from: m.index!, to: m.index! + m[0].length, inner: m[1] })
+    const yearMatch = m[1].match(YEAR_SUFFIX_RE)
+    if (!yearMatch) continue
+    const authorInside = m[1].slice(0, yearMatch.index).replace(/,\s*$/, '').trim()
+    if (!authorInside) {
+      const narrative = text.slice(0, m.index).match(NARRATIVE_AUTHOR_TAIL_RE)
+      if (narrative?.index !== undefined) {
+        hits.push({ from: narrative.index, to: m.index! + m[0].length, inner: `${narrative[1]}, ${yearMatch[1]}` })
+        continue
+      }
     }
+    hits.push({ from: m.index!, to: m.index! + m[0].length, inner: m[1] })
   }
   return hits
 }
@@ -76,25 +85,19 @@ function firstSurname(authors: string): string | null {
 function parseYearStyleInner(inner: string): { surname: string; year: string } | null {
   const yearMatch = inner.match(YEAR_SUFFIX_RE)
   if (!yearMatch) return null
-  const authorPart  = inner.slice(0, yearMatch.index).trim()
+  const authorPart  = inner.slice(0, yearMatch.index).trim().replace(/\s+et\s+al\.?\s*,?$/i, '')
   const surnameFirst = extractSurnamesFromAuthors(authorPart)[0]
   if (!surnameFirst) return null
   return { surname: surnameFirst, year: yearMatch[1].replace(/[a-z]$/, '') }
 }
 
-export function resolveHitAgainstLiterature(
-  hit:       CitationHit,
-  style:     CitationStyle,
-  literature: FetchedLiterature[],
-): ResolvedCitation | null {
-  if (style === 'ieee') return null // needs the compiled bibliography — resolved separately
-
+function resolveOne(clauseText: string, style: CitationStyle, literature: FetchedLiterature[]): ResolvedCitation | null {
   let match: FetchedLiterature | undefined
 
   if (style === 'mla') {
-    match = literature.find(l => firstSurname(l.authors) === hit.inner)
+    match = literature.find(l => firstSurname(l.authors) === clauseText)
   } else {
-    const parsed = parseYearStyleInner(hit.inner)
+    const parsed = parseYearStyleInner(clauseText)
     if (!parsed) return null
     match = literature.find(l =>
       firstSurname(l.authors) === parsed.surname && String(l.year) === parsed.year)
@@ -102,7 +105,7 @@ export function resolveHitAgainstLiterature(
 
   if (!match) {
     return {
-      displayTitle:  `(${hit.inner})`,
+      displayTitle:  `(${clauseText})`,
       matchedSource: false,
     }
   }
@@ -116,6 +119,34 @@ export function resolveHitAgainstLiterature(
     doi:           match.doi,
     matchedSource: true,
   }
+}
+
+// A single clicked span can hold a grouped Harvard/APA citation like "(Alabi, 2020;
+// Moodley, 2024)" — each `;`-separated clause names its own author/year and must be
+// resolved against the literature independently. Resolving the whole inner string as
+// one clause (the previous behaviour) paired the FIRST surname with the LAST year,
+// so "Alabi, 2020; Moodley, 2024" looked up "Alabi, 2024" — which matches neither real
+// source — and only ever showed one (wrong) result. MLA/IEEE hits are never grouped
+// this way (MLA has no year to anchor a `;` split on; IEEE resolves separately via
+// resolveIeeeHit), so they always return a single-element array.
+export function resolveHitAgainstLiterature(
+  hit:       CitationHit,
+  style:     CitationStyle,
+  literature: FetchedLiterature[],
+): ResolvedCitation[] | null {
+  if (style === 'ieee') return null // needs the compiled bibliography — resolved separately
+
+  if (style === 'mla') {
+    const resolved = resolveOne(hit.inner, style, literature)
+    return resolved ? [resolved] : null
+  }
+
+  const clauses = hit.inner.split(';').map(c => c.trim()).filter(Boolean)
+  const resolved = clauses
+    .map(clause => resolveOne(clause, style, literature))
+    .filter((r): r is ResolvedCitation => r !== null)
+
+  return resolved.length > 0 ? resolved : null
 }
 
 // IEEE resolves the bracketed index against the compiled bibliography (the same

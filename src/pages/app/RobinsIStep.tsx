@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
+import toast from 'react-hot-toast'
 import { AlertTriangle, ChevronDown, Loader2, RefreshCw, Search, Sparkles, Upload } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useSystematicReviewStore } from '../../store/systematicReviewStore'
@@ -75,6 +76,7 @@ export default function RobinsIStep({ reviewId, onSaved }: RobinsIStepProps) {
   const applyAbstractFallback = useSystematicReviewStore(s => s.useAbstractFallback)
   const getPaperFullTextAction = useSystematicReviewStore(s => s.getPaperFullText)
   const loadDetail = useSystematicReviewStore(s => s.loadDetail)
+  const recoverAbstractsAction = useSystematicReviewStore(s => s.recoverAbstracts)
 
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -97,6 +99,7 @@ export default function RobinsIStep({ reviewId, onSaved }: RobinsIStepProps) {
   const [runError, setRunError] = useState<string | null>(null)
 
   const [rerunningPaperId, setRerunningPaperId] = useState<string | null>(null)
+  const [recoveringAbstracts, setRecoveringAbstracts] = useState(false)
   const [pendingSkip, setPendingSkip] = useState(false)
 
   const [uploadingPaperId, setUploadingPaperId] = useState<string | null>(null)
@@ -195,6 +198,35 @@ export default function RobinsIStep({ reviewId, onSaved }: RobinsIStepProps) {
     }
   }
 
+  // The record's own source did not carry an abstract; another one may. Re-asks PubMed and
+  // Crossref by DOI for the included papers that have neither an abstract nor a PDF — the exact
+  // set that can otherwise be neither read nor advanced past.
+  const handleRecoverAbstracts = async () => {
+    setRecoveringAbstracts(true)
+    try {
+      const result = await recoverAbstractsAction(reviewId)
+      if (result.recovered > 0) {
+        toast.success(result.recovered === 1
+          ? 'Recovered 1 abstract.'
+          : `Recovered ${result.recovered} abstracts.`)
+        await loadRecords()
+        await loadDetail(reviewId).catch(() => {})
+        onSaved()
+      } else if (result.noDoi > 0 && result.attempted === 0) {
+        // Nothing was even lookup-able — say that rather than implying the lookup came back empty.
+        toast(`${result.noDoi === 1 ? '1 paper has' : `${result.noDoi} papers have`} no DOI to look up. Upload the PDF instead.`)
+      } else {
+        toast('No abstracts found in PubMed or Crossref for these DOIs. Upload the PDF instead.')
+      }
+    } catch (err) {
+      console.error('Failed to recover abstracts', err)
+      const message = (err as { message?: string })?.message
+      toast.error(message && message.trim().length > 0 ? message : "Couldn't reach PubMed or Crossref just now.")
+    } finally {
+      setRecoveringAbstracts(false)
+    }
+  }
+
   const handleRerunRow = async (paperId: string) => {
     setRerunningPaperId(paperId)
     try {
@@ -204,6 +236,12 @@ export default function RobinsIStep({ reviewId, onSaved }: RobinsIStepProps) {
       onSaved()
     } catch (err) {
       console.error('Failed to re-run ROBINS-I assessment for paper', err)
+      // Most often "this paper has no text to read" — the API reports that with the fix in the
+      // message, and swallowing it left the button spinning to no visible effect.
+      const message = (err as { message?: string })?.message
+      toast.error(message && message.trim().length > 0
+        ? message
+        : "Couldn't re-run this assessment for this paper.")
     } finally {
       setRerunningPaperId(null)
     }
@@ -334,6 +372,26 @@ export default function RobinsIStep({ reviewId, onSaved }: RobinsIStepProps) {
           <span className="text-[12px] text-slate-500 font-medium">Showing {records.length} of {total}</span>
         </div>
 
+        {summary && summary.noUsableText > 0 && (
+          <div className="flex items-start gap-2.5 bg-amber-tint border border-amber-accent/40 rounded-xl px-4 py-3 mb-4">
+            <AlertTriangle size={16} className="text-amber-text shrink-0 mt-0.5" />
+            <p className="text-[12px] text-amber-text leading-relaxed">
+              {summary.noUsableText === 1 ? '1 paper has' : `${summary.noUsableText} papers have`} no
+              abstract and no uploaded PDF, so there is nothing to assess against. Upload the PDF, or
+              continue: the review will report {summary.noUsableText === 1 ? 'it' : 'them'} as not assessed.
+            </p>
+            <button
+              onClick={handleRecoverAbstracts}
+              disabled={recoveringAbstracts}
+              title="Some sources return a record without its abstract. This re-asks PubMed and Crossref by DOI."
+              className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-amber-accent/60 text-amber-text text-[11px] font-semibold hover:bg-amber-accent/10 transition-colors disabled:opacity-60"
+            >
+              {recoveringAbstracts ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+              Try to recover
+            </button>
+          </div>
+        )}
+
         {summary && summary.needsPdf > 0 && (
           <div className="flex items-start gap-2.5 bg-amber-tint border border-amber-accent/40 rounded-xl px-4 py-3 mb-4">
             <AlertTriangle size={16} className="text-amber-text shrink-0 mt-0.5" />
@@ -397,6 +455,9 @@ export default function RobinsIStep({ reviewId, onSaved }: RobinsIStepProps) {
                 <tbody className="divide-y divide-slate-100">
                   {records.map(r => {
                     const hasUsableText = r.fullTextStatus === 'PdfUploaded' || r.useAbstractFallback
+                    // A source decision is not source text: a paper opted into the abstract
+                    // fallback can still carry no abstract at all, and nothing can assess it.
+                    const hasNoText = r.fullTextStatus !== 'PdfUploaded' && r.abstract.trim().length === 0
                     const view = textView[r.paperId] ?? 'abstract'
                     return (
                       <tr key={r.paperId} className={cn('hover:bg-slate-50/50 transition-colors group border-l-4', OVERALL_BORDER[r.overall])}>
@@ -415,7 +476,11 @@ export default function RobinsIStep({ reviewId, onSaved }: RobinsIStepProps) {
                             <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded', RATING_STYLE[r.overall])}>
                               {r.overall === 'Pending' ? 'Awaiting ROBINS-I assessment' : `${RATING_LABEL[r.overall]} risk`}
                             </span>
-                            {hasUsableText && (
+                            {hasNoText ? (
+                              <span className="text-[10px] font-semibold bg-amber-tint text-amber-text px-2 py-0.5 rounded">
+                                no abstract available &mdash; upload the PDF
+                              </span>
+                            ) : hasUsableText && (
                               <span className="text-[10px] font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded">
                                 {r.useAbstractFallback ? 'Manually confirmed from the abstract' : 'Screened on full text'}
                               </span>
@@ -462,7 +527,7 @@ export default function RobinsIStep({ reviewId, onSaved }: RobinsIStepProps) {
                                 Upload PDF
                               </button>
                             )}
-                            {hasUsableText && (
+                            {hasUsableText && !hasNoText && (
                               <button
                                 onClick={() => handleRerunRow(r.paperId)}
                                 disabled={rerunningPaperId === r.paperId}
@@ -482,7 +547,9 @@ export default function RobinsIStep({ reviewId, onSaved }: RobinsIStepProps) {
                           <p className="text-[12px] text-slate-600 leading-relaxed line-clamp-4">
                             {view === 'fullText'
                               ? (fullTextLoading.has(r.paperId) ? 'Loading full text…' : (fullTextCache[r.paperId] ?? 'Full text not available.'))
-                              : r.abstract}
+                              : r.abstract.trim().length > 0
+                              ? r.abstract
+                              : <span className="italic text-slate-400">No abstract was returned for this record by the source that supplied it.</span>}
                           </p>
                         </td>
 

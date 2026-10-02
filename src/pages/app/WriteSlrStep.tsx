@@ -9,6 +9,7 @@ import ConfirmActionModal from '../../components/app/ConfirmActionModal'
 import type {
   ManuscriptSection, ManuscriptSectionKey, SystematicReviewDetail,
 } from '../../types/systematicReview'
+import type { ApiError } from '../../types'
 
 interface WriteSlrStepProps {
   reviewId: string
@@ -132,6 +133,44 @@ function ManuscriptSectionCard({ reviewId, section, onSaved }: {
 
 // ── Write SLR step ───────────────────────────────────────────────────────────
 
+interface ManuscriptIssue {
+  type:    string
+  section: string
+  detail:  string
+}
+
+/// A 409 from the export gate carries the individual issues. Anything else is a genuine failure and
+/// must not be dressed up as a consistency problem.
+///
+/// client.ts's response interceptor normalizes EVERY structured API error — this one included —
+/// into a flat ApiError (`{ code, message, details }`) and rejects with THAT object directly, not
+/// the original axios error (see client.ts's "Surface structured ApiError" block:
+/// `body?.error` -> `Promise.reject(normalized)`). This is the same shape FACT_CONFLICT /
+/// UNRESOLVED_CITATION_GAP handling already reads elsewhere in this codebase (e.g.
+/// LiteratureReviewPage.tsx's `(err as ApiError)?.code`) — there is no `.response` on the object a
+/// catch block here actually receives. Two earlier versions of this function looked for
+/// `err.response.data.data.issues`, then `err.response.status`/`err.response.data.error.details` —
+/// both wrong for the same reason, and both silently returned null, so every consistency-blocked
+/// export fell through to the generic "could not export" message instead of ever showing the real
+/// issues or the "Export anyway" action. No Blob handling is needed here either — the interceptor
+/// already converts a JSON-typed Blob error body to a parsed object before this ever runs.
+function extractConsistencyIssues(err: unknown): ManuscriptIssue[] | null {
+  const apiError = err as Partial<ApiError> | undefined
+  if (apiError?.code !== 'MANUSCRIPT_CONSISTENCY_BLOCKED') return null
+  return (apiError.details as { issues?: ManuscriptIssue[] } | undefined)?.issues ?? null
+}
+
+/** One unmet precondition from the pre-generation readiness gate. */
+type ManuscriptBlocker = { type: string; detail: string }
+
+/// The 409 from the readiness gate, which fires BEFORE any section is generated (and before credits
+/// are spent) when screening has not finished. Same normalized-ApiError shape as above.
+function extractReadinessBlockers(err: unknown): ManuscriptBlocker[] | null {
+  const apiError = err as Partial<ApiError> | undefined
+  if (apiError?.code !== 'MANUSCRIPT_NOT_READY') return null
+  return (apiError.details as { blockers?: ManuscriptBlocker[] } | undefined)?.blockers ?? null
+}
+
 export default function WriteSlrStep({ reviewId, detail, onSaved }: WriteSlrStepProps) {
   const store = useSystematicReviewStore()
   const hasEnoughCredits = useCreditGate()
@@ -140,45 +179,89 @@ export default function WriteSlrStep({ reviewId, detail, onSaved }: WriteSlrStep
   const [pendingRegenerateAll, setPendingRegenerateAll] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
+  const [consistencyIssues, setConsistencyIssues] = useState<ManuscriptIssue[] | null>(null)
+  const [readinessBlockers, setReadinessBlockers] = useState<ManuscriptBlocker[] | null>(null)
 
   const manuscript = detail.manuscript
   const hasManuscript = manuscript !== null && manuscript.sections.length > 0
   const totalWords = manuscript?.sections.reduce((sum, s) => sum + s.wordCount, 0) ?? 0
 
-  const handleGenerate = async () => {
+  // Generation is gated on the review actually being ready to write up — records still unscreened,
+  // or flagged for manual review and never adjudicated, mean the included set is provisional and
+  // every finding drawn from it is too. The gate runs before any model call, so a blocked attempt
+  // costs nothing. As with export, the blockers are shown and the reviewer can proceed anyway; the
+  // manuscript is then required to disclose the incompleteness in its Abstract, Methods and Results.
+  const handleGenerate = async (acknowledgeIncomplete = false) => {
     if (!hasEnoughCredits(CREDIT_COSTS.systematicReviewManuscriptGeneration)) {
       setPendingRegenerateAll(false)
       return
     }
     setGenerateError(null)
+    setReadinessBlockers(null)
     setGenerating(true)
     try {
-      await store.generateManuscript(reviewId)
+      await store.generateManuscript(reviewId, acknowledgeIncomplete)
       onSaved()
-    } catch {
-      setGenerateError('Could not generate the manuscript. Please try again.')
+    } catch (err) {
+      const blockers = extractReadinessBlockers(err)
+      if (blockers) setReadinessBlockers(blockers)
+      else setGenerateError('Could not generate the manuscript. Please try again.')
     } finally {
       setGenerating(false)
       setPendingRegenerateAll(false)
     }
   }
 
-  const handleExport = async () => {
+  // Export is gated on the manuscript reconciling with the review's own data (an unreconcilable
+  // PRISMA flow, or an intervention named in the prose that appears nowhere in the extracted data).
+  // The issues are shown rather than a bare failure, and export can proceed on a second, explicit
+  // request — a gate with no route through is one people work around instead of fixing.
+  const handleExport = async (acknowledgeConflicts = false) => {
     setExportError(null)
+    setConsistencyIssues(null)
     setExporting(true)
     try {
-      const blob = await store.exportManuscript(reviewId)
+      const blob = await store.exportManuscript(reviewId, acknowledgeConflicts)
       const safeTitle = (detail.researchQuestion || 'systematic-review')
         .slice(0, 60)
         .replace(/[^\w\- ]/g, '')
         .trim()
       downloadBlob(blob, `${safeTitle || 'systematic-review'}.docx`)
-    } catch {
-      setExportError('Could not export the manuscript. Please try again.')
+    } catch (err) {
+      const issues = extractConsistencyIssues(err)
+      if (issues) setConsistencyIssues(issues)
+      else setExportError('Could not export the manuscript. Please try again.')
     } finally {
       setExporting(false)
     }
   }
+
+  // Defined once and rendered in both the empty state and the generated-manuscript view — the gate
+  // fires on first generation, when the empty state is what the reviewer is looking at.
+  const readinessPanel = readinessBlockers && readinessBlockers.length > 0 ? (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 mb-4 text-left">
+      <p className="text-[12px] font-semibold text-amber-900 mb-1.5">
+        This review isn&apos;t ready to write up yet
+      </p>
+      <ul className="space-y-1 mb-2.5">
+        {readinessBlockers.map((blocker, i) => (
+          <li key={i} className="text-[11.5px] leading-relaxed text-amber-900">{blocker.detail}</li>
+        ))}
+      </ul>
+      <p className="text-[11px] text-amber-800 mb-2.5">
+        Finish screening first — a manuscript written now would draw its conclusions from a partly
+        examined corpus. If you write it up anyway, it must state that in its Abstract, Methods and
+        Results.
+      </p>
+      <button
+        onClick={() => handleGenerate(true)}
+        disabled={generating}
+        className="px-3 py-1.5 rounded-lg border border-amber-300 bg-white hover:bg-amber-100 text-amber-900 text-[11.5px] font-semibold transition-colors disabled:opacity-60"
+      >
+        Write it up anyway
+      </button>
+    </div>
+  ) : null
 
   return (
     <div className="max-w-4xl px-6 py-6 pb-20">
@@ -190,6 +273,10 @@ export default function WriteSlrStep({ reviewId, detail, onSaved }: WriteSlrStep
         </p>
       </div>
 
+      {/* Rendered in BOTH branches: the readiness gate fires hardest on the very first generation,
+          when there is no manuscript yet and the empty state is what's on screen. */}
+      {!hasManuscript && readinessPanel}
+
       {!hasManuscript ? (
         <div className="border border-dashed border-slate-300 rounded-xl px-6 py-12 text-center">
           <FileText size={28} className="text-slate-300 mx-auto mb-3" />
@@ -199,7 +286,7 @@ export default function WriteSlrStep({ reviewId, detail, onSaved }: WriteSlrStep
             risk of bias, and evidence grading.
           </p>
           <button
-            onClick={handleGenerate}
+            onClick={() => handleGenerate()}
             disabled={generating}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-semibold transition-colors shadow-sm shadow-violet-200 disabled:opacity-70"
           >
@@ -217,8 +304,11 @@ export default function WriteSlrStep({ reviewId, detail, onSaved }: WriteSlrStep
                 {manuscript!.generatedAt && ` · Generated ${formatDateTime(manuscript!.generatedAt)}`}
               </p>
             </div>
+            {/* Wrapped, not passed directly: onClick hands the handler a MouseEvent, which as a
+                truthy first argument would arrive as acknowledgeConflicts and silently bypass the
+                consistency gate on the very first click. */}
             <button
-              onClick={handleExport}
+              onClick={() => handleExport(false)}
               disabled={exporting}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900 text-[12px] font-medium transition-colors disabled:opacity-50"
             >
@@ -240,6 +330,36 @@ export default function WriteSlrStep({ reviewId, detail, onSaved }: WriteSlrStep
           )}
           {exportError && (
             <p className="text-[12px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">{exportError}</p>
+          )}
+
+          {readinessPanel}
+
+          {consistencyIssues && consistencyIssues.length > 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 mb-4">
+              <p className="text-[12px] font-semibold text-amber-900 mb-1.5">
+                This manuscript doesn&apos;t reconcile with the review&apos;s own data
+              </p>
+              {/* The specific discrepancies, not a count — each names a section and something the
+                  reviewer can go and check against the review's data. */}
+              <ul className="space-y-1 mb-2.5">
+                {consistencyIssues.map((issue, i) => (
+                  <li key={i} className="text-[11.5px] leading-relaxed text-amber-900">
+                    <span className="font-semibold">{issue.section}</span> — {issue.detail}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-amber-800 mb-2.5">
+                Regenerate the affected sections to fix these, or export anyway if you have checked them
+                and accept them as they are.
+              </p>
+              <button
+                onClick={() => handleExport(true)}
+                disabled={exporting}
+                className="px-3 py-1.5 rounded-lg border border-amber-300 bg-white hover:bg-amber-100 text-amber-900 text-[11.5px] font-semibold transition-colors disabled:opacity-60"
+              >
+                Export anyway
+              </button>
+            </div>
           )}
 
           <div className="space-y-4 mb-8">
@@ -278,7 +398,7 @@ export default function WriteSlrStep({ reviewId, detail, onSaved }: WriteSlrStep
             message="This replaces every section with a fresh AI-generated draft and assigns new citation numbers. Any manual edits will be lost."
             confirmLabel="Regenerate all"
             onClose={() => setPendingRegenerateAll(false)}
-            onConfirm={handleGenerate}
+            onConfirm={() => handleGenerate()}
           />
         )}
       </AnimatePresence>

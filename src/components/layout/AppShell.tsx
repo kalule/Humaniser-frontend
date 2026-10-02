@@ -7,6 +7,8 @@ import { AppNavbar } from './AppNavbar'
 import { OnboardingModal } from '../ui/OnboardingModal'
 import { WordLimitModal } from '../ui/WordLimitModal'
 import { CreditLimitModal } from '../ui/CreditLimitModal'
+import { DetectorCapModal } from '../ui/DetectorCapModal'
+import { TopUpModal } from '../ui/TopUpModal'
 
 const BOTTOM_TABS = [
   { to: '/app/humaniser', label: 'Rewrite', icon: Wand2 },
@@ -68,6 +70,8 @@ export function AppShell() {
       <OnboardingModal />
       <WordLimitModal />
       <CreditLimitModal />
+      <DetectorCapModal />
+      <TopUpModal />
     </div>
   )
 }

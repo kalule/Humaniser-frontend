@@ -8,12 +8,11 @@ interface FooterLink {
 }
 
 const PRODUCT_LINKS: FooterLink[] = [
-  { label: 'All Features', href: '/features' },
-  { label: 'Humaniser', href: '/app' },
+  { label: 'AI Humaniser', href: '/app/humaniser' },
   { label: 'AI Detector', href: '/app/detector' },
   { label: 'Paraphraser', href: '/app/paraphrase' },
-  { label: 'Plagiarism Checker', href: '/app/plagiarism' },
-  { label: 'Pricing', href: '/pricing' },
+  { label: 'Grammar Checker', href: '/app/grammar' },
+  { label: 'Summariser', href: '/app/summarise' },
 ]
 
 const COMPANY_LINKS: FooterLink[] = [

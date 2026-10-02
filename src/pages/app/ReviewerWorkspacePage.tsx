@@ -1,22 +1,25 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, AlertCircle, AlertTriangle, Info, CheckCircle2, XCircle, RefreshCw, Mail,
-  ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, Loader2, FileText, FileDown,
+  ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, Loader2, FileText, FileDown, Sparkles,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn, downloadBlob } from '../../lib/utils'
 import { reviewerApi } from '../../api/reviewer'
+import { researchApi } from '../../api/research'
 import { generateReviewReportText, reviewReportFilename } from '../../lib/reviewerExport'
 import { ScoreBar } from '../../components/ui/ScoreBar'
 import { OutputActionButton } from '../../components/ui/OutputActionButton'
 import { ReadinessGauge } from '../../components/reviewer/ReadinessGauge'
+import { SectionFixDiffModal } from '../../components/research-agent/SectionFixDiffModal'
 import {
   categoryColor, CATEGORY_DESCRIPTIONS, OVERVIEW_DESCRIPTION, OVERVIEW_LABEL,
   READINESS_LABEL, CRITERIA_LABEL, isOverviewCategory,
 } from '../../config/reviewerCategories'
-import type { DocumentReview, ReviewFinding, ReviewVerdict, Severity } from '../../types/reviewer'
+import type { DocumentReview, FindingFixEligibility, ReviewFinding, ReviewVerdict, Severity } from '../../types/reviewer'
+import type { SectionFixPreview } from '../../types/research'
 
 const OVERVIEW_VIEW = '__overview__'
 
@@ -69,38 +72,58 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
   )
 }
 
-function FindingCard({ finding, index, color, feedback, onFeedback }: {
-  finding:    ReviewFinding
-  index:      number
-  color:      string
-  feedback:   'up' | 'down' | undefined
-  onFeedback: (value: 'up' | 'down') => void
+function FindingCard({ finding, index, color, feedback, onFeedback, eligibility, isApplyingFix, onFixThis }: {
+  finding:       ReviewFinding
+  index:         number
+  color:         string
+  feedback:      'up' | 'down' | undefined
+  onFeedback:    (value: 'up' | 'down') => void
+  eligibility:   FindingFixEligibility | undefined
+  isApplyingFix: boolean
+  onFixThis:     (sectionCode: string) => void
 }) {
   const style = SEVERITY_STYLES[finding.severity]
+  const canFix = Boolean(eligibility?.sectionCode) && !eligibility?.resolved
   return (
-    <div className="border border-slate-200 rounded-xl p-4 bg-white">
+    <div className={cn('border rounded-xl p-4 transition-colors', eligibility?.resolved ? 'border-slate-100 bg-slate-50' : 'border-slate-200 bg-white')}>
       <div className="flex items-center gap-2 mb-2">
         <div
           className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
-          style={{ background: color }}
+          style={{ background: eligibility?.resolved ? '#94a3b8' : color }}
         >
           {index + 1}
         </div>
         <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold', style.badge)}>
           {style.icon} {finding.severity}
         </span>
+        {eligibility?.resolved && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-200 text-slate-600">
+            <CheckCircle2 size={12} /> Fix applied
+          </span>
+        )}
         {finding.pageReference && (
           <span className="ml-auto text-[11px] font-medium text-orange-600 hover:text-orange-700 transition-colors">
             View on {finding.pageReference}
           </span>
         )}
       </div>
-      <p className="text-[13px] text-slate-700 leading-relaxed mb-2">{finding.text}</p>
+      <p className={cn('text-[13px] leading-relaxed mb-2', eligibility?.resolved ? 'text-slate-500' : 'text-slate-700')}>{finding.text}</p>
       <div className="flex gap-2 text-[12px] mb-3">
         <span className="text-slate-400 shrink-0">→</span>
-        <span className="text-slate-600 italic">{finding.suggestion}</span>
+        <span className={cn('italic', eligibility?.resolved ? 'text-slate-400' : 'text-slate-600')}>{finding.suggestion}</span>
       </div>
       <div className="flex items-center gap-1 justify-end">
+        {canFix && (
+          <button
+            onClick={() => onFixThis(eligibility!.sectionCode!)}
+            disabled={isApplyingFix}
+            title={`Draft a fix into section ${eligibility!.sectionCode}`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold bg-violet-50 text-[#7c3aed] hover:bg-violet-100 transition-colors disabled:opacity-50 mr-auto"
+          >
+            {isApplyingFix ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+            Fix this
+          </button>
+        )}
         <button
           onClick={() => onFeedback('up')}
           title="Useful"
@@ -125,9 +148,13 @@ function FindingCard({ finding, index, color, feedback, onFeedback }: {
 export default function ReviewerWorkspacePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [view, setView] = useState<string>(OVERVIEW_VIEW)
   const [feedback, setFeedback] = useState<Record<string, 'up' | 'down'>>({})
   const [exportingPdf, setExportingPdf] = useState(false)
+  const [applyingFixIndex, setApplyingFixIndex] = useState<number | null>(null)
+  const [fixPreview, setFixPreview] = useState<{ originalIndex: number; sectionCode: string; preview: SectionFixPreview } | null>(null)
+  const [isConfirmingFix, setIsConfirmingFix] = useState(false)
 
   const { data: review, isLoading, isError } = useQuery({
     queryKey: ['reviewer-review', id],
@@ -148,9 +175,54 @@ export default function ReviewerWorkspacePage() {
 
   const filteredFindings = useMemo(() => {
     if (!review || view === OVERVIEW_VIEW) return []
-    return [...review.findings.filter(f => f.category === view)]
-      .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
+    return review.findings
+      .map((finding, originalIndex) => ({ finding, originalIndex }))
+      .filter(x => x.finding.category === view)
+      .sort((a, b) => SEVERITY_ORDER[a.finding.severity] - SEVERITY_ORDER[b.finding.severity])
   }, [review, view])
+
+  const handleFixThis = async (originalIndex: number, sectionCode: string) => {
+    if (!review?.researchProjectId) return
+    const finding = review.findings[originalIndex]
+    setApplyingFixIndex(originalIndex)
+    try {
+      const preview = await researchApi.applySectionFix(review.researchProjectId, sectionCode, [{
+        sectionCode,
+        issue:      finding.text,
+        suggestion: finding.suggestion,
+        source:     'ReviewerFinding',
+      }])
+      setFixPreview({ originalIndex, sectionCode, preview })
+    } catch {
+      toast.error('Could not draft a fix for this finding. Please try again.')
+    } finally {
+      setApplyingFixIndex(null)
+    }
+  }
+
+  const handleAcceptFix = async () => {
+    if (!fixPreview || !review?.researchProjectId) return
+    setIsConfirmingFix(true)
+    try {
+      await researchApi.confirmSectionFix(review.researchProjectId, fixPreview.sectionCode, fixPreview.preview.proposedContent)
+      const updated = await reviewerApi.resolveFinding(review.id, fixPreview.originalIndex)
+      queryClient.setQueryData(['reviewer-review', id], updated)
+      toast.success(`Fix applied to section ${fixPreview.sectionCode}.`)
+      setFixPreview(null)
+    } catch {
+      toast.error('Could not apply the fix. Please try again.')
+    } finally {
+      setIsConfirmingFix(false)
+    }
+  }
+
+  const handleCancelFix = async () => {
+    const projectId = review?.researchProjectId
+    setFixPreview(null)
+    if (projectId) {
+      try { await researchApi.discardSectionFix(projectId) } catch { /* reservation cleans up server-side regardless */ }
+    }
+  }
 
   const handleDownloadText = (r: DocumentReview) => {
     const blob = new Blob([generateReviewReportText(r)], { type: 'text/plain' })
@@ -301,16 +373,19 @@ export default function ReviewerWorkspacePage() {
                   <p className="text-[13px] text-slate-500">No issues found in this category.</p>
                 </div>
               ) : (
-                filteredFindings.map((f, i) => {
+                filteredFindings.map(({ finding, originalIndex }, i) => {
                   const key = `${view}::${i}`
                   return (
                     <FindingCard
                       key={key}
-                      finding={f}
+                      finding={finding}
                       index={i}
                       color={categoryColorMap[view] ?? '#64748b'}
                       feedback={feedback[key]}
                       onFeedback={value => setFeedback(prev => ({ ...prev, [key]: value }))}
+                      eligibility={review.findingFixEligibility[originalIndex]}
+                      isApplyingFix={applyingFixIndex === originalIndex}
+                      onFixThis={sectionCode => handleFixThis(originalIndex, sectionCode)}
                     />
                   )
                 })
@@ -354,6 +429,15 @@ export default function ReviewerWorkspacePage() {
           </CollapsibleSection>
         </div>
       </div>
+
+      {fixPreview && (
+        <SectionFixDiffModal
+          preview={fixPreview.preview}
+          isConfirming={isConfirmingFix}
+          onAccept={handleAcceptFix}
+          onCancel={handleCancelFix}
+        />
+      )}
     </div>
   )
 }

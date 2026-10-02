@@ -145,8 +145,25 @@ export interface ValidateLiteratureResponse {
 // ── Write with AI ────────────────────────────────────────────────────────────
 
 export type WriteWithAiSourceMode = 'Web' | 'MyFiles' | 'Hybrid'
+export type WriteWithAiDocumentType = 'General' | 'Essay' | 'CaseStudy' | 'ResearchPaper' | 'LiteratureReview'
+export type LiteratureReviewArchetype = 'Thematic' | 'Chronological' | 'Methodological' | 'Theoretical'
+export type ResearchPaperDisciplineProfile = 'GeneralImrad' | 'Stem' | 'SocialScience' | 'HumanitiesEmpirical'
+export type ResearchState = 'Proposal' | 'StudyDesigned' | 'DataCollection' | 'DataAvailable' | 'AnalysisCompleted' | 'CompletedResearch' | 'LiteratureOnly'
+export type ResearchSectionStatus = 'Generated' | 'EvidenceRequired' | 'NotApplicable'
+export type ResearchClaimProvenance = 'LiteratureEvidence' | 'UserProvided' | 'UploadedDocument' | 'DatasetEvidence' | 'AnalysisEvidence' | 'ModelInference'
+export type EssaySubType = 'Argumentative' | 'Expository' | 'CompareAndContrast' | 'CriticalEvaluation' | 'Discussion' | 'Reflective' | 'LiteratureBased'
+export type EssayAcademicLevel = 'Undergraduate' | 'Honours' | 'Masters' | 'Doctoral'
+export type EssayDiscipline = 'General' | 'Engineering' | 'ComputerScience' | 'Law' | 'Business' | 'Medicine' | 'Nursing' | 'Education' | 'Economics' | 'PoliticalScience' | 'Psychology' | 'SocialSciences' | 'Cybersecurity' | 'History'
+export type EssayCitationStyle = 'Harvard' | 'Apa7' | 'Ieee' | 'Chicago' | 'Vancouver'
+export interface EssayAssignmentAnalysis { commandVerb: string; assignmentType: string; expectedArgumentStyle: string; expectedEvidence: string }
+export interface EssayWordAllocation { introductionWords: number; bodyWords: number; conclusionWords: number }
+export interface EssayPlanPoint { claim: string; connectionToThesis: string; evidenceNeeds: string[]; role: string }
+export interface ReflectivePlanStage { stage: string; purpose: string; evidenceNeeds: string[] }
+export interface EssayPlan { subType: EssaySubType; academicLevel: EssayAcademicLevel; discipline: EssayDiscipline; citationStyle: EssayCitationStyle; assignmentAnalysis: EssayAssignmentAnalysis; academicTitle: string; interpretedQuestion: string; thesis: string; introductionPlan: string; counterargumentStrategy: string; subClaims: EssayPlanPoint[]; reflectiveStages: ReflectivePlanStage[]; conclusionPurpose: string; wordAllocation: EssayWordAllocation; requiredAcademicVoice: string; requiredCriticalDepth: string }
+export interface PlanEssayRequest { topic: string; targetWordCount: number; subType: EssaySubType; academicLevel: EssayAcademicLevel; discipline: EssayDiscipline; citationStyle: EssayCitationStyle }
 
 export interface WriteWithAiLibraryDocument {
+  documentId: string
   title:   string
   content: string
 }
@@ -155,20 +172,273 @@ export interface WriteWithAiRequest {
   topic:             string
   targetWordCount?:  number
   sourceMode:        WriteWithAiSourceMode
+  documentType?:     WriteWithAiDocumentType
+  essaySubType?:     EssaySubType
+  academicLevel?:    EssayAcademicLevel
+  discipline?:       EssayDiscipline
+  citationStyle?:    EssayCitationStyle
+  approvedPlan?:     EssayPlan
+  approvedCasePlan?: CaseStudyPlan
+  researchPaperProfile?: ResearchPaperDisciplineProfile
+  includeSeparateLiteratureReview?: boolean
+  targetJournal?: string
+  researchState?: ResearchState
+  researchEvidence?: ResearchEvidenceContext
   libraryDocuments?: WriteWithAiLibraryDocument[]
+  // Set only when documentType === 'LiteratureReview'; ignored otherwise. Selects which of the
+  // four seeded templates the backend's grounded literature-review pipeline instantiates.
+  literatureReviewArchetype?: LiteratureReviewArchetype
 }
 
 export interface WriteWithAiReference {
+  sourceId: string
+  canonicalId?: string | null
+  openAlexWorkId?: string | null
+  pmid?: string | null
+  provider?: string | null
+  providerRecordId?: string | null
   title:  string
   url:    string | null
   source: 'web' | 'my_files'
+  documentId?: string | null
+  passageStart?: number | null
+  passageEnd?: number | null
+  doi?: string | null
+  authors?: string | null
+  year?: number | null
+  venue?: string | null
+  volume?: string | null
+  issue?: string | null
+  pages?: string | null
+}
+
+export interface EssaySections {
+  introduction: string
+  mainBody:     string
+  conclusion:   string
+}
+
+export interface WriteWithAiLiteratureReviewSection {
+  sectionCode: string
+  heading:     string
+  content:     string
 }
 
 export interface WriteWithAiResponse {
+  isEssay:    boolean
   title:      string
   content:    string
+  sections?:  EssaySections
   references: WriteWithAiReference[]
   wordCount:  number
+  claimAudit?: EssayClaimAuditSummary
+  // Case Study Phase 1
+  isCaseStudy?:   boolean
+  caseType?:      CaseStudyType
+  caseSections?:  CaseStudySections
+  caseFactAudit?: CaseFactAuditSummary
+  // PR19 — Case Study had no per-flag list before this; shares WorkbenchReviewFlag with
+  // researchPaperFlags below rather than a separate type.
+  caseStudyFlags?: WorkbenchReviewFlag[]
+  isResearchPaper?: boolean
+  researchPaperSections?: ResearchPaperSections
+  researchPaperFlags?: WorkbenchReviewFlag[]
+  researchPaperSectionResults?: ResearchPaperSectionResult[]
+  // Populated only when the essay claim-support gate runs in 'flag' mode; in the default 'block'
+  // mode the generation throws and surfaces through the modal's catch instead. Shares
+  // WorkbenchReviewFlag with the two flag lists above.
+  essayFlags?: WorkbenchReviewFlag[]
+  // OPEN_ITEMS.md #100 — argumentative-structure findings, kept as their OWN field rather than
+  // folded into essayFlags above. They are a different category of problem with a different fix:
+  // essayFlags/claimAudit/citationVerification say a claim doesn't hold against its source
+  // (remediation: re-source), these say the document doesn't argue anything (remediation: rewrite).
+  // undefined means the checks didn't apply to this document type; a report with available=false
+  // means they applied and couldn't run. Neither means "checked and clean".
+  argumentativeQuality?: ArgumentativeQualityReport
+  // Grounded literature-review pipeline — a List rather than a fixed-shape sections object
+  // (unlike `sections` above) because a template's repeatable sections (Thematic Matrix, Period
+  // Synthesis, etc.) produce a variable number of instances.
+  isLiteratureReview?: boolean
+  literatureReviewSections?: WriteWithAiLiteratureReviewSection[]
+  // PR19 — correlation ID into the WorkbenchGenerationAudit table/log line, when a generation
+  // audit record was created (requires an authenticated user). Not currently surfaced in the UI;
+  // kept on the response so a future support/debug view can look up "what happened when this
+  // document was generated" without re-deriving it.
+  generationAuditId?: string
+}
+
+export interface ResearchEvidenceContext {
+  hasDataset: boolean
+  hasParticipantData: boolean
+  hasCompletedDataCollection: boolean
+  hasVerifiedSampleSize: boolean
+  analystJobId?: string
+  methodologyEvidence?: string
+  verifiedAnalysisResults?: string
+  ethicsApprovalEvidence?: string
+  completedActivitiesEvidence?: string
+}
+
+export interface ResearchPaperSectionResult {
+  sectionKey: string
+  heading: string
+  status: ResearchSectionStatus
+  content?: string | null
+  reason?: string | null
+  requiredAction?: string | null
+  permittedProvenance: ResearchClaimProvenance[]
+}
+
+export interface ResearchPaperSections {
+  abstract: string
+  introduction: string
+  literatureReview?: string | null
+  methods: string
+  results: string
+  discussion: string
+  conclusion: string
+}
+
+// ── Argumentative quality (OPEN_ITEMS.md #100) ────────────────────────────────
+
+// Severity is reported per finding rather than assumed per code, because the family's policy is
+// that everything warns EXCEPT the hedge-list thesis pattern — and that one never reaches the
+// frontend as a finding in the default enforcement mode, since it throws and surfaces through the
+// modal's catch like every other blocking check.
+export type ArgumentativeQualitySeverity = 'Informational' | 'Warning' | 'Blocking'
+
+export interface ArgumentativeQualityFinding {
+  code: 'ConclusionRestatesThemesWithoutSynthesis' | 'GenericHedgeListThesis' | string
+  section: string
+  message: string
+  severity: ArgumentativeQualitySeverity
+  // The rule's own underlying measurement (e.g. a cosine similarity) when it has one. Carried so a
+  // reviewer can see how close to the line a warning sat — several of these thresholds are
+  // explicitly provisional and this is what makes them re-tunable from real traffic.
+  score?: number | null
+}
+
+export interface ArgumentativeQualityReport {
+  available: boolean
+  warning?: string | null
+  findings: ArgumentativeQualityFinding[]
+}
+
+export interface WorkbenchReviewFlag {
+  code: 'CitationInResultsSection' | 'ClaimSourceVerificationRequired' | 'UnderReferenced' | string
+  section: string
+  message: string
+  citationSourceIds: string[]
+}
+
+// ── Case Study (Phase 1) ──────────────────────────────────────────────────────
+
+export type CaseStudyType = 'Analytical' | 'Decision' | 'Evaluative' | 'Explanatory' | 'Comparative' | 'ResearchBased'
+export type CaseFactSourceType = 'AssignmentPrompt' | 'UploadedDocument'
+
+export interface CaseStudyAssignmentAnalysis {
+  caseSubject: string
+  organisationOrEntity: string
+  problemOrDecision: string
+  requiredFrameworks: string[]
+  requiredSources: string[]
+  expectsRecommendation: boolean
+  requiresComparison: boolean
+  requiresQuantitativeAnalysis: boolean
+}
+
+export interface CaseStudySectionPlan {
+  sectionKey: string
+  heading:    string
+  required:   boolean
+}
+
+export interface CaseStudyPlan {
+  caseType:           CaseStudyType
+  assignmentAnalysis: CaseStudyAssignmentAnalysis
+  assignmentText:     string
+  academicTitle:      string
+  centralProblem:     string
+  analysisSubClaims:  EssayPlanPoint[]
+  suggestedFramework?: string | null
+  structure:          CaseStudySectionPlan[]
+  academicLevel:      EssayAcademicLevel
+  discipline:         EssayDiscipline
+  citationStyle:      EssayCitationStyle
+}
+
+export interface PlanCaseStudyRequest {
+  assignmentText:    string
+  targetWordCount?:  number
+  academicLevel?:    EssayAcademicLevel
+  discipline?:       EssayDiscipline
+  citationStyle?:    EssayCitationStyle
+  libraryDocuments?: WriteWithAiLibraryDocument[]
+}
+
+export interface CaseStudySections {
+  introduction:                 string
+  caseBackground:               string
+  problemIdentification:        string
+  analysis:                     string
+  alternatives?:                string | null
+  recommendations?:             string | null
+  conclusion:                   string
+  executiveSummary?:            string | null
+  implementationConsiderations?: string | null
+  appendices?:                  string | null
+}
+
+export interface CaseFactAuditSummary {
+  totalCaseFacts: number
+  claimsRequiringCaseEvidence: number
+  groundedCaseClaims: number
+  ungroundedCaseClaims: number
+  quantitativeAnalysisFlagged: boolean
+  quantitativeAnalysisNote?: string | null
+}
+
+export interface EssayClaimAuditSummary {
+  auditAvailable: boolean
+  auditWarning?: string | null
+  claims: EssayClaimAuditItem[]
+  atomicClaims: number
+  evidenceRequiring: number
+  nonEvidenceClaims: number
+  cited: number
+  uncited: number
+  supported: number
+  supportedCanonical: number
+  supportedTrustedEvidence: number
+  unsupported: number
+  unverifiable: number
+  misaligned: number
+  rewritten: number
+  removed: number
+  coveragePercent: number
+  verifiedCoveragePercent: number
+  verifiedCoverageCanonical: number
+  verifiedCoverageAnyTrusted: number
+  coverageBeforeRepair: number
+  uniqueSourcesBeforeRepair: number
+  uniqueSourcesAfterRepair: number
+  existingCorpusRepairs: number
+  externalGapQueries: number
+  newSourcesAdded: number
+  auditLatencyMs: number
+  verificationLatencyMs: number
+  repairLatencyMs: number
+}
+
+export interface EssayClaimAuditItem {
+  id: string
+  text: string
+  claimType: string
+  requiresEvidence: boolean
+  citationSourceIds: string[]
+  verificationStatus: string
+  supportConfidence?: number | null
+  repairStatus: string
 }
 
 // ── Write On (continue writing) ──────────────────────────────────────────────

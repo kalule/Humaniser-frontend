@@ -23,17 +23,17 @@ export function FinalCTA() {
         </div>
 
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#1a1a18] mb-4 leading-tight">
-          Start your research for free today
+          Start writing better today
         </h2>
 
         <p className="text-[#555555] text-base leading-relaxed mb-8">
-          Join researchers and writers across South Africa who use HumaniseAI to research faster,
-          write better, and submit with confidence.
+          Join writers across South Africa who use HumaniseAI to make their writing sound
+          more natural, clear, and polished.
         </p>
 
         <Link to="/register">
           <button className="inline-flex items-center gap-2 bg-[#7c3aed] hover:bg-[#4c1d95] text-white px-10 py-4 rounded-xl font-semibold text-base transition-colors shadow-lg shadow-violet-200">
-            Start Your Research Free
+            Try Humaniser Free
             <ArrowRight size={18} />
           </button>
         </Link>

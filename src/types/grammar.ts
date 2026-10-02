@@ -44,6 +44,9 @@ export interface GrammarCheckResponse {
   wordsUsed: number;
   wordsLimit: number;
   wordsRemaining: number;
+  creditsUsed: number;
+  creditsLimit: number;
+  creditsRemaining: number;
 }
 
 /** Client-side suggestion state — extends API suggestion with UI status. */

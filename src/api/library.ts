@@ -9,6 +9,18 @@ export interface SaveDocumentPayload {
   type:       string
   folderId?:  string | null
   isPdf:      boolean
+  // PR20 — omit on normal edits; the server preserves whatever's already stored when this is
+  // absent. Only handleAiGenerated's save call should ever set it.
+  workbenchGenerationAuditId?: string
+  // Create-path only — ignored by the server when `id` is set. A client-generated id for this
+  // creation attempt; the server returns the existing row instead of inserting again if this
+  // same id was already used, so a double-clicked create or a dropped-response retry can't
+  // produce two documents. See useLibraryStore.createDocument, the only caller that sets this.
+  clientRequestId?: string
+  // New-document creation card (prompt #3) — full-replace fields, same as title/type, not
+  // write-once like workbenchGenerationAuditId above.
+  citationStyle?: string
+  documentType?: string
 }
 
 export interface ImportDocumentItem {

@@ -46,6 +46,11 @@ export const reviewerApi = {
     await client.delete(`/api/v1/reviewer/reviews/${id}`)
   },
 
+  resolveFinding: async (id: string, findingIndex: number): Promise<DocumentReview> =>
+    unwrap(
+      await client.post<Wrap<DocumentReview>>(`/api/v1/reviewer/reviews/${id}/findings/${findingIndex}/resolve`),
+    ),
+
   exportPdf: async (id: string, documentTitle: string): Promise<void> => {
     const res = await client.get(`/api/v1/reviewer/reviews/${id}/export`, {
       params: { format: 'pdf' },

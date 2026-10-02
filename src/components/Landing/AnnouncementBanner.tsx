@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-const DISMISSED_KEY = 'announcement_v2_dismissed'
+const DISMISSED_KEY = 'announcement_v3_dismissed'
 
 export function AnnouncementBanner() {
   const [visible, setVisible] = useState(false)
@@ -38,12 +38,12 @@ export function AnnouncementBanner() {
           role="banner"
         >
           <div className="bg-[#ede9fe] border-b border-violet-200 text-[#5b21b6] text-sm text-center py-2.5 px-4 relative flex items-center justify-center gap-2 flex-wrap">
-            <span>🎓 Proposal Studio is live — generate fully cited research proposals</span>
+            <span>✨ Five focused AI writing tools, one clean workspace</span>
             <Link
-              to="/app/proposal-studio"
+              to="/features"
               className="inline-flex items-center gap-1 font-semibold text-[#4c1d95] underline underline-offset-2 hover:text-[#1a1a18] transition-colors whitespace-nowrap"
             >
-              Try it free <ArrowRight size={13} />
+              Explore all tools <ArrowRight size={13} />
             </Link>
             <button
               type="button"

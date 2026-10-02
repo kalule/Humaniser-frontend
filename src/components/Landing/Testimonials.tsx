@@ -109,13 +109,13 @@ export function Testimonials() {
           className="text-center mb-14"
         >
           <span className="inline-block px-3 py-1 rounded-full bg-[#ede9fe] border border-violet-200 text-[#5b21b6] text-xs font-semibold mb-4">
-            Loved by Researchers
+            Loved by Writers
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold text-[#1a1a18] mb-4">
             Trusted across South Africa
           </h2>
           <p className="text-[#555555] text-base max-w-xl mx-auto">
-            Students, researchers, and content creators rely on HumaniseAI every day.
+            Students, professionals, and content creators rely on HumaniseAI every day.
           </p>
         </motion.div>
 

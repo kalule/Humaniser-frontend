@@ -8,7 +8,9 @@ import {
 import { cn } from '../../lib/utils'
 import { useLibraryStore } from '../../store/libraryStore'
 import { UploadModal } from '../../components/ui/UploadModal'
+import { CreationCard } from '../../components/app/CreationCard'
 import type { WorkspaceDocument, DocOwnership, DocViewMode } from '../../types/library'
+import { isEmptyDraftDocument } from '../../types/library'
 
 type SortBy = 'modified' | 'alpha' | 'created'
 
@@ -202,38 +204,6 @@ function DocRow({
   )
 }
 
-// ── New document dialog ─────────────────────────────────────────────────────────
-
-function NewDocDialog({ onCreate, onCancel }: { onCreate: (title: string) => void; onCancel: () => void }) {
-  const [val, setVal] = useState('Untitled document')
-  const commit = () => onCreate(val.trim() || 'Untitled document')
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="relative bg-white border border-[#e0e0da] rounded-2xl p-6 w-full max-w-sm shadow-2xl"
-      >
-        <h3 className="flex items-center gap-2 text-[#1a1a18] font-semibold mb-4">
-          <FilePlus size={16} className="text-[#7c3aed]" /> Name your document
-        </h3>
-        <input
-          autoFocus value={val} onChange={e => setVal(e.target.value)}
-          onFocus={e => e.target.select()}
-          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') onCancel() }}
-          className="w-full bg-neutral-100 border-0 rounded-lg px-3.5 py-2.5 text-[#1a1a18] text-sm outline-none focus:ring-2 focus:ring-[#7c3aed]/20 mb-4"
-        />
-        <div className="flex gap-2 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 text-[13px] font-medium transition-colors">Cancel</button>
-          <button onClick={commit} className="px-5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#4c1d95] text-white text-[13px] font-medium transition-colors">
-            Create
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  )
-}
-
 // ── Rename dialog ──────────────────────────────────────────────────────────────
 
 function RenameDialog({ doc, onSave, onCancel }: { doc: WorkspaceDocument; onSave: (t: string) => void; onCancel: () => void }) {
@@ -298,15 +268,12 @@ export default function LibraryPage() {
   }, [documents, search, filter, sortBy])
 
   const mostRecentDoc = useMemo(() => {
-    if (documents.length === 0) return null
-    return [...documents].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
+    // Excludes documents created-and-abandoned before any real content was typed, so "Continue
+    // where you left off" can't point at an empty "Untitled document" — see isEmptyDraftDocument.
+    const resumable = documents.filter(d => !isEmptyDraftDocument(d))
+    if (resumable.length === 0) return null
+    return [...resumable].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
   }, [documents])
-
-  const handleCreateNamed = async (title: string) => {
-    const doc = await createDocument({ title })
-    setNamingNew(false)
-    navigate(`/app/editor/${doc.id}`)
-  }
 
   const handleOpenDoc = (doc: WorkspaceDocument) => {
     if (doc.isPdf || doc.type === 'pdf') {
@@ -500,12 +467,9 @@ export default function LibraryPage() {
         />
       )}
 
-      {/* ── New document dialog ──────────────────────────────────────────────── */}
+      {/* ── Creation card (prompt #3) — replaces the old name-only modal ───────── */}
       {namingNew && (
-        <NewDocDialog
-          onCreate={handleCreateNamed}
-          onCancel={() => setNamingNew(false)}
-        />
+        <CreationCard onClose={() => setNamingNew(false)} />
       )}
     </div>
   )

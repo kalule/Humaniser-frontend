@@ -3,6 +3,7 @@ import type {
   UploadDatasetResponse,
   AnalystQueryRequest,
   AnalystJobResponse,
+  AnalystJobSummary,
   LiteratureCitation,
   WriteUpRequest,
   WriteUpResponse,
@@ -22,9 +23,12 @@ const unwrap = <T>(res: { data: { success: boolean; data: T } }): T =>
   res.data.data ?? (res.data as unknown as T)
 
 export const analystApi = {
-  upload: async (file: File): Promise<UploadDatasetResponse> => {
+  // isSyntheticData: self-declared, undefined/omitted means "not asked" (kept distinct from an
+  // affirmative "declared real") — see AnalystDataset.IsSyntheticData's own doc comment for why.
+  upload: async (file: File, isSyntheticData?: boolean): Promise<UploadDatasetResponse> => {
     const form = new FormData()
     form.append('file', file)
+    if (isSyntheticData !== undefined) form.append('isSyntheticData', String(isSyntheticData))
     const res = await client.post<{ success: boolean; data: UploadDatasetResponse }>(
       '/api/v1/analyst/upload',
       form,
@@ -47,6 +51,12 @@ export const analystApi = {
     )
     return res.data.data ?? (res.data as unknown as AnalystJobResponse)
   },
+
+  // Phase 4 — jobs eligible to link to a Research Paper's Results/Discussion generation.
+  listJobsWithStatistics: async (): Promise<AnalystJobSummary[]> =>
+    unwrap(await client.get<{ success: boolean; data: AnalystJobSummary[] }>(
+      '/api/v1/analyst/jobs/with-statistics',
+    )),
 
   getLiterature: async (jobId: string): Promise<LiteratureCitation[]> =>
     unwrap(await client.get<{ success: boolean; data: LiteratureCitation[] }>(

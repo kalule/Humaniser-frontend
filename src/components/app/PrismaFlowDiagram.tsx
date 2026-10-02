@@ -20,6 +20,11 @@ function FlowBox({ label, count, sub }: { label: string; count: number; sub?: st
   )
 }
 
+// Everything that did not carry through to the next stage — excluded, held for manual review, and
+// not yet reached. All three must be listed or the stage stops reconciling: a diagram showing 758
+// screened against only 9 included + 408 excluded + 64 manual review leaves 277 records with no
+// account, which is what a real generated review shipped with. Zero-value lines are hidden, so a
+// complete list costs nothing when a bucket is empty.
 function ExcludedNote({ lines }: { lines: { label: string; value: number }[] }) {
   const visible = lines.filter(l => l.value > 0)
   if (visible.length === 0) return null
@@ -148,6 +153,7 @@ export default function PrismaFlowDiagram({ reviewId, onClose }: PrismaFlowDiagr
                   lines={[
                     { label: 'Excluded at title/abstract', value: flow.titleAbstractExcluded },
                     { label: 'Needs manual review', value: flow.titleAbstractNeedsManualReview },
+                    { label: 'Not yet screened', value: flow.titleAbstractPending },
                   ]}
                 />
               }
@@ -173,6 +179,8 @@ export default function PrismaFlowDiagram({ reviewId, onClose }: PrismaFlowDiagr
                 <ExcludedNote
                   lines={[
                     { label: 'Excluded at full text', value: flow.fullTextExcluded },
+                    { label: 'Needs manual review', value: flow.fullTextNeedsManualReview },
+                    { label: 'Not yet assessed', value: flow.fullTextPending },
                   ]}
                 />
               }

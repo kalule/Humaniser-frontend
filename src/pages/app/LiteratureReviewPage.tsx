@@ -7,6 +7,7 @@ import {
   Copy, Trash2, Plus, Upload, Search, ShieldCheck, BookMarked, StickyNote, AlertTriangle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import type { ApiError } from '../../types'
 import { cn } from '../../lib/utils'
 import { Modal } from '../../components/ui/Modal'
 import { Skeleton } from '../../components/ui/Skeleton'
@@ -21,8 +22,8 @@ import { parseBibliographyEntries, type ParsedReference } from '../../lib/citati
 import '../../styles/research-agent-editor.css'
 import type {
   AcademicLevel, AlignmentValidationResult, CitationFlag, CitationStyle, DimensionCoverageSummary,
-  DiscoveryConfig, DiscoveryStatus, FetchedLiterature, FinalDecision, GatherMode, GeneratedTitle,
-  LiteratureDimension, LiteratureSearchQuery, ManualDecision, ProjectSection, ResearchProject,
+  DiscoveryConfig, DiscoveryStatus, DiversifiedShortlist, FetchedLiterature, FinalDecision, GatherMode, GeneratedTitle,
+  LiteratureSearchQuery, ManualDecision, ProjectSection, ResearchProject,
   ResearchTopic, ScreeningCandidate, ScreeningCandidateList, SectionStatus, ScreeningStatus, SourceType,
 } from '../../types/research'
 
@@ -1009,10 +1010,36 @@ function SearchQueryCard({
   )
 }
 
+// Lightweight comma-separated tag editor for TopicScope's array fields — uncontrolled
+// (keyed on the current value) so free typing doesn't fight external updates from a
+// Regenerate call, and saves on blur rather than per-keystroke.
+function ScopeField({
+  label, value, onSave, placeholder,
+}: {
+  label: string
+  value: string[]
+  onSave: (next: string[]) => void
+  placeholder?: string
+}) {
+  return (
+    <div>
+      <label className="text-[11px] font-semibold text-slate-500 block mb-1">{label}</label>
+      <input
+        key={value.join(',')}
+        defaultValue={value.join(', ')}
+        onBlur={e => onSave(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+        placeholder={placeholder ?? 'Comma-separated terms'}
+        className="w-full text-[12px] border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none"
+      />
+    </div>
+  )
+}
+
 function ResearchLiteratureDiscoveryTab({ project }: { project: ResearchProject }) {
   const navigate = useNavigate()
   const [config, setConfig] = useState<DiscoveryConfig | null>(null)
   const [loadingConfig, setLoadingConfig] = useState(true)
+  const [generatingTopicScope, setGeneratingTopicScope] = useState(false)
   const [generatingDimensions, setGeneratingDimensions] = useState(false)
   const [generatingQueries, setGeneratingQueries] = useState(false)
   const [starting, setStarting] = useState(false)
@@ -1072,6 +1099,7 @@ function ResearchLiteratureDiscoveryTab({ project }: { project: ResearchProject 
   const persistConfig = async (patch: Partial<Pick<DiscoveryConfig, 'strategy' | 'candidateCap'>> & {
     databases?: DiscoveryConfig['databases']
     dimensions?: DiscoveryConfig['dimensions']
+    topicScope?: DiscoveryConfig['topicScope']
   }) => {
     if (!config) return
     const next = { ...config, ...patch }
@@ -1080,6 +1108,7 @@ function ResearchLiteratureDiscoveryTab({ project }: { project: ResearchProject 
         strategy:          next.strategy,
         candidateCap:      next.candidateCap,
         selectedDatabases: (patch.databases ?? config.databases).filter(d => d.enabled).map(d => d.id),
+        topicScope:        patch.topicScope ?? config.topicScope,
         dimensions:        patch.dimensions ?? config.dimensions,
       })
     } catch {
@@ -1112,6 +1141,25 @@ function ResearchLiteratureDiscoveryTab({ project }: { project: ResearchProject 
     setConfig({ ...config, candidateCap: value })
     if (capDebounceRef.current) clearTimeout(capDebounceRef.current)
     capDebounceRef.current = setTimeout(() => persistConfig({ candidateCap: value }), 600)
+  }
+
+  const handleRegenerateTopicScope = async () => {
+    setGeneratingTopicScope(true)
+    try {
+      const topicScope = await researchApi.generateTopicScope(project.id)
+      setConfig(c => (c ? { ...c, topicScope } : c))
+    } catch {
+      toast.error('Failed to regenerate the research scope.')
+    } finally {
+      setGeneratingTopicScope(false)
+    }
+  }
+
+  const updateTopicScopeField = (patch: Partial<DiscoveryConfig['topicScope']>) => {
+    if (!config) return
+    const topicScope = { ...config.topicScope, ...patch }
+    setConfig({ ...config, topicScope })
+    persistConfig({ topicScope })
   }
 
   const handleRegenerateDimensions = async () => {
@@ -1274,6 +1322,45 @@ function ResearchLiteratureDiscoveryTab({ project }: { project: ResearchProject 
         </div>
       </div>
 
+      {/* Research scope */}
+      <div>
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <p className="text-[13px] font-bold text-slate-700">Research scope</p>
+            <p className="text-[11px] text-slate-400">Structured concepts, population, and geography used to rank and diversify results. Leave geography empty for international literature.</p>
+          </div>
+          <button
+            onClick={handleRegenerateTopicScope}
+            disabled={generatingTopicScope}
+            className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 disabled:opacity-50 transition-colors shrink-0"
+          >
+            {generatingTopicScope ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />} Regenerate
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <ScopeField label="Primary concepts" value={config.topicScope.primaryConcepts}
+            onSave={v => updateTopicScopeField({ primaryConcepts: v })} />
+          <ScopeField label="Population" value={config.topicScope.population}
+            onSave={v => updateTopicScopeField({ population: v })} />
+          <ScopeField label="Geography" value={config.topicScope.geography}
+            onSave={v => updateTopicScopeField({ geography: v })} placeholder="Leave empty for international literature" />
+          <ScopeField label="Setting" value={config.topicScope.setting}
+            onSave={v => updateTopicScopeField({ setting: v })} />
+          <ScopeField label="Named dataset/survey" value={config.topicScope.datasetTerms}
+            onSave={v => updateTopicScopeField({ datasetTerms: v })} placeholder="e.g. SADHS, NHANES — detected automatically" />
+        </div>
+        <div className="mt-3">
+          <label className="text-[11px] font-semibold text-slate-500 block mb-1">Methodology signal</label>
+          <input
+            key={config.topicScope.methodology}
+            defaultValue={config.topicScope.methodology}
+            onBlur={e => updateTopicScopeField({ methodology: e.target.value })}
+            placeholder="e.g. quantitative correlational"
+            className="w-full text-[12px] border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none"
+          />
+        </div>
+      </div>
+
       {/* Research dimensions */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -1417,6 +1504,10 @@ function ResearchScreeningTab({
   const [page, setPage] = useState(1)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const [candidateView, setCandidateView] = useState<'all' | 'best'>('all')
+  const [shortlist, setShortlist] = useState<DiversifiedShortlist | null>(null)
+  const [shortlistLoading, setShortlistLoading] = useState(false)
+
   useEffect(() => {
     researchApi.getDiscoveryStatus(project.id).then(setDiscovery).catch(() => { /* no discovery run yet */ })
   }, [project.id])
@@ -1483,6 +1574,17 @@ function ResearchScreeningTab({
   }, [project.id, status?.status, appliedSearch, decisionFilter, relevanceBandFilter, sourceKindFilter, databaseFilter, textStateFilter, page])
 
   useEffect(() => { loadCandidates() }, [loadCandidates])
+
+  useEffect(() => {
+    if (candidateView !== 'best' || status?.status !== 'Completed') return
+    let cancelled = false
+    setShortlistLoading(true)
+    researchApi.getDiversifiedShortlist(project.id)
+      .then(s => { if (!cancelled) setShortlist(s) })
+      .catch(() => { /* transient failure — toggle stays interactive to retry */ })
+      .finally(() => { if (!cancelled) setShortlistLoading(false) })
+    return () => { cancelled = true }
+  }, [candidateView, project.id, status?.status])
 
   const handleUpdateDecision = async (candidateId: string, decision: ManualDecision) => {
     try {
@@ -1744,6 +1846,58 @@ function ResearchScreeningTab({
       {/* Search / filter / candidate list */}
       {status.status === 'Completed' && (
         <div className="space-y-3">
+          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 w-fit">
+            <button
+              onClick={() => setCandidateView('all')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-[12px] font-semibold transition-colors',
+                candidateView === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+              )}
+            >
+              All results
+            </button>
+            <button
+              onClick={() => setCandidateView('best')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-[12px] font-semibold transition-colors',
+                candidateView === 'best' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+              )}
+            >
+              Best matches
+            </button>
+          </div>
+
+          {candidateView === 'best' ? (
+            shortlistLoading ? (
+              <div className="space-y-3">
+                {[0, 1, 2].map(i => <Skeleton key={i} variant="card" tone="light" />)}
+              </div>
+            ) : shortlist && shortlist.buckets.length > 0 ? (
+              <div className="space-y-6">
+                {shortlist.buckets.map(bucket => (
+                  <div key={bucket.label}>
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <p className="text-[13px] font-bold text-slate-800">{bucket.label}</p>
+                      <p className="text-[11px] text-slate-400">{bucket.reason}</p>
+                    </div>
+                    <div className="space-y-3">
+                      {bucket.items.map(c => (
+                        <ScreeningCandidateCard
+                          key={c.id}
+                          candidate={c}
+                          onUpdateDecision={decision => handleUpdateDecision(c.id, decision)}
+                          onUploadPdf={file => handleUploadPdf(c.id, file)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[12px] text-slate-400 text-center py-6">No screened candidates yet to build a shortlist from.</p>
+            )
+          ) : (
+          <>
           <div className="flex flex-wrap items-center gap-2">
             <input
               value={searchInput}
@@ -1845,6 +1999,8 @@ function ResearchScreeningTab({
               </div>
             </div>
           )}
+          </>
+          )}
         </div>
       )}
 
@@ -1933,8 +2089,12 @@ function ScreeningCandidateCard({
     }
   }
 
-  const relevanceBand = candidate.screeningRelevanceScore >= 80 ? 'Strong'
-    : candidate.screeningRelevanceScore >= 50 ? 'Moderate' : 'Weak'
+  // Before Claude has actually screened this candidate (screeningVerdict === 'Pending',
+  // screeningRelevanceScore always 0), the deterministic topicMatchScore is the real signal —
+  // mirrors ResearchScreeningService.GetCandidatesAsync's own ordering fallback.
+  const effectiveScore = candidate.screeningVerdict !== 'Pending' ? candidate.screeningRelevanceScore : candidate.topicMatchScore
+  const relevanceBand = effectiveScore >= 80 ? 'Strong' : effectiveScore >= 50 ? 'Moderate' : 'Weak'
+  const matchedTerms = [...candidate.matchedConcepts, ...candidate.matchedPopulation, ...candidate.matchedGeography]
 
   return (
     <div className="border border-slate-200 rounded-xl p-4">
@@ -1975,8 +2135,17 @@ function ScreeningCandidateCard({
             Found via: {candidate.foundViaSources.join(', ')}
             {candidate.dimensions.length > 0 && <> · Dimensions: {candidate.dimensions.join(', ')}</>}
           </p>
+          {matchedTerms.length > 0 && (
+            <p className="text-[11px] text-slate-400 mt-1">
+              <span className="font-semibold text-slate-500">Matched:</span> {matchedTerms.join(', ')}
+            </p>
+          )}
         </div>
         <div className="flex gap-3 shrink-0">
+          <div className="text-center">
+            <p className="text-[9px] font-bold uppercase text-slate-400">Match</p>
+            <p className="text-[14px] font-bold text-slate-800">{candidate.topicMatchScore}%</p>
+          </div>
           <div className="text-center">
             <p className="text-[9px] font-bold uppercase text-slate-400">Relevance</p>
             <p className="text-[14px] font-bold text-slate-800">{candidate.screeningRelevanceScore}%</p>
@@ -2033,7 +2202,9 @@ const WRITE_SECTION_STATUS_DOT: Record<SectionStatus, string> = {
 
 // Chapters whose framing/vocabulary branches on methodology type — kept in sync
 // with MethodologySensitiveSectionCodes on the backend (ResearchService.cs).
-const WRITE_METHODOLOGY_SENSITIVE_SECTIONS = new Set(['5.4', '5.5', '5.6', '5.7', '5.9', '5.10', '5.12'])
+// docs/OPEN_ITEMS.md #81 — was missing "3.3" and "5.2" relative to the backend's authoritative
+// list; the backend independently re-gates both, but the toast below never fired for them.
+const WRITE_METHODOLOGY_SENSITIVE_SECTIONS = new Set(['3.3', '5.2', '5.4', '5.5', '5.6', '5.7', '5.7a', '5.9', '5.10', '5.12'])
 
 // A concurrent double-init can create duplicate DB rows for the same section —
 // keep the row with the furthest-along status (or, if tied, the longer content).
@@ -2421,13 +2592,14 @@ function WriteWorkspaceTab({ project, approvedSourcesCount }: { project: Researc
   const handleGenerate = async (targetWordCount = 500) => {
     if (!activeSection) return
     if (!hasEnoughCredits(CREDIT_COSTS.proposalSectionGeneration)) return
-    if (WRITE_METHODOLOGY_SENSITIVE_SECTIONS.has(selectedCode) && !project.methodologyType) {
-      toast.error('Methodology Type must be set (in the Brief step) before generating this section.')
+    // docs/OPEN_ITEMS.md #81 — checks the real confirmed methodology, not just whether
+    // methodologyType is a non-empty (possibly unconfirmed) string.
+    if (WRITE_METHODOLOGY_SENSITIVE_SECTIONS.has(selectedCode) && !project.confirmedMethodology) {
+      toast.error('Methodology must be confirmed (in the Brief step) before generating this section.')
       return
     }
-    const prompt = SECTION_PROMPTS[selectedCode]?.prompt || ''
     try {
-      await generateSection(project.id, selectedCode, prompt, targetWordCount)
+      await generateSection(project.id, selectedCode, targetWordCount)
       syncAfterGeneration()
     } catch (err) {
       toast.error(extractErrorMessage(err) || 'Generation failed — check the server is running.')
@@ -2436,9 +2608,8 @@ function WriteWorkspaceTab({ project, approvedSourcesCount }: { project: Researc
 
   const runRegenerate = async () => {
     if (!hasEnoughCredits(CREDIT_COSTS.proposalSectionGeneration)) return
-    const prompt = SECTION_PROMPTS[selectedCode]?.prompt || ''
     try {
-      await regenerateSection(project.id, selectedCode, prompt)
+      await regenerateSection(project.id, selectedCode)
       syncAfterGeneration()
     } catch {
       toast.error('Regeneration failed.')
@@ -2456,12 +2627,38 @@ function WriteWorkspaceTab({ project, approvedSourcesCount }: { project: Researc
     await runRegenerate()
   }
 
-  const handleApprove = async () => {
+  const handleApprove = async (acknowledgeConflicts = false) => {
     if (isDirty) await handleSave()
     try {
-      await approveSection(project.id, selectedCode)
+      await approveSection(project.id, selectedCode, acknowledgeConflicts)
       toast.success(`Section ${selectedCode} approved.`)
     } catch (err) {
+      const errorCode = (err as ApiError | undefined)?.code
+      if (errorCode === 'FACT_CONFLICT' || errorCode === 'UNRESOLVED_CITATION_GAP' || errorCode === 'CITATION_INTEGRITY_BLOCKED') {
+        const msg = errorCode === 'FACT_CONFLICT'
+          ? "This section's facts conflict with an earlier chapter."
+          : errorCode === 'UNRESOLVED_CITATION_GAP'
+            ? 'This section still has an unresolved "[CITATION NEEDED]" gap.'
+            : 'This section has an unresolved citation issue (unsupported claim or implausible year).'
+
+        toast((t) => (
+          <div className="flex flex-col gap-2 text-[13px]">
+            <span>{msg}</span>
+            <div className="flex gap-3 mt-1">
+              <button
+                onClick={() => { toast.dismiss(t.id); handleApprove(true) }}
+                className="font-semibold text-amber-700 hover:text-amber-900"
+              >
+                Approve anyway
+              </button>
+              <button onClick={() => toast.dismiss(t.id)} className="text-slate-500 hover:text-slate-700">
+                Cancel
+              </button>
+            </div>
+          </div>
+        ), { duration: 12000 })
+        return
+      }
       toast.error(extractErrorMessage(err) || 'Could not approve section.')
     }
   }
@@ -2566,6 +2763,9 @@ function WriteWorkspaceTab({ project, approvedSourcesCount }: { project: Researc
               bibliography={bibliography}
               citationFlags={citationFlags}
               citationsPendingVerification={activeSection.citationsPendingVerification}
+              isUnderReferenced={activeSection.isUnderReferenced}
+              citationTarget={activeSection.citationTarget}
+              resolvedCitationCount={activeSection.resolvedCitationCount}
               onContentChange={handleContentChange}
               onSave={() => handleSave()}
               onGenerate={wc => handleGenerate(wc)}

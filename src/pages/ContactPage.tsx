@@ -50,7 +50,7 @@ export function ContactPage() {
                 Contact HumaniseAI
               </h1>
               <p className="text-text-sec text-base">
-                Questions about the Humaniser, AI Detector, Proposal Studio, or your billing?
+                Questions about the Humaniser, AI Detector, or your billing?
                 Our South African support team is here to help.
               </p>
             </motion.div>

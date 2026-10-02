@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   RefreshCw, ArrowLeftRight, Copy, Check,
   Upload, Clipboard, Pencil, Sparkles, Briefcase, GraduationCap,
-  AlignLeft, Maximize2, Minimize2, AlertCircle,
+  AlignLeft, Maximize2, Minimize2, Minus, AlertCircle, ChevronDown,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useParaphraseStore } from '../../store/paraphraseStore'
@@ -16,26 +16,39 @@ import { ClearButton } from '../../components/ui/ClearButton'
 import { PanelLabel } from '../../components/ui/PanelLabel'
 import { UtilityButton } from '../../components/ui/UtilityButton'
 import { Skeleton } from '../../components/ui/Skeleton'
+import { ResultsPanelHeader } from '../../components/ui/ResultsPanelHeader'
+import { PanelFooterBar } from '../../components/ui/PanelFooterBar'
+import { ToolBottomActionRow } from '../../components/ui/ToolBottomActionRow'
+import { ToolWorkspaceCard } from '../../components/shared/ToolWorkspaceCard'
 import { useToolTransferStore } from '../../store/toolTransferStore'
-import type { ParaphraseMode, ParaphraseStrength, SentencePair } from '../../types/paraphrase'
+import type { ParaphraseMode, ParaphraseStrength, ParaphraseLength, SentencePair } from '../../types/paraphrase'
 import { cn, primaryButtonClass } from '../../lib/utils'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const MODES: { id: ParaphraseMode; label: string; desc: string; Icon: React.ElementType }[] = [
+// Tone — the 5 register/voice modes. Length (below) is now a genuinely independent
+// backend parameter (ParaphrasePromptBuilder composes a tone system prompt with a
+// length instruction block), so any tone can be paired with any length.
+const TONE_MODES: { id: ParaphraseMode; label: string; desc: string; Icon: React.ElementType }[] = [
   { id: 'Standard', label: 'Standard', desc: 'Same meaning, different wording.',        Icon: RefreshCw     },
   { id: 'Fluency',  label: 'Fluency',  desc: 'Smoother, more natural phrasing.',        Icon: Sparkles      },
   { id: 'Formal',   label: 'Formal',   desc: 'Professional register and tone.',          Icon: Briefcase     },
   { id: 'Academic', label: 'Academic', desc: 'Scholarly language, precise vocabulary.',  Icon: GraduationCap },
   { id: 'Simple',   label: 'Simple',   desc: 'Shorter sentences, everyday words.',       Icon: AlignLeft     },
-  { id: 'Expand',   label: 'Expand',   desc: 'Adds detail and elaboration.',             Icon: Maximize2     },
-  { id: 'Shorten',  label: 'Shorten',  desc: 'Reduces length, keeps core meaning.',     Icon: Minimize2     },
+]
+
+// Length — independent of Tone. "No change" is the default so length isn't a decision
+// the user has to make unless they want one.
+const LENGTH_OPTIONS: { id: ParaphraseLength; label: string; desc: string; Icon: React.ElementType }[] = [
+  { id: 'None',    label: 'No change', desc: 'Keeps the original length.',           Icon: Minus     },
+  { id: 'Expand',  label: 'Expand',    desc: 'Adds detail and elaboration.',         Icon: Maximize2 },
+  { id: 'Shorten', label: 'Shorten',   desc: 'Reduces length, keeps core meaning.',  Icon: Minimize2 },
 ]
 
 const STRENGTHS: { id: ParaphraseStrength; label: string; desc: string }[] = [
-  { id: 'light',  label: 'Light',  desc: 'Word-level changes only'     },
-  { id: 'medium', label: 'Medium', desc: 'Phrase and structure changes' },
-  { id: 'heavy',  label: 'Heavy',  desc: 'Full sentence restructure'   },
+  { id: 'light',  label: 'Light',   desc: 'Word-level changes only'     },
+  { id: 'medium', label: 'Natural', desc: 'Phrase and structure changes' },
+  { id: 'heavy',  label: 'Full',    desc: 'Full sentence restructure'   },
 ]
 
 const SAMPLE_TEXT =
@@ -171,9 +184,9 @@ function OutputEmptyState() {
 
 export default function ParaphrasePage() {
   const {
-    inputText, outputText, selectedMode, selectedStrength,
+    inputText, outputText, selectedMode, selectedStrength, selectedLength,
     isLoading, lastResponse, error,
-    setInputText, setMode, setStrength, reset,
+    setInputText, setMode, setStrength, setLength, reset,
   } = useParaphraseStore()
 
   const { paraphrase } = useParaphrase()
@@ -206,8 +219,15 @@ export default function ParaphrasePage() {
       setInputText(prefill)
       const modeParam = params.get('mode')
       if (modeParam) {
-        const normalised = (modeParam.charAt(0).toUpperCase() + modeParam.slice(1).toLowerCase()) as ParaphraseMode
-        if (MODES.some(m => m.id === normalised)) setMode(normalised)
+        const key = modeParam.toLowerCase()
+        if (key === 'expand' || key === 'shorten') {
+          // Legacy deep links used mode=expand/shorten as a standalone mode — map onto the
+          // independent Length field instead so the Tone row still shows something selected.
+          setLength(key === 'expand' ? 'Expand' : 'Shorten')
+        } else {
+          const normalised = (modeParam.charAt(0).toUpperCase() + modeParam.slice(1).toLowerCase()) as ParaphraseMode
+          if (TONE_MODES.some(m => m.id === normalised)) setMode(normalised)
+        }
       }
       window.history.replaceState({}, '', '/app/paraphrase')
       return
@@ -234,10 +254,19 @@ export default function ParaphrasePage() {
 
   const sentenceMap     = lastResponse?.manifest?.sentenceMap ?? null
   const wordCount       = inputText.trim().split(/\s+/).filter(Boolean).length
-  const outputWordCount = outputText ? outputText.trim().split(/\s+/).filter(Boolean).length : 0
   const canParaphrase   = wordCount >= 10 && !isLoading
-  const activeMode      = MODES.find(m => m.id === selectedMode)!
-  const activeStrength  = STRENGTHS.find(s => s.id === selectedStrength)!
+  const [toneMenuOpen, setToneMenuOpen] = useState(false)
+  const toneMenuRef     = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!toneMenuOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (!toneMenuRef.current?.contains(e.target as Node)) setToneMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [toneMenuOpen])
+
+  const activeMode      = TONE_MODES.find(m => m.id === selectedMode) ?? TONE_MODES[0]
 
   // Word diff — prefer backend tokens if available, fall back to client-side LCS
   const wordDiffTokens = outputText && !sentenceMap
@@ -248,7 +277,7 @@ export default function ParaphrasePage() {
 
   const handleParaphrase = async () => {
     if (!canParaphrase) return
-    const result = await paraphrase(inputText, selectedMode, selectedStrength, true)
+    const result = await paraphrase(inputText, selectedMode, selectedStrength, true, selectedLength)
     if (result) {
       setTimeout(() => outputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100)
     }
@@ -276,299 +305,198 @@ export default function ParaphrasePage() {
     setHoveredIdx(null)
   }, [reset])
 
-  return (
-    <div className="min-h-0 bg-transparent px-4 py-6 w-full lg:h-[calc(100vh-4rem)] flex flex-col gap-4">
+  // One compact row, matching the Humaniser toolbar: Tone is the only control
+  // with enough options to warrant a dropdown (its descriptions live in the menu);
+  // Length and Intensity have three options each, so they stay visible as pills
+  // with their descriptions in tooltips. Tone and Length are independent backend
+  // parameters (composed server-side by ParaphrasePromptBuilder), so picking one
+  // never deselects the other.
+  const pillClass = (active: boolean) => cn(
+    'px-4 h-9 flex items-center rounded-lg text-[14px] font-medium transition-all duration-150 border whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed',
+    active
+      ? 'bg-neutral-900 text-white border-neutral-900 shadow-sm'
+      : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:text-neutral-900',
+  )
+  const groupLabelClass = 'text-[12px] font-semibold text-neutral-500 uppercase tracking-wider shrink-0'
 
-      {/* Mode + Intensity — single row, divider communicates intensity modifies mode */}
-      <div className="bg-white border border-[#e0e0da] rounded-xl overflow-hidden shrink-0 px-4 py-3">
-        <div className="flex flex-col lg:flex-row lg:items-start gap-3 lg:gap-5">
+  const toggleBar = (
+    <div className="bg-neutral-100 rounded-xl px-4 py-3 flex items-center flex-wrap gap-x-4 gap-y-2">
 
-          {/* Mode group */}
-          <div className="flex-1 min-w-0">
-            <span className="block text-[12px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-              Mode
-            </span>
-            <div className="flex flex-wrap gap-1.5 overflow-x-auto scrollbar-none">
-              {MODES.map(m => (
+      {/* Tone — dropdown */}
+      <div className="flex items-center gap-2">
+        <span className={groupLabelClass}>Tone</span>
+        <div className="relative" ref={toneMenuRef}>
+          <button
+            type="button"
+            onClick={() => setToneMenuOpen(v => !v)}
+            disabled={isLoading}
+            aria-haspopup="listbox"
+            aria-expanded={toneMenuOpen}
+            title={activeMode.desc}
+            className={cn(pillClass(false), 'gap-1.5 min-w-[7.5rem] justify-between')}
+          >
+            {activeMode.label}
+            <ChevronDown size={14} className={cn('transition-transform duration-150', toneMenuOpen && 'rotate-180')} />
+          </button>
+
+          {toneMenuOpen && (
+            <div role="listbox" aria-label="Tone" className="absolute z-30 top-full mt-1.5 left-0 w-64 bg-white border border-gray-200 rounded-xl shadow-elevated overflow-hidden py-1">
+              {TONE_MODES.map(m => (
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => setMode(m.id)}
-                  className={cn(
-                    'px-4 h-9 flex items-center rounded-lg text-[15px] font-medium transition-colors whitespace-nowrap',
-                    selectedMode === m.id
-                      ? 'bg-neutral-900 text-white'
-                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-                  )}
+                  role="option"
+                  aria-selected={selectedMode === m.id}
+                  onClick={() => { setMode(m.id); setToneMenuOpen(false) }}
+                  className={cn('flex flex-col items-start w-full px-3 py-2 text-left transition-colors', selectedMode === m.id ? 'bg-purple-50' : 'hover:bg-gray-50')}
                 >
-                  {m.label}
+                  <span className="text-[13px] font-medium text-gray-800">{m.label}</span>
+                  <span className="text-[11px] text-gray-500">{m.desc}</span>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mt-1.5">{activeMode.desc}</p>
-          </div>
-
-          {/* Divider */}
-          <div className="hidden lg:block w-px bg-gray-100 self-stretch" />
-
-          {/* Intensity group — subordinate to Mode */}
-          <div className="lg:w-60 shrink-0">
-            <span className="block text-[12px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-              Intensity
-            </span>
-            <div className="flex gap-0 p-0.5 bg-gray-100 rounded-lg">
-              {STRENGTHS.map(s => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setStrength(s.id)}
-                  className={cn(
-                    'flex-1 h-9 flex items-center justify-center px-3 rounded-md text-[15px] transition-colors',
-                    selectedStrength === s.id
-                      ? 'bg-neutral-900 text-white font-medium shadow-sm'
-                      : 'text-gray-400 hover:text-gray-600'
-                  )}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-gray-500 mt-1.5">{activeStrength.desc}</p>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Editor panels + contextual sidebar */}
-      <div className="flex gap-5 items-start lg:flex-1 lg:min-h-0">
+      <div className="hidden sm:block w-px h-5 bg-neutral-200" />
 
-        {/* Input / Output grid */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-5 min-w-0 lg:h-full">
-
-          {/* Input panel */}
-          <div className="lg:h-full lg:min-h-0">
-            <div
-              className="bg-white border border-[#e0e0da] rounded-xl overflow-hidden flex flex-col h-full relative"
-              {...dragHandlers}
+      {/* Length — pills */}
+      <div className="flex items-center gap-2">
+        <span className={groupLabelClass}>Length</span>
+        <div role="radiogroup" aria-label="Length" className="flex items-center gap-1.5 flex-wrap">
+          {LENGTH_OPTIONS.map(l => (
+            <button
+              key={l.id}
+              type="button"
+              role="radio"
+              aria-checked={selectedLength === l.id}
+              onClick={() => setLength(l.id)}
+              disabled={isLoading}
+              title={l.desc}
+              className={pillClass(selectedLength === l.id)}
             >
-              {fileInputElement}
-              <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-              {/* Input header */}
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#e0e0da] shrink-0">
-                <PanelLabel label="Your text" count={wordCount} />
-                <div className="flex items-center gap-3">
-                  {!inputEditMode && sentenceMap && (
-                    <button
-                      type="button"
-                      onClick={() => setInputEditMode(true)}
-                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-                    >
-                      <Pencil size={11} />
-                      Edit
-                    </button>
-                  )}
-                  <UtilityButton
-                    icon={<Clipboard size={16} />}
-                    label="Paste"
-                    onClick={handlePasteFromClipboard}
-                    disabled={isLoading}
-                  />
-                  <UtilityButton
-                    icon={<Upload size={16} />}
-                    label="Upload"
-                    onClick={openFilePicker}
-                    disabled={isLoading || isFileProcessing}
-                  />
-                </div>
-              </div>
+      <div className="hidden sm:block w-px h-5 bg-neutral-200" />
 
-              {/* Input body */}
-              {!inputEditMode && sentenceMap ? (
-                <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
-                  <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold mb-3">
-                    Hover to highlight counterpart
-                  </p>
-                  <SentenceSpanView
-                    pairs={sentenceMap}
-                    field="original"
-                    hoveredIdx={hoveredIdx}
-                    onHover={setHoveredIdx}
-                  />
-                </div>
-              ) : (
-                <div className="relative flex-1 min-h-0">
-                  <textarea
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    disabled={isLoading}
-                    className="textarea-body absolute inset-0 w-full h-full bg-white text-gray-800 resize-none outline-none focus:ring-2 focus:ring-inset focus:ring-purple-accent/30 rounded-lg px-5 py-4 disabled:opacity-60 disabled:cursor-not-allowed"
-                  />
-                  {!inputText && (
-                    <div className="textarea-body pointer-events-none absolute inset-0 px-5 py-4 text-gray-400 select-none">
-                      Paste or type your text here. Minimum 10 words, or{' '}
-                      <button
-                        type="button"
-                        onClick={() => setInputText(SAMPLE_TEXT)}
-                        className="pointer-events-auto text-purple-accent hover:underline transition-colors"
-                      >
-                        try a sample
-                      </button>
-                      .
-                    </div>
-                  )}
-                </div>
-              )}
+      {/* Intensity — pills */}
+      <div className="flex items-center gap-2">
+        <span className={groupLabelClass}>Intensity</span>
+        <div role="radiogroup" aria-label="Intensity" className="flex items-center gap-1.5 flex-wrap">
+          {STRENGTHS.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              role="radio"
+              aria-checked={selectedStrength === s.id}
+              onClick={() => setStrength(s.id)}
+              disabled={isLoading}
+              title={s.desc}
+              className={pillClass(selectedStrength === s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 
-              {/* Input footer */}
-              <div className="px-4 py-3 border-t border-[#e0e0da] flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <ClearButton onClick={handleClear} disabled={!(inputText || outputText)} />
-                  <span className="text-[13px] text-gray-400">
-                    {wordCount > 0 && wordCount < 10
-                      ? `${10 - wordCount} more word${10 - wordCount !== 1 ? 's' : ''} needed`
-                      : ''}
-                  </span>
-                </div>
+  const leftPanel = {
+    header: (
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#e0e0da] shrink-0">
+        <PanelLabel label="Your text" />
+        {!inputEditMode && sentenceMap && (
+          <button
+            type="button"
+            onClick={() => setInputEditMode(true)}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            <Pencil size={11} />
+            Edit
+          </button>
+        )}
+      </div>
+    ),
+    body: (
+      <div className="flex-1 min-h-0 flex flex-col relative" {...dragHandlers}>
+        {fileInputElement}
+        <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />
+        {!inputEditMode && sentenceMap ? (
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+            <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold mb-3">
+              Hover to highlight counterpart
+            </p>
+            <SentenceSpanView
+              pairs={sentenceMap}
+              field="original"
+              hoveredIdx={hoveredIdx}
+              onHover={setHoveredIdx}
+            />
+          </div>
+        ) : (
+          <div className="relative flex-1 min-h-0">
+            <textarea
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              disabled={isLoading}
+              className="textarea-body absolute inset-0 w-full h-full bg-white text-gray-800 resize-none outline-none focus:ring-2 focus:ring-inset focus:ring-purple-accent/30 rounded-lg px-5 py-4 disabled:opacity-60 disabled:cursor-not-allowed"
+            />
+            {!inputText && (
+              <div className="textarea-body pointer-events-none absolute inset-0 px-5 py-4 text-gray-400 select-none">
+                Paste or type your text here. Minimum 10 words, or{' '}
                 <button
                   type="button"
-                  onClick={handleParaphrase}
-                  disabled={!canParaphrase}
-                  className={primaryButtonClass(canParaphrase)}
+                  onClick={() => setInputText(SAMPLE_TEXT)}
+                  className="pointer-events-auto text-purple-accent hover:underline transition-colors"
                 >
-                  {isLoading
-                    ? <><RefreshCw size={14} className="animate-spin" /> Paraphrasing…</>
-                    : 'Paraphrase'
-                  }
+                  try a sample
                 </button>
+                .
               </div>
-            </div>
+            )}
           </div>
-
-          {/* Output panel */}
-          <div
-            ref={outputRef}
-            className="bg-white border border-[#e0e0da] rounded-xl overflow-hidden flex flex-col lg:h-full lg:min-h-0"
-            style={{ minHeight: 480 }}
-          >
-            {/* Output header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#e0e0da] shrink-0">
-              <div className="flex items-center gap-2">
-                <PanelLabel label="Paraphrased Output" />
-                {outputText && (
-                  <>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 font-medium">
-                      {selectedMode} · {activeStrength.label}
-                    </span>
-                    <span className="text-xs font-normal text-gray-400">{outputWordCount} words</span>
-                  </>
-                )}
-              </div>
-              {outputText && (
-                <div className="flex items-center gap-2">
-                  {/* Regenerate */}
-                  <button
-                    type="button"
-                    onClick={handleParaphrase}
-                    title="Generate another version"
-                    disabled={isLoading}
-                    className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 transition-colors disabled:opacity-40"
-                  >
-                    <RefreshCw size={13} />
-                  </button>
-                  {/* Copy */}
-                  <OutputActionButton
-                    icon={copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
-                    onClick={handleCopy}
-                  >
-                    {copied ? <span className="text-green-500">Copied</span> : 'Copy'}
-                  </OutputActionButton>
-                </div>
-              )}
-            </div>
-
-            {/* Output body */}
-            <AnimatePresence mode="wait">
-              {!outputText && !isLoading && !error && (
-                <motion.div
-                  key="empty"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex-1"
-                >
-                  <OutputEmptyState />
-                </motion.div>
-              )}
-
-              {isLoading && (
-                <motion.div
-                  key="loading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex-1 px-5 py-4"
-                >
-                  <Skeleton variant="text" tone="light" lines={8} />
-                </motion.div>
-              )}
-
-              {!isLoading && error && (
-                <motion.div
-                  key="error"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex-1 flex flex-col items-center justify-center h-full gap-3 text-center px-8"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center">
-                    <AlertCircle size={16} className="text-red-500" />
-                  </div>
-                  <div>
-                    <p className="text-[14px] font-medium text-gray-600">Couldn't paraphrase your text</p>
-                    <p className="text-[12px] text-gray-400 mt-1 max-w-[240px] leading-relaxed">{error}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleParaphrase}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-purple-accent hover:bg-purple-deep text-white transition-colors"
-                  >
-                    <RefreshCw size={12} /> Retry
-                  </button>
-                </motion.div>
-              )}
-
-              {outputText && !isLoading && !error && (
-                <motion.div
-                  key="output"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex-1 flex flex-col overflow-hidden"
-                >
-                  {sentenceMap ? (
-                    <>
-                      <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold px-5 pt-3 pb-1 shrink-0">
-                        Hover a sentence to highlight its counterpart
-                      </p>
-                      <div className="flex-1 overflow-y-auto px-5 py-3">
-                        <SentenceSpanView
-                          pairs={sentenceMap}
-                          field="rewritten"
-                          hoveredIdx={hoveredIdx}
-                          onHover={setHoveredIdx}
-                        />
-                      </div>
-                    </>
-                  ) : wordDiffTokens ? (
-                    <DiffOutput tokens={wordDiffTokens} />
-                  ) : (
-                    <div className="textarea-body flex-1 overflow-y-auto px-5 py-4 text-gray-800 whitespace-pre-wrap">
-                      {outputText}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Output footer */}
-            <div className="px-4 py-3 border-t border-[#e0e0da] flex items-center justify-end gap-3 shrink-0">
+        )}
+      </div>
+    ),
+    // Single shared bottom row for the whole editing surface (Humaniser/Detector
+    // pattern): Clear + hint on the left, Send to / Use as input / primary
+    // Paraphrase action on the right, rather than a second bar under the output panel.
+    footer: (
+      <>
+        <PanelFooterBar
+          metadata={<span className="text-xs font-normal tabular-nums text-gray-400">{wordCount} words</span>}
+          actions={
+            <>
+              <UtilityButton
+                icon={<Clipboard size={14} />}
+                label="Paste"
+                className="h-8 px-3 text-[13px]"
+                onClick={handlePasteFromClipboard}
+                disabled={isLoading}
+              />
+              <UtilityButton
+                icon={<Upload size={14} />}
+                label="Upload"
+                className="h-8 px-3 text-[13px]"
+                onClick={openFilePicker}
+                disabled={isLoading || isFileProcessing}
+              />
+            </>
+          }
+        />
+        <ToolBottomActionRow
+          clearButton={<ClearButton onClick={handleClear} disabled={!(inputText || outputText)} />}
+          hint={wordCount > 0 && wordCount < 10
+            ? `${10 - wordCount} more word${10 - wordCount !== 1 ? 's' : ''} needed`
+            : undefined}
+          primaryButton={
+            <div className="flex items-center gap-3">
               {outputText && (
                 <>
                   <SendToMenu text={outputText} />
@@ -582,97 +510,149 @@ export default function ParaphrasePage() {
                   </button>
                 </>
               )}
+              <button
+                type="button"
+                onClick={handleParaphrase}
+                disabled={!canParaphrase}
+                className={primaryButtonClass(canParaphrase)}
+              >
+                {isLoading
+                  ? <><RefreshCw size={14} className="animate-spin" /> Paraphrasing…</>
+                  : 'Paraphrase'
+                }
+              </button>
             </div>
-          </div>
+          }
+        />
+      </>
+    ),
+  }
 
-        </div>
-        {/* end input/output grid */}
-
-        {/* Contextual sidebar — Result stats + manifest (desktop only) */}
-        <AnimatePresence>
-          {(outputText || isLoading) && (
-            <motion.div
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 12 }}
-              transition={{ duration: 0.25 }}
-              className="hidden lg:flex w-[208px] shrink-0 flex-col bg-white border border-[#e0e0da] rounded-xl overflow-hidden"
+  const rightPanel = {
+    header: (
+      <ResultsPanelHeader
+        title={<PanelLabel label="Paraphrased Output" />}
+      />
+    ),
+    footer: outputText && (
+      <PanelFooterBar
+        actions={
+          <>
+            {/* Regenerate */}
+            <button
+              type="button"
+              onClick={handleParaphrase}
+              title="Generate another version"
+              disabled={isLoading}
+              className="w-7 h-7 flex items-center justify-center rounded-md border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 transition-colors disabled:opacity-40"
             >
-              <div className="px-4 py-3 border-b border-[#e0e0da]">
-                <span className="text-sm font-semibold text-gray-800">
-                  {lastResponse ? 'Result' : 'Mode Info'}
-                </span>
+              <RefreshCw size={13} />
+            </button>
+            {/* Copy */}
+            <OutputActionButton
+              icon={copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
+              onClick={handleCopy}
+            >
+              {copied ? <span className="text-green-500">Copied</span> : 'Copy'}
+            </OutputActionButton>
+          </>
+        }
+      />
+    ),
+    body: (
+      <div ref={outputRef} className="flex-1 min-h-0 flex flex-col">
+        <AnimatePresence mode="wait">
+          {!outputText && !isLoading && !error && (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1"
+            >
+              <OutputEmptyState />
+            </motion.div>
+          )}
+
+          {isLoading && (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex-1 px-5 py-4"
+            >
+              <Skeleton variant="text" tone="light" lines={8} />
+            </motion.div>
+          )}
+
+          {!isLoading && error && (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex-1 flex flex-col items-center justify-center h-full gap-3 text-center px-8"
+            >
+              <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center">
+                <AlertCircle size={16} className="text-red-500" />
               </div>
-              <div className="flex-1 overflow-y-auto flex flex-col gap-3 p-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
-                    <activeMode.Icon size={16} className="text-blue-500" />
+              <div>
+                <p className="text-[14px] font-medium text-gray-600">Couldn't paraphrase your text</p>
+                <p className="text-[12px] text-gray-400 mt-1 max-w-[240px] leading-relaxed">{error}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleParaphrase}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-purple-accent hover:bg-purple-deep text-white transition-colors"
+              >
+                <RefreshCw size={12} /> Retry
+              </button>
+            </motion.div>
+          )}
+
+          {outputText && !isLoading && !error && (
+            <motion.div
+              key="output"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex-1 flex flex-col overflow-hidden"
+            >
+              {sentenceMap ? (
+                <>
+                  <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold px-5 pt-3 pb-1 shrink-0">
+                    Hover a sentence to highlight its counterpart
+                  </p>
+                  <div className="flex-1 overflow-y-auto px-5 py-3">
+                    <SentenceSpanView
+                      pairs={sentenceMap}
+                      field="rewritten"
+                      hoveredIdx={hoveredIdx}
+                      onHover={setHoveredIdx}
+                    />
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">{selectedMode}</p>
-                    <p className="text-xs text-gray-400 capitalize">{selectedStrength}</p>
-                  </div>
+                </>
+              ) : wordDiffTokens ? (
+                <DiffOutput tokens={wordDiffTokens} />
+              ) : (
+                <div className="textarea-body flex-1 overflow-y-auto px-5 py-4 text-gray-800 whitespace-pre-wrap">
+                  {outputText}
                 </div>
-
-                {lastResponse ? (
-                  <>
-                    <div className="space-y-1.5 pt-2 border-t border-[#e0e0da]">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-400">Original</span>
-                        <span className="text-gray-700 font-medium tabular-nums">{lastResponse.originalWordCount}w</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-400">Result</span>
-                        <span className="text-gray-700 font-medium tabular-nums">{lastResponse.paraphrasedWordCount}w</span>
-                      </div>
-                      {Math.abs(lastResponse.paraphrasedWordCount - lastResponse.originalWordCount) >= 2 && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-gray-400">Change</span>
-                          <span className={cn(
-                            'font-semibold tabular-nums',
-                            lastResponse.paraphrasedWordCount > lastResponse.originalWordCount
-                              ? 'text-emerald-500' : 'text-amber-500'
-                          )}>
-                            {lastResponse.paraphrasedWordCount > lastResponse.originalWordCount ? '+' : ''}
-                            {lastResponse.paraphrasedWordCount - lastResponse.originalWordCount}w
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {lastResponse.manifest && (
-                      <>
-                        <div className="w-full h-px bg-gray-100" />
-                        <div>
-                          <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold mb-1.5">Transform</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">{lastResponse.manifest.syntacticChange}</p>
-                        </div>
-                        {lastResponse.manifest.lexicalUpgrades.length > 0 && (
-                          <div>
-                            <p className="text-[12px] text-gray-400 uppercase tracking-wider font-semibold mb-1.5">New vocab</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {lastResponse.manifest.lexicalUpgrades.map(w => (
-                                <span key={w} className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 cursor-default">
-                                  {w}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-xs text-gray-500 leading-relaxed">{activeMode.desc}</p>
-                )}
-              </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
-
       </div>
-      {/* end flex+sidebar wrapper */}
+    ),
+  }
 
+  return (
+    <div className="min-h-0 bg-transparent px-4 py-6 w-full">
+      <ToolWorkspaceCard
+        className="lg:sticky lg:top-4"
+        style={{ height: 'calc(100vh - 7rem)' }}
+        toggleBar={toggleBar}
+        leftPanel={leftPanel}
+        rightPanel={rightPanel}
+      />
     </div>
   )
 }

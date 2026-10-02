@@ -16,6 +16,7 @@ import { ConfidenceCaveat } from '../../components/ui/ConfidenceCaveat'
 import { ClearButton } from '../../components/ui/ClearButton'
 import { UtilityButton } from '../../components/ui/UtilityButton'
 import { PanelLabel } from '../../components/ui/PanelLabel'
+import { PanelFooterBar } from '../../components/ui/PanelFooterBar'
 import { Skeleton } from '../../components/ui/Skeleton'
 import type { SourceMatch } from '../../types/plagiarism'
 import { cn, primaryButtonClass } from '../../lib/utils'
@@ -466,38 +467,18 @@ export default function PlagiarismPage() {
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-2">
                 <FileText size={14} className="text-gray-400" />
-                <PanelLabel label="Your text" count={wordCount} />
+                <PanelLabel label="Your text" />
               </div>
-              <div className="flex items-center gap-3">
-                {showHighlights && (
-                  <button
-                    type="button"
-                    onClick={() => setEditMode(true)}
-                    className="flex items-center gap-1.5 text-[13px] text-gray-500 hover:text-gray-800 transition-colors"
-                  >
-                    <Pencil size={12} />
-                    Edit text
-                  </button>
-                )}
-
-                {!showHighlights && (
-                  <UtilityButton
-                    icon={<Clipboard size={16} />}
-                    label="Paste"
-                    onClick={handlePasteFromClipboard}
-                    disabled={isLoading}
-                  />
-                )}
-
-                {!showHighlights && (
-                  <UtilityButton
-                    icon={<Upload size={16} />}
-                    label="Upload"
-                    onClick={openFilePicker}
-                    disabled={isLoading || isFileProcessing}
-                  />
-                )}
-              </div>
+              {showHighlights && (
+                <button
+                  type="button"
+                  onClick={() => setEditMode(true)}
+                  className="flex items-center gap-1.5 text-[13px] text-gray-500 hover:text-gray-800 transition-colors"
+                >
+                  <Pencil size={12} />
+                  Edit text
+                </button>
+              )}
             </div>
 
             {/* Body — highlighted view OR editable textarea */}
@@ -545,6 +526,31 @@ export default function PlagiarismPage() {
               )}
             </AnimatePresence>
 
+            {/* Word count + Paste/Upload — moved out of the header into the footer */}
+            {!showHighlights && (
+              <PanelFooterBar
+                metadata={<span className="text-xs font-normal tabular-nums text-gray-400">{wordCount} words</span>}
+                actions={
+                  <>
+                    <UtilityButton
+                      icon={<Clipboard size={14} />}
+                      label="Paste"
+                      className="h-8 px-3 text-[13px]"
+                      onClick={handlePasteFromClipboard}
+                      disabled={isLoading}
+                    />
+                    <UtilityButton
+                      icon={<Upload size={14} />}
+                      label="Upload"
+                      className="h-8 px-3 text-[13px]"
+                      onClick={openFilePicker}
+                      disabled={isLoading || isFileProcessing}
+                    />
+                  </>
+                }
+              />
+            )}
+
             {/* Footer */}
             <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3">
@@ -586,25 +592,8 @@ export default function PlagiarismPage() {
           <div className="flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden h-full">
 
             {/* Persistent panel header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
+            <div className="flex items-center px-4 py-2.5 border-b border-gray-100 shrink-0">
               <PanelLabel label="Source report" />
-              {hasResults && (
-                <div className="flex items-center gap-3">
-                  <span className="text-[13px] text-gray-400">
-                    {result!.sourceMatches.length} significant source{result!.sourceMatches.length !== 1 ? 's' : ''} found
-                    {result!.sourcesSearched > result!.sourceMatches.length && (
-                      <> ({result!.sourcesSearched} checked)</>
-                    )}
-                  </span>
-                  <button
-                    onClick={handleExport}
-                    className="flex items-center gap-1 text-xs text-purple-accent hover:underline"
-                  >
-                    <Download size={12} />
-                    Export
-                  </button>
-                </div>
-              )}
             </div>
 
             <AnimatePresence mode="wait">
@@ -768,6 +757,28 @@ export default function PlagiarismPage() {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {hasResults && (
+              <PanelFooterBar
+                metadata={
+                  <span className="text-xs font-normal tabular-nums text-gray-400">
+                    {result!.sourceMatches.length} significant source{result!.sourceMatches.length !== 1 ? 's' : ''} found
+                    {result!.sourcesSearched > result!.sourceMatches.length && (
+                      <> ({result!.sourcesSearched} checked)</>
+                    )}
+                  </span>
+                }
+                actions={
+                  <button
+                    onClick={handleExport}
+                    className="flex items-center gap-1 text-xs text-purple-accent hover:underline"
+                  >
+                    <Download size={12} />
+                    Export
+                  </button>
+                }
+              />
+            )}
 
           </div>
         </div>

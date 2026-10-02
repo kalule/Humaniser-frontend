@@ -5,17 +5,13 @@ import { Check, Shield } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/utils'
 
-// ⚠️ PRICING REVIEW NEEDED — Confirm exact feature gating for Proposal Studio and
-// Data Analyst before publishing. The research tool line items below reflect the
-// intended tier access but must be verified against the actual subscription logic.
-
 const PLANS = [
   {
     name: 'Free',
     monthlyPrice: 0,
     annualPrice: 0,
     annualTotal: 0,
-    description: 'Try the platform',
+    description: 'Try all five tools',
     highlight: false,
     features: [
       '500 words per month',
@@ -28,43 +24,39 @@ const PLANS = [
     ctaLink: '/register',
   },
   {
-    name: 'Pro',
-    monthlyPrice: 149,
-    annualPrice: 119,
-    annualTotal: 1428,
-    annualSaving: 360,
-    description: 'For students and researchers',
+    name: 'Starter',
+    monthlyPrice: 10,
+    annualPrice: 8,
+    annualTotal: 96,
+    annualSaving: 24,
+    description: 'For regular writers',
     highlight: true,
     badge: 'Most Popular',
     features: [
-      '10,000 words per month',
-      'All 4 writing tones & strength levels',
-      'Proposal Studio (unlimited drafts)',
-      'Data Analyst (unlimited uploads)',
-      'Document Chat, Citations & Library',
+      '10,000 credits per month',
+      'All writing tones & strength levels',
+      'Full access to all 5 tools',
       'Full history · Priority processing',
     ],
-    cta: 'Start Pro trial',
+    cta: 'Start Starter trial',
     ctaLink: '/register?plan=pro',
   },
   {
-    name: 'Unlimited',
-    monthlyPrice: 299,
-    annualPrice: 239,
-    annualTotal: 2868,
-    annualSaving: 720,
+    name: 'Professional',
+    monthlyPrice: 20,
+    annualPrice: 16,
+    annualTotal: 192,
+    annualSaving: 48,
     description: 'For teams and heavy users',
     highlight: false,
     features: [
-      'Unlimited words',
-      'Full research suite access',
-      'Proposal Studio & Data Analyst',
-      'Lecture Notes transcription',
+      '35,000 credits per month',
+      'Full access to all 5 tools',
       'Fastest processing',
       'Priority support',
       'API access (coming soon)',
     ],
-    cta: 'Go Unlimited',
+    cta: 'Go Professional',
     ctaLink: '/register?plan=unlimited',
   },
 ]
@@ -102,9 +94,9 @@ function PricingCard({ plan, annual }: PricingCardProps) {
       <div className="mb-6">
         <div className="flex items-end gap-1">
           {annual && plan.monthlyPrice > 0 && (
-            <span className="text-sm text-[#888888] line-through mb-1">R{plan.monthlyPrice}</span>
+            <span className="text-sm text-[#888888] line-through mb-1">${plan.monthlyPrice}</span>
           )}
-          <span className="text-xs text-[#888888] font-medium mt-2">R</span>
+          <span className="text-xs text-[#888888] font-medium mt-2">$</span>
           <span className="text-4xl font-bold text-[#1a1a18]">{price}</span>
           {price > 0 && (
             <span className="text-xs text-[#888888] mb-1">
@@ -115,7 +107,7 @@ function PricingCard({ plan, annual }: PricingCardProps) {
         {price === 0 && <span className="text-xs text-[#888888]">Forever free</span>}
         {annual && 'annualSaving' in plan && plan.annualSaving && plan.annualSaving > 0 && (
           <p className="text-xs text-[#065f46] font-semibold mt-1">
-            Save R{plan.annualSaving}/year
+            Save ${plan.annualSaving}/year
           </p>
         )}
       </div>
@@ -163,10 +155,10 @@ export function PricingSection() {
             Simple Pricing
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold text-[#1a1a18] mb-4">
-            Plans for Every Researcher
+            Simple Plans for Every Writer
           </h2>
           <p className="text-[#555555] text-base max-w-xl mx-auto">
-            Start free. Upgrade for full research power. Cancel anytime.
+            Start free. Upgrade for more words and priority processing. Cancel anytime.
           </p>
         </motion.div>
 
@@ -218,8 +210,8 @@ export function PricingSection() {
           transition={{ duration: 0.5, delay: 0.4 }}
           className="text-center text-sm text-[#555555] mt-8"
         >
-          QuillBot costs $9.99/month (~R185). HumaniseAI Pro costs R149/month.{' '}
-          <span className="text-[#555555]">Same quality. Local pricing. SA support.</span>
+          QuillBot costs $9.99/month. HumaniseAI Starter costs $10/month — with four more tools included.{' '}
+          <span className="text-[#555555]">Same quality. Global pricing.</span>
         </motion.p>
 
         {/* Money-back guarantee */}

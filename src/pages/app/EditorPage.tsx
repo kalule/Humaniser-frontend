@@ -1,23 +1,26 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
   Wand2,
-  Clipboard,
   ClipboardCopy,
   Download,
   Loader2,
   Zap,
   AlertCircle,
-  CheckCircle,
   ShieldCheck,
   Upload,
   Eye,
   EyeOff,
+  ChevronDown,
+  MoreHorizontal,
+  Lock,
+  Clipboard,
+  Check,
 } from 'lucide-react'
 import { cn, countWords, formatNumber } from '../../lib/utils'
+import { renderInlineMarkdown, consumeBoldMarker } from '../../lib/inlineMarkdown'
 import { useAuthStore } from '../../store/authStore'
 import { useHumaniserStore } from '../../store/humaniserStore'
 import { useUiStore } from '../../store/uiStore'
@@ -25,7 +28,6 @@ import { humaniseApi } from '../../api/humanise'
 import { detectorApi } from '../../api/detector'
 import { useDragDrop } from '../../hooks/useDragDrop'
 import { DropOverlay } from '../../components/ui/DropOverlay'
-import { ScoreCircle } from '../../components/ui/ScoreCircle'
 import { ScoreBar } from '../../components/ui/ScoreBar'
 import { VerdictBadge } from '../../components/ui/VerdictBadge'
 import { SendToMenu } from '../../components/ui/SendToMenu'
@@ -34,13 +36,25 @@ import { PanelLabel } from '../../components/ui/PanelLabel'
 import { OutputActionButton } from '../../components/ui/OutputActionButton'
 import { UtilityButton } from '../../components/ui/UtilityButton'
 import { Skeleton } from '../../components/ui/Skeleton'
+import { ResultsPanelHeader } from '../../components/ui/ResultsPanelHeader'
+import { PanelFooterBar } from '../../components/ui/PanelFooterBar'
+import { DetectionScoreGauge } from '../../components/workspace/DetectionScoreGauge'
+import { ToolBottomActionRow } from '../../components/ui/ToolBottomActionRow'
 import { useToolTransferStore } from '../../store/toolTransferStore'
 import type { Tone, Strength } from '../../types'
-import type { DetectResponse, SentenceScore } from '../../types/detector'
+import type { DetectResponse, SentenceScore, LayerScores } from '../../types/detector'
 
 const STORAGE_KEY_INPUT  = 'humanise_draft_input'
 const STORAGE_KEY_OUTPUT = 'humanise_draft_output'
 const CHUNK_SIZE = 4_900
+
+// Output-toolbar buttons on this page only: the shared OutputActionButton
+// default (h-6 / 11px) is too small a target here, and Detector uses it too.
+// The collapsible AI-detection panel under the editor is hidden for now; the
+// header gauge and Check AI button cover the same ground. Flip to bring it back.
+const SHOW_DETECTION_PANEL = false
+
+const OUTPUT_BTN_SIZE = 'h-8 px-3 gap-1.5 text-[13px] rounded-lg'
 
 const SAMPLE_TEXT =
   `In today's fast-paced digital landscape, it is imperative for organizations to leverage cutting-edge technology in order to remain competitive. Furthermore, businesses must prioritize efficiency and streamline their operations to maximize productivity. By implementing innovative solutions, companies can effectively navigate the ever-evolving market and achieve sustainable growth. It is essential to note that collaboration and communication play a pivotal role in driving successful outcomes across all departments.`
@@ -82,27 +96,47 @@ function splitIntoChunks(text: string, maxChars: number): string[] {
   return chunks.filter(Boolean)
 }
 
-const LEVEL_TIERS = [
-  { id: 'light',      label: 'Light',      min: 1, max: 3,  default: 2  },
-  { id: 'balanced',   label: 'Balanced',   min: 4, max: 6,  default: 5  },
-  { id: 'aggressive', label: 'Aggressive', min: 7, max: 8,  default: 7  },
-  { id: 'maximum',    label: 'Maximum',    min: 9, max: 10, default: 10 },
-] as const
-
-function tierForLevel(level: number) {
-  return LEVEL_TIERS.find((t) => level >= t.min && level <= t.max) ?? LEVEL_TIERS[1]
-}
+// Product UX exposes 3 rewrite levels (Light / Natural / Full). The backend's prompt
+// builder (ClaudeService.BuildStrengthInstruction) and word-count budget
+// (LengthBudget.BandFor) still branch on 4 distinct tiers — light / balanced / aggressive
+// / maximum — each with real, different rewrite behaviour; "aggressive" is not dropped
+// server-side, it's simply never surfaced as a UI choice. "Full" maps to "maximum" (the
+// strongest existing tier — "complete reconstruction" is the closest server-side match to
+// a UI label promising a full rewrite), and "Natural" maps to "balanced", the previous
+// default. This mapping is deliberate and documented here so it isn't left implicit.
+const REWRITE_LEVELS: { id: 'light' | 'natural' | 'full'; label: string; strength: Strength; hint: string }[] = [
+  { id: 'light',   label: 'Light',   strength: 'light',    hint: 'Minimal changes — keeps your voice and structure' },
+  { id: 'natural', label: 'Natural', strength: 'balanced', hint: 'Balanced rewrite — recommended for most text' },
+  { id: 'full',    label: 'Full',    strength: 'maximum',  hint: 'Thorough rewrite of structure and wording' },
+]
+type RewriteLevelId = typeof REWRITE_LEVELS[number]['id']
 
 const TONES: { value: Tone; label: string; description: string }[] = [
   { value: 'casual',         label: 'Casual',         description: 'Natural & relaxed'  },
   { value: 'professional',   label: 'Professional',   description: 'Warm & formal'       },
-  { value: 'academic',       label: 'Academic',       description: 'Scholarly & precise' },
+  { value: 'academic',       label: 'Academic',       description: 'Preserve citations, technical terms, and claim meaning.' },
   { value: 'conversational', label: 'Conversational', description: 'Engaging & lively'  },
 ]
 
-function levelToStrength(l: number): Strength {
-  return tierForLevel(l).id
-}
+// Optional academic-quality passes, off by default. Each maps 1:1 to a HumaniseRequest boolean
+// field (see types/index.ts) and an additive instruction block in ClaudeService — none of them
+// permit new facts/sources/claims, which stays enforced unconditionally regardless of selection.
+type EnhanceKey =
+  | 'reduceRepetition' | 'improveCriticalAnalysis' | 'improveArgumentFlow'
+  | 'calibrateCausalClaims' | 'improveParagraphCoherence'
+const ENHANCE_OPTIONS: { key: EnhanceKey; label: string; description: string }[] = [
+  { key: 'reduceRepetition', label: 'Reduce repetition', description: 'Combine or rewrite repeated ideas, claims, and phrasing' },
+  { key: 'improveCriticalAnalysis', label: 'Improve critical analysis', description: 'Sharpen reasoning and the link between evidence and claims' },
+  { key: 'improveArgumentFlow', label: 'Improve argument flow', description: 'Strengthen transitions and paragraph-to-thesis connections' },
+  { key: 'calibrateCausalClaims', label: 'Calibrate causal claims', description: 'Soften causal language the evidence doesn’t fully support' },
+  { key: 'improveParagraphCoherence', label: 'Improve paragraph coherence', description: 'Tighten claim → evidence → analysis structure per paragraph' },
+]
+
+// "Auto" does not run any real tone-inference — there is no such system today — so rather
+// than imply detection is happening, it resolves to one clearly-chosen default tone that's
+// safe for most writing, and the UI never claims the tone was "detected". If real style
+// inference is built later, this is the single place to wire it in.
+const DEFAULT_AUTO_TONE: Tone = 'academic'
 
 function nextMonthFirstDay() {
   const now = new Date()
@@ -132,7 +166,7 @@ function TypewriterText({ text, animate = true }: { text: string; animate?: bool
 
   return (
     <p className="textarea-body text-text-pri whitespace-pre-wrap">
-      {displayed}
+      {renderInlineMarkdown(displayed)}
       {displayed.length < text.length && (
         <span className="inline-block w-0.5 h-4 bg-purple-accent ml-0.5 animate-pulse" />
       )}
@@ -158,7 +192,7 @@ function HighlightedText({ sentenceScores }: { sentenceScores: SentenceScore[] }
             className={cn('rounded-sm px-0.5 cursor-default transition-colors', color)}
             title={`${s.aiProbability}% AI probability`}
           >
-            {s.sentence}{' '}
+            {renderInlineMarkdown(s.sentence, `s${i}`)}{' '}
           </span>
         )
       })}
@@ -168,9 +202,9 @@ function HighlightedText({ sentenceScores }: { sentenceScores: SentenceScore[] }
 
 // ── Word-level diff (client-side LCS, mirrors ParaphrasePage's approach) ─────
 
-interface WordToken {
+interface DiffOp {
   word: string
-  changed: boolean
+  type: 'same' | 'added' | 'removed'
 }
 
 // Strips leading/trailing punctuation for comparison only (rendering keeps the original
@@ -181,7 +215,10 @@ function normalizeForCompare(word: string): string {
   return word.toLowerCase().replace(/^[^\w']+|[^\w']+$/g, '')
 }
 
-function computeWordDiff(original: string, humanised: string): WordToken[] {
+// Word-level diff (client-side LCS) that emits a single interleaved sequence of
+// same/added/removed tokens — Diff View renders removed AI jargon inline (red,
+// struck through) next to the human rewrite that replaced it (green).
+function computeDiffOps(original: string, humanised: string): DiffOp[] {
   const origWords = original.trim().split(/\s+/).filter(Boolean)
   const newWords  = humanised.trim().split(/\s+/).filter(Boolean)
   const origNorm = origWords.map(normalizeForCompare)
@@ -196,57 +233,59 @@ function computeWordDiff(original: string, humanised: string): WordToken[] {
         ? dp[i - 1][j - 1] + 1
         : Math.max(dp[i - 1][j], dp[i][j - 1])
 
-  const inLCS = new Set<number>()
+  const ops: DiffOp[] = []
   let i = m, j = n
   while (i > 0 && j > 0) {
     if (origNorm[i - 1] === newNorm[j - 1]) {
-      inLCS.add(j - 1); i--; j--
+      ops.push({ word: newWords[j - 1], type: 'same' }); i--; j--
     } else if (dp[i - 1][j] >= dp[i][j - 1]) {
-      i--
+      ops.push({ word: origWords[i - 1], type: 'removed' }); i--
     } else {
-      j--
+      ops.push({ word: newWords[j - 1], type: 'added' }); j--
     }
   }
+  while (i > 0) { ops.push({ word: origWords[i - 1], type: 'removed' }); i-- }
+  while (j > 0) { ops.push({ word: newWords[j - 1], type: 'added' }); j-- }
 
-  return newWords.map((word, idx) => ({
-    word: idx === 0 ? word : ' ' + word,
-    changed: !inLCS.has(idx),
-  }))
+  ops.reverse()
+  return ops
 }
 
-function DiffText({ tokens }: { tokens: WordToken[] }) {
+function DiffText({ ops }: { ops: DiffOp[] }) {
+  let boldActive = false
   return (
     <p className="textarea-body text-text-pri whitespace-pre-wrap">
-      {tokens.map((token, idx) =>
-        token.changed ? (
-          <mark key={idx} className="bg-purple-100 text-purple-800 rounded px-0.5 not-italic font-normal">
-            {token.word}
-          </mark>
-        ) : (
-          <span key={idx}>{token.word}</span>
-        ),
-      )}
+      {ops.map((op, idx) => {
+        const raw = idx === 0 ? op.word : ' ' + op.word
+        const { clean: text, isBold, nextBoldActive } = consumeBoldMarker(raw, boldActive)
+        boldActive = nextBoldActive
+        if (op.type === 'added') {
+          return (
+            <mark key={idx} className={cn('bg-emerald-100 text-emerald-800 rounded px-0.5 not-italic', isBold ? 'font-bold' : 'font-normal')}>
+              {text}
+            </mark>
+          )
+        }
+        if (op.type === 'removed') {
+          return (
+            <span key={idx} className={cn('bg-red-50 text-red-700 line-through decoration-red-400 rounded px-0.5', isBold && 'font-bold')}>
+              {text}
+            </span>
+          )
+        }
+        return <span key={idx} className={cn(isBold && 'font-bold')}>{text}</span>
+      })}
     </p>
   )
 }
 
-// ── Detection score sidebar ───────────────────────────────────────────────────
-
-interface HumaniseScores {
-  originalAiScore: number
-  finalAiScore: number
-  verificationPassesUsed: number
-  metTargetThreshold: boolean
-}
-
-interface DetectionSidebarProps {
-  result: DetectResponse | null
-  isChecking: boolean
-  isStale: boolean
-  canCheck: boolean
-  onCheck: () => void
-  humaniseScores?: HumaniseScores | null
-}
+// ── Detection estimate wording ────────────────────────────────────────────────
+//
+// Two distinct signals exist and must not be conflated:
+//  - a full scan (detectorApi.detect) returns a verified DetectResponse
+//  - the rewrite step's own verification loop produces a quick internal estimate
+// Neither is displayed as a pass/fail claim ("AI check: passed") — only as an honestly
+// labelled likelihood, since that's what the underlying data actually supports.
 
 function humanScoreBarColor(score: number): string {
   if (score >= 80) return 'bg-emerald-500'
@@ -256,100 +295,44 @@ function humanScoreBarColor(score: number): string {
   return 'bg-red-500'
 }
 
-function DetectionSidebar({ result, isChecking, isStale, canCheck, onCheck, humaniseScores }: DetectionSidebarProps) {
+function detectionEstimateLabel(aiScore: number): { text: 'Low' | 'Medium' | 'High'; color: string } {
+  if (aiScore <= 35) return { text: 'Low', color: 'text-emerald-600' }
+  if (aiScore <= 60) return { text: 'Medium', color: 'text-amber-600' }
+  return { text: 'High', color: 'text-red-600' }
+}
+
+// Explicit per-layer status badges — named after the detection layers we actually
+// run internally (statistical / stylometric / semantic), rather than implying
+// integration with named third-party scanners we don't call.
+const ENGINE_LAYERS: { key: keyof LayerScores; label: string }[] = [
+  { key: 'statistical', label: 'Statistical Engine' },
+  { key: 'stylometric', label: 'Stylometric Engine' },
+  { key: 'semantic',    label: 'Semantic Engine' },
+]
+
+function engineBadge(humanLikeScore: number): { text: string; classes: string } {
+  if (humanLikeScore < 0) return { text: 'Skipped', classes: 'text-text-mut bg-neutral-100 border-[#e0e0da]' }
+  const aiLikelihood = Math.round(100 - humanLikeScore)
+  if (aiLikelihood <= 3) return { text: 'Clean', classes: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
+  if (aiLikelihood <= 30) return { text: `${aiLikelihood}%`, classes: 'text-amber-700 bg-amber-50 border-amber-200' }
+  return { text: `${aiLikelihood}%`, classes: 'text-red-700 bg-red-50 border-red-200' }
+}
+
+function EngineBadges({ layerScores }: { layerScores: LayerScores }) {
   return (
-    <div className="hidden lg:flex w-[216px] shrink-0 flex-col bg-white border border-[#e0e0da] rounded-2xl overflow-hidden shadow-card">
-      <div className="px-4 py-3 border-b border-[#e0e0da]">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={13} className="text-text-mut" />
-          <span className="text-[10px] font-semibold text-text-mut uppercase tracking-wider">Detection Score</span>
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col items-center gap-3 p-4">
-        {result ? (
-          <>
-            <span className={cn('text-[11px] font-medium', isStale ? 'text-amber-600' : 'text-text-mut')}>
-              {isStale ? 'Score may be outdated' : 'Scanned with V1'}
+    <div className="w-full space-y-1.5">
+      <span className="text-[10px] font-medium text-text-mut uppercase tracking-wider">Engine breakdown</span>
+      {ENGINE_LAYERS.map(({ key, label }) => {
+        const badge = engineBadge(layerScores[key])
+        return (
+          <div key={key} className="flex items-center justify-between">
+            <span className="text-[11px] text-text-sec">{label}</span>
+            <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border tabular-nums', badge.classes)}>
+              {badge.text}
             </span>
-            <ScoreBar score={result.humanScore} label="Human score" size="compact" colorForScore={humanScoreBarColor} className="w-full" />
-            <VerdictBadge verdict={result.verdict} humanScore={result.humanScore} size="sm" />
-            {result.wordCount > 0 && (
-              <span className="text-[11px] text-text-mut">{result.wordCount} words analysed</span>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="mt-2 w-11 h-11 rounded-full bg-[#f8fafc] border border-dashed border-[#d1d5db] flex items-center justify-center">
-              <ShieldCheck size={16} className="text-text-mut" />
-            </div>
-            <p className="text-[11px] text-text-mut text-center leading-relaxed">
-              Run detection to see your score
-            </p>
-          </>
-        )}
-
-        {humaniseScores && humaniseScores.verificationPassesUsed > 0 && (
-          <>
-            <div className="w-full h-px bg-[#e0e0da]" />
-            <div className="w-full space-y-2">
-              <div>
-                <span className="text-[10px] font-medium text-text-mut uppercase tracking-wider">Internal scan</span>
-                <p className="text-[10px] text-text-mut leading-snug mt-0.5">
-                  Quick estimate from the rewrite step, not your full detection score — run {result ? '"Rescan"' : '"Check for AI"'} below for that.
-                </p>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-text-sec">AI signals</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-[12px] font-semibold tabular-nums text-red-500">
-                    {humaniseScores.originalAiScore}%
-                  </span>
-                  <span className="text-[10px] text-text-mut">→</span>
-                  <span className={cn(
-                    'text-[12px] font-semibold tabular-nums',
-                    humaniseScores.finalAiScore <= 35 ? 'text-emerald-600'
-                      : humaniseScores.finalAiScore <= 60 ? 'text-amber-600'
-                      : 'text-red-500',
-                  )}>
-                    {humaniseScores.finalAiScore}%
-                  </span>
-                </div>
-              </div>
-              {humaniseScores.verificationPassesUsed > 1 && (
-                <div className="flex items-center gap-1.5">
-                  <Zap size={10} className="text-purple-accent" />
-                  <span className="text-[11px] text-text-sec">{humaniseScores.verificationPassesUsed} passes</span>
-                </div>
-              )}
-              <div className={cn(
-                'flex items-center gap-1.5 text-[11px] font-medium',
-                humaniseScores.metTargetThreshold ? 'text-emerald-600' : 'text-amber-600',
-              )}>
-                {humaniseScores.metTargetThreshold
-                  ? <><CheckCircle size={11} /> AI check: passed</>
-                  : <><AlertCircle size={11} /> AI check: may flag</>
-                }
-              </div>
-            </div>
-          </>
-        )}
-
-        <button
-          type="button"
-          onClick={onCheck}
-          disabled={!canCheck || isChecking}
-          className={cn(
-            'mt-auto w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[13px] font-semibold transition-all border',
-            canCheck && !isChecking
-              ? 'bg-white hover:bg-purple-50 text-purple-accent border-purple-accent'
-              : 'bg-white text-text-mut border-[#e0e0da] cursor-not-allowed opacity-50',
-          )}
-        >
-          {isChecking ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
-          {isChecking ? 'Scanning…' : result ? 'Rescan' : 'Check for AI'}
-        </button>
-      </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -360,32 +343,59 @@ export function EditorPage() {
   const user = useAuthStore((s) => s.user)
   const updateUser = useAuthStore((s) => s.updateUser)
   const {
-    inputText, outputText, selectedTone, isLoading, lastResponse, error,
+    inputText, outputText, isLoading, lastResponse, error,
     setInputText, setOutputText, setTone, setStrength,
     setLoading, setLastResponse, setError,
   } = useHumaniserStore()
   const { openWordLimitModal } = useUiStore()
 
-  const [level, setLevel] = useState(5)
-  const [lastUsedSettings, setLastUsedSettings] = useState<{ tone: Tone; level: number } | null>(null)
+  const [rewriteLevel, setRewriteLevel] = useState<RewriteLevelId>('natural')
+  const [toneMode, setToneMode] = useState<'auto' | Tone>('academic')
+  const [toneMenuOpen, setToneMenuOpen] = useState(false)
+  // Keep original length maps 1:1 to HumaniseRequest.preserveLength (already fully implemented
+  // server-side — LengthBudget clamps to ±5% and a mechanical correction pass enforces it — this
+  // was just never exposed in the UI). Default true to match the backend default.
+  const [keepLength, setKeepLength] = useState(true)
+  const [enhance, setEnhance] = useState({
+    reduceRepetition: false,
+    improveCriticalAnalysis: false,
+    improveArgumentFlow: false,
+    calibrateCausalClaims: false,
+    improveParagraphCoherence: false,
+  })
+  const [enhanceMenuOpen, setEnhanceMenuOpen] = useState(false)
+  const enhanceCount = Object.values(enhance).filter(Boolean).length
+  const [overflowOpen, setOverflowOpen] = useState(false)
+  const [mobileView, setMobileView] = useState<'original' | 'humanised'>('original')
+  const [lastUsedSettings, setLastUsedSettings] = useState<{ tone: Tone; rewriteLevel: RewriteLevelId } | null>(null)
   const [detectionResult, setDetectionResult] = useState<DetectResponse | null>(null)
   const [isCheckingAI, setIsCheckingAI] = useState(false)
   const [detectionCheckedFor, setDetectionCheckedFor] = useState('')
+  const [detectionExpanded, setDetectionExpanded] = useState(false)
   const [chunkProgress, setChunkProgress] = useState<{ done: number; total: number } | null>(null)
   const [isChunkedResult, setIsChunkedResult] = useState(false)
   const [showDiff, setShowDiff] = useState(() => {
     const saved = sessionStorage.getItem('humanise_show_diff')
     return saved === null ? true : saved === '1'
   })
-  const [diffTokens, setDiffTokens] = useState<WordToken[]>([])
+  const [diffOps, setDiffOps] = useState<DiffOp[]>([])
   const changedWordPct = useMemo(() => {
-    if (diffTokens.length === 0) return 0
-    return Math.round((diffTokens.filter((t) => t.changed).length / diffTokens.length) * 100)
-  }, [diffTokens])
+    if (diffOps.length === 0) return 0
+    return Math.round((diffOps.filter((o) => o.type !== 'same').length / diffOps.length) * 100)
+  }, [diffOps])
+
+  const effectiveTone: Tone = toneMode === 'auto' ? DEFAULT_AUTO_TONE : toneMode
+  // Sent to the backend as-is — 'auto' is a real wire value now (RegisterDetector resolves it
+  // server-side against the actual input), not just a client-side placeholder for DEFAULT_AUTO_TONE.
+  const wireTone: Tone | 'auto' = toneMode
+  const activeLevel = REWRITE_LEVELS.find((t) => t.id === rewriteLevel)!
 
   const inputScrollRef = useRef<HTMLTextAreaElement>(null)
   const outputScrollRef = useRef<HTMLDivElement>(null)
   const isSyncingScroll = useRef(false)
+  const toneMenuRef = useRef<HTMLDivElement>(null)
+  const overflowRef = useRef<HTMLDivElement>(null)
+  const enhanceMenuRef = useRef<HTMLDivElement>(null)
 
   const syncScroll = useCallback((source: HTMLElement, target: HTMLElement | null) => {
     if (!target || isSyncingScroll.current) return
@@ -402,15 +412,37 @@ export function EditorPage() {
     disabled: isLoading,
   })
 
-  useEffect(() => { setStrength(levelToStrength(level)) }, [level, setStrength])
+  useEffect(() => { setStrength(activeLevel.strength) }, [activeLevel, setStrength])
+  useEffect(() => { setTone(effectiveTone) }, [effectiveTone, setTone])
   useEffect(() => { return () => setLoading(false) }, [setLoading])
   useEffect(() => { sessionStorage.setItem('humanise_show_diff', showDiff ? '1' : '0') }, [showDiff])
 
   useEffect(() => {
-    if (!showDiff || !outputText) { setDiffTokens([]); return }
-    const id = requestAnimationFrame(() => setDiffTokens(computeWordDiff(inputText, outputText)))
+    if (!showDiff || !outputText) { setDiffOps([]); return }
+    const id = requestAnimationFrame(() => setDiffOps(computeDiffOps(inputText, outputText)))
     return () => cancelAnimationFrame(id)
   }, [showDiff, inputText, outputText])
+
+  useEffect(() => {
+    if (!toneMenuOpen) return
+    const handler = (e: MouseEvent) => { if (!toneMenuRef.current?.contains(e.target as Node)) setToneMenuOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [toneMenuOpen])
+
+  useEffect(() => {
+    if (!overflowOpen) return
+    const handler = (e: MouseEvent) => { if (!overflowRef.current?.contains(e.target as Node)) setOverflowOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [overflowOpen])
+
+  useEffect(() => {
+    if (!enhanceMenuOpen) return
+    const handler = (e: MouseEvent) => { if (!enhanceMenuRef.current?.contains(e.target as Node)) setEnhanceMenuOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [enhanceMenuOpen])
 
   useEffect(() => {
     const transferred = useToolTransferStore.getState().text
@@ -460,23 +492,34 @@ export function EditorPage() {
   const wordsLimit = user?.wordsLimit ?? 1500
   const isUnlimited = (user?.plan === 'Unlimited') || wordsLimit >= 2_147_483_647
   const isAtLimit  = !isUnlimited && wordsUsed >= wordsLimit
-  const usagePct   = isUnlimited ? 100 : wordsLimit > 0 ? Math.min((wordsUsed / wordsLimit) * 100, 100) : 0
+  // Full rewrite mode is gated server-side (TIER_FEATURE_LOCKED on Free) — mirrored here only to
+  // disable the button with an upsell hint before the request round-trip, not as the real gate.
+  const canUseFullMode = user?.plan === 'Pro' || user?.plan === 'Unlimited'
   const settingsStale =
     !!outputText &&
     lastUsedSettings !== null &&
-    (lastUsedSettings.tone !== selectedTone || lastUsedSettings.level !== level)
+    (lastUsedSettings.tone !== effectiveTone || lastUsedSettings.rewriteLevel !== rewriteLevel)
   const detectionIsStale = detectionResult !== null && detectionCheckedFor !== outputText
 
   const mutation = useMutation({
     mutationFn: () =>
-      humaniseApi.humanise({ text: inputText, tone: selectedTone, strength: levelToStrength(level) }).then((r) => r.data),
+      humaniseApi.humanise({
+        text: inputText, tone: wireTone, strength: activeLevel.strength,
+        preserveLength: keepLength, ...enhance,
+      }).then((r) => r.data),
     onMutate:  () => { setLoading(true); setError(null) },
     onSuccess: (data) => {
       setLastResponse(data)
-      setLastUsedSettings({ tone: selectedTone, level })
-      updateUser({ wordsUsed: data.usage.wordsUsed, wordsLimit: data.usage.wordsLimit })
+      setLastUsedSettings({ tone: effectiveTone, rewriteLevel })
+      updateUser({
+        wordsUsed: data.usage.wordsUsed,
+        wordsLimit: data.usage.wordsLimit,
+        creditsUsed: data.usage.creditsUsed,
+        creditsLimit: data.usage.creditsLimit,
+      })
       setDetectionResult(null)
       setDetectionCheckedFor('')
+      setMobileView('humanised')
       toast.success('Text humanised successfully!')
     },
     onError: (err: unknown) => {
@@ -511,8 +554,10 @@ export function EditorPage() {
         setChunkProgress({ done: i + 1, total: inputChunks.length })
         const res = await humaniseApi.humanise({
           text: inputChunks[i],
-          tone: selectedTone,
-          strength: levelToStrength(level),
+          tone: wireTone,
+          strength: activeLevel.strength,
+          preserveLength: keepLength,
+          ...enhance,
         }).then(r => r.data)
         humanisedParts.push(res.humanisedText)
         if (i === inputChunks.length - 1) {
@@ -520,10 +565,11 @@ export function EditorPage() {
           setLastResponse({ ...res, humanisedText: humanisedParts.join('\n\n'), wordCount: humanisedParts.join('\n\n').split(/\s+/).filter(Boolean).length })
         }
       }
-      setLastUsedSettings({ tone: selectedTone, level })
+      setLastUsedSettings({ tone: effectiveTone, rewriteLevel })
       setDetectionResult(null)
       setDetectionCheckedFor('')
       setIsChunkedResult(true)
+      setMobileView('humanised')
       toast.success(`Humanised in ${inputChunks.length} parts!`)
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status
@@ -536,7 +582,7 @@ export function EditorPage() {
       setLoading(false)
       setChunkProgress(null)
     }
-  }, [inputText, inputChunks, needsChunking, isLoading, isAtLimit, wordsUsed, wordsLimit, openWordLimitModal, selectedTone, level, mutation, setLoading, setError, setLastResponse, updateUser])
+  }, [inputText, inputChunks, needsChunking, isLoading, isAtLimit, wordsUsed, wordsLimit, openWordLimitModal, effectiveTone, wireTone, activeLevel, rewriteLevel, mutation, setLoading, setError, setLastResponse, updateUser])
 
   const handleCheckAI = useCallback(async (textToCheck?: string) => {
     const raw = textToCheck ?? outputText
@@ -551,15 +597,18 @@ export function EditorPage() {
     finally { setIsCheckingAI(false) }
   }, [outputText, isCheckingAI])
 
+  const handlePasteFromClipboard = useCallback(async () => {
+    try {
+      const clipboardText = await navigator.clipboard.readText()
+      setInputText(clipboardText)
+      toast.success('Pasted from clipboard!')
+    } catch { toast.error('Clipboard access denied') }
+  }, [setInputText])
+
   const handleCopy = useCallback(async (text: string) => {
     try { await navigator.clipboard.writeText(text); toast.success('Copied to clipboard!') }
     catch { toast.error('Failed to copy to clipboard') }
   }, [])
-
-  const handlePasteFromClipboard = useCallback(async () => {
-    try { const text = await navigator.clipboard.readText(); setInputText(text); toast.success('Pasted from clipboard!') }
-    catch { toast.error('Clipboard access denied') }
-  }, [setInputText])
 
   const handleDownload = useCallback(() => {
     if (!outputText) return
@@ -575,13 +624,14 @@ export function EditorPage() {
     setInputText(''); setOutputText(''); setLastUsedSettings(null)
     setDetectionResult(null); setDetectionCheckedFor('')
     setError(null); setIsChunkedResult(false)
+    setDetectionExpanded(false); setMobileView('original')
     localStorage.removeItem(STORAGE_KEY_INPUT)
     localStorage.removeItem(STORAGE_KEY_OUTPUT)
   }, [setInputText, setOutputText, setError])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'Enter')                 { e.preventDefault(); void handleHumanise(); return }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter')  { e.preventDefault(); void handleHumanise(); return }
       if (e.ctrlKey && e.shiftKey && e.key === 'C')       { e.preventDefault(); if (outputText) handleCopy(outputText); return }
       if (e.ctrlKey && e.shiftKey && e.key === 'X')       { e.preventDefault(); handleClearInput() }
     }
@@ -594,47 +644,73 @@ export function EditorPage() {
 
   const hasOutput = !!outputText
 
+  // Detection summary appears only after the user explicitly runs the separate AI Detector
+  // ("Check AI"). The humaniser no longer produces any detection estimate of its own — it
+  // used to grade its own output against a statistical mock detector, which was neither an
+  // independent judgment nor what the humaniser should be optimising for.
+  const detectionSummary = useMemo(() => {
+    if (detectionResult && !detectionIsStale) {
+      const aiScore = Math.round(100 - detectionResult.humanScore)
+      return { source: 'scan' as const, ...detectionEstimateLabel(aiScore) }
+    }
+    return null
+  }, [detectionResult, detectionIsStale])
+
+  const gaugeVerified = !!(detectionResult && !detectionIsStale)
+  const gaugeScore = gaugeVerified ? detectionResult!.humanScore : null
+
+  // What the header shows by default instead: whether the mechanical faithfulness checks
+  // (claims + citations) passed. These are verifiable facts about this rewrite, not a guess.
+  const revisionIssueCount = lastResponse
+    ? (lastResponse.preservation?.issueCount ?? 0)
+      + (lastResponse.citationIntegrity?.droppedCitations.length ?? 0)
+      + (lastResponse.citationIntegrity?.addedCitations.length ?? 0)
+    : 0
+
+  const mobileTabsActive = hasOutput
+
   return (
     <div className="min-h-0 bg-transparent px-4 py-6 w-full">
-      <div className="flex gap-5 items-start">
+      <div
+        className="flex flex-col min-w-0 lg:sticky lg:top-4"
+        style={{ minHeight: 'calc(100vh - 7rem)' }}
+      >
 
-        {/* ── Main column — sticky, full viewport height ── */}
-        <div
-          className="flex-1 flex flex-col min-w-0 lg:sticky lg:top-4"
-          style={{ height: 'calc(100vh - 7rem)' }}
-        >
+        {/* ─── SPLIT EDITOR CARD ─────────────────────────────────────────── */}
+        <div className="bg-white border border-[#e0e0da] rounded-2xl overflow-hidden flex flex-col shadow-card" style={{ height: 'calc(100vh - 7rem)' }}>
 
-          {/* ─── SPLIT EDITOR CARD ─────────────────────────────────────────── */}
-          <div className="bg-white border border-[#e0e0da] rounded-2xl overflow-hidden flex flex-col h-full shadow-card">
-
-            {/* Controls header */}
+          {/* Controls header — only shown once there's something to rewrite, so the
+              empty state stays quiet instead of front-loading configuration. */}
+          {inputText && (
             <div className="px-5 py-4 border-b border-[#e0e0da] shrink-0">
               <div className="bg-neutral-100 rounded-xl px-4 py-3 flex items-center flex-wrap gap-x-4 gap-y-2">
 
-                {/* Level group */}
+                {/* Rewrite level group */}
                 <div className="flex items-center gap-2">
                   <span className="text-[12px] font-semibold text-neutral-500 uppercase tracking-wider shrink-0">
-                    Level
+                    Rewrite
                   </span>
-                  <div role="radiogroup" aria-label="Humanisation level" className="flex items-center gap-1.5 flex-wrap">
-                    {LEVEL_TIERS.map((t) => {
-                      const active = tierForLevel(level).id === t.id
+                  <div role="radiogroup" aria-label="Rewrite strength" className="flex items-center gap-1.5 flex-wrap">
+                    {REWRITE_LEVELS.map((t) => {
+                      const active = rewriteLevel === t.id
+                      const locked = t.id === 'full' && !canUseFullMode
                       return (
                         <button
                           key={t.id}
                           type="button"
                           role="radio"
                           aria-checked={active}
-                          onClick={() => setLevel(t.default)}
-                          disabled={isLoading}
-                          title={`Levels ${t.min}–${t.max}`}
+                          onClick={() => { if (!locked) setRewriteLevel(t.id) }}
+                          disabled={isLoading || locked}
+                          title={locked ? 'Upgrade to Starter to unlock Full rewrites' : t.hint}
                           className={cn(
-                            'px-4 py-2 rounded-lg text-[15px] font-medium transition-all duration-150 border tabular-nums disabled:opacity-50 disabled:cursor-not-allowed',
+                            'px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 border disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5',
                             active
-                              ? 'bg-neutral-900 text-white border-neutral-900 shadow-sm'
+                              ? 'bg-purple-accent text-white border-purple-accent shadow-sm'
                               : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:text-neutral-900',
                           )}
                         >
+                          {locked && <Lock size={12} />}
                           {t.label}
                         </button>
                       )
@@ -645,416 +721,706 @@ export function EditorPage() {
                 {/* Divider */}
                 <div className="hidden sm:block w-px h-5 bg-neutral-200" />
 
-                {/* Style group */}
+                {/* Tone — defaults to Auto; opens to reveal explicit overrides */}
                 <div className="flex items-center gap-2">
                   <span className="text-[12px] font-semibold text-neutral-500 uppercase tracking-wider shrink-0">
-                    Style
+                    Tone
                   </span>
-                  <div role="radiogroup" aria-label="Writing style" className="flex items-center gap-1.5 flex-wrap">
-                    {TONES.map((t) => (
-                      <button
-                        key={t.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={selectedTone === t.value}
-                        onClick={() => setTone(t.value)}
-                        disabled={isLoading}
-                        title={t.description}
-                        className={cn(
-                          'px-4 py-2 rounded-lg text-[15px] font-medium transition-all duration-150 border disabled:opacity-50 disabled:cursor-not-allowed',
-                          selectedTone === t.value
-                            ? 'bg-neutral-900 text-white border-neutral-900 shadow-sm'
-                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:text-neutral-900',
-                        )}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
+                  <div className="relative" ref={toneMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setToneMenuOpen((v) => !v)}
+                      disabled={isLoading}
+                      aria-haspopup="listbox"
+                      aria-expanded={toneMenuOpen}
+                      title={toneMode === 'auto' ? 'A sensible default tone is applied — click to override' : undefined}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 border disabled:opacity-50 disabled:cursor-not-allowed',
+                        toneMode !== 'auto'
+                          ? 'bg-purple-accent text-white border-purple-accent shadow-sm'
+                          : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:text-neutral-900',
+                      )}
+                    >
+                      {toneMode === 'auto'
+                        ? (lastResponse?.resolvedTone ? `Auto · ${TONES.find((t) => t.value === lastResponse.resolvedTone)?.label ?? lastResponse.resolvedTone}` : 'Auto')
+                        : TONES.find((t) => t.value === toneMode)?.label}
+                      <ChevronDown size={14} className={cn('transition-transform duration-150', toneMenuOpen && 'rotate-180')} />
+                    </button>
+
+                    {toneMenuOpen && (
+                      <div role="listbox" aria-label="Tone" className="absolute z-30 top-full mt-1.5 left-0 w-64 bg-white border border-gray-200 rounded-xl shadow-elevated overflow-hidden py-1">
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={toneMode === 'auto'}
+                          onClick={() => { setToneMode('auto'); setToneMenuOpen(false) }}
+                          className={cn('flex flex-col items-start w-full px-3 py-2 text-left transition-colors', toneMode === 'auto' ? 'bg-purple-50' : 'hover:bg-gray-50')}
+                        >
+                          <span className="text-[13px] font-medium text-gray-800">Auto</span>
+                          <span className="text-[11px] text-gray-500">
+                            {toneMode === 'auto' && lastResponse?.resolvedTone
+                              ? `Detected ${TONES.find((t) => t.value === lastResponse.resolvedTone)?.label ?? lastResponse.resolvedTone} from your text — override anytime`
+                              : 'Detects your writing\'s register from the text itself — override anytime'}
+                          </span>
+                        </button>
+                        <div className="h-px bg-gray-100 my-1" />
+                        {TONES.map((t) => (
+                          <button
+                            key={t.value}
+                            type="button"
+                            role="option"
+                            aria-selected={toneMode === t.value}
+                            onClick={() => { setToneMode(t.value); setToneMenuOpen(false) }}
+                            className={cn('flex flex-col items-start w-full px-3 py-2 text-left transition-colors', toneMode === t.value ? 'bg-purple-50' : 'hover:bg-gray-50')}
+                          >
+                            <span className="text-[13px] font-medium text-gray-800">{t.label}</span>
+                            <span className="text-[11px] text-gray-500">{t.description}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
+                </div>
+
+                {/* Divider */}
+                <div className="hidden sm:block w-px h-5 bg-neutral-200" />
+
+                {/* Keep original length — maps to HumaniseRequest.preserveLength */}
+                <button
+                  type="button"
+                  onClick={() => setKeepLength((v) => !v)}
+                  disabled={isLoading}
+                  aria-pressed={keepLength}
+                  title="Keep the rewrite within ~5% of the original word count"
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 border disabled:opacity-50 disabled:cursor-not-allowed',
+                    keepLength
+                      ? 'bg-purple-accent text-white border-purple-accent shadow-sm'
+                      : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:text-neutral-900',
+                  )}
+                >
+                  Keep length
+                </button>
+
+                {/* Enhance — opt-in academic-quality passes, off by default */}
+                <div className="relative" ref={enhanceMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setEnhanceMenuOpen((v) => !v)}
+                    disabled={isLoading}
+                    aria-haspopup="listbox"
+                    aria-expanded={enhanceMenuOpen}
+                    title="Optional academic-quality passes — none of these add new content, sources, or claims"
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 border disabled:opacity-50 disabled:cursor-not-allowed',
+                      enhanceCount > 0
+                        ? 'bg-purple-accent text-white border-purple-accent shadow-sm'
+                        : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:text-neutral-900',
+                    )}
+                  >
+                    Enhance{enhanceCount > 0 ? ` (${enhanceCount})` : ''}
+                    <ChevronDown size={14} className={cn('transition-transform duration-150', enhanceMenuOpen && 'rotate-180')} />
+                  </button>
+
+                  {enhanceMenuOpen && (
+                    <div role="listbox" aria-label="Enhance" aria-multiselectable="true" className="absolute z-30 top-full mt-1.5 left-0 w-72 bg-white border border-gray-200 rounded-xl shadow-elevated overflow-hidden py-1">
+                      {ENHANCE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          role="option"
+                          aria-selected={enhance[opt.key]}
+                          onClick={() => setEnhance((v) => ({ ...v, [opt.key]: !v[opt.key] }))}
+                          className="flex items-start gap-2 w-full px-3 py-2 text-left transition-colors hover:bg-gray-50"
+                        >
+                          <span className={cn(
+                            'mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center',
+                            enhance[opt.key] ? 'bg-purple-accent border-purple-accent' : 'border-gray-300',
+                          )}>
+                            {enhance[opt.key] && <Check size={11} className="text-white" />}
+                          </span>
+                          <span className="flex flex-col items-start">
+                            <span className="text-[13px] font-medium text-gray-800">{opt.label}</span>
+                            <span className="text-[11px] text-gray-500">{opt.description}</span>
+                          </span>
+                        </button>
+                      ))}
+                      <div className="h-px bg-gray-100 my-1" />
+                      <p className="px-3 py-1.5 text-[10px] text-gray-400 leading-snug">
+                        Never adds new facts, sources, or claims — only changes how the existing content is expressed.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
               </div>
             </div>
+          )}
 
-            {/* Split panels — fill remaining card height */}
-            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 divide-[#e0e0da] md:gap-4 flex-1 min-h-0">
+          {/* Mobile result/original toggle — only once there's a result to switch to */}
+          {mobileTabsActive && (
+            <div role="tablist" aria-label="View" className="lg:hidden flex items-center gap-1.5 px-5 py-2 border-b border-[#e0e0da] shrink-0">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mobileView === 'humanised'}
+                onClick={() => setMobileView('humanised')}
+                className={cn('px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors',
+                  mobileView === 'humanised' ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600')}
+              >
+                Humanised
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mobileView === 'original'}
+                onClick={() => setMobileView('original')}
+                className={cn('px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors',
+                  mobileView === 'original' ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600')}
+              >
+                Original
+              </button>
+            </div>
+          )}
 
-              {/* ── Left: Input ── */}
-              <div className="flex flex-col min-h-0 relative" {...dragHandlers}>
-                {fileInputElement}
-                <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />
+          {/* Split panels — fill remaining card height */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 divide-[#e0e0da] lg:gap-4 flex-1 min-h-0">
 
-                {/* Input panel header */}
-                <div className="px-5 py-2.5 border-b border-[#e0e0da] shrink-0 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <PanelLabel label="Original" />
-                    {needsChunking ? (
-                      <span className="text-xs font-normal tabular-nums text-amber-600">
-                        {formatNumber(inputWordCount)} words · {inputChunks.length} parts
-                      </span>
-                    ) : inputWordCount > 0 && (
-                      <span className={cn('text-xs font-normal tabular-nums',
-                        inputWordCount >= 500 ? 'text-red-500' : inputWordCount >= 400 ? 'text-amber-600' : 'text-gray-400')}>
-                        {formatNumber(inputWordCount)} words
-                      </span>
-                    )}
+            {/* ── Left: Input ── */}
+            <div
+              className={cn('flex-col min-h-0 relative lg:flex', mobileTabsActive && mobileView !== 'original' ? 'hidden' : 'flex')}
+              {...dragHandlers}
+            >
+              {fileInputElement}
+              <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />
+
+              {/* Input panel header — title only; word count and Paste/Upload now live
+                  in the PanelFooterBar below the textarea, not up here. */}
+              <ResultsPanelHeader
+                title={<PanelLabel label="Original" />}
+              />
+
+              <div className="relative flex-1 min-h-0">
+                <textarea
+                  ref={inputScrollRef}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onScroll={(e) => syncScroll(e.currentTarget, outputScrollRef.current)}
+                  aria-label="Original text"
+                  disabled={isLoading}
+                  className="textarea-body absolute inset-0 w-full h-full bg-transparent text-text-pri px-5 py-3 resize-none outline-none focus:ring-2 focus:ring-inset focus:ring-purple-accent/30 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+                {!inputText && (
+                  <div className="textarea-body pointer-events-none absolute inset-0 px-5 py-3 text-text-mut select-none">
+                    Paste your writing here, or{' '}
+                    <button
+                      type="button"
+                      onClick={() => setInputText(SAMPLE_TEXT)}
+                      disabled={isLoading}
+                      className="pointer-events-auto text-purple-accent underline decoration-dotted underline-offset-2 hover:text-purple-deep transition-colors disabled:opacity-40"
+                    >
+                      try a sample
+                    </button>
+                    .
                   </div>
-                  <div className="flex items-center gap-2">
+                )}
+              </div>
+
+              {/* Word count + Paste/Upload — moved out of the header into the footer,
+                  right above the Clear/Humanise row. */}
+              <PanelFooterBar
+                metadata={
+                  needsChunking ? (
+                    <span className="text-xs font-normal tabular-nums text-amber-600">
+                      {formatNumber(inputWordCount)} words · {inputChunks.length} parts
+                    </span>
+                  ) : (
+                    <span className={cn('text-xs font-normal tabular-nums',
+                      inputWordCount >= 500 ? 'text-red-500' : inputWordCount >= 400 ? 'text-amber-600' : 'text-gray-400')}>
+                      {formatNumber(inputWordCount)} words
+                    </span>
+                  )
+                }
+                actions={
+                  <>
                     <UtilityButton
-                      icon={<Clipboard size={16} />}
+                      icon={<Clipboard size={14} />}
                       label="Paste"
-                      onClick={handlePasteFromClipboard}
+                      className="h-8 px-3 text-[13px]"
+                      onClick={() => void handlePasteFromClipboard()}
                       disabled={isLoading}
                     />
                     <UtilityButton
-                      icon={<Upload size={16} />}
+                      icon={<Upload size={14} />}
                       label="Upload"
+                      className="h-8 px-3 text-[13px]"
                       onClick={openFilePicker}
                       disabled={isLoading || isFileProcessing}
                     />
-                  </div>
-                </div>
+                  </>
+                }
+              />
 
-                <div className="relative flex-1 min-h-0">
-                  <textarea
-                    ref={inputScrollRef}
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    onScroll={(e) => syncScroll(e.currentTarget, outputScrollRef.current)}
-                    aria-label="Original AI-generated text"
-                    disabled={isLoading}
-                    className="textarea-body absolute inset-0 w-full h-full bg-transparent text-text-pri px-5 py-3 resize-none outline-none focus:ring-2 focus:ring-inset focus:ring-purple-accent/30 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
-                  />
-                  {!inputText && (
-                    <div className="textarea-body pointer-events-none absolute inset-0 px-5 py-3 text-text-mut select-none">
-                      Paste your AI-generated text here, or{' '}
-                      <button
-                        type="button"
-                        onClick={() => setInputText(SAMPLE_TEXT)}
-                        disabled={isLoading}
-                        className="pointer-events-auto text-purple-accent underline decoration-dotted underline-offset-2 hover:text-purple-deep transition-colors disabled:opacity-40"
-                      >
-                        try a sample
-                      </button>
-                      .
-                    </div>
-                  )}
-                </div>
+              {/* Bottom action footer — Clear (secondary, left) opposite Humanise
+                  (primary, right); regeneration itself still happens exclusively
+                  through the primary button, no separate "Try again". */}
+              <ToolBottomActionRow
+                clearButton={<ClearButton onClick={handleClearInput} disabled={!inputText || isLoading} />}
+                primaryButton={
+                  <button
+                    type="button"
+                    onClick={() => void handleHumanise()}
+                    disabled={!inputText.trim() || isLoading}
+                    title="Humanise (Ctrl+Enter / Cmd+Enter)"
+                    className={cn(
+                      'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all shrink-0',
+                      isLoading
+                        ? 'bg-purple-accent text-white opacity-90 cursor-wait'
+                        : !inputText.trim()
+                        ? 'bg-[#c4b5fd] text-white cursor-not-allowed'
+                        : isAtLimit
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                        : settingsStale
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:opacity-90'
+                        : 'bg-purple-accent hover:bg-purple-deep text-white shadow shadow-purple-400/20',
+                    )}
+                  >
+                    {isLoading ? <Loader2 size={14} className="animate-spin" /> : isAtLimit ? <AlertCircle size={14} /> : <Wand2 size={14} />}
+                    {chunkProgress
+                      ? `Part ${chunkProgress.done}/${chunkProgress.total}…`
+                      : isLoading ? 'Humanising your writing…'
+                      : isAtLimit ? 'Limit reached'
+                      : settingsStale ? 'Re-Humanise'
+                      : needsChunking ? `Humanise (${inputChunks.length} parts)`
+                      : 'Humanise'}
+                  </button>
+                }
+              />
+            </div>
 
-                <div className="px-5 py-3 border-t border-[#e0e0da] space-y-2 shrink-0">
-                  {/* Word usage */}
-                  {isUnlimited ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-medium text-text-mut tabular-nums">
-                        {formatNumber(wordsUsed)} words used this month
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className={cn('text-[13px] font-medium shrink-0 tabular-nums', isAtLimit ? 'text-amber-600' : 'text-text-mut')}>
-                        {`${formatNumber(wordsUsed)}/${formatNumber(wordsLimit)}`}
-                      </span>
-                      <div className="flex-1 h-1 bg-[#f1f5f9] rounded-full overflow-hidden">
-                        <div
-                          className={cn(
-                            'h-full rounded-full transition-all duration-500',
-                            usagePct >= 95 ? 'bg-red-500' : usagePct >= 75 ? 'bg-amber-500' : 'bg-purple-accent',
-                          )}
-                          style={{ width: `${usagePct}%` }}
-                        />
-                      </div>
-                      {user?.plan === 'Free' && (
-                        <Link to="/app/billing" className="text-[13px] text-purple-accent hover:text-purple-deep transition-colors shrink-0">
-                          Upgrade
-                        </Link>
-                      )}
-                    </div>
-                  )}
-                  {/* Actions row */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <ClearButton
-                        onClick={handleClearInput}
-                        disabled={!inputText || isLoading}
+            {/* ── Right: Output ── */}
+            <div
+              className={cn('flex-col min-h-0 lg:shadow-[inset_1px_0_0_#e4e4e7] lg:flex', mobileTabsActive && mobileView !== 'humanised' ? 'hidden' : 'flex')}
+              role="region"
+              aria-label="Humanised result"
+            >
+
+              {/* Output panel header — title + detection gauge only; word count,
+                  delta, and actions (Show changes/Check AI/Copy/More) live in the
+                  PanelFooterBar below the content, same as the input panel. */}
+              <ResultsPanelHeader
+                tinted={hasOutput}
+                title={
+                  <div className="flex items-center gap-2.5">
+                    <PanelLabel label="Humanised" colorOverride={hasOutput ? 'var(--color-purple)' : undefined} />
+                    {hasOutput && (gaugeScore !== null || isCheckingAI) ? (
+                      <DetectionScoreGauge
+                        humanScore={gaugeScore ?? 0}
+                        isLoading={gaugeScore === null && isCheckingAI}
+                        verified={gaugeVerified}
+                        variant="light"
+                        size={30}
+                        strokeWidth={3.5}
+                        showLabel
                       />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void handleHumanise()}
-                        disabled={!inputText.trim() || isLoading}
-                        title="Humanise (Ctrl+Enter)"
-                        className={cn(
-                          'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[15px] font-semibold transition-all',
-                          isLoading
-                            ? 'bg-purple-accent text-white opacity-90 cursor-wait'
-                            : !inputText.trim()
-                            ? 'bg-[#c4b5fd] text-white cursor-not-allowed'
-                            : isAtLimit
-                            ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                            : settingsStale
-                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:opacity-90'
-                            : 'bg-purple-accent hover:bg-purple-deep text-white shadow shadow-purple-400/20',
-                        )}
+                    ) : hasOutput && lastResponse && revisionIssueCount > 0 ? (
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-amber-50 border-amber-200 text-amber-700"
+                        title="Mechanical checks found hedges, numbers, quotations, or citations from your original that changed or went missing"
                       >
-                        {isLoading ? <Loader2 size={14} className="animate-spin" /> : isAtLimit ? <AlertCircle size={14} /> : <Wand2 size={14} />}
-                        {chunkProgress
-                          ? `Part ${chunkProgress.done}/${chunkProgress.total}…`
-                          : isLoading ? 'Humanising…'
-                          : isAtLimit ? 'Limit reached'
-                          : settingsStale ? 'Re-Humanise'
-                          : needsChunking ? `Humanise (${inputChunks.length} parts)`
-                          : 'Humanise'}
-                      </button>
+                        <AlertCircle size={12} />
+                        {`Review ${revisionIssueCount} change${revisionIssueCount === 1 ? '' : 's'}`}
+                      </span>
+                    ) : null}
+                  </div>
+                }
+              />
+
+              <div
+                ref={outputScrollRef}
+                onScroll={(e) => syncScroll(e.currentTarget, inputScrollRef.current)}
+                className="flex-1 min-h-0 overflow-y-auto px-5 py-3"
+                aria-live="polite"
+                aria-label="Humanised text output"
+              >
+                {isLoading ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 pt-1">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Loader2 size={14} className="animate-spin text-purple-accent" />
+                      <span className="text-sm text-purple-accent font-medium">Humanising your writing…</span>
+                    </div>
+                    <Skeleton variant="text" tone="light" lines={8} />
+                  </motion.div>
+                ) : error ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col items-center justify-center h-full gap-3 text-center px-8"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center">
+                      <AlertCircle size={16} className="text-red-500" />
+                    </div>
+                    <div>
+                      <p className="text-[14px] font-medium text-text-sec">Couldn't humanise your text</p>
+                      <p className="text-[12px] text-text-mut mt-1 max-w-[240px] leading-relaxed">{error}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleHumanise()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-purple-accent hover:bg-purple-deep text-white transition-colors"
+                    >
+                      <Wand2 size={12} /> Retry
+                    </button>
+                  </motion.div>
+                ) : outputText ? (
+                  <motion.div
+                    key={outputText}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-3"
+                  >
+                    {showSentenceHighlights ? (
+                      <HighlightedText sentenceScores={detectionResult!.sentenceScores} />
+                    ) : showDiff && diffOps.length > 0 ? (
+                      <DiffText ops={diffOps} />
+                    ) : (
+                      <TypewriterText text={outputText} animate={mutation.isSuccess || isChunkedResult} />
+                    )}
+                    {showSentenceHighlights && (
+                      <p className="text-[11px] text-text-mut pt-1">
+                        <span className="inline-block w-2 h-2 rounded-sm bg-emerald-200 mr-1" />
+                        Human-sounding &nbsp;
+                        <span className="inline-block w-2 h-2 rounded-sm bg-amber-200 mr-1 ml-2" />
+                        Mixed &nbsp;
+                        <span className="inline-block w-2 h-2 rounded-sm bg-red-200 mr-1 ml-2" />
+                        AI-sounding
+                      </p>
+                    )}
+                    {!showSentenceHighlights && showDiff && diffOps.length > 0 && (
+                      <p className="text-[11px] text-text-mut pt-1">
+                        <span className="inline-block w-2 h-2 rounded-sm bg-emerald-100 mr-1" />
+                        Added &nbsp;
+                        <span className="inline-block w-2 h-2 rounded-sm bg-red-50 border border-red-200 mr-1 ml-2" />
+                        Removed AI jargon &nbsp;·&nbsp; {changedWordPct}% of words rewritten at this level
+                      </p>
+                    )}
+                  </motion.div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
+                    <div className="w-9 h-9 rounded-xl bg-purple-50 border border-[#c4b5fd] flex items-center justify-center">
+                      <Wand2 size={16} className="text-purple-accent opacity-70" />
+                    </div>
+                    <div>
+                      <p className="text-[14px] font-medium text-text-sec">Humanised text will appear here</p>
+                      <p className="text-[12px] text-text-mut mt-1 max-w-[220px] leading-relaxed">
+                        Rewrites sentence structure and word choice to sound natural — paste your writing and click Humanise.
+                      </p>
+                    </div>
+                    <div className="w-full max-w-xs mt-1 opacity-60 text-left">
+                      <div className="p-3 rounded-lg border border-[#e0e0da] bg-[#f8fafc] text-xs leading-6 text-text-mut">
+                        The{' '}
+                        <span className="bg-purple-50 text-purple-300 px-0.5 rounded line-through">utilization of</span>{' '}
+                        <span className="bg-purple-50 text-purple-700 px-0.5 rounded font-medium">use of</span>{' '}
+                        renewable energy{' '}
+                        <span className="bg-purple-50 text-purple-300 px-0.5 rounded line-through">has become increasingly prevalent</span>{' '}
+                        <span className="bg-purple-50 text-purple-700 px-0.5 rounded font-medium">is growing fast</span>{' '}
+                        in contemporary society.
+                      </div>
+                      <p className="text-[10px] text-text-mut mt-1.5 text-center">Changed words highlighted</p>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
-              {/* ── Right: Output ── */}
-              <div className="flex flex-col min-h-0 md:shadow-[inset_1px_0_0_#e4e4e7]" role="region" aria-label="Humanised result">
-
-                {/* Output panel header — purple tint when content present */}
-                <div
-                  className="px-5 py-2.5 flex items-center gap-2 flex-wrap shrink-0 border-b border-[#e0e0da] transition-colors"
-                  style={{ background: hasOutput ? '#faf8ff' : 'transparent' }}
-                >
-                  <PanelLabel label="Humanised" colorOverride={hasOutput ? 'var(--color-purple)' : undefined} />
-                  {outputText && (
-                    <span className="text-xs font-normal tabular-nums text-gray-400">
-                      {formatNumber(outputWordCount)} words
-                      {outputWordCount !== inputWordCount && !wordDeltaFlagged && (
-                        <span className="text-gray-400">
-                          {' '}· {outputWordCount > inputWordCount ? '+' : '−'}{formatNumber(Math.abs(outputWordCount - inputWordCount))} vs original
+              {/* Word count/delta + Show changes/Check AI/Copy/More — moved out of the
+                  header into the footer, mirroring the input panel's PanelFooterBar. */}
+              {outputText && (
+                <PanelFooterBar
+                  metadata={
+                    <>
+                      <span className="text-xs font-normal tabular-nums text-gray-400">
+                        {formatNumber(outputWordCount)} words
+                        {outputWordCount !== inputWordCount && !wordDeltaFlagged && (
+                          <span className="text-gray-400">
+                            {' '}· {outputWordCount > inputWordCount ? '+' : '−'}{formatNumber(Math.abs(outputWordCount - inputWordCount))} vs original
+                          </span>
+                        )}
+                      </span>
+                      {detectionResult && !detectionIsStale && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-neutral-100 text-neutral-600 border border-neutral-200">
+                          {detectionResult.flags.length} AI signal{detectionResult.flags.length === 1 ? '' : 's'}
                         </span>
                       )}
-                    </span>
-                  )}
-                  {wordDeltaFlagged && (
-                    <span
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"
-                      title="This rewrite changed length significantly compared to the original — review before submitting."
-                    >
-                      <AlertCircle size={10} />
-                      {outputWordCount > inputWordCount ? '+' : '−'}{formatNumber(Math.abs(outputWordCount - inputWordCount))} words ({wordDeltaPct}%) vs original
-                    </span>
-                  )}
-                  {settingsStale && outputText && (
-                    <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                      Settings changed
-                    </span>
-                  )}
-                  {lastResponse && lastResponse.processingTimeMs > 0 && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-50 text-purple-700 border border-purple-200">
-                      <Zap size={10} />
-                      {lastResponse.processingTimeMs}ms
-                      {lastResponse.verificationPassesUsed > 1 && ` · ${lastResponse.verificationPassesUsed} passes`}
-                    </span>
-                  )}
-                  {lastResponse && lastResponse.verificationPassesUsed > 0 && (
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border',
-                        lastResponse.metTargetThreshold
-                          ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                          : 'bg-amber-50 text-amber-600 border-amber-200',
+                      {wordDeltaFlagged && (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"
+                          title="This rewrite changed length significantly compared to the original — review before submitting."
+                        >
+                          <AlertCircle size={10} />
+                          {outputWordCount > inputWordCount ? '+' : '−'}{formatNumber(Math.abs(outputWordCount - inputWordCount))} words ({wordDeltaPct}%) vs original
+                        </span>
                       )}
-                      title="Internal AI-detection estimate from the rewrite step"
-                    >
-                      {lastResponse.metTargetThreshold
-                        ? <><CheckCircle size={10} /> AI check: passed</>
-                        : <><AlertCircle size={10} /> AI check: may flag</>
-                      }
-                    </span>
-                  )}
-                  {/* Action buttons moved from footer to header */}
-                  {outputText && (
-                    <div className="ml-auto flex items-center gap-1.5">
+                      {settingsStale && (
+                        <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                          Settings changed
+                        </span>
+                      )}
+                    </>
+                  }
+                  actions={
+                    <>
                       <OutputActionButton
-                        icon={showDiff ? <EyeOff size={11} /> : <Eye size={11} />}
+                        icon={showDiff ? <EyeOff size={14} /> : <Eye size={14} />}
                         onClick={() => setShowDiff((v) => !v)}
                         disabled={showSentenceHighlights}
-                        title={showSentenceHighlights ? 'Diff view unavailable while AI detection highlights are shown' : 'Toggle change highlighting vs. Original'}
+                        aria-pressed={showDiff}
+                        className={cn(OUTPUT_BTN_SIZE, showDiff && 'bg-emerald-50 border-emerald-300 text-emerald-700')}
+                        title={showSentenceHighlights ? 'Change highlighting unavailable while AI detection highlights are shown' : 'Highlights what changed — additions in green, removed AI jargon in red'}
                       >
                         {showDiff ? 'Hide changes' : 'Show changes'}
                       </OutputActionButton>
-                      <OutputActionButton icon={<ClipboardCopy size={11} />} onClick={() => handleCopy(outputText)} title="Copy result (Ctrl+Shift+C)">
-                        Copy
-                      </OutputActionButton>
-                      <OutputActionButton icon={<Download size={11} />} onClick={handleDownload}>
-                        .txt
-                      </OutputActionButton>
-                      <SendToMenu text={outputText} />
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  ref={outputScrollRef}
-                  onScroll={(e) => syncScroll(e.currentTarget, inputScrollRef.current)}
-                  className="flex-1 min-h-0 overflow-y-auto px-5 py-3"
-                  aria-live="polite"
-                  aria-label="Humanised text output"
-                >
-                  {isLoading ? (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 pt-1">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Loader2 size={14} className="animate-spin text-purple-accent" />
-                        <span className="text-sm text-purple-accent font-medium">Humanising your text…</span>
-                      </div>
-                      <Skeleton variant="text" tone="light" lines={8} />
-                    </motion.div>
-                  ) : error ? (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex flex-col items-center justify-center h-full gap-3 text-center px-8"
-                    >
-                      <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center">
-                        <AlertCircle size={16} className="text-red-500" />
-                      </div>
-                      <div>
-                        <p className="text-[14px] font-medium text-text-sec">Couldn't humanise your text</p>
-                        <p className="text-[12px] text-text-mut mt-1 max-w-[240px] leading-relaxed">{error}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => void handleHumanise()}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-purple-accent hover:bg-purple-deep text-white transition-colors"
-                      >
-                        <Wand2 size={12} /> Retry
-                      </button>
-                    </motion.div>
-                  ) : outputText ? (
-                    <motion.div
-                      key={outputText}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.2 }}
-                      className="space-y-3"
-                    >
-                      {showSentenceHighlights ? (
-                        <HighlightedText sentenceScores={detectionResult!.sentenceScores} />
-                      ) : showDiff && diffTokens.length > 0 ? (
-                        <DiffText tokens={diffTokens} />
-                      ) : (
-                        <TypewriterText text={outputText} animate={mutation.isSuccess || isChunkedResult} />
-                      )}
-                      {showSentenceHighlights && (
-                        <p className="text-[11px] text-text-mut pt-1">
-                          <span className="inline-block w-2 h-2 rounded-sm bg-emerald-200 mr-1" />
-                          Human-sounding &nbsp;
-                          <span className="inline-block w-2 h-2 rounded-sm bg-amber-200 mr-1 ml-2" />
-                          Mixed &nbsp;
-                          <span className="inline-block w-2 h-2 rounded-sm bg-red-200 mr-1 ml-2" />
-                          AI-sounding
-                        </p>
-                      )}
-                      {!showSentenceHighlights && showDiff && diffTokens.length > 0 && (
-                        <p className="text-[11px] text-text-mut pt-1">
-                          <span className="inline-block w-2 h-2 rounded-sm bg-purple-100 mr-1" />
-                          Changed vs. Original — {changedWordPct}% of words rewritten at this level
-                        </p>
-                      )}
-                    </motion.div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
-                      <div className="w-9 h-9 rounded-xl bg-purple-50 border border-[#c4b5fd] flex items-center justify-center">
-                        <Wand2 size={16} className="text-purple-accent opacity-70" />
-                      </div>
-                      <div>
-                        <p className="text-[14px] font-medium text-text-sec">Humanised text will appear here</p>
-                        <p className="text-[12px] text-text-mut mt-1 max-w-[220px] leading-relaxed">
-                          Rewrites sentence structure and word choice to sound natural — set intensity and style, then click Humanise.
-                        </p>
-                      </div>
-                      <div className="w-full max-w-xs mt-1 opacity-60 text-left">
-                        <div className="p-3 rounded-lg border border-[#e0e0da] bg-[#f8fafc] text-xs leading-6 text-text-mut">
-                          The{' '}
-                          <span className="bg-purple-50 text-purple-300 px-0.5 rounded line-through">utilization of</span>{' '}
-                          <span className="bg-purple-50 text-purple-700 px-0.5 rounded font-medium">use of</span>{' '}
-                          renewable energy{' '}
-                          <span className="bg-purple-50 text-purple-300 px-0.5 rounded line-through">has become increasingly prevalent</span>{' '}
-                          <span className="bg-purple-50 text-purple-700 px-0.5 rounded font-medium">is growing fast</span>{' '}
-                          in contemporary society.
-                        </div>
-                        <p className="text-[10px] text-text-mut mt-1.5 text-center">Changed words highlighted</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Output footer */}
-                <div className="px-5 py-3 border-t border-[#e0e0da] shrink-0">
-                  <div className="flex items-center justify-end">
-                    {outputText && (
-                      <button
-                        type="button"
+                      <OutputActionButton
+                        icon={isCheckingAI ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
                         onClick={() => handleCheckAI(outputText)}
                         disabled={isCheckingAI}
-                        className="lg:hidden inline-flex items-center gap-1.5 text-[13px] text-text-sec hover:text-text-pri transition-colors disabled:opacity-50"
+                        className={cn(
+                          OUTPUT_BTN_SIZE,
+                          detectionResult && !detectionIsStale
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                            : 'border-purple-accent text-purple-accent bg-purple-tint hover:text-purple-deep',
+                        )}
+                        title={
+                          detectionResult && !detectionIsStale
+                            ? 'Re-run the verified AI-detection scan'
+                            : 'Run a verified AI-detection scan (the gauge above is an estimate until you do)'
+                        }
                       >
-                        {isCheckingAI ? <Loader2 size={11} className="animate-spin" /> : <ShieldCheck size={11} />}
-                        {isCheckingAI ? 'Scanning…' : detectionResult ? 'Rescan' : 'Check for AI'}
-                      </button>
+                        {isCheckingAI ? 'Scanning…' : detectionResult && !detectionIsStale ? 'Rescan' : 'Check AI'}
+                      </OutputActionButton>
+                      <OutputActionButton icon={<ClipboardCopy size={14} />} className={OUTPUT_BTN_SIZE} onClick={() => handleCopy(outputText)} title="Copy result (Ctrl+Shift+C)">
+                        Copy
+                      </OutputActionButton>
+                      <div className="relative" ref={overflowRef}>
+                        <OutputActionButton
+                          icon={<MoreHorizontal size={16} />}
+                          className={cn(OUTPUT_BTN_SIZE, 'w-8 justify-center px-0')}
+                          onClick={() => setOverflowOpen((v) => !v)}
+                          aria-haspopup="menu"
+                          aria-expanded={overflowOpen}
+                          aria-label="More actions"
+                          title="More actions"
+                        >
+                          <span className="sr-only">More</span>
+                        </OutputActionButton>
+                        {overflowOpen && (
+                          <div role="menu" className="absolute right-0 bottom-full mb-1.5 z-30 w-48 bg-white border border-gray-200 rounded-xl shadow-elevated overflow-hidden py-1">
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => { handleDownload(); setOverflowOpen(false) }}
+                              className="flex items-center gap-2.5 w-full px-3 py-2 text-[13px] text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                            >
+                              <Download size={12} className="text-gray-400 shrink-0" /> Download .txt
+                            </button>
+                            <div className="px-1">
+                              <SendToMenu text={outputText} inline className="w-full [&>button]:w-full [&>button]:justify-start [&>button]:h-auto [&>button]:px-2 [&>button]:py-2 [&>button]:border-0 [&>button]:text-[13px]" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  }
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── CITATION INTEGRITY — a dropped or fabricated citation is a correctness
+             problem, not a style one, so unlike the AI-detection estimate this is never
+             tucked behind a collapsed panel: it's shown as soon as it's known. */}
+        <AnimatePresence>
+          {lastResponse?.citationIntegrity?.hasMismatch && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className="mt-4 bg-red-50 border border-red-200 rounded-2xl px-5 py-3.5 shrink-0"
+            >
+              <div className="flex items-start gap-2.5">
+                <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-red-700">
+                    Citation check: the rewrite may have changed your citations — review before submitting
+                  </p>
+                  <p className="text-[12px] text-red-600/90 mt-0.5">
+                    {lastResponse.citationIntegrity.preservedCount} of {lastResponse.citationIntegrity.originalCitationCount} original citation
+                    {lastResponse.citationIntegrity.originalCitationCount === 1 ? '' : 's'} preserved.
+                    {lastResponse.citationIntegrity.droppedCitations.length > 0 && (
+                      <> Missing: {lastResponse.citationIntegrity.droppedCitations.join(', ')}.</>
+                    )}
+                    {lastResponse.citationIntegrity.addedCitations.length > 0 && (
+                      <> New (not in your original text): {lastResponse.citationIntegrity.addedCitations.join(', ')}.</>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ─── CLAIM PRESERVATION — same rationale as the citation panel: a dropped hedge
+             ("may"), degree word ("significantly"), number, or altered quotation changes what
+             the text claims, so it's shown immediately rather than tucked away. */}
+        <AnimatePresence>
+          {lastResponse?.preservation?.hasIssues && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5 shrink-0"
+            >
+              <div className="flex items-start gap-2.5">
+                <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="min-w-0 space-y-1">
+                  <p className="text-[13px] font-semibold text-amber-800">
+                    Claim check: the rewrite may have changed what your text claims — review before using it
+                  </p>
+                  <ul className="text-[12px] text-amber-800/90 space-y-0.5">
+                    {lastResponse.preservation.droppedQualifiers.map((q) => (
+                      <li key={`q-${q}`}>Qualifier removed or weakened: {q}</li>
+                    ))}
+                    {lastResponse.preservation.droppedNumbers.length > 0 && (
+                      <li>Number(s) missing: {lastResponse.preservation.droppedNumbers.join(', ')}</li>
+                    )}
+                    {lastResponse.preservation.addedNumbers.length > 0 && (
+                      <li>Number(s) not in your original: {lastResponse.preservation.addedNumbers.join(', ')}</li>
+                    )}
+                    {lastResponse.preservation.alteredQuotations.map((q) => (
+                      <li key={`quote-${q}`}>Quotation changed: “{q}”</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ─── DETECTION — collapsed by default, secondary to the writing result ── */}
+        <AnimatePresence>
+          {SHOW_DETECTION_PANEL && outputText && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className="mt-4 bg-white border border-[#e0e0da] rounded-2xl shadow-card overflow-hidden shrink-0"
+            >
+              <button
+                type="button"
+                onClick={() => setDetectionExpanded((v) => !v)}
+                aria-expanded={detectionExpanded}
+                aria-controls="detection-panel"
+                className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-neutral-50 transition-colors"
+              >
+                <span className="inline-flex items-center gap-2 text-[13px] font-medium text-text-sec">
+                  <ShieldCheck size={14} className="text-text-mut" />
+                  {detectionSummary ? (
+                    <>
+                      {detectionSummary.source === 'scan' ? 'AI-detection score' : 'AI-detection estimate'}:{' '}
+                      <span className={cn('font-semibold', detectionSummary.color)}>{detectionSummary.text}</span>
+                    </>
+                  ) : (
+                    'AI detection'
+                  )}
+                </span>
+                <ChevronDown size={14} className={cn('transition-transform text-text-mut', detectionExpanded && 'rotate-180')} />
+              </button>
+
+              {detectionExpanded && (
+                <div id="detection-panel" className="border-t border-[#e0e0da] px-5 py-4 grid sm:grid-cols-2 gap-x-6 gap-y-4">
+
+                  {/* Full scan */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-text-mut uppercase tracking-wider">Detection scan</span>
+                      {detectionResult && (
+                        <span className={cn('text-[11px] font-medium', detectionIsStale ? 'text-amber-600' : 'text-text-mut')}>
+                          {detectionIsStale ? 'Score may be outdated' : 'Scanned with V1'}
+                        </span>
+                      )}
+                    </div>
+                    {detectionResult ? (
+                      <>
+                        <ScoreBar score={detectionResult.humanScore} label="Human score" size="compact" colorForScore={humanScoreBarColor} />
+                        <VerdictBadge verdict={detectionResult.verdict} humanScore={detectionResult.humanScore} size="sm" />
+                        {detectionResult.wordCount > 0 && (
+                          <span className="block text-[11px] text-text-mut">{detectionResult.wordCount} words analysed</span>
+                        )}
+                        <div className="h-px bg-[#e0e0da]" />
+                        <EngineBadges layerScores={detectionResult.layerScores} />
+                      </>
+                    ) : (
+                      <p className="text-[12px] text-text-mut leading-relaxed">
+                        Run a full scan for a verified score across the statistical, stylometric, and semantic engines.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleCheckAI(outputText)}
+                      disabled={isCheckingAI}
+                      className={cn(
+                        'inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[13px] font-semibold transition-all border',
+                        !isCheckingAI
+                          ? 'bg-white hover:bg-purple-50 text-purple-accent border-purple-accent'
+                          : 'bg-white text-text-mut border-[#e0e0da] cursor-wait opacity-70',
+                      )}
+                    >
+                      {isCheckingAI ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
+                      {isCheckingAI ? 'Scanning…' : detectionResult ? 'Rescan' : 'Run full scan'}
+                    </button>
+                  </div>
+
+                  {/* Revision summary — verifiable facts about the rewrite, not an estimate */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-semibold text-text-mut uppercase tracking-wider">Revision summary</span>
+                    {lastResponse?.revision ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-text-sec">Length</span>
+                          <span className="text-[12px] font-semibold tabular-nums text-text-pri">
+                            {lastResponse.revision.originalWordCount} → {lastResponse.revision.outputWordCount} words ({lastResponse.revision.lengthRatioPercent}%)
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-text-sec">Sentences with stock phrasing</span>
+                          <span className="text-[12px] font-semibold tabular-nums text-text-pri">
+                            {lastResponse.revision.fillerSentencesBefore} → {lastResponse.revision.fillerSentencesAfter}
+                          </span>
+                        </div>
+                        {lastResponse.revision.passesUsed > 1 && (
+                          <div className="flex items-center gap-1.5">
+                            <Zap size={10} className="text-purple-accent" />
+                            <span className="text-[11px] text-text-sec">
+                              {lastResponse.revision.passesUsed} passes
+                              {lastResponse.revision.restorationPassApplied && ' (incl. restoring dropped content)'}
+                            </span>
+                          </div>
+                        )}
+                        {lastResponse.processingTimeMs > 0 && (
+                          <div className="text-[11px] text-text-mut">{lastResponse.processingTimeMs}ms generation time</div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-[12px] text-text-mut leading-relaxed">No revision summary for this result.</p>
                     )}
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Mobile detection result card ── */}
-          <AnimatePresence>
-            {detectionResult && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={{ duration: 0.25 }}
-                className="lg:hidden mt-5 bg-white border border-[#e0e0da] rounded-2xl p-4 flex items-center gap-4 shadow-card"
-              >
-                <ScoreCircle score={detectionResult.humanScore} size="sm" animated={false} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-text-pri">{detectionResult.humanScore}% Human</p>
-                  <VerdictBadge verdict={detectionResult.verdict} humanScore={detectionResult.humanScore} size="sm" />
-                </div>
-                {detectionIsStale && (
-                  <span className="text-xs text-amber-600 shrink-0">Outdated</span>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-        </div>
-
-        {/* ─── DETECTION SCORE PANEL (desktop) ─────────────────────────────── */}
-        <AnimatePresence>
-          {outputText && (
-            <motion.div
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 12 }}
-              transition={{ duration: 0.25 }}
-            >
-              <DetectionSidebar
-                result={detectionResult}
-                isChecking={isCheckingAI}
-                isStale={detectionIsStale}
-                canCheck={!!outputText}
-                onCheck={() => handleCheckAI(outputText)}
-                humaniseScores={
-                  lastResponse && lastResponse.verificationPassesUsed > 0
-                    ? {
-                        originalAiScore: lastResponse.originalAiScore,
-                        finalAiScore: lastResponse.finalAiScore,
-                        verificationPassesUsed: lastResponse.verificationPassesUsed,
-                        metTargetThreshold: lastResponse.metTargetThreshold,
-                      }
-                    : null
-                }
-              />
+              )}
             </motion.div>
           )}
         </AnimatePresence>

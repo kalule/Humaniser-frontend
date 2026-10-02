@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, Filter, Layers, Loader2, RefreshCw } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useSystematicReviewStore } from '../../store/systematicReviewStore'
+import { computeStepStaleness } from '../../lib/reviewStaleness'
 import type { DedupeRun, SystematicReviewDetail } from '../../types/systematicReview'
 
 interface DedupeFilterStepProps {
@@ -91,6 +92,7 @@ export default function DedupeFilterStep({ reviewId, detail, onSaved }: DedupeFi
   }, [detail.protocol.dateRangeStart, detail.protocol.dateRangeEnd, detail.protocol.minCitations, detail.protocol.abstractRequired])
 
   const run = detail.latestDedupeRun
+  const { dedupPending: pendingSinceRun } = computeStepStaleness(detail)
   // Compared against the run's persisted filter snapshot (not client memory), so this stays
   // correct across a page reload rather than resetting to "in sync" on every mount.
   const pendingRerun = run !== null && !fieldsEqual(fields, runToFields(run))
@@ -131,6 +133,17 @@ export default function DedupeFilterStep({ reviewId, detail, onSaved }: DedupeFi
             This stage removes duplicate records, excludes papers without abstracts, and applies
             publication-date and citation-count thresholds before title and abstract screening.
           </p>
+          {/* The counts below describe the corpus this run SAW. New papers since then are invisible
+              here and in every downstream step, and the step still reads as complete — which is how
+              a repaired corpus went unnoticed behind a green tick. */}
+          {pendingSinceRun > 0 && (
+            <p className="mt-2 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 max-w-2xl">
+              <span className="font-semibold">{pendingSinceRun.toLocaleString()} paper{pendingSinceRun === 1 ? '' : 's'}</span>{' '}
+              {pendingSinceRun === 1 ? 'has' : 'have'} been fetched since this last ran, so the counts below
+              do not include {pendingSinceRun === 1 ? 'it' : 'them'}. Re-run to bring{' '}
+              {pendingSinceRun === 1 ? 'it' : 'them'} into screening.
+            </p>
+          )}
         </div>
         <button
           onClick={handleRerun}

@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Sparkles, Shield, Copy, Download, RotateCcw,
-  FileText, ArrowRight, Loader2, CheckCircle,
-  TrendingUp, Wand2, Brain,
+  Sparkles, Shield, Copy, Upload, Check,
+  FileText, ArrowRight, Loader2,
+  TrendingUp, Wand2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
 
 import { useAuthStore } from '../store/authStore'
 import { humaniseApi } from '../api/humanise'
@@ -14,9 +13,10 @@ import { detectorApi } from '../api/detector'
 import type { DetectResponse } from '../types/detector'
 import type { Tone, Strength } from '../types'
 import { ToneSelector } from '../components/ui/ToneSelector'
+import { Toggle } from '../components/ui/Toggle'
+import { DetectionScoreGauge, DETECTION_SCORE_THRESHOLDS } from '../components/workspace/DetectionScoreGauge'
+import { DiffText } from '../components/workspace/DiffText'
 import { cn } from '../lib/utils'
-
-// ── Word-diff highlighter ─────────────────────────────────────────────────────
 
 // ── Typewriter ────────────────────────────────────────────────────────────────
 
@@ -49,15 +49,15 @@ function TypewriterText({ text }: { text: string }) {
   )
 }
 
-// ── StrengthControl ───────────────────────────────────────────────────────────
+// ── RewriteIntensityControl ───────────────────────────────────────────────────
 
-const STRENGTH_OPTIONS: { value: Strength; label: string; desc: string }[] = [
+const INTENSITY_OPTIONS: { value: Strength; label: string; desc: string }[] = [
   { value: 'light', label: 'Light', desc: 'Subtle changes' },
-  { value: 'medium', label: 'Medium', desc: 'Balanced rewrite' },
-  { value: 'heavy', label: 'Heavy', desc: 'Aggressive rewrite' },
+  { value: 'medium', label: 'Natural', desc: 'Balanced rewrite' },
+  { value: 'heavy', label: 'Full', desc: 'Aggressive rewrite' },
 ]
 
-function StrengthControl({
+function RewriteIntensityControl({
   value,
   onChange,
 }: {
@@ -65,15 +65,18 @@ function StrengthControl({
   onChange: (v: Strength) => void
 }) {
   return (
-    <div className="flex rounded-xl overflow-hidden border border-slate-700 shrink-0">
-      {STRENGTH_OPTIONS.map((opt) => (
+    <div role="tablist" aria-label="Rewrite intensity" className="flex rounded-xl overflow-hidden border border-slate-700 shrink-0">
+      {INTENSITY_OPTIONS.map((opt) => (
         <button
           key={opt.value}
           type="button"
+          role="tab"
+          aria-selected={value === opt.value}
           onClick={() => onChange(opt.value)}
           title={opt.desc}
           className={cn(
             'px-3.5 py-1.5 text-xs font-medium transition-colors',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:ring-inset',
             value === opt.value
               ? 'bg-indigo-600 text-white'
               : 'bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50',
@@ -86,7 +89,7 @@ function StrengthControl({
   )
 }
 
-// ── AI score badge ────────────────────────────────────────────────────────────
+// ── AI score badge (before/after pill in the output header) ──────────────────
 
 function AiScoreBadge({
   result,
@@ -124,59 +127,6 @@ function AiScoreBadge({
   )
 }
 
-// ── ImprovementBanner ─────────────────────────────────────────────────────────
-
-function ImprovementBanner({
-  inputScore,
-  outputScore,
-  onRerunStronger,
-}: {
-  inputScore: number
-  outputScore: number
-  onRerunStronger: () => void
-}) {
-  const delta = outputScore - inputScore // positive = better (more human)
-
-  if (delta >= 20 && outputScore >= 70) {
-    return (
-      <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
-        <CheckCircle size={14} className="shrink-0" />
-        <span className="font-medium">
-          +{delta} pts improvement · {inputScore}% → {outputScore}% Human
-        </span>
-      </div>
-    )
-  }
-
-  if (outputScore < 60) {
-    return (
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-        <span>Still reading as AI — try a stronger rewrite</span>
-        <button
-          type="button"
-          onClick={onRerunStronger}
-          className="shrink-0 text-red-300 hover:text-red-200 font-medium underline underline-offset-2 transition-colors"
-        >
-          Try Stronger →
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
-      <span>Moderate improvement · consider re-running at higher strength</span>
-      <button
-        type="button"
-        onClick={onRerunStronger}
-        className="shrink-0 text-amber-300 hover:text-amber-200 font-medium underline underline-offset-2 transition-colors"
-      >
-        Re-run Stronger →
-      </button>
-    </div>
-  )
-}
-
 // ── OutputEmptyState ──────────────────────────────────────────────────────────
 
 function OutputEmptyState() {
@@ -187,7 +137,7 @@ function OutputEmptyState() {
       </div>
       <h3 className="text-slate-200 font-semibold text-base mb-2">Humanised text will appear here</h3>
       <p className="text-slate-500 text-sm max-w-xs leading-relaxed">
-        Select your tone and strength, paste text on the left, and click Humanise
+        Select your tone and intensity, paste text on the left, and click Humanise Text
       </p>
       <div className="mt-6 space-y-2 w-full max-w-xs">
         {[
@@ -208,7 +158,6 @@ function OutputEmptyState() {
 // ── Main WorkspacePage ────────────────────────────────────────────────────────
 
 export function WorkspacePage() {
-  const navigate = useNavigate()
   const updateUser = useAuthStore((s) => s.updateUser)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -221,11 +170,12 @@ export function WorkspacePage() {
   const [isDetectingOutput, setIsDetectingOutput] = useState(false)
   const [inputDetection, setInputDetection] = useState<DetectResponse | null>(null)
   const [outputDetection, setOutputDetection] = useState<DetectResponse | null>(null)
+  const [showChanges, setShowChanges] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const inputWordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0
   const outputWordCount = outputText.trim() ? outputText.trim().split(/\s+/).length : 0
   const hasOutput = !!outputText
-  const bothScores = inputDetection !== null && outputDetection !== null
 
   const handleHumanise = useCallback(async () => {
     if (!inputText.trim() || isHumanising) return
@@ -235,6 +185,7 @@ export function WorkspacePage() {
     setOutputText('')
     setOutputDetection(null)
     setInputDetection(null)
+    setShowChanges(false)
     const [humaniseRes, detectInputRes] = await Promise.allSettled([
       humaniseApi.humanise({ text: inputText, tone, strength }).then((r) => r.data),
       inputText.length >= 50 ? detectorApi.detect({ text: inputText.slice(0, 10000) }) : Promise.resolve(null),
@@ -271,37 +222,14 @@ export function WorkspacePage() {
     setIsHumanising(false)
   }, [inputText, tone, strength, updateUser])
 
-  const handleRerunStronger = useCallback(() => {
-    const order: Strength[] = ['light', 'medium', 'heavy']
-    const idx = order.indexOf(strength)
-    if (idx < order.length - 1) setStrength(order[idx + 1])
-    setTimeout(handleHumanise, 50)
-  }, [strength, handleHumanise])
-
-  const handleClear = () => {
-    setInputText('')
-    setOutputText('')
-    setInputDetection(null)
-    setOutputDetection(null)
-  }
-
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(outputText)
-      toast.success('Copied to clipboard!')
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     } catch {
       toast.error('Failed to copy')
     }
-  }
-
-  const handleDownload = () => {
-    const blob = new Blob([outputText], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'humanised.txt'
-    a.click()
-    URL.revokeObjectURL(url)
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -325,11 +253,22 @@ export function WorkspacePage() {
 
   const panelHeight = { height: 'calc(100vh - 7rem)' }
 
+  const humanPct = outputDetection ? Math.round(outputDetection.humanScore) : null
+  const signalCount = outputDetection ? outputDetection.flags.length : null
+  const humanPctClass =
+    humanPct === null
+      ? ''
+      : humanPct >= DETECTION_SCORE_THRESHOLDS.human
+        ? 'bg-emerald-500/15 text-emerald-400'
+        : humanPct >= DETECTION_SCORE_THRESHOLDS.mixed
+          ? 'bg-amber-500/15 text-amber-400'
+          : 'bg-red-500/15 text-red-400'
+
   return (
     <div className="min-h-0 bg-slate-900 w-full">
       <main className="w-full px-4 py-6 space-y-4">
 
-        {/* Controls bar — always at top */}
+        {/* Controls bar — single strip above the editors */}
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2 text-slate-400 text-sm">
             <Sparkles size={15} className="text-indigo-400" />
@@ -337,7 +276,7 @@ export function WorkspacePage() {
           </div>
           <div className="flex items-center gap-3 flex-wrap ml-2">
             <ToneSelector value={tone} onChange={setTone} compact />
-            <StrengthControl value={strength} onChange={setStrength} />
+            <RewriteIntensityControl value={strength} onChange={setStrength} />
           </div>
         </div>
 
@@ -345,31 +284,24 @@ export function WorkspacePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
           {/* Left: input */}
-          <div className="lg:sticky lg:top-4 bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden flex flex-col" style={panelHeight}>
+          <div className="lg:sticky lg:top-4 bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden flex flex-col shadow-sm" style={panelHeight}>
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700 shrink-0">
               <div className="flex items-center gap-2 text-slate-300 font-medium text-sm">
                 <FileText size={15} className="text-slate-400" />
                 Your Text
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                >
-                  Upload file
-                </button>
-                <span className={cn(
-                  'text-xs font-semibold px-2.5 py-1 rounded-full',
-                  inputWordCount === 0 ? 'bg-slate-700 text-slate-400'
-                    : inputWordCount < 50 ? 'bg-red-500/15 text-red-400'
-                    : inputWordCount < 200 ? 'bg-amber-500/15 text-amber-400'
-                    : 'bg-slate-700 text-slate-300',
-                )}>
-                  {inputWordCount} words
-                </span>
-              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  'flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 rounded px-1.5 py-0.5 -mr-1.5',
+                )}
+              >
+                <Upload size={12} />
+                Upload file
+              </button>
             </div>
 
             {/* Textarea */}
@@ -378,66 +310,51 @@ export function WorkspacePage() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="Paste your AI-generated text here to humanise it..."
-                className="flex-1 w-full bg-transparent text-slate-200 placeholder:text-slate-500 resize-none focus:outline-none px-5 py-4 text-sm leading-relaxed"
+                className={cn(
+                  'flex-1 w-full bg-transparent text-slate-200 placeholder:text-slate-500 resize-none px-5 py-4 text-sm leading-relaxed',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500/40',
+                )}
               />
             </div>
 
             {/* Footer */}
             <div className="px-5 py-3 border-t border-slate-700/50 flex items-center justify-between gap-3 shrink-0">
-              {hasOutput ? (
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1.5"
-                >
-                  <RotateCcw size={12} />
-                  Clear
-                </button>
-              ) : (
-                <span className="text-xs text-slate-500">Min. 50 words</span>
-              )}
-              <div className="flex items-center gap-3">
-                {isHumanising && (
-                  <button
-                    type="button"
-                    onClick={handleClear}
-                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
+              <span className={cn(
+                'text-xs font-medium',
+                inputWordCount === 0 ? 'text-slate-500' : inputWordCount < 50 ? 'text-red-400' : 'text-slate-400',
+              )}>
+                {inputWordCount > 0 ? `${inputWordCount}w` : 'Min. 50 words'}
+              </span>
+              <button
+                type="button"
+                onClick={handleHumanise}
+                disabled={inputWordCount < 10 || isHumanising}
+                className={cn(
+                  'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all',
+                  'bg-gradient-to-r from-indigo-600 to-purple-600 text-white',
+                  'disabled:opacity-50 disabled:cursor-not-allowed',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800',
+                  inputWordCount >= 10 && !isHumanising && 'hover:opacity-90 shadow shadow-indigo-500/20',
                 )}
-                <button
-                  type="button"
-                  onClick={handleHumanise}
-                  disabled={inputWordCount < 10 || isHumanising}
-                  className={cn(
-                    'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all',
-                    'bg-gradient-to-r from-indigo-600 to-purple-600 text-white',
-                    'disabled:opacity-50 disabled:cursor-not-allowed',
-                    inputWordCount >= 10 && !isHumanising && 'hover:opacity-90 shadow shadow-indigo-500/20',
-                  )}
-                >
-                  {isHumanising ? (
-                    <>
-                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
-                        <Brain size={15} />
-                      </motion.div>
-                      Humanising…
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={15} />
-                      {hasOutput ? 'Re-humanise' : 'Humanise'}
-                    </>
-                  )}
-                </button>
-              </div>
+              >
+                {isHumanising ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Humanising…
+                  </>
+                ) : (
+                  <>
+                    <Wand2 size={15} />
+                    Humanise Text
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
           {/* Right: output */}
           <div className="space-y-4">
-            <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden flex flex-col" style={panelHeight}>
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden flex flex-col shadow-sm" style={panelHeight}>
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700 shrink-0">
                 <div className="flex items-center gap-3">
@@ -468,7 +385,10 @@ export function WorkspacePage() {
                     </>
                   )}
                   {(outputDetection || isDetectingOutput) && (
-                    <AiScoreBadge result={outputDetection} isLoading={isDetectingOutput} label="Checking…" />
+                    <DetectionScoreGauge
+                      humanScore={outputDetection?.humanScore ?? 0}
+                      isLoading={isDetectingOutput}
+                    />
                   )}
                 </div>
               </div>
@@ -503,6 +423,8 @@ export function WorkspacePage() {
                             />
                           ))}
                         </div>
+                      ) : showChanges ? (
+                        <DiffText original={inputText} revised={outputText} />
                       ) : (
                         <TypewriterText text={outputText} />
                       )}
@@ -513,70 +435,48 @@ export function WorkspacePage() {
 
               {/* Footer */}
               {hasOutput && !isHumanising && (
-                <div className="px-5 py-3 border-t border-slate-700/50 flex items-center justify-end gap-3 shrink-0 flex-wrap">
+                <div className="px-5 py-3 border-t border-slate-700/50 flex items-center justify-between gap-3 shrink-0 flex-wrap">
+                  {/* Quality badges */}
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => navigate('/app/detector')}
-                      className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-slate-700/50"
-                    >
-                      <Shield size={12} />
-                      Check for AI
-                    </button>
+                    {outputDetection ? (
+                      <>
+                        <span className={cn('px-2.5 py-1 rounded-full text-xs font-semibold', humanPctClass)}>
+                          {humanPct}% Human
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-700/60 text-slate-300">
+                          {signalCount} AI signal{signalCount === 1 ? '' : 's'}
+                        </span>
+                      </>
+                    ) : isDetectingOutput ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-slate-700/60 text-slate-400">
+                        <Loader2 size={10} className="animate-spin" />
+                        Scoring…
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {/* Utility actions */}
+                  <div className="flex items-center gap-4">
                     <button
                       type="button"
                       onClick={handleCopy}
-                      className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-slate-700/50"
+                      className={cn(
+                        'flex items-center gap-1.5 text-xs transition-colors px-2.5 py-1.5 rounded-lg hover:bg-slate-700/50',
+                        'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60',
+                        copied ? 'text-emerald-400' : 'text-slate-400 hover:text-slate-200',
+                      )}
                     >
-                      <Copy size={12} />
-                      Copy
+                      {copied ? <Check size={12} /> : <Copy size={12} />}
+                      {copied ? 'Copied' : 'Copy'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleDownload}
-                      className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-slate-700/50"
-                    >
-                      <Download size={12} />
-                      Download
-                    </button>
+                    <label className="flex items-center gap-2 text-xs text-slate-400 select-none">
+                      Show changes
+                      <Toggle checked={showChanges} onChange={setShowChanges} label="Show changes" />
+                    </label>
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Improvement banner */}
-            {bothScores && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <ImprovementBanner
-                  inputScore={inputDetection!.humanScore}
-                  outputScore={outputDetection!.humanScore}
-                  onRerunStronger={handleRerunStronger}
-                />
-              </motion.div>
-            )}
-
-            {/* Cross-tool CTA: detect output for AI */}
-            {outputDetection && outputDetection.aiScore >= 20 && (
-              <motion.button
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                type="button"
-                onClick={() => {
-                  sessionStorage.setItem('detector_input', outputText)
-                  navigate('/app/detector')
-                }}
-                className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl
-                           bg-slate-800 border border-slate-700 text-slate-200 font-medium
-                           hover:bg-slate-700 hover:border-slate-600 transition-colors text-sm"
-              >
-                <Shield size={15} className="text-emerald-400" />
-                Run Full AI Detection on Output
-                <ArrowRight size={14} className="text-slate-500" />
-              </motion.button>
-            )}
           </div>
         </div>
       </main>

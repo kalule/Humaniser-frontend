@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { SpellCheck, Copy, CheckCheck, Upload, Clipboard, Sparkles, Loader2, AlertCircle } from 'lucide-react'
+import { SpellCheck, Copy, CheckCheck, Upload, Clipboard, Sparkles, Loader2, AlertCircle, ChevronDown, MoreHorizontal } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn, primaryButtonClass } from '../../lib/utils'
 import { useGrammarStore } from '../../store/grammarStore'
@@ -13,10 +13,18 @@ import { ClearButton } from '../../components/ui/ClearButton'
 import { PanelLabel } from '../../components/ui/PanelLabel'
 import { UtilityButton } from '../../components/ui/UtilityButton'
 import { Skeleton } from '../../components/ui/Skeleton'
+import { ResultsPanelHeader } from '../../components/ui/ResultsPanelHeader'
+import { PanelFooterBar } from '../../components/ui/PanelFooterBar'
+import { ToolBottomActionRow } from '../../components/ui/ToolBottomActionRow'
+import { ToolSidebarShell } from '../../components/ui/ToolSidebarShell'
+import { ToolWorkspaceCard } from '../../components/shared/ToolWorkspaceCard'
 import { useToolTransferStore } from '../../store/toolTransferStore'
-import type { ActiveSuggestion, ErrorCategory, GrammarContext } from '../../types/grammar'
+import type { ActiveSuggestion, ErrorCategory, GrammarContext, GrammarLanguage } from '../../types/grammar'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
+
+// Temporary kill switch for the Grammar Score sidebar — flip back to true to restore it.
+const SHOW_GRAMMAR_SCORE_SIDEBAR = false
 
 const MODES: { id: GrammarContext; label: string; desc: string }[] = [
   { id: 'General',  label: 'General',  desc: 'Standard grammar rules applied with moderate sensitivity.' },
@@ -26,9 +34,19 @@ const MODES: { id: GrammarContext; label: string; desc: string }[] = [
   { id: 'Casual',   label: 'Casual',   desc: 'Relaxed tone, minimal intervention.' },
 ]
 
+const LANGUAGES: { id: GrammarLanguage; label: string; desc: string }[] = [
+  { id: 'BritishEnglish',    label: 'British',    desc: 'colour, organise, analyse' },
+  { id: 'AmericanEnglish',   label: 'American',   desc: 'color, organize, analyze' },
+  { id: 'AustralianEnglish', label: 'Australian', desc: 'colour, organise (follows British)' },
+]
+
+// Output-toolbar buttons on this page: the shared OutputActionButton default (h-6 / 11px)
+// is too small a target here.
+const OUTPUT_BTN_SIZE = 'h-8 px-3 gap-1.5 text-[13px] rounded-lg'
+
 const CORE_CHECKS: ErrorCategory[]     = ['Spelling', 'Grammar', 'Punctuation']
 const ADVANCED_CHECKS: ErrorCategory[] = ['Style', 'Clarity', 'Conciseness', 'Consistency', 'Tone']
-const ALL_CHECK_IDS: ErrorCategory[]   = [...CORE_CHECKS, ...ADVANCED_CHECKS]
+const ALL_CHECK_COUNT = CORE_CHECKS.length + ADVANCED_CHECKS.length
 
 const SAMPLE_TEXT =
   `She recieved the report on monday and immediately forwarded it to the team. The data suggests that there is alot of room for improvment in there processes. Each of the managers have submitted there quarterly review's on time, which is a good sign. Going foward, we should leverage every oppurtunity to optimise our workflows and facilitate better collaboration accross departments.`
@@ -83,6 +101,28 @@ function applyAllSuggestions(text: string, suggestions: ActiveSuggestion[]): str
     result = result.slice(0, s.startOffset) + s.replacement + result.slice(s.endOffset)
   }
   return result
+}
+
+// Applies a SUBSET of pending suggestions (e.g. Core-only) while leaving the rest pending
+// with correct offsets — unlike applyAllSuggestions above, which only works because it
+// assumes nothing remains pending afterward. Folds applyOneSuggestion right-to-left: each
+// call already re-derives every other suggestion's offsets (and drops any that now overlap),
+// and processing the rightmost remaining item first means every subsequent item in `toAccept`
+// is still positioned before it, so its offset in `all` is never touched by an earlier step.
+function applyManySuggestions(
+  text: string,
+  toAccept: ActiveSuggestion[],
+  all: ActiveSuggestion[],
+): { text: string; suggestions: ActiveSuggestion[] } {
+  const ordered = [...toAccept].sort((a, b) => b.startOffset - a.startOffset)
+  let currentText = text
+  let currentSuggestions = all
+  for (const s of ordered) {
+    const result = applyOneSuggestion(currentText, s, currentSuggestions)
+    currentText = result.text
+    currentSuggestions = result.suggestions
+  }
+  return { text: currentText, suggestions: currentSuggestions }
 }
 
 // ── AnnotatedText ─────────────────────────────────────────────────────────────
@@ -246,6 +286,119 @@ function SuggestionCard({
   )
 }
 
+// ── useDismiss ────────────────────────────────────────────────────────────────
+
+function useDismiss(ref: React.RefObject<HTMLElement | null>, open: boolean, onClose: () => void) {
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [ref, open, onClose])
+}
+
+// ── PillDropdown ──────────────────────────────────────────────────────────────
+//
+// Toolbar dropdown in the same visual style as the Humaniser/Paraphraser/Summariser
+// toolbars. Each option can carry a one-line description shown in the menu.
+
+const TOOLBAR_LABEL = 'text-[12px] font-semibold text-neutral-500 uppercase tracking-wider shrink-0'
+const TOOLBAR_PILL =
+  'px-4 h-9 flex items-center rounded-lg text-[14px] font-medium transition-all duration-150 border whitespace-nowrap ' +
+  'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:text-neutral-900 ' +
+  'disabled:opacity-50 disabled:cursor-not-allowed'
+
+function PillDropdown<T extends string>({
+  label, options, value, onChange, disabled, minWidth = '9rem',
+}: {
+  label: string
+  options: { id: T; label: string; desc: string }[]
+  value: T
+  onChange: (id: T) => void
+  disabled?: boolean
+  minWidth?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => setOpen(false), [])
+  useDismiss(ref, open, close)
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className={TOOLBAR_LABEL}>{label}</span>
+      <div className="relative" ref={ref}>
+        <button
+          type="button"
+          onClick={() => setOpen(v => !v)}
+          disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          className={cn(TOOLBAR_PILL, 'gap-1.5 justify-between')}
+          style={{ minWidth }}
+        >
+          {options.find(o => o.id === value)?.label}
+          <ChevronDown size={14} className={cn('transition-transform duration-150', open && 'rotate-180')} />
+        </button>
+
+        {open && (
+          <div role="listbox" aria-label={label} className="absolute z-30 top-full mt-1.5 left-0 w-72 bg-white border border-gray-200 rounded-xl shadow-elevated overflow-hidden py-1">
+            {options.map(o => (
+              <button
+                key={o.id}
+                type="button"
+                role="option"
+                aria-selected={value === o.id}
+                onClick={() => { onChange(o.id); setOpen(false) }}
+                className={cn('flex flex-col items-start w-full px-3 py-2 text-left transition-colors', value === o.id ? 'bg-purple-50' : 'hover:bg-gray-50')}
+              >
+                <span className="text-[13px] font-medium text-gray-800">{o.label}</span>
+                <span className="text-[11px] text-gray-500">{o.desc}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── CategoryRow ───────────────────────────────────────────────────────────────
+//
+// One row per check type inside the Checks popover. Core and Advanced are genuinely
+// identical toggles end to end (same store action, same backend include/exclude
+// handling in GrammarPromptBuilder), so one component keeps them from drifting apart.
+// A native checkbox keeps the on/off state readable without relying on colour.
+
+function CategoryRow({
+  category, isActive, count, onToggle,
+}: {
+  category: ErrorCategory
+  isActive: boolean
+  count: number
+  onToggle: () => void
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+      <span className="flex items-center gap-2 text-[13px] text-gray-700">
+        <input
+          type="checkbox"
+          checked={isActive}
+          onChange={onToggle}
+          className="w-4 h-4 accent-purple-600"
+        />
+        {category}
+      </span>
+      {count > 0 && (
+        <span className={cn('text-[11px] font-semibold px-1.5 py-0.5 rounded', TYPE_COLOR[category])}>
+          {count}
+        </span>
+      )}
+    </label>
+  )
+}
+
 // ── ScoreRing ─────────────────────────────────────────────────────────────────
 
 function ScoreRing({ score }: { score: number }) {
@@ -326,7 +479,7 @@ function ResultsEmptyState() {
 export default function GrammarPage() {
   const {
     inputText, context, enabledCategories, isLoading, result, error,
-    setInputText, setContext, toggleCategory, setEnabledCategories, setResult,
+    language, setInputText, setContext, setLanguage, toggleCategory, setEnabledCategories, setResult,
   } = useGrammarStore()
   const { check } = useGrammar()
 
@@ -336,8 +489,30 @@ export default function GrammarPage() {
   const [hoveredId, setHoveredId]                 = useState<string | null>(null)
   const [copied, setCopied]                       = useState(false)
 
+  const [checksOpen, setChecksOpen]             = useState(false)
+  const [overflowOpen, setOverflowOpen]       = useState(false)
+  const checksRef   = useRef<HTMLDivElement>(null)
+  const overflowRef = useRef<HTMLDivElement>(null)
+  const closeChecks   = useCallback(() => setChecksOpen(false), [])
+  const closeOverflow = useCallback(() => setOverflowOpen(false), [])
+  useDismiss(checksRef, checksOpen, closeChecks)
+  useDismiss(overflowRef, overflowOpen, closeOverflow)
+
   const cardRefs  = useRef<Record<string, HTMLDivElement | null>>({})
   const outputRef = useRef<HTMLDivElement>(null)
+
+  // react-hot-toast's <Toaster/> is mounted once at the app root (App.tsx), outside the
+  // router's route tree — toasts are a global singleton with their own timers, not scoped
+  // to whichever page created them. A toast left on its default duration keeps rendering
+  // after the user navigates away from this page. Track the bulk-undo toast's id so it can
+  // be dismissed explicitly (both when superseded by a new one, and on unmount/navigation).
+  const coreUndoToastId = useRef<string | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (coreUndoToastId.current) toast.dismiss(coreUndoToastId.current)
+    }
+  }, [])
 
   useEffect(() => {
     const { text, clearTransfer } = useToolTransferStore.getState()
@@ -403,6 +578,13 @@ export default function GrammarPage() {
     return map
   }, [pendingSuggestions])
 
+  // Drives both the "Accept all Core fixes (N)" button's count and its visibility —
+  // single source so the label can't drift from what the button actually acts on.
+  const corePendingCount = useMemo(
+    () => pendingSuggestions.filter((s) => CORE_CHECKS.includes(s.category)).length,
+    [pendingSuggestions]
+  )
+
   const liveScore = useMemo(() => {
     if (!result) return 0
     if (totalOriginalCount === 0) return result.qualityScore
@@ -416,7 +598,11 @@ export default function GrammarPage() {
   const allResolved = hasResult && sortedPending.length === 0
   const noIssues    = hasResult && result.suggestions.length === 0
   const issueCount  = sortedPending.length
-  const allChecksOn = ALL_CHECK_IDS.every(id => enabledCategories.includes(id))
+  // "Clear all" is deliberately scoped to Advanced only (see CORE_CHECKS/ADVANCED_CHECKS
+  // audit note above) — a single button that can silently turn off Spelling/Grammar/
+  // Punctuation is a trap, since those are the baseline reason someone opens a grammar
+  // checker. Core stays individually toggleable, just not swept by this one.
+  const advancedOn  = ADVANCED_CHECKS.every(id => enabledCategories.includes(id))
   // Results were computed for a snapshot of the input text — if the user keeps typing
   // afterwards, the highlighted offsets and suggestions no longer apply to what's on screen.
   const isStale     = hasResult && result.originalText !== inputText
@@ -451,6 +637,45 @@ export default function GrammarPage() {
     toast.success('All suggestions accepted')
   }, [activeText, activeSuggestions])
 
+  // Core (Spelling/Grammar/Punctuation) only — Advanced suggestions are subjective rewrites
+  // that stay individual Accept/Ignore. Snapshots pre-batch state so Undo can restore it
+  // exactly; the toast's own duration bounds how long that offer stays valid.
+  const handleAcceptAllCore = useCallback(() => {
+    const toAccept = pendingSuggestions.filter((s) => CORE_CHECKS.includes(s.category))
+    if (toAccept.length === 0) return
+
+    const preText = activeText
+    const preSuggestions = activeSuggestions
+
+    const { text, suggestions } = applyManySuggestions(activeText, toAccept, activeSuggestions)
+    setActiveText(text)
+    setActiveSuggestions(suggestions)
+    setSelectedId(null)
+
+    // A second bulk-accept before the first toast times out replaces it rather than stacking.
+    if (coreUndoToastId.current) toast.dismiss(coreUndoToastId.current)
+
+    const count = toAccept.length
+    coreUndoToastId.current = toast((t) => (
+      <div className="flex items-center gap-3 text-[13px]">
+        <span>{count} core fix{count !== 1 ? 'es' : ''} applied</span>
+        <button
+          type="button"
+          onClick={() => {
+            toast.dismiss(t.id)
+            coreUndoToastId.current = null
+            setActiveText(preText)
+            setActiveSuggestions(preSuggestions)
+            setSelectedId(null)
+          }}
+          className="font-semibold text-purple-accent hover:text-purple-deep"
+        >
+          Undo
+        </button>
+      </div>
+    ), { duration: 8000 })
+  }, [activeText, activeSuggestions, pendingSuggestions])
+
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(activeText)
     setCopied(true)
@@ -471,241 +696,269 @@ export default function GrammarPage() {
     cardRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [])
 
-  return (
-    <div className="min-h-0 bg-transparent px-4 py-6 w-full space-y-4">
+  // Config controls only appear once there's something to check — the defaults (General
+  // mode, all check categories on) are sensible enough to run with immediately, so the
+  // empty state stays quiet instead of front-loading configuration before the user has
+  // typed anything. One row, matching Humaniser/Paraphraser/Summariser: Mode and English
+  // are dropdowns (five and three options with explanations worth showing), and the eight
+  // check types live in one Checks popover instead of eight always-visible chips.
+  const enabledCount = enabledCategories.length
+  const toggleBar = !inputText ? null : (
+    <div className="bg-neutral-100 rounded-xl px-4 py-3 flex items-center flex-wrap gap-x-4 gap-y-2">
+      <PillDropdown
+        label="Mode"
+        options={MODES}
+        value={context}
+        onChange={setContext}
+        disabled={isLoading}
+        minWidth="8.5rem"
+      />
 
-      {/* Controls: Mode tabs + Check type row */}
-      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+      <div className="hidden sm:block w-px h-5 bg-neutral-200" />
 
-        {/* Mode selector */}
-        <div className="border-b border-gray-100 px-4 py-3">
-          <span className="block text-[12px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-            Mode
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            {MODES.map(m => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setContext(m.id)}
-                className={cn(
-                  'px-4 h-9 flex items-center rounded-lg text-[15px] font-medium transition-colors whitespace-nowrap',
-                  context === m.id
-                    ? 'bg-neutral-900 text-white'
-                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-                )}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-1.5">
-            {MODES.find(m => m.id === context)?.desc}
-          </p>
-        </div>
+      <PillDropdown
+        label="English"
+        options={LANGUAGES}
+        value={language}
+        onChange={setLanguage}
+        disabled={isLoading}
+        minWidth="9.5rem"
+      />
 
-        {/* Check type row */}
-        <div className="flex items-center gap-3 px-4 py-2.5 flex-wrap">
-          <span className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide">Core</span>
-          <div className="flex gap-1.5 flex-wrap">
-            {CORE_CHECKS.map(cat => {
-              const isActive = enabledCategories.includes(cat)
-              const count    = hasResult ? (liveCategoryCount[cat] ?? 0) : 0
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => toggleCategory(cat)}
-                  className={cn(
-                    'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
-                    isActive
-                      ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-accent hover:text-white hover:border-purple-accent'
-                      : 'bg-white text-gray-400 border-transparent hover:border-gray-200 hover:text-gray-600'
-                  )}
-                >
-                  {cat}
-                  {hasResult && count > 0 && (
-                    <span className="ml-1.5 text-[10px] font-bold">{count}</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+      <div className="hidden sm:block w-px h-5 bg-neutral-200" />
 
-          <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
-
-          <span className="text-[12px] font-semibold text-gray-400 uppercase tracking-wide">Advanced</span>
-          <div className="flex gap-1.5 flex-wrap">
-            {ADVANCED_CHECKS.map(cat => {
-              const isActive = enabledCategories.includes(cat)
-              const count    = hasResult ? (liveCategoryCount[cat] ?? 0) : 0
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => toggleCategory(cat)}
-                  className={cn(
-                    'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
-                    isActive
-                      ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-accent hover:text-white hover:border-purple-accent'
-                      : 'bg-white text-gray-400 border-transparent hover:border-gray-200 hover:text-gray-600'
-                  )}
-                >
-                  {cat}
-                  {hasResult && count > 0 && (
-                    <span className="ml-1.5 text-[10px] font-bold">{count}</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
+      {/* Checks popover */}
+      <div className="flex items-center gap-2">
+        <span className={TOOLBAR_LABEL}>Checks</span>
+        <div className="relative" ref={checksRef}>
           <button
             type="button"
-            onClick={() => setEnabledCategories(allChecksOn ? [] : ALL_CHECK_IDS)}
-            className="ml-auto text-xs text-gray-400 hover:text-gray-700 transition-colors"
+            onClick={() => setChecksOpen(v => !v)}
+            disabled={isLoading}
+            aria-haspopup="dialog"
+            aria-expanded={checksOpen}
+            className={cn(TOOLBAR_PILL, 'gap-1.5')}
           >
-            {allChecksOn ? 'Clear all' : 'Select all'}
+            {enabledCount === ALL_CHECK_COUNT ? 'All' : `${enabledCount} of ${ALL_CHECK_COUNT}`}
+            <ChevronDown size={14} className={cn('transition-transform duration-150', checksOpen && 'rotate-180')} />
           </button>
+
+          {checksOpen && (
+            <div role="dialog" aria-label="Check types" className="absolute z-30 top-full mt-1.5 left-0 w-72 bg-white border border-gray-200 rounded-xl shadow-elevated py-2 px-1">
+              <p className="px-3 pt-1 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Core</p>
+              {CORE_CHECKS.map(cat => (
+                <CategoryRow
+                  key={cat}
+                  category={cat}
+                  isActive={enabledCategories.includes(cat)}
+                  count={hasResult ? (liveCategoryCount[cat] ?? 0) : 0}
+                  onToggle={() => toggleCategory(cat)}
+                />
+              ))}
+              <div className="flex items-center justify-between px-3 pt-2 pb-1">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Advanced</p>
+                <button
+                  type="button"
+                  onClick={() => setEnabledCategories(
+                    advancedOn
+                      ? enabledCategories.filter(id => !ADVANCED_CHECKS.includes(id))
+                      : Array.from(new Set([...enabledCategories, ...ADVANCED_CHECKS]))
+                  )}
+                  className="text-[11px] text-gray-500 hover:text-gray-800 transition-colors"
+                >
+                  {advancedOn ? 'Clear advanced' : 'Select advanced'}
+                </button>
+              </div>
+              {ADVANCED_CHECKS.map(cat => (
+                <CategoryRow
+                  key={cat}
+                  category={cat}
+                  isActive={enabledCategories.includes(cat)}
+                  count={hasResult ? (liveCategoryCount[cat] ?? 0) : 0}
+                  onToggle={() => toggleCategory(cat)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Editor panels + contextual sidebar — on lg+ all three columns share one
-          viewport-bound height so each can scroll internally; primary actions
-          (Check grammar, Accept All) live in shrink-0 header/footer rows and are
-          never pushed off screen by long content. Mobile keeps natural stacking. */}
-      <div className="flex flex-col lg:flex-row gap-5 lg:items-stretch lg:h-[calc(100vh-15rem)]">
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-5 lg:h-full min-w-0">
+      {/* Description of the selected mode: stays on this row when there's room. */}
+      <p className="ml-auto text-xs text-neutral-500">
+        {MODES.find(m => m.id === context)?.desc}
+      </p>
+    </div>
+  )
 
-          {/* Input panel — sticky */}
-          <div className="lg:sticky lg:top-4" style={{ height: 'calc(100vh - 15rem)' }}>
-            <div
-              className="bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col h-full relative"
-              {...dragHandlers}
-            >
-              {fileInputElement}
-              <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />
-
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
-                <PanelLabel label="Your text" count={wordCount} />
-                <div className="flex items-center gap-3">
-                  <UtilityButton
-                    icon={<Clipboard size={16} />}
-                    label="Paste"
-                    onClick={handlePasteFromClipboard}
-                    disabled={isLoading}
-                  />
-                  <UtilityButton
-                    icon={<Upload size={16} />}
-                    label="Upload"
-                    onClick={openFilePicker}
-                    disabled={isLoading || isFileProcessing}
-                  />
-                </div>
-              </div>
-
-              {/* Textarea */}
-              <div className="relative flex-1 min-h-0">
-                <textarea
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  disabled={isLoading}
-                  className="textarea-body absolute inset-0 w-full h-full bg-white text-gray-800 resize-none outline-none focus:ring-2 focus:ring-inset focus:ring-purple-accent/30 rounded-lg px-4 py-3 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-                {!inputText && (
-                  <div className="textarea-body pointer-events-none absolute inset-0 px-4 py-3 text-gray-400 select-none">
-                    Paste or type your text here to check grammar and spelling, or{' '}
-                    <button
-                      type="button"
-                      onClick={handleTrySample}
-                      disabled={isLoading}
-                      className="pointer-events-auto underline decoration-dotted underline-offset-2 hover:text-gray-600 transition-colors disabled:opacity-40"
-                    >
-                      try a sample
-                    </button>
-                    .
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <ClearButton onClick={handleClear} disabled={!(inputText || hasResult)} />
-                  {wordCount > 0 && wordCount < 2 && (
-                    <span className="text-xs text-gray-400">Keep typing…</span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCheck}
-                  disabled={!canCheck}
-                  className={cn(
-                    primaryButtonClass(canCheck),
-                    isStale && !isLoading && 'ring-2 ring-purple-accent ring-offset-2'
-                  )}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Checking…
-                    </>
-                  ) : isStale ? (
-                    'Re-check grammar'
-                  ) : (
-                    'Check grammar'
-                  )}
-                </button>
-              </div>
+  const leftPanel = {
+    header: (
+      <div className="flex items-center px-4 py-2.5 border-b border-[#e0e0da] shrink-0">
+        <PanelLabel label="Your text" />
+      </div>
+    ),
+    body: (
+      <div className="flex-1 min-h-0 flex flex-col relative" {...dragHandlers}>
+        {fileInputElement}
+        <DropOverlay isDragging={isDragging} isProcessing={isFileProcessing} />
+        <div className="relative flex-1 min-h-0">
+          <textarea
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            disabled={isLoading}
+            className="textarea-body absolute inset-0 w-full h-full bg-white text-gray-800 resize-none outline-none focus:ring-2 focus:ring-inset focus:ring-purple-accent/30 rounded-lg px-4 py-3 disabled:opacity-60 disabled:cursor-not-allowed"
+          />
+          {!inputText && (
+            <div className="textarea-body pointer-events-none absolute inset-0 px-4 py-3 text-gray-400 select-none">
+              Paste or type your text here to check grammar and spelling, or{' '}
+              <button
+                type="button"
+                onClick={handleTrySample}
+                disabled={isLoading}
+                className="pointer-events-auto underline decoration-dotted underline-offset-2 hover:text-gray-600 transition-colors disabled:opacity-40"
+              >
+                try a sample
+              </button>
+              .
             </div>
-          </div>
+          )}
+        </div>
+      </div>
+    ),
+    footer: (
+      <>
+        <PanelFooterBar
+          metadata={<span className="text-xs font-normal tabular-nums text-gray-400">{wordCount} words</span>}
+          actions={
+            <>
+              <UtilityButton
+                icon={<Clipboard size={14} />}
+                label="Paste"
+                className="h-8 px-3 text-[13px]"
+                onClick={handlePasteFromClipboard}
+                disabled={isLoading}
+              />
+              <UtilityButton
+                icon={<Upload size={14} />}
+                label="Upload"
+                className="h-8 px-3 text-[13px]"
+                onClick={openFilePicker}
+                disabled={isLoading || isFileProcessing}
+              />
+            </>
+          }
+        />
+        <ToolBottomActionRow
+          clearButton={<ClearButton onClick={handleClear} disabled={!(inputText || hasResult)} />}
+          hint={wordCount > 0 && wordCount < 2 ? 'Keep typing…' : undefined}
+          primaryButton={
+            <button
+              type="button"
+              onClick={handleCheck}
+              disabled={!canCheck}
+              className={cn(
+                primaryButtonClass(canCheck),
+                isStale && !isLoading && 'ring-2 ring-purple-accent ring-offset-2'
+              )}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Checking…
+                </>
+              ) : isStale ? (
+                'Re-check grammar'
+              ) : (
+                'Check grammar'
+              )}
+            </button>
+          }
+        />
+      </>
+    ),
+  }
 
-          {/* Output panel */}
-          <div
-            ref={outputRef}
-            className="bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col lg:h-full"
-            style={{ minHeight: 480 }}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
-              <div className="flex items-center gap-2">
-                <PanelLabel label="Results" />
-                {hasResult && issueCount > 0 && (
-                  <span className="px-1.5 py-0.5 bg-red-50 text-red-700 text-xs rounded-md">
-                    {issueCount} issue{issueCount !== 1 ? 's' : ''}
-                  </span>
+  const rightPanel = {
+    header: (
+      <ResultsPanelHeader
+        title={
+          <div className="flex items-center gap-2">
+            <PanelLabel label="Results" />
+            {hasResult && issueCount > 0 && (
+              <span className="px-1.5 py-0.5 bg-red-50 text-red-700 text-xs rounded-md">
+                {issueCount} issue{issueCount !== 1 ? 's' : ''}
+              </span>
+            )}
+            {hasResult && result.qualityScore !== undefined && (
+              <span
+                title="Quality score: rises as you accept or ignore suggestions"
+                className={cn(
+                'text-xs px-1.5 py-0.5 rounded-md font-medium',
+                liveScore >= 90 ? 'bg-emerald-50 text-emerald-600'
+                  : liveScore >= 70 ? 'bg-amber-50 text-amber-600'
+                  : 'bg-red-50 text-red-700'
+              )}>
+                {liveScore}/100
+              </span>
+            )}
+          </div>
+        }
+      />
+    ),
+    footer: hasResult && (
+      <PanelFooterBar
+        actions={
+          <>
+            {corePendingCount > 0 && (
+              <button
+                type="button"
+                onClick={handleAcceptAllCore}
+                title="Applies the Spelling, Grammar and Punctuation fixes. Advanced suggestions (style, clarity, tone…) stay individual so you can judge each one."
+                className={cn(
+                  'flex items-center font-semibold bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300 transition-colors',
+                  OUTPUT_BTN_SIZE,
                 )}
-                {hasResult && result.qualityScore !== undefined && (
-                  <span className={cn(
-                    'text-xs px-1.5 py-0.5 rounded-md font-medium',
-                    liveScore >= 90 ? 'bg-emerald-50 text-emerald-600'
-                      : liveScore >= 70 ? 'bg-amber-50 text-amber-600'
-                      : 'bg-red-50 text-red-700'
-                  )}>
-                    {liveScore}/100
-                  </span>
-                )}
-              </div>
-              {hasResult && (
-                <div className="flex items-center gap-3">
-                  {sortedPending.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleAcceptAll}
-                      className="lg:hidden flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300 transition-colors"
-                    >
-                      <CheckCheck className="w-3 h-3" />
-                      Accept all
-                    </button>
-                  )}
-                  <OutputActionButton icon={<Copy className="w-3 h-3" />} onClick={handleCopy}>
-                    {copied ? 'Copied' : 'Copy'}
-                  </OutputActionButton>
+              >
+                <CheckCheck className="w-4 h-4" />
+                Accept all fixes ({corePendingCount})
+              </button>
+            )}
+            <OutputActionButton
+              icon={<Copy className="w-4 h-4" />}
+              className={OUTPUT_BTN_SIZE}
+              onClick={handleCopy}
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </OutputActionButton>
+            <div className="relative" ref={overflowRef}>
+              <OutputActionButton
+                icon={<MoreHorizontal className="w-4 h-4" />}
+                className={cn(OUTPUT_BTN_SIZE, 'w-8 justify-center px-0')}
+                onClick={() => setOverflowOpen(v => !v)}
+                aria-haspopup="menu"
+                aria-expanded={overflowOpen}
+                aria-label="More actions"
+                title="More actions"
+              >
+                <span className="sr-only">More</span>
+              </OutputActionButton>
+              {overflowOpen && (
+                <div role="menu" className="absolute right-0 bottom-full mb-1.5 z-30 w-48 bg-white border border-gray-200 rounded-xl shadow-elevated overflow-hidden py-1">
+                  <div className="px-1">
+                    <SendToMenu
+                      text={activeText}
+                      inline
+                      className="w-full [&>button]:w-full [&>button]:justify-start [&>button]:h-auto [&>button]:px-2 [&>button]:py-2 [&>button]:border-0 [&>button]:text-[13px]"
+                    />
+                  </div>
                 </div>
               )}
             </div>
-
+          </>
+        }
+      />
+    ),
+    body: (
+      <div className="flex-1 min-h-0 flex flex-col">
             {isStale && !isLoading && (
               <div className="mx-4 mt-3 shrink-0 flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-100">
                 <span className="text-xs text-amber-700">Text changed — results may be out of date.</span>
@@ -772,8 +1025,19 @@ export default function GrammarPage() {
                   animate={{ opacity: 1 }}
                   className="flex-1 min-h-0 flex flex-col"
                 >
-                  {/* Annotated text — capped height, own scroll, independent of the card list below */}
-                  <div className="px-4 py-4 border-b border-gray-50 shrink-0 overflow-y-auto" style={{ maxHeight: '38%' }}>
+                  {/* Annotated text — capped to 45% + its own scroll only while the suggestion
+                      card list below still needs room. Once everything's resolved there's
+                      nothing left below competing for space, so let this fill the panel instead
+                      of trapping the finished, correct text in a small scrolling sliver. */}
+                  <div
+                    className={cn(
+                      'px-4 py-4 overflow-y-auto',
+                      noIssues || allResolved
+                        ? 'flex-1 min-h-0'
+                        : 'border-b border-gray-50 shrink-0'
+                    )}
+                    style={noIssues || allResolved ? undefined : { maxHeight: '45%' }}
+                  >
                     {(noIssues || allResolved) && (
                       <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-100 mb-4">
                         <CheckCheck className="w-5 h-5 text-emerald-500 shrink-0" />
@@ -806,8 +1070,10 @@ export default function GrammarPage() {
                     )}
                   </div>
 
-                  {/* Suggestion cards — fills remaining height, scrolls independently */}
-                  <div className="flex-1 min-h-0 overflow-y-auto">
+                  {/* Suggestion cards — fills remaining height, scrolls independently. Collapses
+                      to nothing (rather than claiming an equal flex-1 share while empty) once
+                      everything's resolved, so the corrected text above gets the full panel. */}
+                  <div className={cn('overflow-y-auto', sortedPending.length > 0 ? 'flex-1 min-h-0' : 'shrink-0')}>
                     {sortedPending.length > 0 && (
                       <AnimatePresence>
                         {sortedPending.map((s, i) => (
@@ -830,94 +1096,90 @@ export default function GrammarPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {hasResult && (
-              <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-end shrink-0">
-                <SendToMenu text={activeText} />
-              </div>
-            )}
-          </div>
-
-        </div>
-
-        {/* Grammar Score sidebar */}
-        <AnimatePresence>
-          {(hasResult || isLoading) && (
-            <motion.div
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 12 }}
-              transition={{ duration: 0.25 }}
-              className="hidden lg:flex w-[208px] shrink-0 flex-col bg-white border border-gray-100 rounded-xl overflow-hidden lg:h-full"
-            >
-              <div className="px-4 py-3 border-b border-gray-100 shrink-0">
-                <div className="flex items-center gap-2">
-                  <SpellCheck className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="text-sm font-semibold text-gray-700">Grammar Score</span>
-                </div>
-              </div>
-              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center gap-3 p-4">
-                {hasResult && result ? (
-                  <>
-                    <div className="mt-2">
-                      <ScoreRing score={liveScore} />
-                    </div>
-                    <div className="w-full mt-1 space-y-2">
-                      {liveErrors > 0 && (
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-500">Errors</span>
-                          <span className="font-semibold text-red-600 tabular-nums">{liveErrors}</span>
-                        </div>
-                      )}
-                      {liveWarnings > 0 && (
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-500">Warnings</span>
-                          <span className="font-semibold text-amber-500 tabular-nums">{liveWarnings}</span>
-                        </div>
-                      )}
-                    </div>
-                    {Object.keys(liveCategoryCount).length > 0 && (
-                      <>
-                        <div className="w-full h-px bg-gray-100" />
-                        <div className="w-full space-y-1.5">
-                          {Object.entries(liveCategoryCount).map(([cat, count]) => (
-                            <div key={cat} className="flex justify-between items-center text-[11px]">
-                              <span className="text-gray-500 font-medium">{cat}</span>
-                              <span className="font-semibold text-gray-700 tabular-nums">{count}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className="mt-4 w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center">
-                      <SpellCheck className="w-5 h-5 text-gray-300" />
-                    </div>
-                    <p className="text-xs text-gray-400 text-center leading-relaxed">
-                      Run a check to see your grammar score
-                    </p>
-                  </>
-                )}
-              </div>
-              {hasResult && sortedPending.length > 0 && (
-                <div className="px-4 py-3 border-t border-gray-100 shrink-0">
-                  <button
-                    type="button"
-                    onClick={handleAcceptAll}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300 transition-colors"
-                  >
-                    <CheckCheck className="w-3 h-3" />
-                    Accept All
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
       </div>
+    ),
+  }
+
+  return (
+    <div className="min-h-0 bg-transparent px-4 py-6 w-full">
+      <ToolWorkspaceCard
+        className="lg:sticky lg:top-4"
+        style={{ height: 'calc(100vh - 7rem)' }}
+        toggleBar={toggleBar}
+        leftPanel={leftPanel}
+        rightPanel={rightPanel}
+        sidebar={
+          <AnimatePresence>
+            {SHOW_GRAMMAR_SCORE_SIDEBAR && (hasResult || isLoading) && (
+              <motion.div
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 12 }}
+                transition={{ duration: 0.25 }}
+              >
+                <ToolSidebarShell
+                  icon={<SpellCheck className="w-3.5 h-3.5 text-gray-400" />}
+                  label="Grammar Score"
+                  footer={hasResult && sortedPending.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleAcceptAll}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                    >
+                      <CheckCheck className="w-3 h-3" />
+                      Accept All
+                    </button>
+                  )}
+                >
+                  {hasResult && result ? (
+                    <>
+                      <div className="mt-2">
+                        <ScoreRing score={liveScore} />
+                      </div>
+                      <div className="w-full mt-1 space-y-2">
+                        {liveErrors > 0 && (
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-gray-500">Errors</span>
+                            <span className="font-semibold text-red-600 tabular-nums">{liveErrors}</span>
+                          </div>
+                        )}
+                        {liveWarnings > 0 && (
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-gray-500">Warnings</span>
+                            <span className="font-semibold text-amber-500 tabular-nums">{liveWarnings}</span>
+                          </div>
+                        )}
+                      </div>
+                      {Object.keys(liveCategoryCount).length > 0 && (
+                        <>
+                          <div className="w-full h-px bg-gray-100" />
+                          <div className="w-full space-y-1.5">
+                            {Object.entries(liveCategoryCount).map(([cat, count]) => (
+                              <div key={cat} className="flex justify-between items-center text-[11px]">
+                                <span className="text-gray-500 font-medium">{cat}</span>
+                                <span className="font-semibold text-gray-700 tabular-nums">{count}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="mt-4 w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center">
+                        <SpellCheck className="w-5 h-5 text-gray-300" />
+                      </div>
+                      <p className="text-xs text-gray-400 text-center leading-relaxed">
+                        Run a check to see your grammar score
+                      </p>
+                    </>
+                  )}
+                </ToolSidebarShell>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        }
+      />
     </div>
   )
 }

@@ -40,7 +40,7 @@ const STEPS = [
     title: "You're on the Free plan",
     description:
       'You have 500 words per month — no credit card needed. Your word count resets on the 1st of every month.',
-    tip: 'Need more? Student plan starts at R49/month with 10 000 words.',
+    tip: 'Need more? Starter plan starts at $10/month with 50,000 words.',
   },
 ]
 

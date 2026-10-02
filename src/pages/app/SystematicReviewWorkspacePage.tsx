@@ -7,6 +7,7 @@ import {
   Plus, RefreshCw, Sparkles, Target, Trash2, Users, X,
 } from 'lucide-react'
 import { cn, downloadBlob, formatDate } from '../../lib/utils'
+import { computeStepStaleness } from '../../lib/reviewStaleness'
 import { useSystematicReviewStore } from '../../store/systematicReviewStore'
 import type {
   CriterionType, EligibilityCriterion, ReviewProtocol, SearchStringItem, SearchStringUse,
@@ -157,8 +158,14 @@ function ExportMenu({ reviewId, hasManuscript }: { reviewId: string; hasManuscri
     setDownloading(key)
     try {
       await action()
-    } catch {
-      toast.error('Export failed. Please try again.')
+    } catch (err) {
+      // A 409 from the manuscript export is the consistency gate, not a failure — the Write SLR
+      // step lists the specific discrepancies and carries the "export anyway" action, so point
+      // there rather than telling the reviewer to retry something that will fail identically.
+      const blocked = (err as { response?: { status?: number } })?.response?.status === 409
+      toast.error(blocked
+        ? "The manuscript doesn't reconcile with this review's data — open Write SLR to see what and export from there."
+        : 'Export failed. Please try again.')
     } finally {
       setDownloading(null)
       setOpen(false)
@@ -305,6 +312,9 @@ function RightRail({ detail, currentStepId, onSelectStep }: {
   currentStepId: StepId
   onSelectStep:  (id: StepId) => void
 }) {
+  // Which completed steps have had new input arrive since they ran.
+  const staleness = computeStepStaleness(detail)
+
   const currentIdx = PIPELINE_STEPS.findIndex(s => s.id === currentStepId)
 
   return (
@@ -355,7 +365,32 @@ function RightRail({ detail, currentStepId, onSelectStep }: {
                   <p className={cn('text-[12px] truncate', status === 'active' ? 'font-semibold text-violet-700' : 'text-slate-600')}>
                     {step.label}
                   </p>
-                  <p className="text-[10px] text-slate-400">{step.countLabel(detail)}</p>
+                  <p className="text-[10px] text-slate-400">
+                    {step.countLabel(detail)}
+                    {/* A completed step whose inputs have grown reads as finished otherwise — the
+                        tick stays green and the counts describe the corpus before the new papers
+                        arrived. Say so instead of leaving it to be discovered downstream. */}
+                    {step.id === 'dedup' && staleness.dedupPending > 0 && (
+                      <span className="ml-1 text-amber-600 font-semibold">
+                        · {staleness.dedupPending} new since
+                      </span>
+                    )}
+                    {step.id === 'screening-ta' && staleness.screeningPending > 0 && (
+                      <span className="ml-1 text-amber-600 font-semibold">
+                        · {staleness.screeningPending} unscreened
+                      </span>
+                    )}
+                    {/* staleness.screeningPending only counts papers with no decision row at all,
+                        and the job creates every row up front — so it reads 0 for the whole run.
+                        A screening pass still working through its rows was therefore invisible
+                        from any other step: the tick above is positional, so it goes green the
+                        moment you navigate past. Show the verdicts still outstanding instead. */}
+                    {step.id === 'screening-ta' && (detail.screeningSummary?.pending ?? 0) > 0 && (
+                      <span className="ml-1 text-amber-600 font-semibold">
+                        · {detail.screeningSummary!.pending} still screening
+                      </span>
+                    )}
+                  </p>
                 </div>
               </button>
             )
@@ -1570,10 +1605,15 @@ export default function SystematicReviewWorkspacePage() {
       // there's genuinely nothing to full-text-screen, so don't trap the user here forever.
       : !detail.screeningSummary || detail.screeningSummary.pending > 0 || detail.screeningSummary.included > 0
     : currentStepId === 'extraction'
+    // Papers with no readable text (no PDF, no abstract) can never be extracted, so they must not
+    // hold the step open — that trapped a review here on 2026-09-05 with one snowballed paper
+    // OpenAlex carries no abstract for. The step itself names them; the gate just stops waiting.
     ? detail.extractionVariables.length > 0 && !detail.extractionSkipped
-      && (!detail.extractionSummary || detail.extractionSummary.extracted < detail.extractionSummary.total)
+      && (!detail.extractionSummary
+        || detail.extractionSummary.extracted + detail.extractionSummary.noUsableText < detail.extractionSummary.total)
     : currentStepId === 'risk-of-bias'
-    ? !detail.riskOfBiasSkipped && !!detail.riskOfBiasSummary && detail.riskOfBiasSummary.pending > 0
+    ? !detail.riskOfBiasSkipped && !!detail.riskOfBiasSummary
+      && detail.riskOfBiasSummary.pending > detail.riskOfBiasSummary.noUsableText
     : currentStepId === 'evidence-grading'
     ? !detail.evidenceGradingSkipped && !!detail.evidenceGradingSummary && detail.evidenceGradingSummary.pending > 0
     : false

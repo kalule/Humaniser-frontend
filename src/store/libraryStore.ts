@@ -60,6 +60,11 @@ export const useLibraryStore = create<LibraryStore>()((set, get) => ({
         type:     merged.type,
         folderId: merged.folderId,
         isPdf:    merged.isPdf,
+        citationStyle: merged.citationStyle,
+        documentType:  merged.documentType,
+        // Lets the server collapse a double-clicked "New"/"Create" or a retried request onto the
+        // same row instead of inserting a duplicate — see SaveDocumentPayload's doc comment.
+        clientRequestId: crypto.randomUUID(),
       })
       set(s => ({ documents: [doc, ...s.documents] }))
       return doc
@@ -83,6 +88,16 @@ export const useLibraryStore = create<LibraryStore>()((set, get) => ({
         type:     merged.type,
         folderId: merged.folderId,
         isPdf:    merged.isPdf,
+        // Full-replace, same as title/type above — forwarding merged's value so a patch that
+        // doesn't touch these (e.g. a content-only autosave) carries the existing value forward
+        // instead of clearing it.
+        citationStyle: merged.citationStyle,
+        documentType:  merged.documentType,
+        // PR20 — forwarding merged's value (not re-deriving it) keeps this a no-op for normal
+        // edits: patch objects for title/content changes never set workbenchGenerationAuditId, so
+        // merged just carries forward whatever current already had (undefined until
+        // handleAiGenerated's one stamping call, its returned value from then on).
+        workbenchGenerationAuditId: merged.workbenchGenerationAuditId,
       })
       set(s => ({ documents: s.documents.map(d => (d.id === id ? doc : d)) }))
       return doc

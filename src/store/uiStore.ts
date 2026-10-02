@@ -20,6 +20,9 @@ interface UiState {
   wordLimitDetails: { used: number; limit: number; resetDate: string } | null
   showCreditLimitModal: boolean
   creditLimitDetails: { used: number; limit: number; resetDate: string } | null
+  showDetectorCapModal: boolean
+  detectorCapDetails: { used: number; limit: number; resetDate: string } | null
+  showTopUpModal: boolean
   docEditorFontSize: DocEditorFontSize
 
   setSidebarOpen: (v: boolean) => void
@@ -29,6 +32,10 @@ interface UiState {
   closeWordLimitModal: () => void
   openCreditLimitModal: (details: { used: number; limit: number; resetDate: string }) => void
   closeCreditLimitModal: () => void
+  openDetectorCapModal: (details: { used: number; limit: number; resetDate: string }) => void
+  closeDetectorCapModal: () => void
+  openTopUpModal: () => void
+  closeTopUpModal: () => void
   setDocEditorFontSize: (size: DocEditorFontSize) => void
 }
 
@@ -40,6 +47,9 @@ export const useUiStore = create<UiState>((set) => ({
   wordLimitDetails: null,
   showCreditLimitModal: false,
   creditLimitDetails: null,
+  showDetectorCapModal: false,
+  detectorCapDetails: null,
+  showTopUpModal: false,
   docEditorFontSize: readDocEditorFontSize(),
 
   setSidebarOpen: (v: boolean) => set({ sidebarOpen: v }),
@@ -63,4 +73,12 @@ export const useUiStore = create<UiState>((set) => ({
   openCreditLimitModal: (details) => set({ showCreditLimitModal: true, creditLimitDetails: details }),
 
   closeCreditLimitModal: () => set({ showCreditLimitModal: false }),
+
+  openDetectorCapModal: (details) => set({ showDetectorCapModal: true, detectorCapDetails: details }),
+
+  closeDetectorCapModal: () => set({ showDetectorCapModal: false }),
+
+  openTopUpModal: () => set({ showTopUpModal: true }),
+
+  closeTopUpModal: () => set({ showTopUpModal: false }),
 }))

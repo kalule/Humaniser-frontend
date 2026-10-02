@@ -63,7 +63,8 @@ export function CreditLimitModal() {
               You've used <span className="text-white font-semibold">{used.toLocaleString()}</span> of{' '}
               <span className="text-white font-semibold">{limit.toLocaleString()}</span> credits on your{' '}
               <span className="text-indigo-400 font-semibold">{user?.plan ?? 'Free'}</span> plan. Credits power
-              Proposal Studio, Data Analyst, and Systematic Review.
+              every tool — Humaniser, AI Detector, Paraphraser, Grammar, Summariser, Proposal Studio, Data
+              Analyst, and Systematic Review.
             </p>
 
             <div className="flex items-center gap-2.5 bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 mb-5">
@@ -73,13 +74,25 @@ export function CreditLimitModal() {
               </p>
             </div>
 
-            <Link
-              to="/pricing"
-              onClick={closeCreditLimitModal}
-              className="block w-full text-center py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-semibold text-sm transition-opacity"
-            >
-              See all plans
-            </Link>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  closeCreditLimitModal()
+                  useUiStore.getState().openTopUpModal()
+                }}
+                className="block w-full text-center py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-semibold text-sm transition-opacity"
+              >
+                Buy a one-time top-up
+              </button>
+              <Link
+                to="/pricing"
+                onClick={closeCreditLimitModal}
+                className="block w-full text-center py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800/60 font-medium text-sm transition-colors"
+              >
+                See all plans
+              </Link>
+            </div>
           </div>
         </motion.div>
       </motion.div>

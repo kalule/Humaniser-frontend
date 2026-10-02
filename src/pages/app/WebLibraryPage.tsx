@@ -4,13 +4,20 @@ import {
   ChevronLeft, ChevronRight, FolderOpen, Folder, Trash2, Tag, Plus,
   Upload, Link, Copy, FileText, BookOpen, Bookmark, MessageCircle,
   ChevronDown, Download, X, Sparkles, ArrowUpDown,
-  BookMarked, Check,
+  BookMarked, Check, FolderPlus, Info,
 } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { cn } from '../../lib/utils'
 import { useWebLibraryStore } from '../../store/webLibraryStore'
 import { UploadModal } from '../../components/ui/UploadModal'
 import { LibraryChatDrawer } from '../../components/ui/LibraryChatDrawer'
 import type { ChatContext } from '../../components/ui/LibraryChatDrawer'
+import { WebLibraryTabBar } from '../../components/webLibrary/WebLibraryTabBar'
+import { AddToCollectionModal } from '../../components/webLibrary/AddToCollectionModal'
+import { CitePopover } from '../../components/webLibrary/CitePopover'
+import { PaperDetailsDrawer } from '../../components/webLibrary/PaperDetailsDrawer'
+import { ImportSourcesModal } from '../../components/webLibrary/ImportSourcesModal'
+import type { PaperDetails } from '../../types/researchLibrary'
 import {
   COLUMN_META, ORDERED_COLUMNS,
 } from '../../types/webLibrary'
@@ -215,7 +222,7 @@ function InnerSidebar({
 // ── Cell: Papers column ────────────────────────────────────────────────────────
 
 function PapersCell({
-  doc, index, selected, onToggle, onSummaryClick, onChatClick,
+  doc, index, selected, onToggle, onSummaryClick, onChatClick, onCollectionClick, onDetails,
 }: {
   doc: ResearchDocument
   index: number
@@ -223,6 +230,8 @@ function PapersCell({
   onToggle: () => void
   onSummaryClick: () => void
   onChatClick: () => void
+  onCollectionClick: () => void
+  onDetails?: () => void
 }) {
   const handleDownload = () => {
     if (!doc.filePath) { toast('No file attached to this record'); return }
@@ -296,6 +305,19 @@ function PapersCell({
             >
               <MessageCircle size={13} />
             </button>
+
+            {/* Icon 4: Add to collection */}
+            <button
+              onClick={onCollectionClick}
+              title="Add to collection"
+              className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-purple-tint hover:text-purple-accent hover:border-purple-accent flex items-center justify-center transition-colors"
+            >
+              <FolderPlus size={13} />
+            </button>
+
+            {/* Cite */}
+            <CitePopover paper={doc} />
+            {onDetails && <button onClick={onDetails} title="Paper details" className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-violet-50 hover:text-violet-700 flex items-center justify-center transition-colors"><Info size={13} /></button>}
           </div>
         </div>
       </div>
@@ -506,8 +528,11 @@ function SortDropdown({ sortBy, onSort }: { sortBy: string; onSort: (v: string) 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function WebLibraryPage() {
+  const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
   const {
-    documents, folders, visibleColumns,
+    documents, folders, collections, visibleColumns,
+    loadDocuments, loadCollections,
     createFolder, addColumn, removeColumn, reorderColumns,
   } = useWebLibraryStore()
 
@@ -519,6 +544,7 @@ export default function WebLibraryPage() {
   const [expandedCells,   setExpandedCells]   = useState<Set<string>>(new Set())  // `${docId}-${colKey}`
   const [addColOpen,      setAddColOpen]      = useState(false)
   const [uploadOpen,      setUploadOpen]      = useState(false)
+  const [importSourcesOpen, setImportSourcesOpen] = useState(false)
   const [addColDropdown,  setAddColDropdown]  = useState(false)
   // Chat drawer state
   const [chatOpen,        setChatOpen]        = useState(false)
@@ -526,6 +552,27 @@ export default function WebLibraryPage() {
   // Summary highlight: `${docId}` — cleared after 2s
   const [highlightedDoc,  setHighlightedDoc]  = useState<string | null>(null)
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [collectionModalDocId, setCollectionModalDocId] = useState<string | null>(null)
+
+  useEffect(() => {
+    void loadDocuments()
+    void loadCollections()
+  }, [loadDocuments, loadCollections])
+
+  useEffect(() => {
+    const provider = params.get('integration')
+    const connected = params.get('connected')
+    if (!provider || connected === null) return
+    if (connected === 'true') {
+      toast.success(`${provider === 'zotero' ? 'Zotero' : 'Mendeley'} connected successfully.`)
+      setImportSourcesOpen(true)
+    } else {
+      toast.error(`Could not connect ${provider === 'zotero' ? 'Zotero' : 'Mendeley'}. Please try again.`)
+    }
+    const next = new URLSearchParams(params)
+    next.delete('integration'); next.delete('connected')
+    setParams(next, { replace: true })
+  }, [params, setParams])
 
   // Filter by location
   const filteredDocs = useMemo(() => {
@@ -619,7 +666,10 @@ export default function WebLibraryPage() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden bg-white">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
+      <WebLibraryTabBar active="library" />
+
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
       {/* ── Inner Library Sidebar ──────────────────────────────────────────── */}
       <InnerSidebar
@@ -668,12 +718,12 @@ export default function WebLibraryPage() {
 
           <div className="flex-1" />
 
-          {/* Upload PDFs */}
+          {/* Import sources */}
           <button
-            onClick={() => setUploadOpen(true)}
+            onClick={() => setImportSourcesOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium transition-colors shadow-sm shadow-orange-200"
           >
-            <Upload size={14} /> Upload PDFs
+            <Upload size={14} /> Import Sources
           </button>
         </div>
 
@@ -848,6 +898,8 @@ export default function WebLibraryPage() {
                       onToggle={() => toggleRow(doc.id)}
                       onSummaryClick={() => handleSummaryClick(doc.id)}
                       onChatClick={() => handleChatClick(doc)}
+                      onCollectionClick={() => setCollectionModalDocId(doc.id)}
+                      onDetails={doc.canonicalWorkId ? () => { const next = new URLSearchParams(params); next.set('paper', doc.canonicalWorkId!); setParams(next, { replace: true }) } : undefined}
                     />
 
                     {/* Dynamic column cells */}
@@ -872,8 +924,16 @@ export default function WebLibraryPage() {
           </table>
         </div>
       </div>
+      </div>
 
       {/* ── Upload Modal ─────────────────────────────────────────────────────── */}
+      <ImportSourcesModal
+        open={importSourcesOpen}
+        collections={collections}
+        onClose={() => setImportSourcesOpen(false)}
+        onUploadPdf={() => setUploadOpen(true)}
+        onImported={() => { void loadDocuments(); void loadCollections() }}
+      />
       <UploadModal
         open={uploadOpen}
         folders={folders}
@@ -910,6 +970,14 @@ export default function WebLibraryPage() {
           />
         )}
       </AnimatePresence>
+
+      {/* ── Add to Collection ─────────────────────────────────────────────── */}
+      <AddToCollectionModal
+        open={collectionModalDocId !== null}
+        documentId={collectionModalDocId}
+        onClose={() => setCollectionModalDocId(null)}
+      />
+      <PaperDetailsDrawer workId={params.get('paper')} onClose={() => { const next = new URLSearchParams(params); next.delete('paper'); setParams(next, { replace: true }) }} onOpenPdf={(paper: PaperDetails) => navigate(`/app/web-library/papers/${paper.id}/pdf`)} />
     </div>
   )
 }

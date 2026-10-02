@@ -234,7 +234,7 @@ function UploadZone() {
   const [dragging, setDragging] = useState(false)
 
   const handleFiles = (files: FileList | null) => {
-    if (files?.[0]) void upload(files[0])
+    if (files && files.length > 0) void upload(files)
   }
 
   return (

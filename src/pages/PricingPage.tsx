@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
   Check,
@@ -16,19 +16,36 @@ import {
   Loader2,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { currencySymbol } from '../lib/currency'
 import { useAuthStore } from '../store/authStore'
 import { subscriptionApi } from '../api/subscription'
 import { Navbar } from '../components/layout/Navbar'
 import { Footer } from '../components/layout/Footer'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import type { Plan, PlanDefinitionDto } from '../types'
 
-// ─── Price IDs ────────────────────────────────────────────────────────────────
+// ─── Plan grouping ────────────────────────────────────────────────────────────
+// Pricing itself always comes from GET /subscription/plans — never hardcoded here.
 
-const PRICE_IDS = {
-  pro_monthly: 'price_pro_monthly',
-  pro_annual: 'price_pro_annual',
-  unlimited_monthly: 'price_unlimited_monthly',
-  unlimited_annual: 'price_unlimited_annual',
+interface GroupedPlan {
+  tier: Plan
+  monthly?: PlanDefinitionDto
+  annual?: PlanDefinitionDto
+}
+
+function groupPlansByTier(plans: PlanDefinitionDto[]): GroupedPlan[] {
+  const order: Plan[] = ['Free', 'Pro', 'Unlimited']
+  return order
+    .map((tier): GroupedPlan | null => {
+      const rows = plans.filter((p) => p.tier === tier)
+      if (rows.length === 0) return null
+      return {
+        tier,
+        monthly: rows.find((p) => p.billingInterval === 'Monthly'),
+        annual: rows.find((p) => p.billingInterval === 'Annual'),
+      }
+    })
+    .filter((g): g is GroupedPlan => g !== null)
 }
 
 // ─── Feature comparison table ─────────────────────────────────────────────────
@@ -141,6 +158,7 @@ interface PlanCardProps {
   icon: React.ReactNode
   priceMonthly: number
   priceAnnual: number
+  currency: string
   description: string
   features: string[]
   cta: string
@@ -158,6 +176,7 @@ function PlanCard({
   icon,
   priceMonthly,
   priceAnnual,
+  currency,
   description,
   features,
   cta,
@@ -216,24 +235,24 @@ function PlanCard({
       <div className="mb-6">
         {isFree ? (
           <div className="flex items-end gap-1">
-            <span className="text-3xl font-bold text-text-pri">R0</span>
+            <span className="text-3xl font-bold text-text-pri">{currencySymbol(currency)}0</span>
             <span className="text-sm text-text-sec mb-1"> / month</span>
           </div>
         ) : (
           <>
             <div className="flex items-end gap-1">
               <span className="text-3xl font-bold text-text-pri">
-                R{monthlyEquivalent}
+                {currencySymbol(currency)}{monthlyEquivalent}
               </span>
               <span className="text-sm text-text-sec mb-1">/month</span>
             </div>
             {isAnnual ? (
               <div className="mt-1 space-y-0.5">
                 <p className="text-xs text-text-sec">
-                  Billed annually — R{annualTotal.toLocaleString()}/year
+                  Billed annually — {currencySymbol(currency)}{annualTotal.toLocaleString()}/year
                 </p>
                 <p className="text-xs text-emerald-700 font-medium">
-                  Save R{annualSaving.toLocaleString()}/year vs monthly
+                  Save {currencySymbol(currency)}{annualSaving.toLocaleString()}/year vs monthly
                 </p>
               </div>
             ) : (
@@ -301,8 +320,8 @@ function PlanCard({
 
 export function PricingPage() {
   useDocumentTitle(
-    'Pricing — AI Humaniser & Research Tools | HumaniseAI South Africa',
-    'Simple ZAR pricing for South Africa\'s AI humaniser, detector, and research toolkit. Free plan available, Pro from R149/month, no credit card required.',
+    'Pricing — AI Humaniser, Detector, Paraphraser & More | HumaniseAI',
+    'Simple USD pricing for HumaniseAI\'s five AI writing tools: Humaniser, Detector, Paraphraser, Grammar Checker, and Summariser. Free plan available, Starter from $10/month.',
     '/pricing',
   )
   const [isAnnual, setIsAnnual] = useState(false)
@@ -315,13 +334,21 @@ export function PricingPage() {
   const isPublicRoute = location.pathname === '/pricing'
   const currentPlan = user?.plan ?? null
 
+  const { data: plans } = useQuery({
+    queryKey: ['plans'],
+    queryFn: () => subscriptionApi.getPlans().then((r) => r.data),
+  })
+  const groupedPlans = groupPlansByTier(plans ?? [])
+  const proPlans = groupedPlans.find((g) => g.tier === 'Pro')
+  const unlimitedPlans = groupedPlans.find((g) => g.tier === 'Unlimited')
+
   const checkoutMutation = useMutation({
-    mutationFn: (priceId: string) =>
+    mutationFn: (planDefinitionId: string) =>
       subscriptionApi
         .createCheckout(
-          priceId,
-          `${window.location.origin}/app/billing?success=1`,
-          `${window.location.origin}/pricing?cancelled=1`,
+          planDefinitionId,
+          `${window.location.origin}/app/billing?checkout=success`,
+          `${window.location.origin}/pricing?checkout=cancelled`,
         )
         .then((r) => r.data),
     onSuccess: (data) => {
@@ -338,8 +365,10 @@ export function PricingPage() {
       navigate('/register?plan=pro')
       return
     }
+    const selected = isAnnual ? proPlans?.annual : proPlans?.monthly
+    if (!selected) return
     setCheckoutPlan('pro')
-    checkoutMutation.mutate(isAnnual ? PRICE_IDS.pro_annual : PRICE_IDS.pro_monthly)
+    checkoutMutation.mutate(selected.id)
   }
 
   const handleUnlimitedCheckout = () => {
@@ -347,8 +376,10 @@ export function PricingPage() {
       navigate('/register?plan=unlimited')
       return
     }
+    const selected = isAnnual ? unlimitedPlans?.annual : unlimitedPlans?.monthly
+    if (!selected) return
     setCheckoutPlan('unlimited')
-    checkoutMutation.mutate(isAnnual ? PRICE_IDS.unlimited_annual : PRICE_IDS.unlimited_monthly)
+    checkoutMutation.mutate(selected.id)
   }
 
   return (
@@ -426,14 +457,9 @@ export function PricingPage() {
             icon={<Zap size={18} />}
             priceMonthly={0}
             priceAnnual={0}
+            currency="USD"
             description="Perfect for trying out HumaniseAI"
-            features={[
-              '500 words / month',
-              '4 writing tones',
-              'All strength levels',
-              'Up to 5 history items',
-              'Email support',
-            ]}
+            features={groupedPlans.find((g) => g.tier === 'Free')?.monthly?.features ?? []}
             cta="Get Started Free"
             isAnnual={isAnnual}
             onSelect={() => {}}
@@ -445,16 +471,11 @@ export function PricingPage() {
           <PlanCard
             name="Pro"
             icon={<Crown size={18} />}
-            priceMonthly={149}
-            priceAnnual={1428}
+            priceMonthly={proPlans?.monthly?.price ?? 0}
+            priceAnnual={proPlans?.annual?.price ?? 0}
+            currency={proPlans?.monthly?.currency ?? proPlans?.annual?.currency ?? 'USD'}
             description="For writers and content creators"
-            features={[
-              '50,000 words / month',
-              'All tones & strengths',
-              'Unlimited history',
-              'Priority support',
-              'Advanced analytics',
-            ]}
+            features={(isAnnual ? proPlans?.annual : proPlans?.monthly)?.features ?? []}
             cta="Upgrade to Pro"
             featured
             isAnnual={isAnnual}
@@ -466,16 +487,11 @@ export function PricingPage() {
           <PlanCard
             name="Unlimited"
             icon={<Infinity size={18} />}
-            priceMonthly={299}
-            priceAnnual={2868}
+            priceMonthly={unlimitedPlans?.monthly?.price ?? 0}
+            priceAnnual={unlimitedPlans?.annual?.price ?? 0}
+            currency={unlimitedPlans?.monthly?.currency ?? unlimitedPlans?.annual?.currency ?? 'USD'}
             description="For teams and power users"
-            features={[
-              'Unlimited words / month',
-              'Everything in Pro',
-              'API access',
-              'Dedicated support',
-              'Custom integrations',
-            ]}
+            features={(isAnnual ? unlimitedPlans?.annual : unlimitedPlans?.monthly)?.features ?? []}
             cta="Go Unlimited"
             isAnnual={isAnnual}
             onSelect={handleUnlimitedCheckout}

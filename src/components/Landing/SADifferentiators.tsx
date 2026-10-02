@@ -8,10 +8,10 @@ const CARDS = [
     icon: Banknote,
     iconBg: 'bg-emerald-500/15',
     iconColor: 'text-emerald-400',
-    title: 'Priced in Rands',
+    title: 'Transparent USD Pricing',
     description:
-      'No currency conversion. No dollar-based pricing that changes with the exchange rate. R149/month, full stop.',
-    badge: 'R149/mo Pro',
+      'One clear price, no hidden fees or surprise conversions. Starter plans from $10/month, full stop.',
+    badge: '$10/mo Starter',
     badgeClass: 'bg-emerald-500/15 text-emerald-300',
   },
   {

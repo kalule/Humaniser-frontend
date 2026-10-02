@@ -51,6 +51,18 @@ client.interceptors.response.use(
 
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
+    // ── Unwrap Blob error bodies ──────────────────────────────────────────────
+    // Requests made with `responseType: 'blob'` (docx/pdf downloads) get their error
+    // response body delivered as a Blob too, even when the server sent JSON — none of
+    // the JSON-shaped checks below would ever match otherwise.
+    if (error.response?.data instanceof Blob && error.response.data.type.includes('json')) {
+      try {
+        error.response.data = JSON.parse(await error.response.data.text())
+      } catch {
+        // leave as-is if it wasn't actually parseable JSON
+      }
+    }
+
     // ── 401 Unauthorized — attempt silent refresh via httpOnly cookie ─────────
     // Skip retry if the failing request IS the refresh endpoint — retrying
     // would loop: refresh→401→refresh→401→...
@@ -111,13 +123,26 @@ client.interceptors.response.use(
         new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString()
 
       const { useUiStore } = await import('../store/uiStore')
-      if (code === 'CREDIT_LIMIT_EXCEEDED') {
+      if (code === 'DETECTOR_CAP_EXCEEDED') {
+        useUiStore.getState().openDetectorCapModal({ used, limit, resetDate })
+      } else if (code === 'CREDIT_LIMIT_EXCEEDED') {
         useUiStore.getState().openCreditLimitModal({ used, limit, resetDate })
       } else {
         useUiStore.getState().openWordLimitModal({ used, limit, resetDate })
       }
 
       return Promise.reject(error)
+    }
+
+    // ── 403 Forbidden — tier-gated feature (e.g. Humaniser Full mode on Free) ────
+    if (error.response?.status === 403) {
+      const body = error.response.data as { error?: { code?: string; message?: string; details?: Record<string, unknown> } } | null
+      if (body?.error?.code === 'TIER_FEATURE_LOCKED') {
+        const details = (body.error.details ?? {}) as Record<string, unknown>
+        const requiredPlan = (details.requiredPlan as string) ?? 'a higher tier'
+        toast.error(body.error.message ?? `This feature requires the ${requiredPlan} plan.`, { duration: 5000 })
+        return Promise.reject({ code: 'TIER_FEATURE_LOCKED', message: body.error.message, requiredPlan })
+      }
     }
 
     // ── 429 Rate Limited ──────────────────────────────────────────────────────

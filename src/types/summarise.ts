@@ -28,6 +28,9 @@ export interface SummariseResponse {
   wordsUsed: number
   wordsLimit: number
   wordsRemaining: number
+  creditsUsed: number
+  creditsLimit: number
+  creditsRemaining: number
 }
 
 export const SUMMARISE_MODE_INDEX: Record<SummariseMode, number> = {
@@ -47,7 +50,7 @@ export const SUMMARISE_MODE_LABELS: Record<SummariseMode, string> = {
 }
 
 export const SUMMARISE_MODE_DESCRIPTIONS: Record<SummariseMode, string> = {
-  KeyPoints:        'Numbered list of the most important insights',
+  KeyPoints:        'Bulleted list of the most important insights',
   ExecutiveSummary: 'Concise paragraph for senior stakeholders',
   Abstract:         'Formal academic-style single paragraph',
   TlDr:             '2-3 sentence ultra-brief version',

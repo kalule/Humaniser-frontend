@@ -1,11 +1,12 @@
 import { create } from 'zustand'
-import type { ParaphraseMode, ParaphraseStrength, ParaphraseResponse } from '../types/paraphrase'
+import type { ParaphraseMode, ParaphraseStrength, ParaphraseLength, ParaphraseResponse } from '../types/paraphrase'
 
 interface ParaphraseState {
   inputText: string
   outputText: string
   selectedMode: ParaphraseMode
   selectedStrength: ParaphraseStrength
+  selectedLength: ParaphraseLength
   isLoading: boolean
   error: string | null
   lastResponse: ParaphraseResponse | null
@@ -13,6 +14,7 @@ interface ParaphraseState {
   setInputText: (t: string) => void
   setMode: (m: ParaphraseMode) => void
   setStrength: (s: ParaphraseStrength) => void
+  setLength: (l: ParaphraseLength) => void
   setLoading: (v: boolean) => void
   setError: (e: string | null) => void
   setLastResponse: (r: ParaphraseResponse) => void
@@ -24,6 +26,7 @@ const initial = {
   outputText:       '',
   selectedMode:     'Standard' as ParaphraseMode,
   selectedStrength: 'medium' as ParaphraseStrength,
+  selectedLength:   'None' as ParaphraseLength,
   isLoading:        false,
   error:            null,
   lastResponse:     null,
@@ -34,6 +37,7 @@ export const useParaphraseStore = create<ParaphraseState>((set) => ({
   setInputText:    (t) => set({ inputText: t }),
   setMode:         (m) => set({ selectedMode: m }),
   setStrength:     (s) => set({ selectedStrength: s }),
+  setLength:       (l) => set({ selectedLength: l }),
   setLoading:      (v) => set({ isLoading: v }),
   setError:        (e) => set({ error: e }),
   setLastResponse: (r) => set({ lastResponse: r, outputText: r.paraphrasedText }),

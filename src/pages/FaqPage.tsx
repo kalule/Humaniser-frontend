@@ -206,8 +206,8 @@ function CategorySection({ category }: { category: FaqCategory }) {
 
 export default function FaqPage() {
   useDocumentTitle(
-    'FAQ — AI Humaniser, Detector & Research Tools | HumaniseAI',
-    'Answers to common questions about humanising AI text, AI detection, Proposal Studio, Data Analyst, pricing, and word limits on HumaniseAI, built for South African students and researchers.',
+    'FAQ — AI Humaniser, Detector, Paraphraser & More | HumaniseAI',
+    'Answers to common questions about humanising AI text, AI detection, paraphrasing, grammar checking, summarising, pricing, and word limits on HumaniseAI.',
     '/faq',
   )
   const [filter, setFilter] = useState('')

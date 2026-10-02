@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { Loader2, Sparkles } from 'lucide-react'
+import { Loader2, Plus, Sparkles, X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useSystematicReviewStore } from '../../store/systematicReviewStore'
 import { useCreditGate } from '../../hooks/useCreditGate'
@@ -98,6 +98,8 @@ export default function EvidenceGradingStep({ reviewId, detail, onSaved }: Evide
   const updateGradeUpgradeRatingAction = useSystematicReviewStore(s => s.updateGradeUpgradeRating)
   const skipEvidenceGradingAction = useSystematicReviewStore(s => s.skipEvidenceGrading)
   const loadDetail = useSystematicReviewStore(s => s.loadDetail)
+  const setExtractionVariableOutcome = useSystematicReviewStore(s => s.setExtractionVariableOutcome)
+  const suggestOutcomeFlags = useSystematicReviewStore(s => s.suggestOutcomeFlags)
 
   const [records, setRecords] = useState<EvidenceGradeRecord[]>([])
   const [summary, setSummary] = useState<EvidenceGradingSummary | null>(detail.evidenceGradingSummary)
@@ -106,8 +108,12 @@ export default function EvidenceGradingStep({ reviewId, detail, onSaved }: Evide
 
   const [runStatus, setRunStatus] = useState<EvidenceGradingRunStatus | null>(null)
   const [isRunningJob, setIsRunningJob] = useState(false)
+  // One reconcile per mount, so the refresh cannot loop.
+  const reconciledRef = useRef(false)
   const [statusChecking, setStatusChecking] = useState(true)
   const [runError, setRunError] = useState<string | null>(null)
+  const [flaggingVariableId, setFlaggingVariableId] = useState<string | null>(null)
+  const [suggestingOutcomes, setSuggestingOutcomes] = useState(false)
   const [pendingSkip, setPendingSkip] = useState(false)
 
   const loadRecords = async () => {
@@ -161,7 +167,18 @@ export default function EvidenceGradingStep({ reviewId, detail, onSaved }: Evide
       getEvidenceGradingRunStatus(reviewId).then(status => {
         if (cancelled) return
         setRunStatus(status)
-        if (status.isRunning) setIsRunningJob(true)
+        if (status.isRunning) {
+          setIsRunningJob(true)
+        } else if (!reconciledRef.current) {
+          // Same reconcile-on-mount as RiskOfBiasStep. The completion branch above only fires for
+          // a running -> finished transition this component personally witnessed; if the job
+          // finished while the user was elsewhere (another step, a reload, another tab), that
+          // transition never happens here and the workspace keeps the summary it loaded BEFORE
+          // the run. The step's "Next" gate reads that summary, so finished work can still look
+          // unfinished and block the step.
+          reconciledRef.current = true
+          loadDetail(reviewId).catch(() => {})
+        }
       }).catch(() => {}).finally(() => {
         if (!cancelled) setStatusChecking(false)
       })
@@ -220,7 +237,40 @@ export default function EvidenceGradingStep({ reviewId, detail, onSaved }: Evide
   }
 
   const hasRun = summary !== null && summary.totalOutcomes > 0 && summary.pending < summary.totalOutcomes
+  // Flag outcomes from HERE rather than sending the reviewer back to Data Extraction to hunt for
+  // a small icon and return. Nothing but this flag populates the step, so an empty state whose only
+  // instruction points at another step is a dead end — which is exactly how a live review stalled
+  // here on 2026-09-05. Kept visible once outcomes exist too: one flagged outcome (often the wrong
+  // one) used to hide these controls, leaving no way to add the second or drop a mis-flagged first.
+  const handleSetOutcome = async (variableId: string, isOutcome: boolean) => {
+    setFlaggingVariableId(variableId)
+    try {
+      await setExtractionVariableOutcome(reviewId, variableId, isOutcome)
+      await loadDetail(reviewId).catch(() => {})
+      await loadRecords()
+      onSaved()
+    } finally {
+      setFlaggingVariableId(null)
+    }
+  }
+
+  // Reviews created before variable suggestions carried the outcome flag have none set, and
+  // picking them out by hand means knowing what GRADE counts as an outcome. Ask the model instead.
+  const handleSuggestOutcomes = async () => {
+    setSuggestingOutcomes(true)
+    try {
+      await suggestOutcomeFlags(reviewId)
+      await loadDetail(reviewId).catch(() => {})
+      await loadRecords()
+      onSaved()
+    } finally {
+      setSuggestingOutcomes(false)
+    }
+  }
+
   const isObservational = detail.riskOfBiasTool === 'RobinsI'
+  const outcomeVariables = detail.extractionVariables.filter(v => v.isOutcome)
+  const nonOutcomeVariables = detail.extractionVariables.filter(v => !v.isOutcome)
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -234,16 +284,83 @@ export default function EvidenceGradingStep({ reviewId, detail, onSaved }: Evide
           {records.length > 0 ? (
             <>
               <p className="text-[13px] font-semibold text-slate-700">{records.length} outcome{records.length === 1 ? '' : 's'} ready for grading</p>
-              <p className="text-[12px] text-slate-500 mt-0.5">Outcomes render in the comparison table below once grading data is available.</p>
+              <p className="text-[12px] text-slate-500 mt-0.5">
+                Outcomes render in the comparison table below once grading data is available. Add or
+                remove outcomes here, then re-run grading.
+              </p>
             </>
           ) : (
             <>
               <p className="text-[13px] font-semibold text-slate-700">No outcomes flagged for grading yet</p>
               <p className="text-[12px] text-slate-500 mt-0.5">
-                Go to Data Extraction and click the checkmark on a variable to flag it as an outcome — flagged
-                variables become the rows graded here.
+                GRADE rates certainty per outcome. Pick the extracted variables that record a{' '}
+                <span className="font-medium text-slate-700">result</span> — an efficacy measure, symptom
+                score, exacerbation rate, adverse event — rather than a descriptive field.
               </p>
             </>
+          )}
+
+          {outcomeVariables.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Graded as outcomes</p>
+              <div className="flex flex-wrap gap-1.5">
+                {outcomeVariables.map(v => (
+                  <button
+                    key={v.id}
+                    onClick={() => handleSetOutcome(v.id, false)}
+                    disabled={flaggingVariableId !== null}
+                    className="flex items-center gap-1.5 bg-white border border-violet-200 hover:border-red-300 hover:bg-red-50 rounded-lg px-2.5 py-1 text-[12px] font-medium text-slate-700 transition-colors disabled:opacity-50"
+                    title={`Stop grading "${v.name}" — it isn't an outcome`}
+                  >
+                    {flaggingVariableId === v.id
+                      ? <Loader2 size={11} className="animate-spin text-violet-500" />
+                      : <X size={11} className="text-slate-400" />}
+                    {v.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {nonOutcomeVariables.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Add an outcome</p>
+              <div className="flex flex-wrap gap-1.5">
+                {nonOutcomeVariables.map(v => (
+                  <button
+                    key={v.id}
+                    onClick={() => handleSetOutcome(v.id, true)}
+                    disabled={flaggingVariableId !== null}
+                    className="flex items-center gap-1.5 bg-white border border-slate-200 hover:border-violet-300 hover:bg-violet-50 rounded-lg px-2.5 py-1 text-[12px] font-medium text-slate-700 transition-colors disabled:opacity-50"
+                    title={`Mark "${v.name}" as an outcome to grade`}
+                  >
+                    {flaggingVariableId === v.id
+                      ? <Loader2 size={11} className="animate-spin text-violet-500" />
+                      : <Plus size={11} className="text-violet-500" />}
+                    {v.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {nonOutcomeVariables.length > 0 && (
+            <button
+              onClick={handleSuggestOutcomes}
+              disabled={suggestingOutcomes || flaggingVariableId !== null}
+              className="mt-2.5 flex items-center gap-1.5 text-[12px] font-semibold text-violet-600 hover:text-violet-700 disabled:opacity-50"
+            >
+              {suggestingOutcomes
+                ? <Loader2 size={12} className="animate-spin" />
+                : <Sparkles size={12} />}
+              Let AI pick the outcomes
+            </button>
+          )}
+
+          {detail.extractionVariables.length === 0 && (
+            <p className="text-[12px] text-slate-400 mt-2">
+              No extraction variables defined yet — add them in Data Extraction first.
+            </p>
           )}
         </div>
 

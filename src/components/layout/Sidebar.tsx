@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sparkles, History, Settings, CreditCard, ChevronLeft, ChevronRight, ChevronUp, X, LogOut,
+  Sparkles, History, Settings, CreditCard, ChevronLeft, ChevronRight, ChevronUp, X, LogOut, ShieldCheck,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
@@ -72,6 +72,15 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     ? 'var(--color-amber)'
     : 'var(--color-purple)';
 
+  const detectorChecksUsed  = user?.detectorChecksUsed  ?? 0;
+  const detectorChecksLimit = user?.detectorChecksLimit ?? 8;
+  const detectorPct = detectorChecksLimit > 0 ? (detectorChecksUsed / detectorChecksLimit) * 100 : 0;
+  const detectorColor = detectorPct > 90
+    ? 'var(--color-red)'
+    : detectorPct > 70
+    ? 'var(--color-amber)'
+    : 'var(--color-purple)';
+
   const userInitials = user?.name
     ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : (user?.email?.[0]?.toUpperCase() ?? 'U');
@@ -113,6 +122,18 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             <Icon size={15} /> {label}
           </Link>
         ))}
+        {user?.role === 'Admin' && (
+          <Link
+            to="/admin"
+            onClick={() => { setUserMenuOpen(false); onMobileClose(); }}
+            className="flex items-center gap-3 px-3 py-2.5 text-sm transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-rail)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <ShieldCheck size={15} /> Admin
+          </Link>
+        )}
         <div style={{ borderTop: '0.5px solid var(--border-hairline)' }} />
         <button
           onClick={() => { setUserMenuOpen(false); handleLogout(); }}
@@ -195,8 +216,10 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           )}
         </div>
 
-        {/* Tool list */}
-        <div className="flex-1 overflow-y-auto py-4 scrollbar-thin">
+        {/* Tool list — min-h-0 lets this shrink below its content height so it
+            scrolls internally instead of pushing the footer past the h-screen
+            sidebar (which clipped bottom items like "Citations" on short viewports) */}
+        <div className="flex-1 min-h-0 overflow-y-auto py-4 scrollbar-thin">
           {TOOL_SECTIONS.map((sec, i) => (
             <div key={sec.section} className={cn(i > 0 && 'mt-5')}>
               {!compact && (
@@ -352,6 +375,25 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                       />
                     </div>
                   )}
+                </div>
+                <div className="mb-3 px-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>AI Detector checks this month</p>
+                  </div>
+                  <div className="flex justify-between items-end mb-2">
+                    <p className="text-[16px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {detectorChecksUsed.toLocaleString()} of {detectorChecksLimit.toLocaleString()} used
+                    </p>
+                    <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+                      {Math.max(detectorChecksLimit - detectorChecksUsed, 0).toLocaleString()} remaining
+                    </p>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border-hairline)' }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(detectorPct, 100)}%`, background: detectorColor }}
+                    />
+                  </div>
                 </div>
                 {plan === 'Free' && (
                   <Link to="/app/billing" onClick={onMobileClose}>
