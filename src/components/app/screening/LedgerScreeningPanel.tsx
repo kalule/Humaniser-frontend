@@ -281,9 +281,16 @@ export default function LedgerScreeningPanel({ reviewId, stage, onChanged }: Led
             </button>
             {showExports && (
               <div className="absolute right-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 text-[12px]">
-                <button onClick={() => runExport('ledger')} className="w-full text-left px-3 py-2 hover:bg-slate-50">Screening ledger (every record, unscreened included)</button>
-                <button onClick={() => runExport('audit')} className="w-full text-left px-3 py-2 hover:bg-slate-50">Audit history (every decision and change)</button>
-                <button onClick={() => runExport('asreview')} className="w-full text-left px-3 py-2 hover:bg-slate-50">ASReview LAB import file</button>
+                {/* Decision exports show every reviewer's choices, so screening reviewers do not get them (independent screening). */}
+                {canAdjudicate ? (
+                  <>
+                    <button onClick={() => runExport('ledger')} className="w-full text-left px-3 py-2 hover:bg-slate-50">Screening ledger (every record, unscreened included)</button>
+                    <button onClick={() => runExport('audit')} className="w-full text-left px-3 py-2 hover:bg-slate-50">Audit history (every decision and change)</button>
+                    <button onClick={() => runExport('asreview')} className="w-full text-left px-3 py-2 hover:bg-slate-50">ASReview LAB import file</button>
+                  </>
+                ) : (
+                  <p className="px-3 py-2 text-slate-500">Decision exports are available to the review owner and adjudicators, so that reviewers screen independently.</p>
+                )}
                 <button onClick={openMethods} className="w-full text-left px-3 py-2 hover:bg-slate-50 border-t border-slate-100">Methods text from the record</button>
               </div>
             )}
