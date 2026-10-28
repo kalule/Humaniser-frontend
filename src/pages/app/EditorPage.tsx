@@ -20,6 +20,7 @@ import {
   Lock,
   Clipboard,
   Check,
+  RotateCcw,
 } from 'lucide-react'
 import { cn, countWords, formatNumber } from '../../lib/utils'
 import { renderInlineMarkdown, consumeBoldMarker } from '../../lib/inlineMarkdown'
@@ -43,7 +44,7 @@ import { PanelFooterBar } from '../../components/ui/PanelFooterBar'
 import { DetectionScoreGauge } from '../../components/workspace/DetectionScoreGauge'
 import { ToolBottomActionRow } from '../../components/ui/ToolBottomActionRow'
 import { useToolTransferStore } from '../../store/toolTransferStore'
-import type { Tone, Strength } from '../../types'
+import type { Tone, Strength, EnglishVariant, HumaniseOutcome, HumaniseParagraphReview } from '../../types'
 import type { DetectResponse, SentenceScore, LayerScores } from '../../types/detector'
 
 const STORAGE_KEY_INPUT  = 'humanise_draft_input'
@@ -365,6 +366,8 @@ export function EditorPage() {
   // server-side — LengthBudget clamps to ±5% and a mechanical correction pass enforces it — this
   // was just never exposed in the UI). Default true to match the backend default.
   const [keepLength, setKeepLength] = useState(true)
+  // Spelling preference. 'preserve' keeps whichever variant the author wrote in.
+  const [englishVariant, setEnglishVariant] = useState<EnglishVariant>('preserve')
   const [enhance, setEnhance] = useState({
     reduceRepetition: false,
     improveCriticalAnalysis: false,
@@ -514,7 +517,7 @@ export function EditorPage() {
     mutationFn: () =>
       humaniseApi.humanise({
         text: inputText, tone: wireTone, strength: activeLevel.strength,
-        preserveLength: keepLength, ...enhance,
+        preserveLength: keepLength, englishVariant, ...enhance,
       }).then((r) => r.data),
     onMutate:  () => { setLoading(true); setError(null) },
     onSuccess: (data) => {
@@ -529,7 +532,10 @@ export function EditorPage() {
       setDetectionResult(null)
       setDetectionCheckedFor('')
       setMobileView('humanised')
-      toast.success('Text humanised successfully!')
+      toast.success(
+        data.outcome === 'unchanged' ? 'Your text already reads well, so it was left unchanged.'
+          : data.outcome === 'needs_review' ? 'Revised. Some paragraphs need your review.'
+          : 'Text humanised successfully!')
     },
     onError: (err: unknown) => {
       const status = (err as { response?: { status?: number } })?.response?.status
@@ -558,6 +564,10 @@ export function EditorPage() {
     setError(null)
     setIsChunkedResult(false)
     const humanisedParts: string[] = []
+    // Each part is checked separately on the server; its paragraph reviews are re-indexed into the whole document.
+    const reviews: HumaniseParagraphReview[] = []
+    const outcomes: HumaniseOutcome[] = []
+    let paragraphOffset = 0
     try {
       for (let i = 0; i < inputChunks.length; i++) {
         setChunkProgress({ done: i + 1, total: inputChunks.length })
@@ -566,12 +576,18 @@ export function EditorPage() {
           tone: wireTone,
           strength: activeLevel.strength,
           preserveLength: keepLength,
+          englishVariant,
           ...enhance,
         }).then(r => r.data)
         humanisedParts.push(res.humanisedText)
+        outcomes.push(res.outcome ?? 'changed')
+        for (const r of res.paragraphReviews ?? []) reviews.push({ ...r, index: r.index + paragraphOffset })
+        paragraphOffset += inputChunks[i].trim().split(/\n\s*\n/).length
         if (i === inputChunks.length - 1) {
           updateUser({ wordsUsed: res.usage.wordsUsed, wordsLimit: res.usage.wordsLimit })
-          setLastResponse({ ...res, humanisedText: humanisedParts.join('\n\n'), wordCount: humanisedParts.join('\n\n').split(/\s+/).filter(Boolean).length })
+          const outcome: HumaniseOutcome = outcomes.includes('needs_review') ? 'needs_review'
+            : outcomes.every((o) => o === 'unchanged') ? 'unchanged' : 'changed'
+          setLastResponse({ ...res, humanisedText: humanisedParts.join('\n\n'), wordCount: humanisedParts.join('\n\n').split(/\s+/).filter(Boolean).length, outcome, paragraphReviews: reviews })
         }
       }
       setLastUsedSettings({ tone: effectiveTone, rewriteLevel })
@@ -591,7 +607,7 @@ export function EditorPage() {
       setLoading(false)
       setChunkProgress(null)
     }
-  }, [inputText, inputChunks, needsChunking, isLoading, isAtLimit, wordsUsed, wordsLimit, openWordLimitModal, effectiveTone, wireTone, activeLevel, rewriteLevel, mutation, setLoading, setError, setLastResponse, updateUser])
+  }, [inputText, inputChunks, needsChunking, isLoading, isAtLimit, wordsUsed, wordsLimit, openWordLimitModal, effectiveTone, wireTone, activeLevel, rewriteLevel, mutation, setLoading, setError, setLastResponse, updateUser, keepLength, englishVariant, enhance])
 
   const handleCheckAI = useCallback(async (textToCheck?: string) => {
     const raw = textToCheck ?? outputText
@@ -812,6 +828,22 @@ export function EditorPage() {
                 >
                   Keep length
                 </button>
+
+                {/* Spelling — maps to HumaniseRequest.englishVariant; 'preserve' keeps the author's variant */}
+                <label className="sr-only" htmlFor="humanise-spelling">Spelling</label>
+                <select
+                  id="humanise-spelling"
+                  value={englishVariant}
+                  onChange={(e) => setEnglishVariant(e.target.value as EnglishVariant)}
+                  disabled={isLoading}
+                  title="Spelling: keep your own variant, or use British, South African or American spelling"
+                  className="px-2 py-1.5 rounded-lg text-[13px] font-medium border bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 disabled:opacity-50"
+                >
+                  <option value="preserve">Spelling: as written</option>
+                  <option value="en-GB">British spelling</option>
+                  <option value="en-ZA">South African spelling</option>
+                  <option value="en-US">American spelling</option>
+                </select>
 
                 {/* Enhance — opt-in academic-quality passes, off by default */}
                 <div className="relative" ref={enhanceMenuRef}>
@@ -1210,6 +1242,16 @@ export function EditorPage() {
                       >
                         {isCheckingAI ? 'Scanning…' : detectionResult && !detectionIsStale ? 'Rescan' : 'Check AI'}
                       </OutputActionButton>
+                      {outputText.trim() !== inputText.trim() && (
+                        <OutputActionButton
+                          icon={<RotateCcw size={14} />}
+                          className={OUTPUT_BTN_SIZE}
+                          onClick={() => setOutputText(inputText)}
+                          title="Replace the revision with your original text"
+                        >
+                          Restore original
+                        </OutputActionButton>
+                      )}
                       <OutputActionButton icon={<ClipboardCopy size={14} />} className={OUTPUT_BTN_SIZE} onClick={() => handleCopy(outputText)} title="Copy result (Ctrl+Shift+C)">
                         Copy
                       </OutputActionButton>
@@ -1248,6 +1290,46 @@ export function EditorPage() {
             </div>
           </div>
         </div>
+
+        {/* ─── REVISION OUTCOME — the server checks each paragraph against the original. "Unchanged" is a valid
+             result; restored or flagged paragraphs are listed here, apart from the copyable text. */}
+        <AnimatePresence>
+          {lastResponse?.outcome && lastResponse.outcome !== 'changed' && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className={cn(
+                'mt-4 rounded-2xl px-5 py-3.5 shrink-0 border',
+                lastResponse.outcome === 'unchanged' ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200',
+              )}
+            >
+              <div className="flex items-start gap-2.5">
+                <AlertCircle size={16} className={cn('shrink-0 mt-0.5', lastResponse.outcome === 'unchanged' ? 'text-emerald-600' : 'text-amber-600')} />
+                <div className="min-w-0 space-y-1 flex-1">
+                  <p className={cn('text-[13px] font-semibold', lastResponse.outcome === 'unchanged' ? 'text-emerald-800' : 'text-amber-800')}>
+                    {lastResponse.outcome === 'unchanged'
+                      ? 'Your text already reads clearly, so it was left unchanged.'
+                      : 'Some paragraphs need your review before you use this text'}
+                  </p>
+                  {(lastResponse.paragraphReviews?.length ?? 0) > 0 && (
+                    <ul className="text-[12px] text-amber-800/90 space-y-0.5">
+                      {lastResponse.paragraphReviews!.map((r) => (
+                        <li key={`review-${r.index}-${r.status}`}>
+                          <span className="font-medium">
+                            Paragraph {r.index + 1}: {r.status === 'restored_original' ? 'kept your original wording' : 'check this change'}.
+                          </span>{' '}
+                          {r.notes.slice(0, 2).join(' ')}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ─── CITATION INTEGRITY — a dropped or fabricated citation is a correctness
              problem, not a style one, so unlike the AI-detection estimate this is never

@@ -82,7 +82,11 @@ export interface HumaniseRequest {
   improveArgumentFlow?: boolean
   calibrateCausalClaims?: boolean
   improveParagraphCoherence?: boolean
+  /** Spelling preference. Omitted or 'preserve' keeps the author's own variant. */
+  englishVariant?: EnglishVariant
 }
+
+export type EnglishVariant = 'preserve' | 'en-GB' | 'en-US' | 'en-ZA'
 
 export type Tone = 'casual' | 'professional' | 'academic' | 'conversational'
 
@@ -102,6 +106,19 @@ export interface HumaniseResponse {
   citationIntegrity: CitationIntegrityCheck
   /** Only set when the request's tone was 'auto' — the register RegisterDetector picked. */
   resolvedTone?: Tone
+  /** 'unchanged' is a valid result: the text already read well. 'needs_review': see paragraphReviews. */
+  outcome?: HumaniseOutcome
+  paragraphReviews?: HumaniseParagraphReview[]
+}
+
+export type HumaniseOutcome = 'changed' | 'unchanged' | 'needs_review'
+
+/** A paragraph the server restored to the original wording or flagged for the author to check. index is 0-based. */
+export interface HumaniseParagraphReview {
+  index: number
+  status: 'restored_original' | 'flagged'
+  codes: string[]
+  notes: string[]
 }
 
 /** All zero when the result was served from cache, except the word counts. */
