@@ -1,0 +1,35 @@
+﻿{
+    "proposalId":  "4ffb55e2-c8da-4feb-99c6-086c565fed6c",
+    "models":  [
+                   "claude-haiku-4-5-20251001"
+               ],
+    "unpricedUsageCount":  0,
+    "databaseEndpoint":  "localhost:15433/humaniseaidb",
+    "lastCallUtc":  "2026-10-04T12:23:38.901438+00:00",
+    "priceScheduleVersions":  [
+                                  "sha256:494574674e2ffe052f1a2076e2880fdd19e6c3c357df5af29e93437989173cf7"
+                              ],
+    "finalized":  false,
+    "backendWorkingTree":  "Uncommitted changes present; commit alone does not identify running build",
+    "nonLlmSearchChargesMeasured":  false,
+    "ledgerRecords":  73,
+    "partialUsageCount":  0,
+    "unknownUsageCount":  0,
+    "knownLlmCostUsd":  0.36258,
+    "migration":  "20261004110750_AddProposalLlmAttribution",
+    "providerInvoiceReconciled":  false,
+    "intendedPipeline":  "StrictProposalWorkflow",
+    "pendingBaselineJobs":  0,
+    "applicationBuildHashes":  {
+                                   "HumaniseAI.Infrastructure.dll":  "2B8CA1280175641EDAD0C8CDDCE3B43CC24E7AAAC7EFB3BC09DB9B3264ED3CED",
+                                   "HumaniseAI.Domain.dll":  "20BF102102D9A057E440D8B15403BDC01375FEDC9E4D98A954AA43D54E03A466",
+                                   "HumaniseAI.API.dll":  "1A80BF6A111B91450BF2A265B9802BEFB3CCC1FF4822A715EF2E4125BF6DE22E",
+                                   "HumaniseAI.Application.dll":  "7345C1923C1C786EE7BB3ED038440904E73FBEB5796FE8F5949EB44241E6F73E"
+                               },
+    "capturedUtc":  "2026-10-04T12:26:16.7202608Z",
+    "baselineStatus":  "BlockedAtEvidenceReview",
+    "apiUrl":  "http://localhost:5062",
+    "backendHead":  "f9f9f074a7684a163a280948d8bb6b748dad1ef9",
+    "firstCallUtc":  "2026-10-04T12:14:44.027484+00:00",
+    "seqCompletionEventCount":  73
+}

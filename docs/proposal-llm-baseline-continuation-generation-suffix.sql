@@ -1,0 +1,1 @@
+﻿SELECT right("PayloadJson"::jsonb->>'rawOutput', 180) AS response_suffix FROM proposal_workflow_artifacts WHERE "ProjectId"='4ffb55e2-c8da-4feb-99c6-086c565fed6c' AND "Kind"='GenerationResult' ORDER BY "CreatedAt" DESC LIMIT 1;

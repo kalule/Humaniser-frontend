@@ -1,5 +1,5 @@
 import type { ElementType } from 'react'
-import { Sparkles, Shield, RefreshCw, Scissors, SpellCheck, ClipboardCheck, ClipboardList, GraduationCap, Library, ScrollText, BadgeCheck, Globe, MessageSquare, BookMarked, BookOpen, Mic, Brain, BarChart3 } from 'lucide-react'
+import { Sparkles, Shield, RefreshCw, Scissors, SpellCheck, ClipboardCheck, ClipboardList, Library, ScrollText, BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope } from 'lucide-react'
 
 // Single source of truth for tool navigation — drives the sidebar, the page
 // header title, and the browser tab title, so all three can never drift out
@@ -31,14 +31,14 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    section: '' ,// 'Check & Improve',
+    section: 'Check & Improve',
     items: [
       { label: 'Humaniser',      icon: Sparkles,   link: '/app/humaniser' },
       { label: 'AI Detector',  icon: Shield,     link: '/app/detector' },
       { label: 'Paraphraser',  icon: RefreshCw,  link: '/app/paraphrase' },
       { label: 'Grammar',      icon: SpellCheck, link: '/app/grammar' },
-      // { label: 'Plagiarism Check', icon: BookOpen,   link: '/app/plagiarism' },
-       { label: 'Summariser',    icon: Scissors,      link: '/app/summarise' },
+      // // { label: 'Plagiarism Check', icon: BookOpen,   link: '/app/plagiarism' },
+      { label: 'Summariser',    icon: Scissors,      link: '/app/summarise' },
        { label: 'Citation Integrity', icon: BadgeCheck, link: '/app/citation-integrity' },
     ],
   },
@@ -46,6 +46,7 @@ export const NAV_SECTIONS: NavSection[] = [
     section: 'Research',
     items: [
       { label: 'Research Library',   icon: Globe,         link: '/app/web-library', matchPrefix: '/app/web-library' },
+      { label: 'Deep Research',      icon: Telescope,     link: '/app/deep-research' },
       { label: 'Document Chat', icon: MessageSquare, link: '/app/document-chat' },
       //{ label: 'Citations',     icon: BookMarked,    link: '/app/citations' },
      // { label: 'Literature Review', icon: BookOpen,  link: '/app/literature-review' },

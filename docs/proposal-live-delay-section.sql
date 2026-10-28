@@ -1,0 +1,2 @@
+﻿SELECT "SectionCode","Status","WordCount",length("Content") AS content_characters,"GenerationError","GeneratedAt" FROM project_sections WHERE "ProjectId"='bf282007-306b-4a22-8201-fee5ead053c1' AND "SectionCode"='1.0';
+SELECT j.id,j.statename,j.invocationdata::jsonb->>'Type' AS job_type,s.data->>'PerformanceDuration' AS duration_ms FROM hangfire.job j JOIN hangfire.state s ON s.id=j.stateid WHERE j.arguments::text LIKE '%bf282007-306b-4a22-8201-fee5ead053c1%' ORDER BY j.id DESC LIMIT 8;

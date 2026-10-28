@@ -89,6 +89,7 @@ export type Tone = 'casual' | 'professional' | 'academic' | 'conversational'
 export type Strength = 'light' | 'balanced' | 'aggressive' | 'maximum' | 'medium' | 'heavy'
 
 export interface HumaniseResponse {
+  job?: import('../api/humaniseJobs').HumaniseJobResult
   humanisedText: string
   wordCount: number
   processingTimeMs: number

@@ -1,0 +1,1156 @@
+{
+  "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('heading', { name: 'Supporting research', exact: true }) to be visible\u001b[22m\n",
+  "errors": [],
+  "gets": [
+    "/api/v1/library",
+    "/api/v1/library/folders",
+    "/api/v1/web-library",
+    "/api/v1/web-library/folders",
+    "/api/v1/studio",
+    "/api/v1/workbench/pinned-charts",
+    "/api/v1/research/projects",
+    "/api/v1/studio",
+    "/api/v1/research/proposal-journeys",
+    "/api/v1/studio",
+    "/api/v1/research/projects",
+    "/api/v1/research/proposal-journeys",
+    "/api/v1/research/projects/new/proposal-workflow",
+    "/api/v1/research/projects/new/proposal-workflow/history",
+    "/api/v1/research/proposal-journeys/new",
+    "/api/v1/research/projects/new/proposal-workflow",
+    "/api/v1/research/projects/new/proposal-workflow/history",
+    "/api/v1/research/projects/new/design",
+    "/api/v1/library",
+    "/api/v1/library/folders",
+    "/api/v1/web-library",
+    "/api/v1/web-library/folders",
+    "/api/v1/studio",
+    "/api/v1/workbench/pinned-charts",
+    "/api/v1/research/projects/p/proposal-workflow",
+    "/api/v1/research/projects/p/proposal-workflow/history",
+    "/api/v1/research/proposal-journeys/p",
+    "/api/v1/research/projects/p/proposal-workflow",
+    "/api/v1/research/projects/p/proposal-workflow/history",
+    "/api/v1/research/projects/p/design",
+    "/api/v1/research/projects/p/proposal-workflow",
+    "/api/v1/research/projects/p/proposal-workflow/history",
+    "/api/v1/research/proposal-journeys/p",
+    "/api/v1/research/projects/p/proposal-workflow",
+    "/api/v1/research/projects/p/proposal-workflow/history",
+    "/api/v1/research/projects/p/proposal-workflow",
+    "/api/v1/research/projects/p/proposal-workflow/history",
+    "/api/v1/research/projects/p/proposal-workflow",
+    "/api/v1/research/projects/p/proposal-workflow/history",
+    "/api/v1/research/projects/p/proposal-workflow",
+    "/api/v1/research/projects/p/proposal-workflow/history",
+    "/api/v1/research/deep-research",
+    "/api/v1/research/deep-research/projects/p/packages",
+    "/api/v1/research/deep-research/projects/p/review-feedback",
+    "/api/v1/research/projects/p/proposal-workflow/sources",
+    "/api/v1/research/deep-research",
+    "/api/v1/research/deep-research/projects/p/packages",
+    "/api/v1/research/deep-research/projects/p/review-feedback"
+  ],
+  "responses": {
+    "/api/v1/auth/refresh": {
+      "accessToken": "mock",
+      "user": {
+        "id": "student",
+        "email": "test@example.test",
+        "name": "Student",
+        "plan": "Pro",
+        "isEmailVerified": true
+      }
+    },
+    "/api/v1/library": [],
+    "/api/v1/library/folders": [],
+    "/api/v1/web-library": [],
+    "/api/v1/web-library/folders": [],
+    "/api/v1/studio": [],
+    "/api/v1/workbench/pinned-charts": [],
+    "/api/v1/research/projects": [
+      {
+        "id": "p",
+        "title": "LMS adoption",
+        "academicLevel": "MASTERS",
+        "citationStyle": "harvard",
+        "documentMode": "PROPOSAL",
+        "generatorMode": "AGENT",
+        "createdAt": "2026-10-01T10:00:00Z",
+        "updatedAt": "2026-10-05T10:00:00Z",
+        "generation": {
+          "status": "Idle"
+        }
+      },
+      {
+        "id": "legacy-1",
+        "title": "Saved proposal 1",
+        "academicLevel": "MASTERS",
+        "citationStyle": "harvard",
+        "documentMode": "PROPOSAL",
+        "generatorMode": "GENERATOR",
+        "createdAt": "2026-10-01T10:00:00Z",
+        "updatedAt": "2026-10-05T10:00:00Z",
+        "generation": {
+          "status": "Idle"
+        }
+      }
+    ],
+    "/api/v1/research/proposal-journeys": [
+      {
+        "projectId": "p",
+        "stage": "DesignReady",
+        "nextAction": "CompleteDesign",
+        "allowedActions": [
+          "Open",
+          "ViewSources",
+          "ViewReview"
+        ],
+        "designRequired": true,
+        "acceptedRevisionId": null,
+        "writingMode": null,
+        "affectedSections": 0,
+        "hasContent": false
+      },
+      {
+        "projectId": "legacy-1",
+        "stage": "Writing",
+        "nextAction": "ContinueLegacy",
+        "allowedActions": [
+          "Open"
+        ],
+        "designRequired": false,
+        "acceptedRevisionId": null,
+        "writingMode": null,
+        "affectedSections": 0,
+        "hasContent": true
+      }
+    ],
+    "/api/v1/research/projects/new/proposal-workflow": {
+      "accepted": null,
+      "importedDraft": {
+        "title": "LMS adoption",
+        "problem": "A scoped learning problem",
+        "field": "Education",
+        "academicLevel": "MASTERS",
+        "geography": "Cape Town",
+        "population": "Undergraduate students",
+        "unitOfAnalysis": "Student",
+        "temporalScope": "2027",
+        "framework": "",
+        "contribution": "Association",
+        "limitations": "One campus",
+        "scopeLimits": "One population",
+        "citationStyle": "harvard",
+        "institutionRequirements": "Reviewed",
+        "universityTemplateId": null,
+        "methodologyVersion": 2,
+        "mixedMethodIntegration": "",
+        "totalWords": 6000,
+        "hypothesisApplicability": "NotApplicable",
+        "hypothesisRationale": "Descriptive",
+        "hypotheses": [],
+        "questions": [],
+        "objectives": [],
+        "constructs": [],
+        "dataSources": [],
+        "analyses": [],
+        "sampling": {
+          "design": "Correlation",
+          "confidence": 0.95,
+          "margin": null,
+          "proportion": null,
+          "populationSize": null,
+          "effectSize": 0.3,
+          "power": 0.8,
+          "designEffect": 1,
+          "responseRate": 0.9,
+          "frame": "Registry",
+          "rationale": "Primary association"
+        },
+        "study": {
+          "$family": "Quantitative"
+        }
+      },
+      "policyVersion": "test",
+      "enforcementMode": "Enforced",
+      "fingerprint": "private",
+      "contracts": [
+        {
+          "code": "1.0",
+          "title": "Introduction",
+          "order": 1,
+          "targetWords": 400,
+          "minWords": 300,
+          "maxWords": 500,
+          "required": true,
+          "dependencies": [],
+          "requiresEvidence": true
+        }
+      ],
+      "findings": [
+        {
+          "key": "review",
+          "status": "Pending",
+          "severity": "Blocker",
+          "message": "Review before finishing",
+          "sectionCode": null
+        }
+      ],
+      "evidence": [],
+      "gaps": [],
+      "reviews": []
+    },
+    "/api/v1/research/projects/new/proposal-workflow/history": {
+      "revisions": [],
+      "artifacts": [],
+      "sections": []
+    },
+    "/api/v1/research/proposal-journeys/new": {
+      "summary": {
+        "projectId": "new",
+        "stage": "SettingUp",
+        "nextAction": "CompleteDesign",
+        "allowedActions": [
+          "Open"
+        ],
+        "designRequired": true,
+        "acceptedRevisionId": null,
+        "writingMode": null,
+        "affectedSections": 0,
+        "hasContent": false
+      },
+      "readiness": null,
+      "generation": null
+    },
+    "/api/v1/research/projects/new/design": {
+      "projectId": "new",
+      "runId": null,
+      "status": "NotStarted",
+      "currentStage": "NotStarted",
+      "progress": {
+        "stage": "NotStarted",
+        "phase": "NotStarted",
+        "startedAt": null,
+        "elapsedSeconds": null,
+        "revalidating": false
+      },
+      "researchSummary": {
+        "title": "LMS usability and student satisfaction at selected South African universities",
+        "problem": "Understand the association between usability and satisfaction",
+        "field": "Education",
+        "academicLevel": "Masters"
+      },
+      "methodology": {
+        "family": "Quantitative",
+        "design": "CrossSectionalCorrelational",
+        "intent": "Association",
+        "rationale": "The questions examine associations without manipulating variables.",
+        "paradigm": "Postpositivist",
+        "samplingStrategy": "Stratified"
+      },
+      "recommendedDesign": {
+        "id": "candidate",
+        "methodology": {
+          "family": "Quantitative",
+          "design": "CrossSectionalCorrelational",
+          "intent": "Association",
+          "rationale": "The questions examine associations without manipulating variables.",
+          "paradigm": "Postpositivist",
+          "samplingStrategy": "Stratified"
+        },
+        "rationale": "Measured usability and satisfaction address your association question without claiming causation.",
+        "strengths": [
+          "Feasible within the study period"
+        ],
+        "limitations": [
+          "Cannot establish causal effects"
+        ],
+        "assumptions": [
+          "Access to students is available"
+        ],
+        "comparison": []
+      },
+      "alternativeDesigns": [
+        {
+          "id": "alternative",
+          "methodology": {
+            "family": "Quantitative",
+            "design": "Longitudinal",
+            "intent": "Association",
+            "rationale": "Examine changes",
+            "paradigm": "Postpositivist",
+            "samplingStrategy": "Stratified"
+          },
+          "rationale": "Repeated measurements can explore change over time.",
+          "strengths": [
+            "Measures change"
+          ],
+          "limitations": [
+            "Requires more time"
+          ],
+          "assumptions": [],
+          "comparison": []
+        }
+      ],
+      "researchQuestions": [
+        {
+          "id": "q1",
+          "text": "How is LMS usability associated with student satisfaction?"
+        }
+      ],
+      "objectives": [
+        {
+          "id": "o1",
+          "text": "Examine the association between usability and satisfaction.",
+          "type": "Specific",
+          "questionIds": [
+            "q1"
+          ],
+          "constructIds": [
+            "c1"
+          ],
+          "dataSourceIds": [
+            "d1"
+          ],
+          "analysisIds": [
+            "a1"
+          ]
+        }
+      ],
+      "alignment": [
+        {
+          "questionId": "q1",
+          "objectiveId": "o1",
+          "constructIds": [
+            "c1"
+          ],
+          "dataRequired": "Usability and satisfaction scores",
+          "dataSourceIds": [
+            "d1"
+          ],
+          "collectionMethods": [
+            "Survey"
+          ],
+          "instrumentIds": [
+            "i1"
+          ],
+          "analysisIds": [
+            "a1"
+          ],
+          "expectedOutput": "Association estimate with uncertainty"
+        }
+      ],
+      "population": {
+        "target": "Undergraduate students",
+        "accessible": "Students at selected universities",
+        "geography": "South Africa",
+        "unitOfAnalysis": "Student",
+        "temporalScope": "One academic term"
+      },
+      "sampling": {
+        "design": "Correlation",
+        "confidence": 0.95,
+        "margin": null,
+        "proportion": null,
+        "populationSize": null,
+        "effectSize": 0.3,
+        "power": 0.8,
+        "designEffect": 1,
+        "responseRate": 0.7,
+        "frame": "Institutional student lists",
+        "rationale": "Represent each institution"
+      },
+      "sampleAdequacy": {
+        "status": "Supported",
+        "completed": 85,
+        "invited": 122,
+        "assumptions": [
+          "Planning effect requires review"
+        ],
+        "approximation": true,
+        "perGroup": null,
+        "requirement": null,
+        "calculatorVersion": "test-only"
+      },
+      "constructs": [
+        {
+          "id": "c1",
+          "name": "LMS usability",
+          "definition": "Ease of using the learning platform",
+          "kind": "Variable",
+          "role": "Predictor",
+          "scale": "Continuous",
+          "unit": "Score",
+          "operationalisation": "Questionnaire score"
+        }
+      ],
+      "instruments": [
+        {
+          "id": "i1",
+          "name": "Usability questionnaire",
+          "version": null,
+          "context": "Higher education",
+          "claimsValidated": true,
+          "permissionResolved": true
+        }
+      ],
+      "dataCollection": [
+        {
+          "id": "d1",
+          "name": "Student questionnaire",
+          "collectionMethod": "Survey",
+          "literatureId": null
+        }
+      ],
+      "analysisPlan": [
+        {
+          "id": "a1",
+          "method": "Correlation",
+          "assumptions": [
+            "Review scale properties and independence"
+          ],
+          "missingDataHandling": "Assess missingness before selecting handling",
+          "strand": "Quantitative"
+        }
+      ],
+      "ethics": [
+        {
+          "type": "Consent",
+          "plan": "Obtain informed consent before collecting responses"
+        }
+      ],
+      "evidence": [
+        {
+          "needId": "need1",
+          "type": "InstrumentValidity",
+          "label": "Questionnaire suitability",
+          "reason": "Check measurement in a comparable student population",
+          "status": "Supported",
+          "mandatory": true,
+          "evidenceCount": 2,
+          "contradictionPresent": false,
+          "limitations": [
+            "Transferability to the study setting needs review"
+          ],
+          "updatedAt": "2026-10-06T08:00:00Z",
+          "researchStatus": "Complete"
+        }
+      ],
+      "findings": [],
+      "questions": [],
+      "readiness": {
+        "status": "NotReady",
+        "blockers": 0,
+        "major": 0,
+        "minor": 0,
+        "warnings": 0,
+        "canAccept": false
+      },
+      "allowedActions": [
+        "View"
+      ],
+      "version": "22222222-2222-4222-8222-222222222222",
+      "canonicalRevision": null,
+      "updatedAt": "2026-10-06T08:00:00Z",
+      "attention": "Your topic is saved. A structured study setup is required before we can recommend a research design. Topic-only recommendations are not available yet.",
+      "budget": {
+        "status": "Available",
+        "consumedCredits": 0
+      }
+    },
+    "/api/v1/research/projects/p/proposal-workflow": {
+      "accepted": {
+        "id": "revision-b",
+        "version": 2,
+        "hash": "hash",
+        "specification": {
+          "title": "LMS adoption",
+          "problem": "A scoped learning problem",
+          "field": "Education",
+          "academicLevel": "MASTERS",
+          "geography": "Cape Town",
+          "population": "Undergraduate students",
+          "unitOfAnalysis": "Student",
+          "temporalScope": "2027",
+          "framework": "",
+          "contribution": "Association",
+          "limitations": "One campus",
+          "scopeLimits": "One population",
+          "citationStyle": "harvard",
+          "institutionRequirements": "Reviewed",
+          "universityTemplateId": null,
+          "methodologyVersion": 2,
+          "mixedMethodIntegration": "",
+          "totalWords": 6000,
+          "hypothesisApplicability": "NotApplicable",
+          "hypothesisRationale": "Descriptive",
+          "hypotheses": [],
+          "questions": [],
+          "objectives": [],
+          "constructs": [],
+          "dataSources": [],
+          "analyses": [],
+          "sampling": {
+            "design": "Correlation",
+            "confidence": 0.95,
+            "margin": null,
+            "proportion": null,
+            "populationSize": null,
+            "effectSize": 0.3,
+            "power": 0.8,
+            "designEffect": 1,
+            "responseRate": 0.9,
+            "frame": "Registry",
+            "rationale": "Primary association"
+          },
+          "study": {
+            "$family": "Quantitative"
+          }
+        }
+      },
+      "importedDraft": {
+        "title": "LMS adoption",
+        "problem": "A scoped learning problem",
+        "field": "Education",
+        "academicLevel": "MASTERS",
+        "geography": "Cape Town",
+        "population": "Undergraduate students",
+        "unitOfAnalysis": "Student",
+        "temporalScope": "2027",
+        "framework": "",
+        "contribution": "Association",
+        "limitations": "One campus",
+        "scopeLimits": "One population",
+        "citationStyle": "harvard",
+        "institutionRequirements": "Reviewed",
+        "universityTemplateId": null,
+        "methodologyVersion": 2,
+        "mixedMethodIntegration": "",
+        "totalWords": 6000,
+        "hypothesisApplicability": "NotApplicable",
+        "hypothesisRationale": "Descriptive",
+        "hypotheses": [],
+        "questions": [],
+        "objectives": [],
+        "constructs": [],
+        "dataSources": [],
+        "analyses": [],
+        "sampling": {
+          "design": "Correlation",
+          "confidence": 0.95,
+          "margin": null,
+          "proportion": null,
+          "populationSize": null,
+          "effectSize": 0.3,
+          "power": 0.8,
+          "designEffect": 1,
+          "responseRate": 0.9,
+          "frame": "Registry",
+          "rationale": "Primary association"
+        },
+        "study": {
+          "$family": "Quantitative"
+        }
+      },
+      "policyVersion": "test",
+      "enforcementMode": "Enforced",
+      "fingerprint": "private",
+      "contracts": [
+        {
+          "code": "1.0",
+          "title": "Introduction",
+          "order": 1,
+          "targetWords": 400,
+          "minWords": 300,
+          "maxWords": 500,
+          "required": true,
+          "dependencies": [],
+          "requiresEvidence": true
+        }
+      ],
+      "findings": [
+        {
+          "key": "review",
+          "status": "Pending",
+          "severity": "Blocker",
+          "message": "Review before finishing",
+          "sectionCode": null
+        }
+      ],
+      "evidence": [],
+      "gaps": [],
+      "reviews": []
+    },
+    "/api/v1/research/projects/p/proposal-workflow/history": {
+      "revisions": [],
+      "artifacts": [],
+      "sections": []
+    },
+    "/api/v1/research/proposal-journeys/p": {
+      "summary": {
+        "projectId": "p",
+        "stage": "ReadyToWrite",
+        "nextAction": "ChooseWritingMode",
+        "allowedActions": [
+          "Open",
+          "ViewSources",
+          "ViewReview",
+          "ChooseWritingMode"
+        ],
+        "designRequired": true,
+        "acceptedRevisionId": "revision-b",
+        "writingMode": null,
+        "affectedSections": 0,
+        "hasContent": false
+      },
+      "readiness": {
+        "mode": "CanonicalResearchDesign",
+        "canGenerate": true,
+        "acceptedRevisionId": "revision-b",
+        "acceptedVersion": 2,
+        "boundRevisionId": "revision-b",
+        "validationFingerprint": "private-fingerprint",
+        "findings": [],
+        "sections": [],
+        "allowedActions": [
+          "ViewResearchDesign",
+          "Generate"
+        ]
+      },
+      "generation": {
+        "status": "Idle",
+        "completedCount": 0,
+        "totalCount": 25,
+        "currentSection": null,
+        "wordsWritten": 0,
+        "failedCount": 0
+      }
+    },
+    "/api/v1/research/projects/p/design": {
+      "projectId": "p",
+      "runId": null,
+      "status": "ReadyForReview",
+      "currentStage": "ReadyForReview",
+      "progress": {
+        "stage": "NotStarted",
+        "phase": "NotStarted",
+        "startedAt": null,
+        "elapsedSeconds": null,
+        "revalidating": false
+      },
+      "researchSummary": {
+        "title": "LMS usability and student satisfaction at selected South African universities",
+        "problem": "Understand the association between usability and satisfaction",
+        "field": "Education",
+        "academicLevel": "Masters"
+      },
+      "methodology": {
+        "family": "Quantitative",
+        "design": "CrossSectionalCorrelational",
+        "intent": "Association",
+        "rationale": "The questions examine associations without manipulating variables.",
+        "paradigm": "Postpositivist",
+        "samplingStrategy": "Stratified"
+      },
+      "recommendedDesign": {
+        "id": "candidate",
+        "methodology": {
+          "family": "Quantitative",
+          "design": "CrossSectionalCorrelational",
+          "intent": "Association",
+          "rationale": "The questions examine associations without manipulating variables.",
+          "paradigm": "Postpositivist",
+          "samplingStrategy": "Stratified"
+        },
+        "rationale": "Measured usability and satisfaction address your association question without claiming causation.",
+        "strengths": [
+          "Feasible within the study period"
+        ],
+        "limitations": [
+          "Cannot establish causal effects"
+        ],
+        "assumptions": [
+          "Access to students is available"
+        ],
+        "comparison": []
+      },
+      "alternativeDesigns": [
+        {
+          "id": "alternative",
+          "methodology": {
+            "family": "Quantitative",
+            "design": "Longitudinal",
+            "intent": "Association",
+            "rationale": "Examine changes",
+            "paradigm": "Postpositivist",
+            "samplingStrategy": "Stratified"
+          },
+          "rationale": "Repeated measurements can explore change over time.",
+          "strengths": [
+            "Measures change"
+          ],
+          "limitations": [
+            "Requires more time"
+          ],
+          "assumptions": [],
+          "comparison": []
+        }
+      ],
+      "researchQuestions": [
+        {
+          "id": "q1",
+          "text": "How is LMS usability associated with student satisfaction?"
+        }
+      ],
+      "objectives": [
+        {
+          "id": "o1",
+          "text": "Examine the association between usability and satisfaction.",
+          "type": "Specific",
+          "questionIds": [
+            "q1"
+          ],
+          "constructIds": [
+            "c1"
+          ],
+          "dataSourceIds": [
+            "d1"
+          ],
+          "analysisIds": [
+            "a1"
+          ]
+        }
+      ],
+      "alignment": [
+        {
+          "questionId": "q1",
+          "objectiveId": "o1",
+          "constructIds": [
+            "c1"
+          ],
+          "dataRequired": "Usability and satisfaction scores",
+          "dataSourceIds": [
+            "d1"
+          ],
+          "collectionMethods": [
+            "Survey"
+          ],
+          "instrumentIds": [
+            "i1"
+          ],
+          "analysisIds": [
+            "a1"
+          ],
+          "expectedOutput": "Association estimate with uncertainty"
+        }
+      ],
+      "population": {
+        "target": "Undergraduate students",
+        "accessible": "Students at selected universities",
+        "geography": "South Africa",
+        "unitOfAnalysis": "Student",
+        "temporalScope": "One academic term"
+      },
+      "sampling": {
+        "design": "Correlation",
+        "confidence": 0.95,
+        "margin": null,
+        "proportion": null,
+        "populationSize": null,
+        "effectSize": 0.3,
+        "power": 0.8,
+        "designEffect": 1,
+        "responseRate": 0.7,
+        "frame": "Institutional student lists",
+        "rationale": "Represent each institution"
+      },
+      "sampleAdequacy": {
+        "status": "Supported",
+        "completed": 85,
+        "invited": 122,
+        "assumptions": [
+          "Planning effect requires review"
+        ],
+        "approximation": true,
+        "perGroup": null,
+        "requirement": null,
+        "calculatorVersion": "test-only"
+      },
+      "constructs": [
+        {
+          "id": "c1",
+          "name": "LMS usability",
+          "definition": "Ease of using the learning platform",
+          "kind": "Variable",
+          "role": "Predictor",
+          "scale": "Continuous",
+          "unit": "Score",
+          "operationalisation": "Questionnaire score"
+        }
+      ],
+      "instruments": [
+        {
+          "id": "i1",
+          "name": "Usability questionnaire",
+          "version": null,
+          "context": "Higher education",
+          "claimsValidated": true,
+          "permissionResolved": true
+        }
+      ],
+      "dataCollection": [
+        {
+          "id": "d1",
+          "name": "Student questionnaire",
+          "collectionMethod": "Survey",
+          "literatureId": null
+        }
+      ],
+      "analysisPlan": [
+        {
+          "id": "a1",
+          "method": "Correlation",
+          "assumptions": [
+            "Review scale properties and independence"
+          ],
+          "missingDataHandling": "Assess missingness before selecting handling",
+          "strand": "Quantitative"
+        }
+      ],
+      "ethics": [
+        {
+          "type": "Consent",
+          "plan": "Obtain informed consent before collecting responses"
+        }
+      ],
+      "evidence": [
+        {
+          "needId": "need1",
+          "type": "InstrumentValidity",
+          "label": "Questionnaire suitability",
+          "reason": "Check measurement in a comparable student population",
+          "status": "Supported",
+          "mandatory": true,
+          "evidenceCount": 2,
+          "contradictionPresent": false,
+          "limitations": [
+            "Transferability to the study setting needs review"
+          ],
+          "updatedAt": "2026-10-06T08:00:00Z",
+          "researchStatus": "Complete"
+        }
+      ],
+      "findings": [],
+      "questions": [],
+      "readiness": {
+        "status": "NotReady",
+        "blockers": 0,
+        "major": 0,
+        "minor": 0,
+        "warnings": 0,
+        "canAccept": false
+      },
+      "allowedActions": [
+        "Accept",
+        "Revise",
+        "Cancel"
+      ],
+      "version": "22222222-2222-4222-8222-222222222222",
+      "canonicalRevision": null,
+      "updatedAt": "2026-10-06T08:00:00Z",
+      "attention": null,
+      "budget": {
+        "status": "Available",
+        "consumedCredits": 0
+      }
+    },
+    "/api/v1/research/projects/p/design/runs/null/accept": {
+      "view": {
+        "projectId": "p",
+        "runId": null,
+        "status": "Accepted",
+        "currentStage": "ReadyForReview",
+        "progress": {
+          "stage": "NotStarted",
+          "phase": "NotStarted",
+          "startedAt": null,
+          "elapsedSeconds": null,
+          "revalidating": false
+        },
+        "researchSummary": {
+          "title": "LMS usability and student satisfaction at selected South African universities",
+          "problem": "Understand the association between usability and satisfaction",
+          "field": "Education",
+          "academicLevel": "Masters"
+        },
+        "methodology": {
+          "family": "Quantitative",
+          "design": "CrossSectionalCorrelational",
+          "intent": "Association",
+          "rationale": "The questions examine associations without manipulating variables.",
+          "paradigm": "Postpositivist",
+          "samplingStrategy": "Stratified"
+        },
+        "recommendedDesign": {
+          "id": "candidate",
+          "methodology": {
+            "family": "Quantitative",
+            "design": "CrossSectionalCorrelational",
+            "intent": "Association",
+            "rationale": "The questions examine associations without manipulating variables.",
+            "paradigm": "Postpositivist",
+            "samplingStrategy": "Stratified"
+          },
+          "rationale": "Measured usability and satisfaction address your association question without claiming causation.",
+          "strengths": [
+            "Feasible within the study period"
+          ],
+          "limitations": [
+            "Cannot establish causal effects"
+          ],
+          "assumptions": [
+            "Access to students is available"
+          ],
+          "comparison": []
+        },
+        "alternativeDesigns": [
+          {
+            "id": "alternative",
+            "methodology": {
+              "family": "Quantitative",
+              "design": "Longitudinal",
+              "intent": "Association",
+              "rationale": "Examine changes",
+              "paradigm": "Postpositivist",
+              "samplingStrategy": "Stratified"
+            },
+            "rationale": "Repeated measurements can explore change over time.",
+            "strengths": [
+              "Measures change"
+            ],
+            "limitations": [
+              "Requires more time"
+            ],
+            "assumptions": [],
+            "comparison": []
+          }
+        ],
+        "researchQuestions": [
+          {
+            "id": "q1",
+            "text": "How is LMS usability associated with student satisfaction?"
+          }
+        ],
+        "objectives": [
+          {
+            "id": "o1",
+            "text": "Examine the association between usability and satisfaction.",
+            "type": "Specific",
+            "questionIds": [
+              "q1"
+            ],
+            "constructIds": [
+              "c1"
+            ],
+            "dataSourceIds": [
+              "d1"
+            ],
+            "analysisIds": [
+              "a1"
+            ]
+          }
+        ],
+        "alignment": [
+          {
+            "questionId": "q1",
+            "objectiveId": "o1",
+            "constructIds": [
+              "c1"
+            ],
+            "dataRequired": "Usability and satisfaction scores",
+            "dataSourceIds": [
+              "d1"
+            ],
+            "collectionMethods": [
+              "Survey"
+            ],
+            "instrumentIds": [
+              "i1"
+            ],
+            "analysisIds": [
+              "a1"
+            ],
+            "expectedOutput": "Association estimate with uncertainty"
+          }
+        ],
+        "population": {
+          "target": "Undergraduate students",
+          "accessible": "Students at selected universities",
+          "geography": "South Africa",
+          "unitOfAnalysis": "Student",
+          "temporalScope": "One academic term"
+        },
+        "sampling": {
+          "design": "Correlation",
+          "confidence": 0.95,
+          "margin": null,
+          "proportion": null,
+          "populationSize": null,
+          "effectSize": 0.3,
+          "power": 0.8,
+          "designEffect": 1,
+          "responseRate": 0.7,
+          "frame": "Institutional student lists",
+          "rationale": "Represent each institution"
+        },
+        "sampleAdequacy": {
+          "status": "Supported",
+          "completed": 85,
+          "invited": 122,
+          "assumptions": [
+            "Planning effect requires review"
+          ],
+          "approximation": true,
+          "perGroup": null,
+          "requirement": null,
+          "calculatorVersion": "test-only"
+        },
+        "constructs": [
+          {
+            "id": "c1",
+            "name": "LMS usability",
+            "definition": "Ease of using the learning platform",
+            "kind": "Variable",
+            "role": "Predictor",
+            "scale": "Continuous",
+            "unit": "Score",
+            "operationalisation": "Questionnaire score"
+          }
+        ],
+        "instruments": [
+          {
+            "id": "i1",
+            "name": "Usability questionnaire",
+            "version": null,
+            "context": "Higher education",
+            "claimsValidated": true,
+            "permissionResolved": true
+          }
+        ],
+        "dataCollection": [
+          {
+            "id": "d1",
+            "name": "Student questionnaire",
+            "collectionMethod": "Survey",
+            "literatureId": null
+          }
+        ],
+        "analysisPlan": [
+          {
+            "id": "a1",
+            "method": "Correlation",
+            "assumptions": [
+              "Review scale properties and independence"
+            ],
+            "missingDataHandling": "Assess missingness before selecting handling",
+            "strand": "Quantitative"
+          }
+        ],
+        "ethics": [
+          {
+            "type": "Consent",
+            "plan": "Obtain informed consent before collecting responses"
+          }
+        ],
+        "evidence": [
+          {
+            "needId": "need1",
+            "type": "InstrumentValidity",
+            "label": "Questionnaire suitability",
+            "reason": "Check measurement in a comparable student population",
+            "status": "Supported",
+            "mandatory": true,
+            "evidenceCount": 2,
+            "contradictionPresent": false,
+            "limitations": [
+              "Transferability to the study setting needs review"
+            ],
+            "updatedAt": "2026-10-06T08:00:00Z",
+            "researchStatus": "Complete"
+          }
+        ],
+        "findings": [],
+        "questions": [],
+        "readiness": {
+          "status": "NotReady",
+          "blockers": 0,
+          "major": 0,
+          "minor": 0,
+          "warnings": 0,
+          "canAccept": false
+        },
+        "allowedActions": [
+          "View",
+          "Revise"
+        ],
+        "version": "22222222-2222-4222-8222-222222222222",
+        "canonicalRevision": "revision-b",
+        "updatedAt": "2026-10-06T08:00:00Z",
+        "attention": null,
+        "budget": {
+          "status": "Available",
+          "consumedCredits": 0
+        }
+      },
+      "idempotencyHit": false,
+      "backgroundWork": false
+    },
+    "/api/v1/research/proposal-journeys/p/writing-experience": {
+      "summary": {
+        "projectId": "p",
+        "stage": "Writing",
+        "nextAction": "ContinueWriting",
+        "allowedActions": [
+          "Open",
+          "ViewSources",
+          "ViewReview",
+          "ChooseWritingMode"
+        ],
+        "designRequired": true,
+        "acceptedRevisionId": "revision-b",
+        "writingMode": "FirstDraft",
+        "affectedSections": 0,
+        "hasContent": false
+      },
+      "readiness": {
+        "mode": "CanonicalResearchDesign",
+        "canGenerate": true,
+        "acceptedRevisionId": "revision-b",
+        "acceptedVersion": 2,
+        "boundRevisionId": "revision-b",
+        "validationFingerprint": "private-fingerprint",
+        "findings": [],
+        "sections": [],
+        "allowedActions": [
+          "ViewResearchDesign",
+          "Generate"
+        ]
+      },
+      "generation": {
+        "status": "Idle",
+        "completedCount": 0,
+        "totalCount": 25,
+        "currentSection": null,
+        "wordsWritten": 0,
+        "failedCount": 0
+      }
+    },
+    "/api/v1/research/deep-research": [],
+    "/api/v1/research/deep-research/projects/p/packages": [],
+    "/api/v1/research/deep-research/projects/p/review-feedback": null,
+    "/api/v1/research/projects/p/proposal-workflow/sources": []
+  },
+  "url": "http://127.0.0.1:3019/app/research-agent/p/proposal-workflow?tab=evidence",
+  "body": "Skip to main content\nH\nHumaniseAI\nNew\n\nWRITE\n\nDocuments\nProposal Studio\nSystematic Review\nDocument Reviewer\n\nCHECK & IMPROVE\n\nHumaniser\nAI Detector\nParaphraser\nGrammar\nSummariser\nCitation Integrity\n\nRESEARCH\n\nResearch Library\nDeep Research\nDocument Chat\nLecture Notes\nFlashcards\n\nANALYZE\n\nData Analyst\nS\nStudent\nWords: 0 / 500\nProposal Studio\nPro Plan\nST\nBack to proposals\nLMS adoption\n\nWriting proposal\n\nRefresh proposal\nDesign study\nSources\nProposal\nReview\nReview your proposal\n\nA submission document requires current research, section acceptance, evidence checks and successful semantic and examiner reviews. Draft downloads remain available from the research workspace.\n\nCheck proposal consistency\nReview academic requirements\nFinish & download\nPending\n\nReview before finishing\n\nProposal history"
+}

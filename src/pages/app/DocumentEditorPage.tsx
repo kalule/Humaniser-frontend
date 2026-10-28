@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
-import { Node as TipTapNode, Extension, mergeAttributes } from '@tiptap/core'
+import { Extension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import TextAlign from '@tiptap/extension-text-align'
 import { TextStyle } from '@tiptap/extension-text-style'
@@ -29,55 +29,28 @@ import { useCitationStore } from '../../store/citationStore'
 import { useCitation } from '../../hooks/useCitation'
 import type { CitationDto, FormatStyle } from '../../types/citation'
 import { FORMAT_LABELS, FORMAT_STYLES } from '../../types/citation'
-import type { WriteWithAiResponse, WriteWithAiReference, EssayCitationStyle, ReviewDocumentResponse } from '../../types/workbench'
+import type { CoWriteSession, WriteWithAiResponse, WriteWithAiReference, EssayCitationStyle, WriteWithAiDocumentType, ReviewDocumentResponse, ThesisChapterKind } from '../../types/workbench'
+import { useDraftHandoffStore } from '../../store/draftHandoffStore'
+import { documentGenreToWriteWithAiDocumentType, formatStyleToEssayCitationStyle } from '../../lib/draftHandoffMapping'
 import { WriteWithAiModal } from '../../components/app/WriteWithAiModal'
+import { EssayCoWritePanel } from '../../components/app/EssayCoWritePanel'
+import { FORMAT_STYLE_OF, insertCoWriteSection } from '../../lib/essayCoWrite'
+import {
+  PENDING_MAX_AGE_MS, clearPendingGeneration, fetchLiteratureReviewOutcome, loadPendingGeneration,
+} from '../../lib/literatureReviewRecovery'
 import { ReviewResultsModal } from '../../components/app/ReviewResultsModal'
 import { workbenchApi } from '../../api/workbench'
-import { formatEssayInTextCitation, formatEssayNarrativeCitation, formatEssayReferenceListEntry, groupConsecutiveAuthorDateCitations, type EssayCitationStyleName } from '../../lib/citationFormat'
+import { formatEssayReferenceListEntry, type EssayCitationStyleName } from '../../lib/citationFormat'
 import { orderEssayReferences } from '../../lib/essayReferenceOrder'
+import { appendGeneratedReferenceSection, renderGeneratedEssay } from '../../lib/generatedEssay'
+import { EssayCitationNode, CitationReferenceNode } from '../../components/app/EssayCitationNode'
+import { EssayCitationPopover } from '../../components/app/EssayCitationPopover'
+import { citationItems, sourceFromCitation, formatCitationGroup, essayStyle, sourceOrder, refreshCitationLabels, interactiveCitationTokens, referenceHtml, upgradeLegacyCitations, type EditorSource } from '../../lib/editorCitations'
 import { renderCaseStudyParagraphs } from '../../lib/caseStudyTableFormat'
 import { exportAsWord } from '../../lib/wordExport'
 import toast from 'react-hot-toast'
 
 // ── Citation TipTap Node ──────────────────────────────────────────────────────
-
-const CitationNode = TipTapNode.create({
-  name: 'citation',
-  group: 'inline',
-  inline: true,
-  atom: true,
-  addAttributes() {
-    return {
-      citationId: { default: null },
-      label:      { default: '' },
-    }
-  },
-  parseHTML() {
-    return [{ tag: 'cite[data-citation-id]' }]
-  },
-  renderHTML({ HTMLAttributes }) {
-    return ['cite', mergeAttributes({ 'data-citation-id': HTMLAttributes.citationId, style: 'color:#4f46e5;font-style:normal;' }), HTMLAttributes.label]
-  },
-  addNodeView() {
-    return ({ node }) => {
-      const dom = document.createElement('cite')
-      dom.setAttribute('data-citation-id', node.attrs.citationId ?? '')
-      dom.setAttribute('contenteditable', 'false')
-      dom.style.cssText = 'color:#4f46e5;background:#eef2ff;border-radius:3px;padding:0 4px;font-style:normal;white-space:nowrap;cursor:default;user-select:none;font-size:0.9em;'
-      dom.textContent = node.attrs.label as string
-      return {
-        dom,
-        update(updated) {
-          if (updated.type.name !== 'citation') return false
-          dom.textContent = updated.attrs.label as string
-          return true
-        },
-      }
-    }
-  },
-})
-
-// ── Font size mark (no official TipTap v3 extension yet) ──────────────────────
 
 const FontSize = Extension.create({
   name: 'fontSize',
@@ -98,51 +71,8 @@ const FontSize = Extension.create({
 // ── Citation helpers ──────────────────────────────────────────────────────────
 
 function inlineCiteLabel(cit: CitationDto, style: FormatStyle, orderIndex: number): string {
-  const year    = cit.publicationYear ?? 'n.d.'
-  const a0last  = cit.authors[0]?.lastName ?? 'Unknown'
-  const a1last  = cit.authors[1]?.lastName
-  const authorPart =
-    cit.authors.length === 0 ? 'Unknown'
-    : cit.authors.length === 1 ? a0last
-    : cit.authors.length === 2 ? `${a0last} & ${a1last}`
-    : `${a0last} et al.`
-
-  switch (style) {
-    case 'apa7':      return `(${authorPart}, ${year})`
-    case 'harvard':   return `(${authorPart}, ${year})`
-    case 'mla':       return `(${a0last})`
-    case 'ieee':      return `[${orderIndex + 1}]`
-    case 'chicago':   return `(${a0last} ${year})`
-    case 'vancouver': return `[${orderIndex + 1}]`
-  }
-}
-
-function refFormatted(cit: CitationDto, style: FormatStyle): string {
-  const map: Record<FormatStyle, string | null> = {
-    apa7:      cit.cachedApa7,
-    harvard:   cit.cachedHarvard,
-    ieee:      cit.cachedIeee,
-    mla:       cit.cachedMla,
-    chicago:   cit.cachedChicago,
-    vancouver: cit.cachedVancouver,
-  }
-  return map[style] ?? cit.title
-}
-
-function scanCitedIds(editorJson: any): string[] {
-  const ids: string[] = []
-  const seen = new Set<string>()
-  function walk(nodes: any[]) {
-    for (const n of nodes ?? []) {
-      if (n.type === 'citation' && n.attrs?.citationId && !seen.has(n.attrs.citationId)) {
-        seen.add(n.attrs.citationId)
-        ids.push(n.attrs.citationId)
-      }
-      if (n.content) walk(n.content)
-    }
-  }
-  walk(editorJson?.content ?? [])
-  return ids
+  const source = sourceFromCitation(cit)
+  return formatCitationGroup([{ sourceId: source.id, source }], style, [...Array.from({ length: orderIndex }, (_, index) => `prior:${index}`), source.id])
 }
 
 function getWordCount(text: string): number {
@@ -207,6 +137,13 @@ function renderEssayParagraphs(text: string, allowSubheadings: boolean): string 
 // ── Editor CSS ────────────────────────────────────────────────────────────────
 
 const EDITOR_STYLES = `
+  .essay-citation { color:#6d28d9; font-style:normal; cursor:pointer; border-radius:3px; padding:1px 2px; }
+  .essay-citation:hover { background:#f5f3ff; }
+  .essay-citation:focus-visible, .essay-citation.ProseMirror-selectednode { background:#ede9fe; outline:2px solid #a78bfa; outline-offset:2px; }
+  .essay-reference { margin:0 0 0.75em; font-size:10pt; line-height:1.6; }
+  .essay-citation-popover button:focus-visible, .essay-citation-popover a:focus-visible { outline:2px solid #8b5cf6; outline-offset:2px; }
+  @media (max-width:639px) { .essay-citation-popover { width:calc(100vw - 16px); border-radius:16px 16px 8px 8px; } }
+
   .tiptap-paper .ProseMirror {
     outline: none;
     min-height: 720px;
@@ -413,8 +350,7 @@ function CitePicker({
 
 type SyncState = 'saved' | 'saving' | 'error' | 'unsaved'
 
-export default function DocumentEditorPage() {
-  const { documentId } = useParams<{ documentId: string }>()
+export default function DocumentEditorPage({ documentId }: { documentId: string }) {
   const navigate = useNavigate()
   const { documents, createDocument, updateDocument, hasLoaded: libraryLoaded } = useLibraryStore()
   const { citations } = useCitationStore()
@@ -435,6 +371,29 @@ export default function DocumentEditorPage() {
   const [citationStyle,  setCitationStyle]   = useState<FormatStyle>('apa7')
   const [editorVersion,  setEditorVersion]   = useState(0) // bump to re-derive citedIds
   const [showWriteAiModal, setShowWriteAiModal] = useState(false)
+  const [aiBusy, setAiBusy] = useState<{ busy: boolean; label: string }>({ busy: false, label: '' })
+  const [recovering, setRecovering] = useState<string | null>(null)
+  // Section-by-section writing: the session the server prepared, and whether its panel is showing.
+  const [coWriteSession, setCoWriteSession] = useState<CoWriteSession | null>(null)
+  const coWriteHasAcceptedSection = useRef(false)
+  const [coWriteOpen, setCoWriteOpen] = useState(true)
+  const handleAiBusyChange = useCallback((busy: boolean, label: string) => setAiBusy({ busy, label }), [])
+  // Generation can take minutes; closing the tab mid-run would lose the paid result.
+  useEffect(() => {
+    if (!aiBusy.busy) return
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [aiBusy.busy])
+  // AI action consolidation (prompt #5, Phase A) — "Continue writing" (formerly the standalone
+  // "Write On" button) lives in this small dropdown off the primary AI button for now. Its real
+  // home is the AI side panel Phase B builds; this is the minimal interim spot that keeps it
+  // reachable without a second colored header button.
+  const [writeAiMenuOpen, setWriteAiMenuOpen] = useState(false)
+  const [aiWritingFailure, setAiWritingFailure] = useState<{ documentId: string | undefined; message: string } | null>(null)
+  const [draftPrefill, setDraftPrefill] = useState<{
+    topic: string; documentType: WriteWithAiDocumentType; citationStyle: EssayCitationStyle; thesisChapter?: ThesisChapterKind
+  } | null>(null)
   const [writeOnLoading, setWriteOnLoading]     = useState(false)
   const [reviewLoading,  setReviewLoading]      = useState(false)
   const [reviewResult,   setReviewResult]       = useState<ReviewDocumentResponse | null>(null)
@@ -482,8 +441,28 @@ export default function DocumentEditorPage() {
       navigate('/app/library')
     } else {
       setDocTitle(doc.title)
+      // New-document creation card (prompt #3) — persisted per-document now instead of always
+      // resetting to the hardcoded default. Undefined for every document saved before this field
+      // existed, so those still fall back to 'apa7' exactly as before.
+      setCitationStyle(doc.citationStyle ?? 'apa7')
     }
   }, [documentId, doc, libraryLoaded])
+
+  // "Create with draft" hand-off (prompt #3) — consume() clears the pending entry on read, so
+  // this only ever fires once per creation, even though this effect itself can re-run (e.g. once
+  // the library finishes loading and `doc` changes identity).
+  useEffect(() => {
+    if (!documentId || documentId === 'new') return
+    const pending = useDraftHandoffStore.getState().consume(documentId)
+    if (!pending) return
+    setDraftPrefill({
+      topic: pending.topic,
+      documentType: documentGenreToWriteWithAiDocumentType(pending.documentType),
+      citationStyle: formatStyleToEssayCitationStyle(pending.citationStyle),
+      thesisChapter: pending.thesisChapter,
+    })
+    setShowWriteAiModal(true)
+  }, [documentId])
 
   // ── Save ──────────────────────────────────────────────────────────────────────
 
@@ -522,7 +501,8 @@ export default function DocumentEditorPage() {
       Image,
       Highlight.configure({ multicolor: true }),
       Placeholder.configure({ placeholder: 'Start typing your document…' }),
-      CitationNode,
+      EssayCitationNode,
+      CitationReferenceNode,
       // Case Study Phase 2, Part 2 — same TableKit + resizable:false config already established
       // in DocumentSurface.tsx (research-agent). This editor is HTML-native (setContent/getHTML,
       // not the Markdown extension DocumentSurface uses), so TableKit's own HTML parseHTML/
@@ -533,7 +513,7 @@ export default function DocumentEditorPage() {
       TableKit.configure({ table: { resizable: false } }),
     ],
     content: doc?.content
-      ? (() => { try { return JSON.parse(doc.content!) } catch { return doc.content } })()
+      ? (() => { try { return upgradeLegacyCitations(JSON.parse(doc.content!), citations, doc.citationStyle ?? citationStyle) } catch { return doc.content } })()
       : '',
     onUpdate: ({ editor }) => {
       setSyncState('unsaved')
@@ -577,7 +557,7 @@ export default function DocumentEditorPage() {
     hydratedContentRef.current = true
     if (doc.content && editor.isEmpty) {
       try {
-        editor.commands.setContent(JSON.parse(doc.content), { emitUpdate: false })
+        editor.commands.setContent(upgradeLegacyCitations(JSON.parse(doc.content), citations, doc.citationStyle ?? citationStyle), { emitUpdate: false })
       } catch {
         editor.commands.setContent(doc.content, { emitUpdate: false })
       }
@@ -600,38 +580,31 @@ export default function DocumentEditorPage() {
 
   useEffect(() => {
     if (!editor) return
-    const { tr, doc: prosedoc } = editor.state
-    let changed = false
-    prosedoc.descendants((node, pos) => {
-      if (node.type.name === 'citation') {
-        const cit = citations.find(c => c.id === node.attrs.citationId)
-        if (!cit) return
-        // We need the order index; scan up to find it
-        const allIds = scanCitedIds(editor.getJSON())
-        const idx = allIds.indexOf(node.attrs.citationId)
-        const newLabel = inlineCiteLabel(cit, citationStyle, idx)
-        if (newLabel !== node.attrs.label) {
-          tr.setNodeMarkup(pos, undefined, { ...node.attrs, label: newLabel })
-          changed = true
-        }
+    const tr = editor.state.tr
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name !== 'citation') return
+      const items = citationItems(node.attrs, citations)
+      if (JSON.stringify(items) !== JSON.stringify(node.attrs.items)) tr.setNodeMarkup(pos, undefined, { ...node.attrs, items })
+    })
+    refreshCitationLabels(tr, citationStyle)
+    if (tr.docChanged) editor.view.dispatch(tr)
+  }, [citationStyle, editor, citations, editorVersion])
+
+  const citedRefs = useMemo(() => {
+    if (!editor) return [] as EditorSource[]
+    const inBibliography = new Set<string>()
+    editor.state.doc.descendants(node => {
+      if (node.type.name === 'citationReference' && node.attrs.source) inBibliography.add(node.attrs.source.id)
+    })
+    const sources = new Map<string, EditorSource>()
+    editor.state.doc.descendants(node => {
+      if (node.type.name !== 'citation') return
+      for (const item of citationItems(node.attrs, citations)) {
+        if (item.source && !inBibliography.has(item.sourceId)) sources.set(item.sourceId, item.source)
       }
     })
-    if (changed) editor.view.dispatch(tr)
-  }, [citationStyle, editor])
-
-  // ── Derived ───────────────────────────────────────────────────────────────────
-
-  const citedIds = useMemo(() => {
-    if (!editor) return []
-    return scanCitedIds(editor.getJSON())
-  }, [editor, editorVersion])
-
-  const citedRefs = useMemo(() =>
-    citedIds
-      .map(id => citations.find(c => c.id === id))
-      .filter((c): c is CitationDto => Boolean(c)),
-    [citedIds, citations]
-  )
+    return [...sources.values()]
+  }, [editor, editorVersion, citations])
 
   const wordCount = useMemo(() => {
     if (!editor) return 0
@@ -669,15 +642,23 @@ export default function DocumentEditorPage() {
     setTitleEditing(false)
   }
 
+  // New-document creation card (prompt #3) — the style picker previously only held local state
+  // that reset to 'apa7' on every reload; now it round-trips through the document itself.
+  const handleCitationStyleChange = (style: FormatStyle) => {
+    setCitationStyle(style)
+    setStyleMenuOpen(false)
+    if (documentId) void updateDocument(documentId, { citationStyle: style })
+  }
+
   const insertCitation = useCallback((cit: CitationDto) => {
     if (!editor) return
-    const allIds = scanCitedIds(editor.getJSON())
-    const existingIdx = allIds.indexOf(cit.id)
+    const allIds = sourceOrder(editor.state.doc)
+    const existingIdx = allIds.indexOf(`library:${cit.id}`)
     const idx = existingIdx >= 0 ? existingIdx : allIds.length
     const label = inlineCiteLabel(cit, citationStyle, idx)
     editor.chain().focus().insertContent({
       type: 'citation',
-      attrs: { citationId: cit.id, label },
+      attrs: { citationId: cit.id, occurrenceId: crypto.randomUUID(), items: [{ sourceId: `library:${cit.id}`, source: sourceFromCitation(cit) }], label },
     }).run()
     toast.success(`Citation inserted: ${label}`)
   }, [editor, citationStyle])
@@ -689,15 +670,16 @@ export default function DocumentEditorPage() {
     bodyHtml: string,
     references: WriteWithAiReference[],
     style: EssayCitationStyleName,
+    namespace: string,
   ) => {
     if (references.length === 0) return bodyHtml
-    const refsHtml = REFERENCES_HEADING + references
-      .map((r, i) => `<p>${formatEssayReferenceListEntry(r, style, i)}</p>`)
+    const refsHtml = references
+      .map((r, i) => referenceHtml({ ...r, id: `${namespace}:${r.sourceId}`, canonicalId: r.canonicalId ?? undefined, openAlexWorkId: r.openAlexWorkId ?? undefined, documentId: r.documentId ?? undefined } as EditorSource, ({ Harvard: 'harvard', Apa7: 'apa7', Ieee: 'ieee', Chicago: 'chicago', Vancouver: 'vancouver' } as const)[style], i))
       .join('')
-    return bodyHtml + refsHtml
+    return appendGeneratedReferenceSection(bodyHtml, refsHtml)
   }
 
-  // Write On (and re-running Write with AI on a non-empty document) both insert new content at
+  // Write On inserts continuation content at
   // the document's end — naively appending would leave a prior generation's References heading
   // sitting in the middle of the document, with the new body prose landing after it and a second
   // References heading tacked onto the true end (confirmed live: 3 separate References sections
@@ -709,6 +691,7 @@ export default function DocumentEditorPage() {
     bodyHtml: string,
     references: WriteWithAiReference[],
     style: EssayCitationStyleName,
+    namespace: string,
   ) => {
     if (!editor) return
     const currentHtml = editor.getHTML()
@@ -719,7 +702,7 @@ export default function DocumentEditorPage() {
       ? currentHtml.slice(headingIndex + REFERENCES_HEADING.length) : ''
 
     const newReferencesHtml = references
-      .map((r, i) => `<p>${formatEssayReferenceListEntry(r, style, i)}</p>`)
+      .map((r, i) => referenceHtml({ ...r, id: `${namespace}:${r.sourceId}`, canonicalId: r.canonicalId ?? undefined, openAlexWorkId: r.openAlexWorkId ?? undefined, documentId: r.documentId ?? undefined } as EditorSource, ({ Harvard: 'harvard', Apa7: 'apa7', Ieee: 'ieee', Chicago: 'chicago', Vancouver: 'vancouver' } as const)[style], i))
       .filter(entryHtml => !existingReferencesHtml.includes(entryHtml))
       .join('')
 
@@ -731,13 +714,36 @@ export default function DocumentEditorPage() {
   }
 
   const handleAiGenerated = useCallback((result: WriteWithAiResponse, essayCitationStyle: EssayCitationStyle) => {
-    if (!editor) return
+    setAiWritingFailure(null)
+    // Throwing keeps the dialog open with the error shown; silently returning used to close it and leave an empty document.
+    if (!editor) throw new Error('The editor was not ready to receive the draft. Please try again.')
+
+    // Section-by-section: nothing is written yet. Keep the prepared outline, set the style and title, and open the writing panel.
+    if (result.coWrite) {
+      const session = result.coWrite
+      const style = FORMAT_STYLE_OF[session.citationStyle]
+      // Keep the old draft until the first section is accepted; accepting that section
+      // replaces it, including its references, instead of appending a second essay.
+      coWriteHasAcceptedSection.current = false
+      setCoWriteSession(session); setCoWriteOpen(true)
+      setCitationStyle(style)
+      if (documentId) void updateDocument(documentId, { citationStyle: style })
+      if (!docTitle.trim() || docTitle === 'Untitled document') {
+        setDocTitle(session.title)
+        if (documentId) void updateDocument(documentId, { title: session.title })
+      }
+      toast.success('Research and outline ready. Write it one section at a time.')
+      return
+    }
+
+    setCoWriteSession(null)
+    coWriteHasAcceptedSection.current = false
 
     // result.content / result.sections / result.caseSections contain [S1]-style internal
     // scholarly-source tokens (see WorkbenchService.WriteWithAiAsync) — never the actual display
     // form. Replace each with a real citation in the requested style before the text becomes
-    // document content; an unresolvable token (shouldn't happen, the backend already rejects
-    // unknown identifiers) is dropped rather than shown raw. Case studies additionally carry
+    // document content. Complete essays reject inconsistent citation data before insertion;
+    // unresolved sources in partial drafts remain explicit review items. Case studies additionally carry
     // [CF#] case-fact grounding tokens (WorkbenchService.WriteCaseStudyAsync) — an internal
     // verification marker only, never meant to be a visible citation, so it's stripped rather
     // than resolved to display text.
@@ -749,41 +755,18 @@ export default function DocumentEditorPage() {
       ...(result.researchPaperSectionResults ?? []).map(s => s.content ?? ''),
       ...(result.literatureReviewSections ?? []).map(s => s.content),
     ].join(' '))
-    const renderOne = (num: string, narrative: boolean) => {
-      const idx = references.findIndex(r => r.sourceId === `S${num}`)
-      if (idx === -1) return ''
-      return narrative
-        ? formatEssayNarrativeCitation(references[idx], essayCitationStyle, idx)
-        : formatEssayInTextCitation(references[idx], essayCitationStyle, idx)
-    }
-
-    // The grouped form ("[S1, S12]") is matched alongside the single one. The backend now rejects
-    // it outright (SourceTokenGate, docs/OPEN_ITEMS.md #99), but this half is not redundant: before
-    // that gate existed a grouped token matched NEITHER this resolver nor the backend's own
-    // ExtractCitedSourceIds, so it leaked into the document raw AND both of its references were
-    // dropped from the reference list as uncited. Resolving it here means a response from a backend
-    // without the gate degrades to a correct citation rather than to visible breakage plus silent
-    // reference loss. Only the first source in a grouped narrative citation renders in narrative
-    // form — "Smith (2019) and Jones (2020) argue" reads correctly, "Smith (2019) Jones (2020)"
-    // does not — and groupConsecutiveAuthorDateCitations then merges the parentheticals.
-    const resolveCitations = (text: string) => groupConsecutiveAuthorDateCitations(text
-      .replace(/\[CF\d+\]\s?/g, '')
-      .replace(/\[(N:)?S(\d+)((?:\s*[,;]\s*S\d+)*)\]/g,
-        (_match, narrative: string | undefined, num: string, rest: string | undefined) => {
-          const extra = (rest ?? '').split(/[,;]/).map(t => t.trim().slice(1)).filter(Boolean)
-          return [renderOne(num, Boolean(narrative)), ...extra.map(n => renderOne(n, false))]
-            .filter(Boolean)
-            .join(' ')
-        }))
+    // Token -> display-citation resolution lives in lib/essayCitationTokens.ts (tested): it never leaves a narrative citation empty, and
+    // handles the grouped "[S1, S12]" form, [CF#] markers and a citation that touches the word before it.
+    const generationNamespace = result.generationAuditId || crypto.randomUUID()
+    const generatedStyle: FormatStyle = ({ Harvard: 'harvard', Apa7: 'apa7', Ieee: 'ieee', Chicago: 'chicago', Vancouver: 'vancouver' } as const)[essayCitationStyle] ?? 'harvard'
+    const resolveCitations = (text: string) => interactiveCitationTokens(text, references, generatedStyle, generationNamespace)
 
     // Structural headings come from the backend's own parse (WorkbenchService.ParseEssaySections/
     // ParseCaseSections), guaranteed present by the structural validation gate before this
     // response is ever returned — no more guessing section boundaries from raw prose with a
     // marker regex here.
-    const bodyHtml = result.isEssay && result.sections
-      ? `<h2>INTRODUCTION</h2>${renderEssayParagraphs(resolveCitations(result.sections.introduction), false)}` +
-        `<h2>MAIN BODY</h2>${renderEssayParagraphs(resolveCitations(result.sections.mainBody), true)}` +
-        `<h2>CONCLUSION</h2>${renderEssayParagraphs(resolveCitations(result.sections.conclusion), false)}`
+    const bodyHtml = result.isEssay && result.completionStatus !== 'Incomplete'
+      ? renderGeneratedEssay(result, resolveCitations)
       : result.isCaseStudy && result.caseSections
         ? Object.entries(result.caseSections)
             .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
@@ -818,11 +801,12 @@ export default function DocumentEditorPage() {
         : renderEssayParagraphs(resolveCitations(result.content), false)
     const titledBody = result.isEssay || result.isCaseStudy || result.isResearchPaper || result.isLiteratureReview ? `<h1>${result.title}</h1>${bodyHtml}` : bodyHtml
 
-    if (editor.isEmpty) {
-      editor.commands.setContent(appendReferences(titledBody, references, essayCitationStyle), { emitUpdate: true })
-    } else {
-      insertBodyMergingReferences(titledBody, references, essayCitationStyle)
-    }
+    // A full generation replaces the previous draft and its references. Only Write On
+    // appends content; merging here would accumulate a complete essay on every retry.
+    // Render/validate first so a refused response cannot even change the saved style.
+    setCitationStyle(generatedStyle)
+    if (documentId) void updateDocument(documentId, { citationStyle: generatedStyle })
+    editor.commands.setContent(appendReferences(titledBody, references, essayCitationStyle, generationNamespace), { emitUpdate: true })
 
     if (!docTitle.trim() || docTitle === 'Untitled document') {
       setDocTitle(result.title)
@@ -843,16 +827,73 @@ export default function DocumentEditorPage() {
     toast.success('Content generated')
   }, [editor, docTitle, documentId, updateDocument, debouncedSave])
 
-  // OPEN_ITEMS.md #5(c) — regenerating against a non-empty document redrafts every section from
-  // scratch and appends the new draft below existing content (see insertBodyMergingReferences),
-  // rather than updating in place. That can duplicate already-approved sections and introduce a
-  // freshly-fetched, unpinned citation set. Warn before that happens; a blank document has
-  // nothing to lose, so it opens the modal directly.
+  // A literature review keeps running on the server when this page loses its stream (reload, navigation, the stream's time cap).
+  // Collect the finished review for this document instead of leaving it empty. Latest handler through a ref so polling never restarts on typing.
+  const handleAiGeneratedRef = useRef(handleAiGenerated)
+  handleAiGeneratedRef.current = handleAiGenerated
+  useEffect(() => {
+    if (!documentId || documentId === 'new' || !editor || aiBusy.busy) return
+    const pending = loadPendingGeneration(documentId)
+    if (!pending) return
+    let cancelled = false
+    const controller = new AbortController()
+    const finish = () => clearPendingGeneration(documentId)
+    void (async () => {
+      setRecovering('Collecting your literature review…')
+      while (!cancelled) {
+        try {
+          const out = await fetchLiteratureReviewOutcome(pending.projectId, controller.signal)
+          if (cancelled) return
+          if (out.status === 'complete') {
+            finish()
+            if (!editor.isEmpty && !window.confirm('Your literature review finished while you were away. Replace the current document with it?')) break
+            handleAiGeneratedRef.current(out.result, pending.citationStyle as EssayCitationStyle)
+            break
+          }
+          if (out.status === 'failed') { finish(); toast.error(`Literature review failed: ${out.message}`); break }
+          if (out.status === 'unavailable') { finish(); toast('The earlier literature review could not be recovered. Please start it again.'); break }
+          setRecovering(out.stage ? `Still generating your literature review (${out.stage})…` : 'Still generating your literature review…')
+        } catch {
+          if (cancelled) return // a network blip: keep trying until the marker expires
+        }
+        if (Date.now() - pending.startedAt > PENDING_MAX_AGE_MS) { finish(); break }
+        await new Promise(resolve => setTimeout(resolve, 10_000))
+      }
+      if (!cancelled) setRecovering(null)
+    })()
+    return () => { cancelled = true; controller.abort(); setRecovering(null) }
+  }, [documentId, editor, aiBusy.busy])
+
+  // A new essay replaces the previous draft on its first acceptance. Later sections append.
+  const coWriteInsert = useCallback((html: string) => {
+    if (!editor) return
+    insertCoWriteSection(editor, html, !coWriteHasAcceptedSection.current)
+    coWriteHasAcceptedSection.current = true
+    setSyncState('unsaved')
+    debouncedSave(JSON.stringify(editor.getJSON()))
+    setEditorVersion(v => v + 1)
+  }, [editor, debouncedSave])
+
+  // Adds the reference list: only the sources actually cited in the document, so a skipped section leaves no uncited entry behind.
+  const coWriteFinish = useCallback(() => {
+    if (!editor || !coWriteSession) return
+    const html = editor.getHTML()
+    const cited = coWriteSession.references.filter(r => new RegExp(`${coWriteSession.sessionId}:${r.sourceId}(?![0-9A-Za-z])`).test(html))
+    insertBodyMergingReferences('', cited, coWriteSession.citationStyle, coWriteSession.sessionId)
+    setSyncState('unsaved')
+    debouncedSave(JSON.stringify(editor.getJSON()))
+    setEditorVersion(v => v + 1)
+    setCoWriteSession(null)
+    toast.success('References added. Read the essay through and edit it as you like.')
+  }, [editor, coWriteSession, debouncedSave])
+
+  // Full generation replaces existing prose and references. Warn before opening the
+  // generator when there is a draft to replace.
   const handleOpenWriteAiModal = useCallback(() => {
     if (editor && !editor.isEmpty) {
       const proceed = window.confirm(
-        'This will regenerate the entire document and may replace citations that have already ' +
-        'been reviewed, appending the new draft below your existing content. Continue?',
+        'This will replace the entire document, including its existing content and references, ' +
+        'with a newly generated draft. Continue?',
       )
       if (!proceed) return
     }
@@ -872,11 +913,12 @@ export default function DocumentEditorPage() {
         existingContent: existingText,
         topic: docTitle !== 'Untitled document' ? docTitle : undefined,
       })
-      const bodyHtml = result.content
+      const namespace = crypto.randomUUID()
+      const bodyHtml = interactiveCitationTokens(result.content, result.references, citationStyle, namespace)
         .split(/\n\n+/)
         .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
         .join('')
-      insertBodyMergingReferences(bodyHtml, result.references, 'Harvard')
+      insertBodyMergingReferences(bodyHtml, result.references, essayStyle(citationStyle), namespace)
       setSyncState('unsaved')
       debouncedSave(JSON.stringify(editor.getJSON()))
       setEditorVersion(v => v + 1)
@@ -886,7 +928,7 @@ export default function DocumentEditorPage() {
     } finally {
       setWriteOnLoading(false)
     }
-  }, [editor, writeOnLoading, docTitle, debouncedSave])
+  }, [editor, writeOnLoading, docTitle, debouncedSave, citationStyle])
 
   const handleReviewOn = useCallback(async () => {
     if (!editor || reviewLoading) return
@@ -910,8 +952,8 @@ export default function DocumentEditorPage() {
   const handleExport = () => {
     if (!editor) return
     const refs = citedRefs.map((c, i) => ({
-      label: inlineCiteLabel(c, citationStyle, i),
-      text:  refFormatted(c, citationStyle),
+      label: formatCitationGroup([{ sourceId: c.id, source: c }], citationStyle, sourceOrder(editor.state.doc)),
+      text: formatEssayReferenceListEntry(c, essayStyle(citationStyle), i),
     }))
     exportAsWord(docTitle, editor.getHTML(), refs)
     toast.success('Exported as Word document')
@@ -1014,26 +1056,54 @@ export default function DocumentEditorPage() {
             <Download size={13} /> Export
           </button>
 
-          {/* AI badges */}
-          <button
-            onClick={handleOpenWriteAiModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-medium transition-colors shrink-0"
-          >
-            <Sparkles size={12} /> Write with AI
-          </button>
-          <button
-            onClick={handleWriteOn}
-            disabled={writeOnLoading}
-            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500 hover:bg-sky-600 text-white text-[12px] font-medium transition-colors shrink-0 disabled:opacity-60"
-          >
-            {writeOnLoading ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />} Write On
-          </button>
+          {/* AI actions (prompt #5, Phase A) — one primary purple action ("Write with AI", the
+              full generation wizard) and one secondary action ("Review", renamed from "Review
+              On" since it runs once and shows results rather than toggling a persistent state).
+              No orange/cyan — only one primary color per canvas. "Continue writing" (the old
+              standalone "Write On" button, confirmed via discovery to be a direct continue-the-
+              document call, not a dialog) moves into the small dropdown below instead of staying
+              a third header button. */}
+          <div className="relative flex shrink-0">
+            <button
+              onClick={handleOpenWriteAiModal}
+              title="Write with AI — generate a new section or full draft from a prompt"
+              className="flex items-center gap-1.5 pl-3 pr-2.5 py-1.5 rounded-l-full bg-purple-600 hover:bg-purple-700 text-white text-[12px] font-medium transition-colors"
+            >
+              <Sparkles size={12} /> Write with AI
+            </button>
+            <button
+              onClick={() => setWriteAiMenuOpen(v => !v)}
+              aria-label="More AI actions"
+              aria-haspopup="menu"
+              aria-expanded={writeAiMenuOpen}
+              className="flex items-center justify-center px-1.5 rounded-r-full bg-purple-600 hover:bg-purple-700 text-white border-l border-purple-500/50 transition-colors"
+            >
+              <ChevronDown size={12} className={cn('transition-transform', writeAiMenuOpen && 'rotate-180')} />
+            </button>
+            {writeAiMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setWriteAiMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-20 py-1 overflow-hidden">
+                  <button
+                    onClick={() => { setWriteAiMenuOpen(false); void handleWriteOn() }}
+                    disabled={writeOnLoading}
+                    title="Continue writing — extends the document from where it currently ends"
+                    className="flex items-center gap-2 w-full px-3 py-2 text-left text-[12px] text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    {writeOnLoading ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                    Continue writing
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <button
             onClick={handleReviewOn}
             disabled={reviewLoading}
-            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-500 hover:bg-violet-600 text-white text-[12px] font-medium transition-colors shrink-0 disabled:opacity-60"
+            title="Review — get AI feedback on this document"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 text-[12px] font-medium transition-colors shrink-0 disabled:opacity-60"
           >
-            {reviewLoading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />} Review On
+            {reviewLoading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />} Review
           </button>
 
           {/* AppNavbar hides its own AccountMenu on this route from `md` up (see above) —
@@ -1243,7 +1313,7 @@ export default function DocumentEditorPage() {
                     <div className="fixed inset-0 z-10" onClick={() => setStyleMenuOpen(false)} />
                     <div className="absolute right-0 top-full mt-0.5 w-32 bg-white border border-slate-200 rounded-xl shadow-xl z-20 py-1 overflow-hidden">
                       {FORMAT_STYLES.map(s => (
-                        <button key={s} onClick={() => { setCitationStyle(s); setStyleMenuOpen(false) }}
+                        <button key={s} onClick={() => handleCitationStyleChange(s)}
                           className={cn('w-full text-left px-3 py-1.5 text-[12px] transition-colors',
                             s === citationStyle ? 'text-violet-600 bg-violet-50 font-medium' : 'text-slate-600 hover:bg-slate-50')}>
                           {FORMAT_LABELS[s]}
@@ -1301,8 +1371,8 @@ export default function DocumentEditorPage() {
           </div>
         )}
 
-        {/* Scrollable paper canvas */}
-        <div className="flex-1 overflow-y-auto flex flex-col items-center py-8 px-4 bg-[#f0f2f5]">
+        {/* Scrollable paper canvas. On 2xl screens it leaves a column for the section-by-section writing panel (420px + 16px margin + 16px gap) so the paper is not hidden under it. */}
+        <div className={`flex-1 overflow-y-auto flex flex-col items-center py-8 px-4 bg-[#f0f2f5] transition-[padding] duration-200 ${coWriteSession && coWriteOpen ? '2xl:pr-[452px]' : ''}`}>
           {/* Ruler */}
           <div className="w-[1000px] max-w-full h-6 bg-white border-x border-t border-slate-200 rounded-t-sm flex items-center px-24 shrink-0">
             <div className="flex-1 border-t border-slate-300 relative">
@@ -1327,7 +1397,7 @@ export default function DocumentEditorPage() {
                 <ol className="space-y-2 text-[10pt] text-slate-700 leading-relaxed list-decimal pl-5">
                   {citedRefs.map((cit) => (
                     <li key={cit.id} className="pl-1">
-                      <span dangerouslySetInnerHTML={{ __html: refFormatted(cit, citationStyle) }} />
+                      <span>{formatEssayReferenceListEntry(cit, essayStyle(citationStyle), sourceOrder(editor!.state.doc).indexOf(cit.id))}</span>
                     </li>
                   ))}
                 </ol>
@@ -1349,11 +1419,53 @@ export default function DocumentEditorPage() {
         )}
       </div>
 
+      <EssayCitationPopover editor={editor} style={citationStyle} />
+
+      {coWriteSession && (
+        <>
+          <EssayCoWritePanel key={coWriteSession.sessionId} session={coWriteSession} open={coWriteOpen} editor={editor} onInsertHtml={coWriteInsert}
+            onFinish={coWriteFinish} onClose={() => setCoWriteOpen(false)} />
+          {!coWriteOpen && (
+            <button type="button" onClick={() => setCoWriteOpen(true)}
+              className="fixed bottom-6 right-6 z-40 rounded-full bg-purple-accent px-4 py-2.5 text-[13px] font-semibold text-white shadow-xl hover:bg-purple-deep">
+              Continue writing with AI
+            </button>
+          )}
+        </>
+      )}
+
+      {recovering && !aiBusy.busy && (
+        <div role="status" className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-purple-200 bg-white px-4 py-3 text-[13px] text-slate-700 shadow-xl">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-purple-accent" />
+          <span>{recovering}</span>
+        </div>
+      )}
+      {aiWritingFailure?.documentId === documentId && aiWritingFailure && !aiBusy.busy && !showWriteAiModal && (
+        <div role="alert" className="fixed bottom-6 left-1/2 z-40 w-[min(90vw,42rem)] -translate-x-1/2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-950 shadow-xl">
+          <p className="font-semibold">Writing did not finish</p>
+          <p className="mt-1">{aiWritingFailure.message}</p>
+          <button type="button" onClick={() => setShowWriteAiModal(true)} className="mt-2 font-semibold underline">Review details and retry</button>
+        </div>
+      )}
+      {aiBusy.busy && !showWriteAiModal && (
+        <div role="status" className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-purple-200 bg-white px-4 py-3 text-[13px] text-slate-700 shadow-xl">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-purple-accent" />
+          <span>{aiBusy.label} Keep this page open.</span>
+          <button type="button" onClick={() => setShowWriteAiModal(true)} className="font-semibold text-purple-text hover:underline">Show progress</button>
+        </div>
+      )}
       <WriteWithAiModal
         isOpen={showWriteAiModal}
         onClose={() => setShowWriteAiModal(false)}
         onGenerated={handleAiGenerated}
+        onIncomplete={result => setAiWritingFailure({ documentId, message: result.completionReason ?? 'More evidence is needed before this essay can be drafted.' })}
+        onFailure={message => setAiWritingFailure({ documentId, message })}
+        onBusyChange={handleAiBusyChange}
         excludeDocumentId={documentId}
+        initialTopic={draftPrefill?.topic}
+        initialDocumentType={draftPrefill?.documentType}
+        initialThesisChapter={draftPrefill?.thesisChapter}
+        initialCitationStyle={draftPrefill?.citationStyle}
       />
       <ReviewResultsModal
         isOpen={showReviewModal}

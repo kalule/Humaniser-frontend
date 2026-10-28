@@ -1,0 +1,43 @@
+﻿  id   | statename  |           createdat           |                                               job_type                                                
+-------+------------+-------------------------------+-------------------------------------------------------------------------------------------------------
+ 12243 | Succeeded  | 2026-10-04 15:08:12.539167+00 | HumaniseAI.Infrastructure.Services.FactsConsistencyVerificationJob, HumaniseAI.Infrastructure
+ 12242 | Succeeded  | 2026-10-04 15:08:12.523068+00 | HumaniseAI.Infrastructure.Services.SourceExtractionJob, HumaniseAI.Infrastructure
+ 12241 | Processing | 2026-10-04 15:08:12.505131+00 | HumaniseAI.Infrastructure.Services.LiteratureIdentityMetadataExtractionJob, HumaniseAI.Infrastructure
+ 12240 | Processing | 2026-10-04 15:08:12.490556+00 | HumaniseAI.Infrastructure.Services.CitationClaimSupportVerificationJob, HumaniseAI.Infrastructure
+ 12239 | Processing | 2026-10-04 15:06:18.263556+00 | HumaniseAI.Infrastructure.Services.ProposalGenerationJob, HumaniseAI.Infrastructure
+ 12230 | Succeeded  | 2026-10-04 14:59:50.450215+00 | HumaniseAI.Infrastructure.Services.ProposalGenerationJob, HumaniseAI.Infrastructure
+ 12229 | Succeeded  | 2026-10-04 14:59:08.290548+00 | HumaniseAI.Infrastructure.Services.ProposalGenerationJob, HumaniseAI.Infrastructure
+ 12228 | Succeeded  | 2026-10-04 14:58:48.926763+00 | HumaniseAI.Infrastructure.Services.ProposalGenerationJob, HumaniseAI.Infrastructure
+ 12187 | Succeeded  | 2026-10-04 14:06:09.197103+00 | HumaniseAI.Infrastructure.Services.FactsConsistencyVerificationJob, HumaniseAI.Infrastructure
+ 12186 | Succeeded  | 2026-10-04 14:06:09.170016+00 | HumaniseAI.Infrastructure.Services.SourceExtractionJob, HumaniseAI.Infrastructure
+(10 rows)
+
+  id   |    name    | reason |                                                                             details                                                                             
+-------+------------+--------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 12243 | Succeeded  |        | {"Latency": "24370", "SucceededAt": "1791126524148", "PerformanceDuration": "7237"}
+ 12242 | Succeeded  |        | {"Latency": "24386", "SucceededAt": "1791126647475", "PerformanceDuration": "130565"}
+ 12241 | Processing |        | {"ServerId": "verification-server:9120:1ac72119-6e0c-4aa2-bc8e-1366d77772a9", "WorkerId": "8ad3b778-fc1b-4a46-b088-82206e55e10b", "StartedAt": "1791126492524"}
+ 12240 | Processing |        | {"ServerId": "verification-server:9120:1ac72119-6e0c-4aa2-bc8e-1366d77772a9", "WorkerId": "a072b1af-7411-47af-8519-adf6c50a6f0a", "StartedAt": "1791126492507"}
+ 12239 | Processing |        | {"ServerId": "generation-server:9120:1042cd11-15ed-412b-93df-1714e46c51d9", "WorkerId": "9a47a226-e3a5-4e5b-904b-79fcf8084982", "StartedAt": "1791126378282"}
+ 12230 | Succeeded  |        | {"Latency": "81", "SucceededAt": "1791125991474", "PerformanceDuration": "942"}
+(6 rows)
+
+     TaskType      | Status  |           CreatedAt           | LatencyMs | PhysicalAttempt | RetryReason 
+-------------------+---------+-------------------------------+-----------+-----------------+-------------
+ source-extraction | Success | 2026-10-04 15:10:47.083569+00 |     13443 |               1 | 
+ source-extraction | Success | 2026-10-04 15:10:33.093408+00 |     15999 |               1 | 
+ source-extraction | Success | 2026-10-04 15:10:16.770909+00 |     12650 |               1 | 
+ source-extraction | Success | 2026-10-04 15:10:03.731532+00 |     13650 |               1 | 
+ source-extraction | Success | 2026-10-04 15:09:49.662485+00 |     10742 |               1 | 
+ source-extraction | Success | 2026-10-04 15:09:38.499583+00 |      6341 |               1 | 
+ source-extraction | Success | 2026-10-04 15:09:31.655744+00 |      7960 |               1 | 
+ source-extraction | Success | 2026-10-04 15:09:23.354482+00 |     14077 |               1 | 
+ source-extraction | Success | 2026-10-04 15:09:08.801595+00 |     16821 |               1 | 
+ source-extraction | Success | 2026-10-04 15:08:50.34372+00  |     12152 |               1 | 
+(10 rows)
+
+              now              
+-------------------------------
+ 2026-10-04 15:15:30.015033+00
+(1 row)
+

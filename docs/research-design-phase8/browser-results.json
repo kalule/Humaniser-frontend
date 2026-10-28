@@ -1,0 +1,12 @@
+{
+  "assertions": 26,
+  "errors": [],
+  "commands": [
+    "/api/v1/research/projects/project/proposal-workflow/design-binding",
+    "/api/v1/research/projects/project/proposal-workflow/design-binding",
+    "/api/v1/research/projects/project/proposal-workflow/sections/repair-preview",
+    "/api/v1/research/projects/project/proposal-workflow/sections/reconcile",
+    "/api/v1/research/projects/project/proposal-workflow/sections/reconcile"
+  ],
+  "liveProviders": 0
+}

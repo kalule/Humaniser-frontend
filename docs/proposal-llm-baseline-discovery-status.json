@@ -1,0 +1,22 @@
+﻿{
+    "status":  "Completed",
+    "stageIndex":  5,
+    "statusMessage":  "Ready for screening.",
+    "liveActivityMessage":  "420 unique candidates ready (407 likely relevant).",
+    "progressPct":  100,
+    "resultCount":  500,
+    "duplicateCount":  0,
+    "uniqueCount":  420,
+    "likelyRelevantCount":  407,
+    "coveragePct":  97,
+    "sourceCounts":  {
+                         "consensus":  20,
+                         "semanticscholar":  0,
+                         "openalex":  480
+                     },
+    "stopReason":  "Candidate cap reached",
+    "failedSources":  [
+
+                      ],
+    "completedAt":  "2026-10-04T12:18:34.9437090Z"
+}

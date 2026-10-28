@@ -1,0 +1,18 @@
+﻿{
+    "status":  "Completed",
+    "progressPct":  100,
+    "statusMessage":  "Screened 420 of 420 candidates.",
+    "discoveredCount":  500,
+    "uniqueCount":  420,
+    "relevantCount":  180,
+    "evidenceReadyCount":  407,
+    "approvedCount":  0,
+    "screenedCount":  420,
+    "manualReviewCount":  199,
+    "excludedCount":  221,
+    "abstractOnlyCount":  407,
+    "completedAt":  "2026-10-04T12:23:38.9438020Z",
+    "coverageStatus":  "Low",
+    "isCorpusApproved":  false,
+    "currentStep":  1
+}

@@ -1,0 +1,206 @@
+{
+  "cases": [
+    {
+      "id": "relationship",
+      "workflow": "ProposalRetrievalBaseline",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 111
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "reason": "Retrieval is not final evidence acceptance."
+      },
+      "verifiedSourceRate": {
+        "value": null,
+        "reason": "Verification is outside this retrieval baseline."
+      },
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 111
+      },
+      "claimSupportAccuracy": {
+        "value": null
+      },
+      "falseResearchGapRate": {
+        "value": null
+      },
+      "searchesPerSession": 1,
+      "timePerSessionSeconds": 8.3638594,
+      "llmTokensPerSession": 0,
+      "estimatedLlmCostPerSessionUsd": 0,
+      "limitations": "Retrieval-only baseline using current legacy provider limits; not a full proposal generation run. Quality labels and full-workflow comparison remain required."
+    },
+    {
+      "id": "south-africa",
+      "workflow": "ProposalRetrievalBaseline",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 120
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "reason": "Retrieval is not final evidence acceptance."
+      },
+      "verifiedSourceRate": {
+        "value": null,
+        "reason": "Verification is outside this retrieval baseline."
+      },
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 120
+      },
+      "claimSupportAccuracy": {
+        "value": null
+      },
+      "falseResearchGapRate": {
+        "value": null
+      },
+      "searchesPerSession": 1,
+      "timePerSessionSeconds": 6.8644489,
+      "llmTokensPerSession": 0,
+      "estimatedLlmCostPerSessionUsd": 0,
+      "limitations": "Retrieval-only baseline using current legacy provider limits; not a full proposal generation run. Quality labels and full-workflow comparison remain required."
+    },
+    {
+      "id": "limited-literature",
+      "workflow": "ProposalRetrievalBaseline",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 2
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "reason": "Retrieval is not final evidence acceptance."
+      },
+      "verifiedSourceRate": {
+        "value": null,
+        "reason": "Verification is outside this retrieval baseline."
+      },
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 2
+      },
+      "claimSupportAccuracy": {
+        "value": null
+      },
+      "falseResearchGapRate": {
+        "value": null
+      },
+      "searchesPerSession": 1,
+      "timePerSessionSeconds": 2.7059517,
+      "llmTokensPerSession": 0,
+      "estimatedLlmCostPerSessionUsd": 0,
+      "limitations": "Retrieval-only baseline using current legacy provider limits; not a full proposal generation run. Quality labels and full-workflow comparison remain required."
+    },
+    {
+      "id": "contradictory-null",
+      "workflow": "ProposalRetrievalBaseline",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 120
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "reason": "Retrieval is not final evidence acceptance."
+      },
+      "verifiedSourceRate": {
+        "value": null,
+        "reason": "Verification is outside this retrieval baseline."
+      },
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 120
+      },
+      "claimSupportAccuracy": {
+        "value": null
+      },
+      "falseResearchGapRate": {
+        "value": null
+      },
+      "searchesPerSession": 1,
+      "timePerSessionSeconds": 4.4209325,
+      "llmTokensPerSession": 0,
+      "estimatedLlmCostPerSessionUsd": 0,
+      "limitations": "Retrieval-only baseline using current legacy provider limits; not a full proposal generation run. Quality labels and full-workflow comparison remain required."
+    },
+    {
+      "id": "methodology",
+      "workflow": "ProposalRetrievalBaseline",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 93
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "reason": "Retrieval is not final evidence acceptance."
+      },
+      "verifiedSourceRate": {
+        "value": null,
+        "reason": "Verification is outside this retrieval baseline."
+      },
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 93
+      },
+      "claimSupportAccuracy": {
+        "value": null
+      },
+      "falseResearchGapRate": {
+        "value": null
+      },
+      "searchesPerSession": 1,
+      "timePerSessionSeconds": 5.7755187,
+      "llmTokensPerSession": 0,
+      "estimatedLlmCostPerSessionUsd": 0,
+      "limitations": "Retrieval-only baseline using current legacy provider limits; not a full proposal generation run. Quality labels and full-workflow comparison remain required."
+    },
+    {
+      "id": "obscure",
+      "workflow": "ProposalRetrievalBaseline",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 1
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "reason": "Retrieval is not final evidence acceptance."
+      },
+      "verifiedSourceRate": {
+        "value": null,
+        "reason": "Verification is outside this retrieval baseline."
+      },
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 1
+      },
+      "claimSupportAccuracy": {
+        "value": null
+      },
+      "falseResearchGapRate": {
+        "value": null
+      },
+      "searchesPerSession": 1,
+      "timePerSessionSeconds": 3.2037028,
+      "llmTokensPerSession": 0,
+      "estimatedLlmCostPerSessionUsd": 0,
+      "limitations": "Retrieval-only baseline using current legacy provider limits; not a full proposal generation run. Quality labels and full-workflow comparison remain required."
+    }
+  ],
+  "integrationGate": "Not evaluated: paired baseline and independent quality judgments required.",
+  "averageSearchesPerSession": 1.0,
+  "estimatedLlmCostTotalUsd": 0,
+  "costScope": "LLM estimate only; not a provider billing statement."
+}

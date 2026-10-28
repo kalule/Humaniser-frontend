@@ -1,11 +1,15 @@
 import client from './client'
 import type {
+  ProposalIssues,
+  RepairReport,
   AcademicLevel,
+  BibliographyResult,
   AlignmentIssue,
   AlignmentValidationResult,
   ApproveCorpusPayload,
   CanonicalResearchPlan,
   CitationFlag,
+  QualityFlag,
   CitationFixAction,
   CitationStyle,
   DefencePreparation,
@@ -99,6 +103,11 @@ export interface BackendMethodologyRecommendation {
 export interface CreateProjectPayload {
   generatorMode: GeneratorMode
   documentMode:  DocumentMode
+  designFirst?: boolean
+  topic?: string
+  academicLevel?: AcademicLevel
+  citationStyle?: CitationStyle
+  idempotencyKey?: string
 }
 
 // Full-state sync — always send the entire project so null means "clear", not "skip".
@@ -299,6 +308,17 @@ export const researchApi = {
       `/api/v1/research/projects/${projectId}/sections/${sectionCode}/citation-flags`,
     )),
 
+  getQualityFlags: async (projectId: string, sectionCode: string): Promise<QualityFlag[]> =>
+    unwrap(await client.get<Wrap<QualityFlag[]>>(
+      `/api/v1/research/projects/${projectId}/sections/${encodeURIComponent(sectionCode)}/quality-flags`,
+    )),
+
+  setQualityFlagDismissed: async (projectId: string, sectionCode: string, flagId: string, dismissed: boolean): Promise<void> => {
+    await client.post(
+      `/api/v1/research/projects/${projectId}/sections/${encodeURIComponent(sectionCode)}/quality-flags/${flagId}/${dismissed ? 'dismiss' : 'restore'}`,
+    )
+  },
+
   dismissCitationFlag: async (projectId: string, flagId: string, reason?: string): Promise<void> => {
     await client.post(`/api/v1/research/projects/${projectId}/citation-flags/${flagId}/dismiss`, { reason })
   },
@@ -322,6 +342,13 @@ export const researchApi = {
   removeCitationClaim: async (projectId: string, flagId: string): Promise<ProjectSection> =>
     unwrap(await client.post<Wrap<ProjectSection>>(
       `/api/v1/research/projects/${projectId}/citation-flags/${flagId}/remove-claim`,
+    )),
+
+  // Answers an AmbiguousCitation flag. Deterministic on the server: no Claude call and no credit.
+  chooseCitationSource: async (projectId: string, flagId: string, literatureId: string): Promise<ProjectSection> =>
+    unwrap(await client.post<Wrap<ProjectSection>>(
+      `/api/v1/research/projects/${projectId}/citation-flags/${flagId}/choose-source`,
+      { literatureId },
     )),
 
   getFactConflicts: async (projectId: string): Promise<FactConflict[]> =>
@@ -355,6 +382,14 @@ export const researchApi = {
     return res.bibliography
   },
 
+  // Structured, deterministic (no LLM) bibliography: resolved entries, unresolved citations and
+  // stage counts. A server/network failure rejects here — it is never an empty "success".
+  getBibliography: async (projectId: string): Promise<BibliographyResult> =>
+    unwrap(await client.get<Wrap<BibliographyResult>>(
+      `/api/v1/research/projects/${projectId}/bibliography`,
+      { timeout: 60_000 },
+    )),
+
   exportDocx: async (projectId: string, acknowledgeCitationIssues = false): Promise<Blob> => {
     const res = await client.get<Blob>(
       `/api/v1/research/projects/${projectId}/export-docx`,
@@ -362,6 +397,29 @@ export const researchApi = {
     )
     return res.data
   },
+
+  // "Fix issues and download": one issue list for the Download step, a repair run, and undo of a single repair.
+  getProposalIssues: async (projectId: string): Promise<ProposalIssues> =>
+    unwrap(await client.get<Wrap<ProposalIssues>>(`/api/v1/research/projects/${projectId}/proposal-issues`)),
+
+  runProposalRepair: async (projectId: string): Promise<RepairReport> =>
+    unwrap(await client.post<Wrap<RepairReport>>(`/api/v1/research/projects/${projectId}/proposal-repair`, null, { timeout: 120_000 })),
+
+  undoProposalRepair: async (projectId: string, runId: string, repairId: string): Promise<RepairReport> =>
+    unwrap(await client.post<Wrap<RepairReport>>(
+      `/api/v1/research/projects/${projectId}/proposal-repair/${runId}/undo/${repairId}`,
+    )),
+
+  // Student-supplied values: replace one bracketed placeholder with typed text; set the year of a source saved without one.
+  fillProposalPlaceholder: async (projectId: string, sectionKey: string, placeholder: string, value: string): Promise<RepairReport> =>
+    unwrap(await client.post<Wrap<RepairReport>>(
+      `/api/v1/research/projects/${projectId}/proposal-issues/fill-placeholder`, { sectionKey, placeholder, value },
+    )),
+
+  setProposalSourceYear: async (projectId: string, literatureId: string, year: number): Promise<ProposalIssues> =>
+    unwrap(await client.post<Wrap<ProposalIssues>>(
+      `/api/v1/research/projects/${projectId}/proposal-issues/set-source-year`, { literatureId, year },
+    )),
 
   getLiterature: async (projectId: string): Promise<FetchedLiterature[]> =>
     unwrap(await client.get<Wrap<FetchedLiterature[]>>(

@@ -103,8 +103,8 @@ export function LibraryChatDrawer({ open, onClose, context, onClearContext }: Pr
     >
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-100 shrink-0 bg-white">
-        <div className="w-8 h-8 rounded-xl bg-sky-50 flex items-center justify-center">
-          <MessageCircle size={16} className="text-sky-500" />
+        <div className="w-8 h-8 rounded-xl bg-purple-tint flex items-center justify-center">
+          <MessageCircle size={16} className="text-purple-accent" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[14px] font-semibold text-slate-800 leading-none">Chat</p>
@@ -139,14 +139,14 @@ export function LibraryChatDrawer({ open, onClose, context, onClearContext }: Pr
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden shrink-0"
               >
-                <div className="flex items-start gap-2 px-4 py-2 bg-sky-50/80 border-b border-sky-100">
-                  <CornerDownRight size={12} className="text-sky-400 shrink-0 mt-0.5" />
-                  <p className="flex-1 text-[12px] text-sky-700 font-medium leading-snug line-clamp-2">
+                <div className="flex items-start gap-2 px-4 py-2 bg-purple-tint/80 border-b border-purple-tint">
+                  <CornerDownRight size={12} className="text-purple-accent shrink-0 mt-0.5" />
+                  <p className="flex-1 text-[12px] text-purple-text font-medium leading-snug line-clamp-2">
                     {context.title}
                   </p>
                   <button
                     onClick={onClearContext}
-                    className="text-sky-400 hover:text-sky-700 shrink-0 transition-colors mt-0.5"
+                    className="text-purple-accent hover:text-purple-text shrink-0 transition-colors mt-0.5"
                     title="Switch to library-wide chat"
                   >
                     <X size={11} />
@@ -178,7 +178,7 @@ export function LibraryChatDrawer({ open, onClose, context, onClearContext }: Pr
                     <button
                       key={q}
                       onClick={() => { setInput(q); textareaRef.current?.focus() }}
-                      className="w-full text-left px-3 py-2.5 rounded-xl border border-slate-200 text-[12px] text-slate-600 hover:border-sky-300 hover:bg-sky-50/60 hover:text-sky-700 transition-colors leading-snug"
+                      className="w-full text-left px-3 py-2.5 rounded-xl border border-slate-200 text-[12px] text-slate-600 hover:border-purple-accent hover:bg-purple-tint/60 hover:text-purple-text transition-colors leading-snug"
                     >
                       {q}
                     </button>
@@ -191,8 +191,8 @@ export function LibraryChatDrawer({ open, onClose, context, onClearContext }: Pr
                 {messages.map(msg => (
                   <div key={msg.id} className={cn('flex gap-2', msg.role === 'user' && 'justify-end')}>
                     {msg.role === 'assistant' && (
-                      <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center shrink-0 mt-0.5">
-                        <MessageCircle size={13} className="text-sky-500" />
+                      <div className="w-7 h-7 rounded-full bg-purple-tint flex items-center justify-center shrink-0 mt-0.5">
+                        <MessageCircle size={13} className="text-purple-accent" />
                       </div>
                     )}
                     <div className={cn(
@@ -209,8 +209,8 @@ export function LibraryChatDrawer({ open, onClose, context, onClearContext }: Pr
                 {/* Typing indicator */}
                 {sending && (
                   <div className="flex gap-2">
-                    <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center shrink-0 mt-0.5">
-                      <MessageCircle size={13} className="text-sky-500" />
+                    <div className="w-7 h-7 rounded-full bg-purple-tint flex items-center justify-center shrink-0 mt-0.5">
+                      <MessageCircle size={13} className="text-purple-accent" />
                     </div>
                     <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3.5 flex items-center gap-1.5">
                       {DOT_DELAY.map((d, i) => (
@@ -254,7 +254,7 @@ export function LibraryChatDrawer({ open, onClose, context, onClearContext }: Pr
                           className={cn(
                             'w-full text-left px-3 py-2 text-[12px] transition-colors',
                             model === m
-                              ? 'bg-sky-50 text-sky-600 font-medium'
+                              ? 'bg-purple-tint text-purple-text font-medium'
                               : 'text-slate-600 hover:bg-slate-50',
                           )}
                         >
@@ -276,12 +276,12 @@ export function LibraryChatDrawer({ open, onClose, context, onClearContext }: Pr
                 onKeyDown={handleKeyDown}
                 placeholder="Ask a question about your files..."
                 rows={2}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-12 text-[13px] text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-300 resize-none transition-colors leading-relaxed"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-12 text-[13px] text-slate-800 placeholder-slate-400 focus:outline-none focus:border-purple-accent resize-none transition-colors leading-relaxed"
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || sending}
-                className="absolute right-3 bottom-3 w-7 h-7 rounded-lg bg-sky-500 hover:bg-sky-600 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shadow-sm"
+                className="absolute right-3 bottom-3 w-7 h-7 rounded-lg bg-purple-tint0 hover:bg-purple-deep disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shadow-sm"
               >
                 <Send size={12} />
               </button>

@@ -11,6 +11,18 @@ import {
 } from './citationFormat'
 
 describe('groupConsecutiveAuthorDateCitations', () => {
+  it('preserves surname prefixes and lists three Harvard authors while retaining APA rules', () => {
+    const source = { title: 'History', year: 2022, authorDetails: [
+      { family: 'Van Tonder', given: 'John' }, { family: 'Thomas', given: 'Anna' }, { family: 'de la Cruz', given: 'Maria' },
+    ] }
+    expect(formatEssayNarrativeCitation(source, 'Harvard', 0)).toBe('Van Tonder, Thomas, and de la Cruz (2022)')
+    expect(formatEssayInTextCitation(source, 'Apa7', 0)).toBe('(Van Tonder et al., 2022)')
+    expect(extractSurnamesFromAuthors('Van Tonder, J., Thomas, A.')).toEqual(['Van Tonder', 'Thomas'])
+  })
+  it('prints a retrieved thesis institution without reconstructing metadata', () => {
+    expect(formatEssayReferenceListEntry({ title: 'Historical transition', year: 2020, authors: 'Smith, J.', publisher: 'Example University', url: 'https://example.org/thesis' }, 'Harvard', 0))
+      .toContain('Example University')
+  })
   it('groups consecutive Harvard citations deterministically', () => {
     expect(groupConsecutiveAuthorDateCitations('(Chan & Hu, 2023)(Lo, 2023)(Fan et al., 2024)'))
       .toBe('(Chan & Hu, 2023; Lo, 2023; Fan et al., 2024)')
@@ -89,7 +101,7 @@ describe('essay citation quality regression', () => {
       volume: '12', issue: '2', pages: '10-20', doi: 'https://doi.org/10.1234/study',
       url: 'https://provider.example/pdfft?token=temporary',
     }, 'Harvard', 0)
-    expect(rendered).toContain('Journal of Education, 12(2), pp. 10-20')
+    expect(rendered).toContain('Journal of Education, 12(2), pp. 10–20')
     expect(rendered).toContain('doi:10.1234/study')
     expect(rendered).not.toContain('pdfft')
   })
@@ -134,7 +146,7 @@ describe('extractSurnamesFromAuthors — Unicode hyphen normalization', () => {
 describe('extractSurnamesFromAuthors — multi-author', () => {
   it('extracts each surname in order from a real multi-author byline', () => {
     expect(extractSurnamesFromAuthors('Vibeke Bjornlund, Henning Bjørnlund, André van Rooyen'))
-      .toEqual(['Bjornlund', 'Bjørnlund', 'Rooyen'])
+      .toEqual(['Bjornlund', 'Bjørnlund', 'van Rooyen'])
   })
 })
 
@@ -150,7 +162,7 @@ describe('formatEssayInTextCitation — the Write With AI essay path', () => {
   it('renders a multi-author in-text citation as "First et al."', () => {
     expect(formatEssayInTextCitation(
       meta('Vibeke Bjornlund, Henning Bjørnlund, André van Rooyen', 2022), 'Harvard', 0,
-    )).toBe('(Bjornlund et al., 2022)')
+    )).toBe('(Bjornlund, Bjørnlund, and van Rooyen, 2022)')
   })
 })
 

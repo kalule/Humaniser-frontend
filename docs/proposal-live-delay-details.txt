@@ -1,0 +1,41 @@
+﻿  id   | statename  |           createdat           |                                               job_type                                                
+-------+------------+-------------------------------+-------------------------------------------------------------------------------------------------------
+ 12177 | Enqueued   | 2026-10-04 14:02:00.317076+00 | HumaniseAI.Infrastructure.Services.FactsConsistencyVerificationJob, HumaniseAI.Infrastructure
+ 12176 | Enqueued   | 2026-10-04 14:02:00.258246+00 | HumaniseAI.Infrastructure.Services.SourceExtractionJob, HumaniseAI.Infrastructure
+ 12175 | Processing | 2026-10-04 14:02:00.243091+00 | HumaniseAI.Infrastructure.Services.LiteratureIdentityMetadataExtractionJob, HumaniseAI.Infrastructure
+ 12174 | Processing | 2026-10-04 14:02:00.21634+00  | HumaniseAI.Infrastructure.Services.CitationClaimSupportVerificationJob, HumaniseAI.Infrastructure
+ 12169 | Succeeded  | 2026-10-04 13:56:39.966115+00 | HumaniseAI.Infrastructure.Services.LiteratureAnalysisJob, HumaniseAI.Infrastructure
+ 12168 | Succeeded  | 2026-10-04 13:56:39.943697+00 | HumaniseAI.Infrastructure.Services.LiteratureDistillationJob, HumaniseAI.Infrastructure
+ 12167 | Succeeded  | 2026-10-04 13:56:21.004954+00 | HumaniseAI.Application.Services.IResearchService, HumaniseAI.Application
+ 12166 | Succeeded  | 2026-10-04 13:56:20.303795+00 | HumaniseAI.Infrastructure.Services.ProposalGenerationJob, HumaniseAI.Infrastructure
+(8 rows)
+
+  id   |    name    | reason |                                                                             details                                                                              
+-------+------------+--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 12177 | Enqueued   |        | {"Queue": "verification", "EnqueuedAt": "1791122520316"}
+ 12176 | Enqueued   |        | {"Queue": "verification", "EnqueuedAt": "1791122520257"}
+ 12175 | Processing |        | {"ServerId": "verification-server:37788:f4d71729-0774-42e0-9927-bb923fa11e78", "WorkerId": "dd812a40-3569-4b55-91c4-a5c1f97beb08", "StartedAt": "1791122520261"}
+ 12174 | Processing |        | {"ServerId": "verification-server:37788:f4d71729-0774-42e0-9927-bb923fa11e78", "WorkerId": "770b4ba0-8024-48b1-a035-58b5e7d3d93d", "StartedAt": "1791122520246"}
+ 12169 | Succeeded  |        | {"Latency": "45", "SucceededAt": "1791122200694", "PerformanceDuration": "682"}
+ 12168 | Succeeded  |        | {"Latency": "40", "SucceededAt": "1791122288217", "PerformanceDuration": "88232"}
+(6 rows)
+
+               TaskType               | Status  |           CreatedAt           | LatencyMs | PhysicalAttempt | RetryReason 
+--------------------------------------+---------+-------------------------------+-----------+-----------------+-------------
+ literature-identity-extraction       | Success | 2026-10-04 14:02:24.285265+00 |     13020 |               1 | 
+ literature-identity-extraction       | Success | 2026-10-04 14:02:11.145602+00 |     10498 |               1 | 
+ citation-verification                | Success | 2026-10-04 14:01:53.214379+00 |     19678 |               1 | 
+ section-1.0-citation-shortfall-retry | Success | 2026-10-04 14:01:22.646853+00 |     16211 |               1 | 
+ section-1.0                          | Success | 2026-10-04 14:01:06.23786+00  |     17943 |               1 | 
+ essay-atomic-claim-audit             | Success | 2026-10-04 14:00:47.354673+00 |      6732 |               1 | 
+ citation-verification                | Success | 2026-10-04 14:00:39.814291+00 |     18406 |               1 | 
+ literature-distillation              | Success | 2026-10-04 13:58:07.977416+00 |      2211 |               1 | 
+ literature-distillation              | Success | 2026-10-04 13:58:05.624495+00 |      1883 |               1 | 
+ literature-distillation              | Success | 2026-10-04 13:58:03.653686+00 |      2493 |               1 | 
+(10 rows)
+
+              now              
+-------------------------------
+ 2026-10-04 14:02:28.471836+00
+(1 row)
+

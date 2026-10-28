@@ -1,0 +1,43 @@
+﻿  id   | statename |           createdat           |                                               job_type                                                
+-------+-----------+-------------------------------+-------------------------------------------------------------------------------------------------------
+ 12230 | Succeeded | 2026-10-04 14:59:50.450215+00 | HumaniseAI.Infrastructure.Services.ProposalGenerationJob, HumaniseAI.Infrastructure
+ 12229 | Succeeded | 2026-10-04 14:59:08.290548+00 | HumaniseAI.Infrastructure.Services.ProposalGenerationJob, HumaniseAI.Infrastructure
+ 12228 | Succeeded | 2026-10-04 14:58:48.926763+00 | HumaniseAI.Infrastructure.Services.ProposalGenerationJob, HumaniseAI.Infrastructure
+ 12187 | Succeeded | 2026-10-04 14:06:09.197103+00 | HumaniseAI.Infrastructure.Services.FactsConsistencyVerificationJob, HumaniseAI.Infrastructure
+ 12186 | Succeeded | 2026-10-04 14:06:09.170016+00 | HumaniseAI.Infrastructure.Services.SourceExtractionJob, HumaniseAI.Infrastructure
+ 12185 | Succeeded | 2026-10-04 14:06:09.139771+00 | HumaniseAI.Infrastructure.Services.LiteratureIdentityMetadataExtractionJob, HumaniseAI.Infrastructure
+ 12184 | Succeeded | 2026-10-04 14:06:09.098036+00 | HumaniseAI.Infrastructure.Services.CitationClaimSupportVerificationJob, HumaniseAI.Infrastructure
+ 12179 | Succeeded | 2026-10-04 14:04:20.31061+00  | HumaniseAI.Infrastructure.Services.SectionGenerationJob, HumaniseAI.Infrastructure
+ 12178 | Succeeded | 2026-10-04 14:04:20.127935+00 | HumaniseAI.Application.Services.IResearchService, HumaniseAI.Application
+ 12177 | Succeeded | 2026-10-04 14:02:00.317076+00 | HumaniseAI.Infrastructure.Services.FactsConsistencyVerificationJob, HumaniseAI.Infrastructure
+(10 rows)
+
+  id   |   name    | reason |                                        details                                        
+-------+-----------+--------+---------------------------------------------------------------------------------------
+ 12230 | Succeeded |        | {"Latency": "81", "SucceededAt": "1791125991474", "PerformanceDuration": "942"}
+ 12229 | Succeeded |        | {"Latency": "36", "SucceededAt": "1791125948932", "PerformanceDuration": "605"}
+ 12228 | Succeeded |        | {"Latency": "67", "SucceededAt": "1791125930185", "PerformanceDuration": "1191"}
+ 12187 | Succeeded |        | {"Latency": "94164", "SucceededAt": "1791122867818", "PerformanceDuration": "4457"}
+ 12186 | Succeeded |        | {"Latency": "35604", "SucceededAt": "1791122942073", "PerformanceDuration": "137299"}
+ 12185 | Succeeded |        | {"Latency": "60", "SucceededAt": "1791122863311", "PerformanceDuration": "94110"}
+(6 rows)
+
+            TaskType            | Status  |           CreatedAt           | LatencyMs | PhysicalAttempt | RetryReason 
+--------------------------------+---------+-------------------------------+-----------+-----------------+-------------
+ source-extraction              | Success | 2026-10-04 14:09:01.798401+00 |     17844 |               1 | 
+ source-extraction              | Success | 2026-10-04 14:08:43.731526+00 |     13491 |               1 | 
+ source-extraction              | Success | 2026-10-04 14:08:29.996215+00 |     13106 |               1 | 
+ source-extraction              | Success | 2026-10-04 14:08:16.600662+00 |     18332 |               1 | 
+ source-extraction              | Success | 2026-10-04 14:07:58.005252+00 |     11434 |               1 | 
+ facts-consistency              | Success | 2026-10-04 14:07:47.704812+00 |      4265 |               1 | 
+ source-extraction              | Success | 2026-10-04 14:07:46.291103+00 |      8011 |               1 | 
+ literature-identity-extraction | Success | 2026-10-04 14:07:43.232497+00 |      6215 |               1 | 
+ source-extraction              | Success | 2026-10-04 14:07:37.765921+00 |     12858 |               1 | 
+ literature-identity-extraction | Success | 2026-10-04 14:07:36.873022+00 |      9420 |               1 | 
+(10 rows)
+
+              now              
+-------------------------------
+ 2026-10-04 15:00:45.020802+00
+(1 row)
+

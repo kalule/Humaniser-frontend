@@ -1,0 +1,120 @@
+{
+  "Id": "97ec7dd6-5eef-44c7-afbf-f68a4c019941",
+  "ProjectId": "20c76b01-c2c2-15af-4756-dd7fc14a8fc2",
+  "PreviousRunId": "647389a9-6cd1-4991-b9a4-91a24d990b0a",
+  "RequestJson": {
+    "projectId": "20c76b01-c2c2-15af-4756-dd7fc14a8fc2",
+    "userId": "00000000-0000-0000-0000-000000000001",
+    "correlationId": "97ec7dd6-5eef-44c7-afbf-f68a4c019941",
+    "specification": {
+      "title": "Asynchronous Task Orchestration and Fenced Execution in LLM-Driven Workflows",
+      "problem": "Long-running LLM generation pipelines in asynchronous worker architectures frequently suffer from worker timeouts, duplicate task redeliveries, and race conditions. When stale or orphaned workers write late-arriving responses back to persistence after cancellation or retry events, they corrupt generation state and waste expensive LLM API tokens.",
+      "field": "",
+      "academicLevel": "MASTERS",
+      "geography": "",
+      "population": "The study will examine containerized distributed task execution workers (e.g., Hangfire/RabbitMQ background jobs), asynchronous LLM generation pipelines, monotonic fencing token protocols, network partition logs, and API token usage records during simulated worker timeouts and redelivery events.",
+      "unitOfAnalysis": "",
+      "temporalScope": "",
+      "framework": "",
+      "contribution": "",
+      "limitations": "",
+      "scopeLimits": "",
+      "citationStyle": "harvard",
+      "institutionRequirements": "",
+      "universityTemplateId": null,
+      "methodologyVersion": 0,
+      "mixedMethodIntegration": "",
+      "totalWords": 6000,
+      "questions": [],
+      "objectives": [],
+      "constructs": [],
+      "dataSources": [],
+      "analyses": [],
+      "hypothesisApplicability": "Unknown",
+      "hypothesisRationale": "",
+      "hypotheses": [],
+      "study": null,
+      "sampling": {
+        "design": "",
+        "confidence": 0.95,
+        "margin": null,
+        "proportion": null,
+        "populationSize": null,
+        "effectSize": null,
+        "power": null,
+        "designEffect": 1,
+        "responseRate": 1,
+        "frame": "",
+        "rationale": ""
+      }
+    },
+    "expectedRevisionId": null,
+    "evidence": {
+      "projectId": "20c76b01-c2c2-15af-4756-dd7fc14a8fc2",
+      "sources": []
+    },
+    "evidenceExcerpts": null,
+    "expectedInputFingerprint": null
+  },
+  "PromptVersion": "research-design.reasoning.v5",
+  "PolicyVersion": "research-design.methodology.v2",
+  "SchemaVersion": "research-design.reasoning.schema.v1",
+  "ExecutionPolicyJson": {
+    "budget": {
+      "maxCalls": 1,
+      "maxPhysicalAttempts": 1,
+      "maxInputTokens": 24000,
+      "maxOutputTokens": 12000,
+      "maxContextBytes": 48000,
+      "maxResponseBytes": 100000,
+      "timeoutSeconds": 120,
+      "maxCostUsd": null,
+      "allowAdjudication": false,
+      "allowFallback": false
+    },
+    "route": {
+      "model": "claude-haiku-4-5-20251001",
+      "maxInputTokens": 8000,
+      "maxOutputTokens": 8192,
+      "temperature": null,
+      "timeout": "00:02:00",
+      "responseCacheable": false,
+      "promptCacheEligible": false,
+      "promptVersion": "complex-reasoning.v1",
+      "fallbackModel": null
+    }
+  },
+  "ModelRoute": "claude-haiku-4-5-20251001",
+  "AttemptsJson": [
+    {
+      "stage": "candidates",
+      "model": "claude-haiku-4-5-20251001",
+      "credits": 4,
+      "inputAllowance": 6613,
+      "outputAllowance": 8192,
+      "physicalAllowance": 1,
+      "settled": true,
+      "response": null,
+      "failure": "ProviderUnavailable"
+    }
+  ],
+  "UsageJson": {
+    "reasoningCallCount": 1,
+    "physicalAttemptCount": 1,
+    "inputTokenUpperBound": 6613,
+    "outputTokenAllowance": 8192,
+    "actualInputTokens": 6613,
+    "actualOutputTokens": 8192,
+    "estimatedCostUsd": 0.047573,
+    "actualCostUsd": null,
+    "latencyMs": 79047,
+    "retryCount": 0,
+    "fallbackCount": 0,
+    "failureReason": "OutputTruncated",
+    "tokenCountRequestCount": 1
+  },
+  "ReservedCredits": 0,
+  "ConsumedCredits": 0,
+  "ResultArtifactId": "1bbf5f43-3863-4518-9ffb-e9fe1a999185",
+  "FailureCode": "InvalidModelOutput"
+}

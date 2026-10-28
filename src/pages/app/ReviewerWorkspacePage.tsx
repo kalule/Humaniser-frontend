@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, AlertCircle, AlertTriangle, Info, CheckCircle2, XCircle, RefreshCw, Mail,
@@ -298,6 +298,11 @@ export default function ReviewerWorkspacePage() {
         </button>
       </div>
 
+      {review.researchProjectId && <nav aria-label="Research handoff" className="flex shrink-0 flex-wrap gap-3 border-b border-slate-200 px-6 py-3 text-sm">
+        <Link className="text-violet-700" to={`/app/research-agent/${review.researchProjectId}/proposal-workflow`}>Continue to Research Design</Link>
+        <Link className="text-violet-700" to={`/app/research-agent/${review.researchProjectId}/dashboard?tab=validation`}>Thesis readiness</Link>
+        <Link className="text-violet-700" to={`/app/web-library/packages?projectId=${review.researchProjectId}`}>Project evidence packages</Link>
+      </nav>}
       {/* 3-pane body */}
       <div className="flex-1 flex overflow-hidden min-h-0">
 

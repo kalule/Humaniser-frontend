@@ -1,0 +1,17 @@
+﻿        Stage         |        Pipeline        |         Operation          | attempts | known_complete_cost_usd | incomplete | unpriced 
+----------------------+------------------------+----------------------------+----------+-------------------------+------------+----------
+ EvidenceProcessing   | LegacyProposalWorkflow | EvidenceScreening          |       28 |             0.294900000 |          0 |        0
+ EvidenceProcessing   | LegacyProposalWorkflow | SourceDistillation         |       40 |             0.053839000 |          0 |        0
+ EvidenceVerification | StrictProposalWorkflow | EvidenceBinding            |        6 |             0.021637000 |          0 |        0
+ Writing              | StrictProposalWorkflow | SectionGeneration          |        2 |             0.011043000 |          0 |        0
+ Planning             | LegacyProposalWorkflow | DiscoveryQueryPlanning     |        1 |             0.004122000 |          0 |        0
+ Planning             | LegacyProposalWorkflow | ConceptTermClassification  |        1 |             0.002252000 |          0 |        0
+ Planning             | LegacyProposalWorkflow | DiscoveryDimensionPlanning |        1 |             0.001811000 |          0 |        0
+ Research             | LegacyProposalWorkflow | TopicScopeResolution       |        1 |             0.001745000 |          0 |        0
+(8 rows)
+
+ statename | jobs 
+-----------+------
+ Succeeded |    5
+(1 row)
+

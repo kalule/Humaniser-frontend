@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -18,28 +18,37 @@ import { useAuthStore } from '../../store/authStore'
 import { useUiStore } from '../../store/uiStore'
 import { CREDIT_COSTS } from '../../config/creditCosts'
 import { researchApi } from '../../api/research'
+import { proposalJourneyApi } from '../../api/proposalJourney'
 import { useSectionDraftStream } from '../../hooks/useSectionDraftStream'
 import { ToolSidebar } from '../../components/layout/ToolSidebar'
+import { Tooltip } from '../../components/ui/Tooltip'
+import ConfirmActionModal from '../../components/app/ConfirmActionModal'
 import { DocumentSurface, type DocumentSurfaceHandle } from '../../components/research-agent/DocumentSurface'
+import { ReviewNotesPanel } from '../../components/research-agent/ReviewNotesPanel'
 import { ReferencesDrawer } from '../../components/research-agent/ReferencesDrawer'
 import { SectionVersionHistoryDrawer } from '../../components/research-agent/SectionVersionHistoryDrawer'
 import { EvidenceCoverageDrawer } from '../../components/research-agent/EvidenceCoverageDrawer'
+import { GapFinderPanel } from '../../components/research-agent/GapFinderPanel'
+import { GapQuestionEditor, QUESTION_PREFIX, questionFromDescription } from '../../components/research-agent/GapQuestionEditor'
 import { FactConflictsPanel } from '../../components/research-agent/FactConflictsPanel'
-import { parseBibliographyEntries, formatInTextCitation, type ParsedReference } from '../../lib/citationFormat'
+import { formatInTextCitation, type ParsedReference } from '../../lib/citationFormat'
+import { bibliographyReferences, buildBibliographyKey, type BibliographyState } from '../../lib/bibliographyState'
 import '../../styles/research-agent-editor.css'
 import { SectionFixDiffModal } from '../../components/research-agent/SectionFixDiffModal'
 import type {
   AcademicLevel, AlignmentIssue, AlignmentValidationResult, CitationFixAction, CitationFlag, CitationStyle,
   DocumentMode, FactConflict, FetchedLiterature, GeneratorMode, ProjectSection, ResearchProject,
   ResearchTopic, GeneratedTitle, SectionFixPreview, SectionStatus,
-  ProjectHypothesis, UpdateHypothesisPayload, DefencePreparation, ThesisAuditResult, RubricScores,
+  MethodologyViolation, ProjectHypothesis, UpdateHypothesisPayload, DefencePreparation, ThesisAuditResult, RubricScores,
 } from '../../types/research'
 import toast from 'react-hot-toast'
+import { FixIssuesPanel } from '../../components/research-agent/FixIssuesPanel'
 // STEPS and SECTION_PROMPTS live in src/data/proposalOutline.ts — shared with
 // AutonomousProposalTools' autonomous generation flow, which needs the same
 // chapter list and prompts without pulling in this whole page's module.
 import { STEPS, SECTION_PROMPTS, getStepLabel } from '../../data/proposalOutline'
 import { isAbstractStepLocked } from './abstractStepStatus'
+import { apiErrorMessage } from '../../lib/deepResearch'
 import { recommendMethodology, methodologyInputFingerprint, type MethodologyRecommendation } from '../../lib/methodologyRecommendation'
 
 export { STEPS }
@@ -181,35 +190,61 @@ function StepCard({ children, className }: { children: React.ReactNode; classNam
 
 // ── Step 0: Research Topic ─────────────────────────────────────────────────────
 
+const OWN_TOPIC_ID = '__own_topic__'
+const GENERATE_COOLDOWN_MS = 3000
+
 function ResearchTopicStep({
   project,
 }: {
   project: ResearchProject
   onNext:  () => void
 }) {
-  const { updateProject, setTopics, selectTopic } = useResearchStore()
-  const [field,    setField]      = useState(project.fieldInterest)
+  const { updateProject, setTopics, selectTopic, setGeneratedTitles, syncProject } = useResearchStore()
+  // The create-proposal flow only ever writes project.title, never fieldInterest (confirmed —
+  // ProposalStudioPage's handleCreate passes ?title= into CreateProjectPayload.title only), so a
+  // project created with a working title arrived here with an empty field despite already having
+  // a real research question. Fall back to the title (excluding the generic placeholder) so that
+  // text isn't silently discarded (Research Agent UX audit, 2026-10-03).
+  const prefillFromTitle = !project.fieldInterest && project.title && project.title !== 'Untitled Research Project'
+    ? project.title : ''
+  const [field,    setField]      = useState(project.fieldInterest || prefillFromTitle)
   const [level,    setLevel]      = useState<AcademicLevel>(project.academicLevel)
   const [loading,  setLoading]    = useState(false)
   const [topics,   setLocalTopics] = useState<ResearchTopic[]>(project.suggestedTopics)
   const [chosen,   setChosen]     = useState<ResearchTopic | null>(project.selectedTopic)
   // When a topic is confirmed, show the summary view. Clicking "Edit Topic" flips back.
   const [confirmed, setConfirmed] = useState(!!project.selectedTopic)
+  const [showPrefillBanner, setShowPrefillBanner] = useState(!!prefillFromTitle)
+  const [cooldownUntil, setCooldownUntil] = useState(0)
+  const [, forceTick] = useState(0)
+  const resultsHeadingRef = useRef<HTMLHeadingElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const submittingRef = useRef(false)
 
   const canGenerate = field.trim().length > 10
+  const inCooldown = Date.now() < cooldownUntil
 
   const handleGenerate = async () => {
-    if (!canGenerate) return
+    if (!canGenerate || submittingRef.current || inCooldown) return
+    submittingRef.current = true
+    setShowPrefillBanner(false)
     updateProject(project.id, { fieldInterest: field, academicLevel: level })
     setLoading(true)
     try {
       const results = await researchApi.generateTopics(project.id, field, level)
       setLocalTopics(results)
       setTopics(project.id, results)
+      setCooldownUntil(Date.now() + GENERATE_COOLDOWN_MS)
+      setTimeout(() => forceTick(t => t + 1), GENERATE_COOLDOWN_MS + 50)
+      requestAnimationFrame(() => {
+        resultsHeadingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        resultsHeadingRef.current?.focus()
+      })
     } catch {
       toast.error('Failed to generate topics. Please try again.')
     } finally {
       setLoading(false)
+      submittingRef.current = false
     }
   }
 
@@ -217,6 +252,13 @@ function ResearchTopicStep({
     setChosen(t)
     selectTopic(project.id, t)
     setConfirmed(true)
+    setShowPrefillBanner(false)
+  }
+
+  const handleUseOwnTopic = () => {
+    const trimmed = field.trim()
+    if (!trimmed) return
+    handleSelect({ id: OWN_TOPIC_ID, title: trimmed, description: '', tags: [], gapSummary: '' })
   }
 
   const handleChangeTopic = () => {
@@ -226,8 +268,22 @@ function ResearchTopicStep({
     setLocalTopics([])
   }
 
-  const handleChip = (chip: string) =>
-    setField(prev => prev ? `${prev.trimEnd()} ${chip}` : chip)
+  const handleChip = (chip: string) => {
+    setField(chip)
+    textareaRef.current?.focus()
+  }
+
+  const resultCards: (ResearchTopic & { isOwn?: boolean })[] = field.trim()
+    ? [{ id: OWN_TOPIC_ID, title: field.trim(), description: '', tags: [], gapSummary: '', isOwn: true }, ...topics]
+    : topics
+
+  const handleCardKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    e.preventDefault()
+    const next = e.key === 'ArrowDown' ? (idx + 1) % resultCards.length : (idx - 1 + resultCards.length) % resultCards.length
+    const el = document.getElementById(`topic-card-${resultCards[next].id}`)
+    el?.focus()
+  }
 
   // ── Confirmed topic summary view ─────────────────────────────────────────
   if (confirmed && chosen) {
@@ -263,6 +319,21 @@ function ResearchTopicStep({
             </p>
           </div>
 
+          {/* A gap chosen from the literature: refine its research question before titles are built from it. */}
+          {chosen.id.startsWith('gap-') && (
+            <GapQuestionEditor
+              question={questionFromDescription(chosen.description)}
+              gap={chosen.gapSummary}
+              onSave={async q => {
+                const next = { ...chosen, description: `${QUESTION_PREFIX} ${q}` }
+                setChosen(next)
+                selectTopic(project.id, next)
+                setGeneratedTitles(project.id, [])
+                await syncProject(project.id).catch(() => toast.error('Could not save your research question.'))
+              }}
+            />
+          )}
+
           {/* Tags */}
           {chosen.tags?.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-5">
@@ -288,19 +359,23 @@ function ResearchTopicStep({
   return (
     <StepCard>
       <div className="p-8">
-        {/* Callout */}
-        <div className="bg-sky-50/70 border border-sky-100 rounded-xl p-4 mb-6 flex gap-3">
-          <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center shrink-0 mt-0.5">
-            <Sparkles size={15} className="text-sky-600" />
+        <p className="text-[13px] text-slate-500 mb-5">
+          Describe your field or interest, then use <strong>Find research gaps</strong> to get topics
+          backed by real papers. <strong>Quick ideas</strong> is a faster brainstorm with no literature check.
+        </p>
+
+        {/* Pre-filled banner */}
+        {showPrefillBanner && (
+          <div className="bg-purple-tint border border-purple-accent/20 rounded-xl p-3.5 mb-5 flex items-center justify-between gap-3">
+            <p className="text-[12px] text-purple-text">Pre-filled from your proposal. Review or change it below.</p>
+            <button
+              onClick={handleUseOwnTopic}
+              className="shrink-0 px-3 py-1.5 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[12px] font-medium transition-colors"
+            >
+              Continue
+            </button>
           </div>
-          <div>
-            <p className="text-[14px] font-semibold text-slate-800">Find Your Research Topic</p>
-            <p className="text-[12px] text-slate-500 mt-0.5 leading-relaxed">
-              Enter your field of study or describe what you're interested in researching.
-              Our AI searches real academic literature to suggest topics with genuine research gaps.
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Academic Level */}
         <div className="mb-6">
@@ -313,7 +388,7 @@ function ResearchTopicStep({
                 className={cn(
                   'py-2 rounded-md text-[13px] font-medium transition-all',
                   level === l
-                    ? 'bg-[#1e293b] text-white shadow-sm'
+                    ? 'bg-purple-accent text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-700',
                 )}
               >
@@ -325,115 +400,187 @@ function ResearchTopicStep({
 
         {/* Field textarea */}
         <div className="mb-5">
-          <label className="block text-[13px] font-semibold text-slate-700 mb-2">
-            Your Field or Research Interest
+          <label htmlFor="research-topic-field" className="block text-[13px] font-semibold text-slate-700 mb-2">
+            Enter your research topic or existing title
           </label>
           <textarea
+            id="research-topic-field"
+            ref={textareaRef}
             value={field}
             onChange={e => setField(e.target.value)}
-            placeholder="Describe your field or what you're interested in researching…&#10;&#10;Examples:&#10;• Healthcare technology and how AI can help doctors make better diagnoses&#10;• Climate change impact on farming in developing countries"
+            placeholder="A broad topic (e.g. digital learning adoption among university students) or a title you already have. You don't need a final title to look for gaps."
             rows={5}
-            className="w-full bg-white border border-slate-200 rounded-xl p-4 text-[13px] text-slate-700 placeholder-slate-400 resize-none outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all"
+            data-gramm="false"
+            data-gramm_editor="false"
+            data-enable-grammarly="false"
+            className="w-full bg-white border border-slate-200 rounded-xl p-4 text-[13px] text-slate-700 placeholder-slate-400 resize-none outline-none focus:border-purple-accent focus:ring-2 focus:ring-purple-tint transition-all"
           />
         </div>
 
-        {/* Chips */}
-        <div className="mb-6">
-          <p className="text-[12px] text-slate-500 font-medium mb-2">Try these examples:</p>
-          <div className="flex flex-wrap gap-2">
-            {SUGGESTION_CHIPS.map(chip => (
-              <button
-                key={chip}
-                onClick={() => handleChip(chip)}
-                className="px-3 py-1.5 rounded-full border border-slate-200 text-[12px] text-slate-600 hover:border-slate-400 hover:text-slate-800 hover:bg-slate-50 transition-all"
-              >
-                {chip}
-              </button>
-            ))}
+        {/* Chips — only while the field is empty, so they read as starting points, not clutter
+            once the student has already written something. */}
+        {!field.trim() && (
+          <div className="mb-6">
+            <p className="text-[12px] text-slate-500 font-medium mb-2">Or start from an example:</p>
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTION_CHIPS.map(chip => (
+                <button
+                  key={chip}
+                  onClick={() => handleChip(chip)}
+                  className="px-3 py-1.5 rounded-full border border-slate-200 text-[12px] text-slate-600 hover:border-purple-accent hover:text-purple-text hover:bg-purple-tint transition-all"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Generate button */}
-        <button
-          onClick={handleGenerate}
-          disabled={!canGenerate || loading}
-          className={cn(
-            'w-full py-3 rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2 transition-all',
-            canGenerate && !loading
-              ? 'bg-[#1e293b] hover:bg-slate-800 text-white shadow-md'
-              : 'bg-slate-100 text-slate-400 cursor-not-allowed',
-          )}
-        >
-          {loading ? (
-            <><Loader2 size={15} className="animate-spin" /> Searching literature &amp; generating topics…</>
-          ) : (
-            <><Sparkles size={15} /> Generate Research Topics</>
-          )}
-        </button>
+        {/* Primary action — verified gaps: retrieval, screening, evidence passages and a
+            counter-search per gap. Listed first so it is the default way to find a topic. */}
+        <GapFinderPanel
+          className="mb-6"
+          projectId={project.id}
+          topic={field}
+          onUseGap={r => {
+            // Titles generated before this gap was chosen don't reflect its research question.
+            setGeneratedTitles(project.id, [])
+            handleSelect({
+              id: `gap-${r.gapId}`,
+              title: r.title,
+              description: `Research question: ${r.suggestedQuestion}`,
+              tags: [],
+              gapSummary: `Potential gap within the reviewed literature: ${r.statement}`,
+            })
+          }}
+        />
+
+        {/* Secondary action — fast, model-only ideas with no literature check behind them. */}
+        <div className="pt-5 border-t border-slate-100">
+          <Tooltip label={!canGenerate ? 'Describe your interest or pick an example (at least a few words)' : inCooldown ? 'Give it a moment before generating again' : 'Quick ideas'}>
+            <button
+              onClick={handleGenerate}
+              disabled={!canGenerate || loading || inCooldown}
+              className={cn(
+                'px-5 py-2.5 rounded-xl text-[13px] font-semibold whitespace-nowrap shrink-0 inline-flex items-center justify-center gap-2 border transition-all',
+                canGenerate && !loading && !inCooldown
+                  ? 'border-slate-300 text-slate-700 bg-white hover:bg-slate-50'
+                  : 'border-slate-200 text-slate-400 cursor-not-allowed',
+              )}
+            >
+              {loading ? (
+                <><Loader2 size={14} className="animate-spin" /> Generating…</>
+              ) : (
+                <><Sparkles size={14} /> {topics.length > 0 ? 'More quick ideas' : 'Quick ideas (unverified)'}</>
+              )}
+            </button>
+          </Tooltip>
+          <p className="text-[12px] text-slate-500 mt-2 max-w-xl leading-relaxed">
+            A fast brainstorm from a handful of abstracts. These are ideas, not checked gaps; nothing
+            confirms the literature has not already covered them.
+          </p>
+        </div>
       </div>
 
-      {/* ── Generated topic cards ─────────────────────────────────────────── */}
+      {/* ── Topic cards (own-topic option + generated suggestions) ─────────── */}
       <AnimatePresence>
-        {topics.length > 0 && (
+        {resultCards.length > 0 && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             className="border-t border-slate-100 overflow-hidden"
           >
             <div className="p-6">
-              <p className="text-[15px] font-bold text-slate-800 mb-0.5">Suggested Research Topics</p>
+              <h3 ref={resultsHeadingRef} tabIndex={-1} className="text-[15px] font-bold text-slate-800 mb-0.5 outline-none">
+                {topics.length > 0 ? `${topics.length} quick idea${topics.length === 1 ? '' : 's'} (unverified)` : 'Your topic'}
+              </h3>
               <p className="text-[12px] text-slate-500 mb-4">
-                Click on a topic to select it. You'll be able to edit it before proceeding.
+                Click a topic to select it. You'll be able to edit it before proceeding.
               </p>
 
-              <div className="space-y-4">
-                {topics.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => handleSelect(t)}
-                    className={cn(
-                      'w-full text-left bg-white border rounded-xl p-6 cursor-pointer transition-all duration-200 relative',
-                      chosen?.id === t.id
-                        ? 'border-2 border-orange-500 bg-orange-50/30 shadow-sm'
-                        : 'border border-slate-200 hover:bg-slate-50/50 hover:border-slate-300',
-                    )}
-                  >
-                    <div className={cn(
-                      'absolute top-4 right-4 w-5 h-5 rounded-full border-2 flex items-center justify-center',
-                      chosen?.id === t.id ? 'border-orange-500 bg-orange-500' : 'border-slate-300',
-                    )}>
-                      {chosen?.id === t.id && <Check size={11} className="text-white" />}
-                    </div>
-
-                    <p className="text-[14px] font-bold text-slate-900 leading-snug pr-8 mb-2">
-                      {t.title}
-                    </p>
-                    <p className="text-[12px] text-teal-700 leading-relaxed mb-3">
-                      {t.description}
-                    </p>
-
-                    {t.tags?.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {t.tags.map(tag => (
-                          <span key={tag} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[11px] font-medium">
-                            {tag}
-                          </span>
-                        ))}
+              <div role="radiogroup" aria-label="Research topic options" className="space-y-4">
+                {resultCards.map((t, idx) => {
+                  const isOwn = t.id === OWN_TOPIC_ID
+                  const isSelected = chosen?.id === t.id
+                  return (
+                    <button
+                      id={`topic-card-${t.id}`}
+                      key={t.id}
+                      role="radio"
+                      aria-checked={isSelected}
+                      onKeyDown={e => handleCardKeyDown(e, idx)}
+                      onClick={() => isOwn ? handleUseOwnTopic() : handleSelect(t)}
+                      className={cn(
+                        'w-full text-left bg-white border rounded-xl p-5 cursor-pointer transition-all duration-200 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/50',
+                        isSelected
+                          ? 'border-2 border-purple-accent bg-purple-tint/30 shadow-sm'
+                          : 'border border-slate-200 hover:bg-slate-50/50 hover:border-slate-300',
+                      )}
+                    >
+                      <div className={cn(
+                        'absolute top-4 right-4 w-5 h-5 rounded-full border-2 flex items-center justify-center',
+                        isSelected ? 'border-purple-accent bg-purple-accent' : 'border-slate-300',
+                      )}>
+                        {isSelected && <Check size={11} className="text-white" />}
                       </div>
-                    )}
 
-                    <div className="bg-slate-50/70 rounded-lg p-4 border border-slate-100">
-                      <p className="text-[11px] font-bold text-slate-700 mb-1">Research Gap:</p>
-                      <p className="text-[12px] text-slate-600 leading-relaxed">{t.gapSummary}</p>
-                    </div>
-                  </button>
-                ))}
+                      {isOwn ? (
+                        <>
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-purple-text mb-1.5">Use my topic as written</p>
+                          <p className="text-[14px] font-semibold text-slate-800 leading-snug pr-8">{t.title}</p>
+                        </>
+                      ) : (
+                        <TopicCardBody topic={t} />
+                      )}
+                    </button>
+                  )
+                })}
               </div>
+
+              {chosen && (
+                <p className="text-[12px] text-slate-500 mt-4">
+                  Selected: <strong className="text-slate-700">{chosen.title}</strong>. You'll refine the title in the next step.
+                </p>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </StepCard>
+  )
+}
+
+// Compact by default — full description and tags only on "Show details", so two cards can be
+// compared without a 450px scroll each (Research Agent UX audit, 2026-10-03). The gap text was
+// removed: generateTopics returns no supporting papers, so it was an unverified claim.
+function TopicCardBody({ topic }: { topic: ResearchTopic }) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <div onClick={e => e.stopPropagation()}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Unverified idea</p>
+      <p className="text-[14px] font-bold text-slate-900 leading-snug pr-8 mb-2">{topic.title}</p>
+      <p className={cn('text-[12px] text-slate-600 leading-relaxed mb-2', !expanded && 'line-clamp-2')}>
+        {topic.description}
+      </p>
+      {topic.tags?.length > 0 && expanded && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {topic.tags.map(tag => (
+            <span key={tag} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[11px] font-medium">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+      {/* No gap text here: generateTopics' gapSummary is an unchecked model assertion over six
+          truncated abstracts. Verified gaps come only from Find research gaps. */}
+      <button
+        type="button"
+        onClick={() => setExpanded(v => !v)}
+        className="text-[11px] font-medium text-purple-accent hover:text-purple-deep mt-2 transition-colors"
+      >
+        {expanded ? 'Show less' : 'Show details'}
+      </button>
+    </div>
   )
 }
 
@@ -444,8 +591,21 @@ function ResearchTopicStep({
 // which only matches the literal words "qualitative"/"quantitative"/"mixed".
 // ── Step 1: Research Title ─────────────────────────────────────────────────────
 
+// Coarse keyword classifier for GeneratedTitle.methodology free text, so an already-confirmed
+// methodology can be checked against what each title implies — mirrors (and is a superset of)
+// ResearchPrompts.ClassifyMethodology server-side, which only matches the literal words
+// "qualitative"/"quantitative"/"mixed". Display-only flag, never auto-corrects anything.
+function classifyTitleDesign(methodology: string): 'Qualitative' | 'Quantitative' | 'Mixed Methods' | null {
+  const text = methodology.toLowerCase()
+  if (text.includes('mixed')) return 'Mixed Methods'
+  if (text.includes('qualitative')) return 'Qualitative'
+  if (text.includes('quantitative') || text.includes('survey') || text.includes('cross-sectional') || text.includes('experiment')) return 'Quantitative'
+  return null
+}
+
 function ResearchTitleStep({ project }: { project: ResearchProject }) {
   const { updateProject, setGeneratedTitles } = useResearchStore()
+  const [, setSearchParams] = useSearchParams()
 
   const existingTitles = project.generatedTitles ?? []
   const [titles,          setTitles]      = useState<GeneratedTitle[]>(existingTitles)
@@ -460,12 +620,17 @@ function ResearchTitleStep({ project }: { project: ResearchProject }) {
     )
   )
   const [generating, setGenerating] = useState(false)
+  const [pendingRegenerateConfirm, setPendingRegenerateConfirm] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const customInputRef = useRef<HTMLInputElement>(null)
+  const regenSubmittingRef = useRef(false)
 
   const chosenTopic = project.selectedTopic?.title ?? project.fieldInterest
+  const hasSelection = Boolean(selectedId || customTitle.trim())
 
   const doGenerate = useCallback(async () => {
-    if (!chosenTopic.trim()) return
+    if (!chosenTopic.trim() || regenSubmittingRef.current) return
+    regenSubmittingRef.current = true
     setGenerating(true)
     try {
       const results = await researchApi.generateTitles(project.id, chosenTopic, project.academicLevel)
@@ -473,12 +638,21 @@ function ResearchTitleStep({ project }: { project: ResearchProject }) {
       setGeneratedTitles(project.id, results)
       setSelectedId(null)
       setCustomTitle('')
-    } catch {
-      toast.error('Failed to generate titles. Please try again.')
+      // Clear the stale title string too — previously Regenerate All left project.title
+      // pointing at a title no card was marked as selected for (Research Agent UX audit).
+      updateProject(project.id, { title: 'Untitled Research Project' })
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Failed to generate titles. Please try again.'))
     } finally {
       setGenerating(false)
+      regenSubmittingRef.current = false
     }
   }, [project.id, chosenTopic, project.academicLevel])
+
+  const handleRegenerateAllClick = () => {
+    if (hasSelection) { setPendingRegenerateConfirm(true); return }
+    doGenerate()
+  }
 
   // Auto-generate on first load if no titles are cached yet
   useEffect(() => {
@@ -505,37 +679,79 @@ function ResearchTitleStep({ project }: { project: ResearchProject }) {
     }, 600)
   }
 
+  // "Edit" on a generated card: no per-title edit handler exists anywhere (confirmed via
+  // discovery — the backend only ever regenerates the whole batch), so editing a generated
+  // title reuses the same custom-title field, pre-filled with that title's text, rather than
+  // inventing a per-title update call.
+  const handleEditCard = (t: GeneratedTitle) => {
+    setSelectedId(null)
+    handleCustomChange(t.titleText)
+    customInputRef.current?.focus()
+  }
+
+  const methodologyMismatch = project.methodologyType
+    ? titles.find(t => {
+        const design = classifyTitleDesign(t.methodology)
+        return design && design !== project.methodologyType
+      })
+    : null
+
+  if (!chosenTopic.trim()) {
+    return (
+      <StepCard>
+        <div className="p-8 text-center">
+          <p className="text-[14px] font-semibold text-slate-700 mb-1">No topic confirmed yet</p>
+          <p className="text-[13px] text-slate-500 mb-4">Choose or write a research topic first — titles are generated from it.</p>
+          <button
+            onClick={() => setSearchParams({ step: '0' })}
+            className="px-4 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-medium transition-colors"
+          >
+            Go to Research Topic
+          </button>
+        </div>
+      </StepCard>
+    )
+  }
+
   return (
     <StepCard>
       <div className="p-8">
-        {/* Confirmed topic read-only banner */}
+        {/* Carry-over card */}
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
-            Your Research Topic
-          </p>
-          <p className="text-[14px] font-semibold text-slate-800 leading-snug">{chosenTopic}</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                Your Research Topic
+              </p>
+              <p className="text-[14px] font-semibold text-slate-800 leading-snug">{chosenTopic}</p>
+            </div>
+            <button
+              onClick={() => setSearchParams({ step: '0' })}
+              className="shrink-0 flex items-center gap-1 text-[12px] font-medium text-purple-accent hover:text-purple-deep transition-colors"
+            >
+              <Edit2 size={12} /> Edit
+            </button>
+          </div>
+          {project.selectedTopic?.id.startsWith('gap-') && project.selectedTopic.gapSummary && (
+            <p className="text-[12px] text-slate-500 mt-2 leading-relaxed">{project.selectedTopic.gapSummary}</p>
+          )}
         </div>
 
         {/* Header row */}
         <div className="flex items-center justify-between mb-4">
-          <p className="text-[15px] font-bold text-slate-800">Generated Research Titles</p>
-          <button
-            onClick={doGenerate}
-            disabled={generating}
-            className="flex items-center gap-1.5 bg-[#1e293b] hover:bg-slate-800 text-white text-[12px] font-medium rounded-lg px-3 py-1.5 transition-colors disabled:opacity-60"
-          >
-            {generating
-              ? <><Loader2 size={12} className="animate-spin" /> Generating…</>
-              : <><RefreshCw size={12} /> Regenerate All</>}
-          </button>
+          <p className="text-[15px] font-bold text-slate-800">Research titles</p>
+          <Tooltip label="Regenerating replaces every title below">
+            <button
+              onClick={handleRegenerateAllClick}
+              disabled={generating}
+              className="flex items-center gap-1.5 bg-purple-accent hover:bg-purple-deep text-white text-[12px] font-medium rounded-lg px-3 py-1.5 transition-colors disabled:opacity-60"
+            >
+              {generating
+                ? <><Loader2 size={12} className="animate-spin" /> Generating…</>
+                : <><RefreshCw size={12} /> Regenerate all</>}
+            </button>
+          </Tooltip>
         </div>
-
-        {/* Instruction copy */}
-        {!generating && titles.length > 0 && (
-          <p className="text-[12px] text-slate-500 mb-4">
-            Click on a title to select it as your research title. You can also edit or regenerate individual titles.
-          </p>
-        )}
 
         {/* Loading skeleton */}
         {generating && (
@@ -549,58 +765,121 @@ function ResearchTitleStep({ project }: { project: ResearchProject }) {
           </div>
         )}
 
-        {/* Title cards */}
-        {!generating && titles.length > 0 && (
-          <div className="space-y-3 mb-6">
-            {titles.map(t => (
-              <button
-                key={t.id}
-                onClick={() => handleSelectCard(t)}
-                className={cn(
-                  'block w-full text-left border rounded-xl p-4 text-sm transition-all duration-150 cursor-pointer',
-                  selectedId === t.id
-                    ? 'border-2 border-orange-500 bg-orange-50/30 shadow-sm'
-                    : 'border-slate-200 hover:border-slate-400 bg-white',
-                )}
-              >
-                <p className={cn(
-                  'text-[13px] leading-snug font-medium',
-                  selectedId === t.id ? 'text-slate-900' : 'text-slate-700',
-                )}>
-                  {t.titleText}
+        {!generating && (
+          <div role="radiogroup" aria-label="Research title options" className="space-y-3 mb-2">
+            {/* Write my own — first option, same selected treatment as generated cards */}
+            <div
+              className={cn(
+                'border rounded-xl p-4 transition-all duration-150',
+                selectedId === null && customTitle.trim()
+                  ? 'border-2 border-purple-accent bg-purple-tint/30 shadow-sm'
+                  : 'border-slate-200 bg-white',
+              )}
+            >
+              <label htmlFor="custom-title-input" className="block text-[12px] font-semibold text-slate-700 mb-1.5">
+                Write my own title
+              </label>
+              <input
+                id="custom-title-input"
+                ref={customInputRef}
+                value={customTitle}
+                onChange={e => handleCustomChange(e.target.value)}
+                placeholder="Type your own research title…"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-[13px] text-slate-800 placeholder-slate-400 outline-none focus:border-purple-accent focus:ring-2 focus:ring-purple-tint transition-all"
+              />
+              {customTitle && (
+                <p className="text-[11px] text-slate-400 mt-1.5 text-right">
+                  {customTitle.split(' ').filter(Boolean).length} words
                 </p>
-                <p className="text-[11px] text-slate-400 mt-1.5">{t.methodology}</p>
-              </button>
-            ))}
+              )}
+            </div>
+
+            {/* Generated titles */}
+            {titles.map(t => {
+              const isSelected = selectedId === t.id
+              const design = classifyTitleDesign(t.methodology)
+              const mismatches = Boolean(project.methodologyType && design && design !== project.methodologyType)
+              return (
+                <div
+                  key={t.id}
+                  role="radio"
+                  aria-checked={isSelected}
+                  tabIndex={0}
+                  onClick={() => handleSelectCard(t)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectCard(t) } }}
+                  className={cn(
+                    'group block w-full text-left border rounded-xl p-4 text-sm transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/50',
+                    isSelected
+                      ? 'border-2 border-purple-accent bg-purple-tint/30 shadow-sm'
+                      : 'border-slate-200 hover:border-slate-400 bg-white',
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className={cn(
+                      'text-[13px] leading-snug font-medium',
+                      isSelected ? 'text-slate-900' : 'text-slate-700',
+                    )}>
+                      {t.titleText}
+                    </p>
+                    <button
+                      onClick={e => { e.stopPropagation(); handleEditCard(t) }}
+                      className="shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-purple-accent transition-all"
+                    >
+                      <Edit2 size={11} /> Edit
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-medium">
+                      {t.methodology}
+                    </span>
+                    {mismatches && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-tint text-amber-text text-[11px] font-medium">
+                        <AlertTriangle size={10} /> Differs from your chosen methodology
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
 
-        {/* Custom title fallback */}
         {!generating && (
-          <div>
-            <p className="text-[13px] font-medium text-slate-600 mb-2">Or enter a custom title:</p>
-            <input
-              value={customTitle}
-              onChange={e => handleCustomChange(e.target.value)}
-              placeholder="Type your own research title…"
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 h-14 text-[13px] text-slate-800 placeholder-slate-400 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-100 transition-all"
-            />
-            {customTitle && (
-              <p className="text-[11px] text-slate-400 mt-1.5 text-right">
-                {customTitle.split(' ').filter(Boolean).length} words · auto-saving
-              </p>
-            )}
-          </div>
+          <p className="text-[11px] text-slate-400 mb-5">
+            {project.methodologyType
+              ? methodologyMismatch
+                ? 'One or more titles suggest a different design than your confirmed methodology — pick one that matches, or adjust your methodology on that step.'
+                : ''
+              : "Titles suggest a design. You'll confirm your methodology in step 4."}
+          </p>
         )}
+
+        {/* Workspace name note — there's no separate rename; the title chosen here is the
+            same field the proposal list and breadcrumb both read. */}
+        <p className="text-[11px] text-slate-400 mb-5">
+          This also becomes your proposal's name in Proposal Studio — you can rename it any time.
+        </p>
 
         {/* Auto-save indicator */}
         {!generating && (
-          <div className="flex items-center gap-1.5 mt-5">
+          <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-emerald-400" />
             <p className="text-[12px] text-slate-400">Progress automatically saved</p>
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {pendingRegenerateConfirm && (
+          <ConfirmActionModal
+            title="Regenerate all titles?"
+            message="This replaces every title below, including the one you've selected or written. It can't be undone."
+            confirmLabel="Regenerate all"
+            onClose={() => setPendingRegenerateConfirm(false)}
+            onConfirm={async () => { setPendingRegenerateConfirm(false); await doGenerate() }}
+          />
+        )}
+      </AnimatePresence>
     </StepCard>
   )
 }
@@ -864,6 +1143,16 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
   // docs/OPEN_ITEMS.md #81 — the explicit confirmation action. Distinct from the tier1/tier2
   // pickers above, which only ever autosave a free-editing scratch value via `sync` — this is
   // what actually unlocks generation/approval for methodology-sensitive chapters server-side.
+  // Business rule SD-BR1 (UI half): a methodology is not confirmable without a data-collection method, because
+  // the data collection, data management and ethics chapters are written from it and are blocked at approval
+  // while it is blank. Re-confirmation is also offered when only the details changed (same type), so a project
+  // that was confirmed with the field blank can be corrected without changing its methodology type.
+  const selectedCollection = project.sectionContent['methodology-data-collection'] ?? ''
+  const confirmedCollection = project.confirmedMethodology?.dataCollectionApproach ?? ''
+  const methodologyTypeChanged = !project.confirmedMethodology || project.confirmedMethodology.methodologyType !== tier1
+  const methodologyDetailsChanged = !methodologyTypeChanged && selectedCollection !== confirmedCollection
+  const confirmedWithoutCollection = !methodologyTypeChanged && !confirmedCollection
+
   const confirmMethodology = async () => {
     if (!tier1) return
     if (project.confirmedMethodology && project.confirmedMethodology.methodologyType !== tier1) {
@@ -1064,13 +1353,25 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
                 </p>
               </>
             )}
-            {(!project.confirmedMethodology || project.confirmedMethodology.methodologyType !== tier1) && (
+            {confirmedWithoutCollection && (
+              <p className="mt-2 text-[11px] font-medium text-amber-800">
+                No data-collection method is confirmed. Chapters about data collection, data management and ethics
+                cannot be approved until you choose one below and update the confirmed methodology.
+              </p>
+            )}
+            {(methodologyTypeChanged || methodologyDetailsChanged) && !selectedCollection && (
+              <p className="mt-2 text-[11px] text-amber-700">
+                Choose a data-collection method (Data collection, above) to continue.
+              </p>
+            )}
+            {(methodologyTypeChanged || methodologyDetailsChanged) && (
               <button
                 onClick={() => void confirmMethodology()}
-                disabled={confirming}
+                disabled={confirming || !selectedCollection}
+                title={!selectedCollection ? 'Choose a data-collection method first' : undefined}
                 className="mt-3 rounded-lg bg-emerald-700 px-3 py-2 text-[12px] font-semibold text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-60"
               >
-                {confirming ? 'Confirming…' : 'Confirm Methodology'}
+                {confirming ? 'Confirming…' : methodologyTypeChanged ? 'Confirm Methodology' : 'Update confirmed methodology'}
               </button>
             )}
           </div>
@@ -1770,6 +2071,10 @@ function DownloadStep({ project }: { project: ResearchProject }) {
   const dbSections  = dedupeSections(useResearchStore(s => s.sections[project.id] ?? EMPTY_SECTIONS))
   const [downloading, setDownloading] = useState<'docx' | 'txt' | null>(null)
   const [blockedSections, setBlockedSections] = useState<Array<{ code: string; label: string; stepIdx: number; reason: string }> | null>(null)
+  // "Fix issues and download" owns the issue list. The older per-section scan below only shows if that list could not be loaded.
+  const [issuePanelFailed, setIssuePanelFailed] = useState(false)
+  const [issuePanelBusy, setIssuePanelBusy] = useState(false)
+  const stepIndexFor = (key: string) => STEPS.findIndex(s => s.id === key)
 
   const showAcknowledgedExportError = (err: unknown, toastId: string) => {
     const apiError = err as ApiError | undefined
@@ -2012,7 +2317,23 @@ function DownloadStep({ project }: { project: ResearchProject }) {
           </div>
         </div>
 
-        {blockedSections && blockedSections.length > 0 && (
+        {!issuePanelFailed && (
+          <FixIssuesPanel
+            projectId={project.id}
+            canJump={key => stepIndexFor(key) >= 0}
+            onJump={key => setSearchParams({ step: String(stepIndexFor(key)) })}
+            prepare={() => syncProject(project.id)}
+            download={() => exportDocx(project.id, true)}
+            onRepaired={async () => {
+              const store = useResearchStore.getState()
+              await Promise.all([store.loadSections(project.id), store.loadProject(project.id)])
+            }}
+            onUnavailable={() => setIssuePanelFailed(true)}
+            onBusyChange={setIssuePanelBusy}
+          />
+        )}
+
+        {issuePanelFailed && blockedSections && blockedSections.length > 0 && (
           <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[13px] flex flex-col gap-3">
             <div className="flex items-center gap-2 font-semibold text-amber-900">
               <AlertTriangle size={18} className="text-amber-600 shrink-0" />
@@ -2051,7 +2372,7 @@ function DownloadStep({ project }: { project: ResearchProject }) {
           {/* .docx */}
           <button
             onClick={handleDocx}
-            disabled={!!downloading}
+            disabled={!!downloading || issuePanelBusy}
             className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed bg-white"
           >
             {downloading === 'docx'
@@ -2976,6 +3297,11 @@ function StepRail({
   // doc comment for the document-type fork.
   const showAbstract = true
   const abstractLocked = isAbstractStepLocked(sections, project.documentType)
+  // Mirrors isAbstractStepLocked's own real unlock rule — shown as a caption instead of
+  // leaving the lock icon unexplained (Research Agent UX audit, 2026-10-03).
+  const abstractLockedReason = project.documentType === 'Thesis' || project.documentType === 'Dissertation'
+    ? 'Unlocks after Conclusion (8.0) and Recommendations (8.1) are approved'
+    : 'Unlocks after Problem Statement, Justification, General Objective, Specific Objectives, and Study Design are approved'
   const abstractSection = sections.find(section => section.code === '0.0')
   const abstractStatus: StepStatus = abstractLocked
     ? 'locked'
@@ -2995,8 +3321,18 @@ function StepRail({
       // Methodology Type is the one setup step that's actually content-gated (see
       // MethodologyTypeStep) rather than the generic "have you passed this index" rule every
       // other wizard step uses — so its status reflects whether a value is set, not just visited.
+      // 'required' (the amber warning treatment) only fires once the student has actually moved
+      // past it incomplete — while still approaching it, it reads as a plain upcoming step, not a
+      // standing warning (Research Agent UX audit, 2026-10-03).
       if (step.id === 'methodology-type' && idx !== currentStepIdx) {
-        return project.methodologyType ? 'done' : 'required'
+        if (project.methodologyType) return 'done'
+        return idx < currentStepIdx ? 'required' : 'todo'
+      }
+      // research-topic shows Done only once a topic is actually confirmed — previously this
+      // fell through to the generic "have you passed this index" rule below, so it could read
+      // Done purely from having moved on, even with nothing ever selected.
+      if (step.id === 'research-topic' && idx !== currentStepIdx) {
+        return project.selectedTopic ? 'done' : 'todo'
       }
       return idx < currentStepIdx ? 'done' : idx === currentStepIdx ? 'active' : 'todo'
     }
@@ -3025,6 +3361,22 @@ function StepRail({
     return st === 'done' || st === 'approved' || st === 'draft'
   }).length
   const pct = Math.round((doneCount / STEPS.length) * 100)
+
+  // Phase-based headline instead of "Step N of 34" — a raw-index count felt
+  // intimidating against this many total steps. "Step N of 34 · 0% complete"
+  // stays nowhere but the StepRail header; the page eyebrow keeps the plain
+  // step number per-step (Research Agent UX audit, 2026-10-03).
+  const currentGroup = STEPS[currentStepIdx]?.group ?? 'setup'
+  const groupIndices = STEPS.map((s, i) => ({ s, i })).filter(({ s }) => s.group === currentGroup).map(({ i }) => i)
+  const headline = (() => {
+    if (currentGroup === 'chapters') {
+      const approvedChapters = groupIndices.filter(idx => getStepStatus(idx) === 'approved').length
+      return `Chapters: ${approvedChapters} of ${groupIndices.length} approved`
+    }
+    const posInGroup = groupIndices.indexOf(currentStepIdx) + 1
+    const groupLabel = currentGroup === 'setup' ? 'Setup' : 'Output'
+    return `${groupLabel} ${posInGroup} of ${groupIndices.length}`
+  })()
 
   const stepsByGroup = STEP_GROUPS.reduce<Record<string, number[]>>((acc, g) => {
     acc[g] = STEPS.map((s, i) => ({ s, i })).filter(({ s }) => s.group === g).map(({ i }) => i)
@@ -3168,7 +3520,7 @@ function StepRail({
           />
         </div>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-          Step {currentStepIdx + 1} of {STEPS.length} · {pct}% complete
+          {headline} · {pct}% complete
         </p>
       </div>
 
@@ -3193,6 +3545,7 @@ function StepRail({
                     onClick={() => !abstractLocked && onSelectSectionCode('0.0')}
                     aria-current={activeSectionCode === '0.0' ? 'step' : undefined}
                     aria-disabled={abstractLocked || undefined}
+                    title={abstractLocked ? abstractLockedReason : undefined}
                     tabIndex={abstractLocked ? -1 : 0}
                     className={cn(
                       'w-full flex items-center gap-2 py-1.5 px-3.5 text-left transition-colors',
@@ -3309,6 +3662,7 @@ function ChapterWriterView({
   onActionsStateChange?:  (state: ChapterActionsState) => void
   onActiveSectionChange?: (section: ProjectSection | null) => void
 }) {
+  const navigateToWorkflow = useNavigate()
   const [, setStepParams] = useSearchParams()
   const {
     sections: allSections,
@@ -3337,6 +3691,7 @@ function ChapterWriterView({
     restoreSectionVersion,
     evidenceCoverageAudit: allEvidenceCoverageAudits,
     loadEvidenceCoverageAudit,
+    updateSectionContent,
   } = useResearchStore()
 
   const user = useAuthStore((s) => s.user)
@@ -3384,8 +3739,9 @@ function ChapterWriterView({
   const [restoringVersion,      setRestoringVersion]      = useState<number | null>(null)
   const [showEvidenceCoverage,  setShowEvidenceCoverage]  = useState(false)
   const [loadingEvidenceCoverage, setLoadingEvidenceCoverage] = useState(false)
-  const [bibliography,          setBibliography]          = useState<ParsedReference[] | null>(null)
-  const [loadingBibliography,   setLoadingBibliography]   = useState(false)
+  // Explicit idle/loading/ready/error — "not asked yet", "asking", "zero references" and "failed"
+  // are different conditions and the panel must say which one it is.
+  const [bibliographyState,     setBibliographyState]     = useState<BibliographyState>({ status: 'idle' })
   // Full per-source metadata (title/abstract/DOI) for the in-editor citation popover —
   // cheap DB read (unlike compileBibliography, which is LLM-backed), so fetched eagerly.
   const [literature,             setLiterature]            = useState<FetchedLiterature[] | null>(null)
@@ -3416,15 +3772,62 @@ function ChapterWriterView({
   const sectionsInFlightRef = useRef(false)
   const documentSurfaceRef = useRef<DocumentSurfaceHandle>(null)
 
-  // Compiling scans every generated section on the backend, so it's fetched lazily
-  // (on first drawer open) and cached rather than run on every chapter view.
+  // Structured bibliography (deterministic, no LLM). Each request gets an id; only the newest
+  // request may write state, so a slow older response can never overwrite a newer result.
+  const bibliographyRequestRef = useRef(0)
+  // The cache identity the current state was fetched for; null = nothing valid cached.
+  const bibliographyKeyRef = useRef<string | null>(null)
+
+  // Everything the result depends on. Content is only trusted once persisted (see the effect
+  // below), because the server compiles from SAVED text, not what is currently in the editor.
+  const bibliographyKey = useMemo(() => buildBibliographyKey({
+    projectId:     project.id,
+    citationStyle: project.citationStyle,
+    sections:      rawSections,
+    literature,
+  }), [project.id, project.citationStyle, rawSections, literature])
+
   const fetchBibliography = () => {
-    setLoadingBibliography(true)
-    researchApi.compileBibliography(project.id)
-      .then(compiled => setBibliography(parseBibliographyEntries(compiled)))
-      .catch(() => toast.error('Failed to load references. Please try again.'))
-      .finally(() => setLoadingBibliography(false))
+    const requestId = ++bibliographyRequestRef.current
+    bibliographyKeyRef.current = bibliographyKey
+    setBibliographyState({ status: 'loading' })
+    researchApi.getBibliography(project.id)
+      .then(data => {
+        if (requestId !== bibliographyRequestRef.current) return
+        setBibliographyState({ status: 'ready', data })
+      })
+      .catch(err => {
+        if (requestId !== bibliographyRequestRef.current) return
+        // A failed request must not be remembered as a valid (empty) result.
+        bibliographyKeyRef.current = null
+        setBibliographyState({
+          status: 'error',
+          message: extractErrorMessage(err) ?? 'References couldn’t load.',
+        })
+      })
   }
+
+  const contentPersisted = !isDirty && !isSaving
+
+  // Keep the cache honest. When saved content, the source registry, section statuses or the
+  // citation style change, the old result is stale: refetch if the panel is open, otherwise drop
+  // it so the next open fetches fresh data. This also covers the banner's "Open references"
+  // button, which used to open the panel without ever requesting anything.
+  useEffect(() => {
+    if (!contentPersisted) return
+    if (bibliographyKeyRef.current === bibliographyKey) return
+    if (showReferencesDrawer) {
+      fetchBibliography()
+    } else {
+      bibliographyRequestRef.current++            // abandon anything still in flight
+      bibliographyKeyRef.current = null
+      setBibliographyState(prev => (prev.status === 'idle' ? prev : { status: 'idle' }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bibliographyKey, contentPersisted, showReferencesDrawer])
+
+  const bibliography: ParsedReference[] | null = useMemo(
+    () => bibliographyReferences(bibliographyState), [bibliographyState])
 
   const handleOpenReferences = () => {
     setShowReferencesDrawer(true)
@@ -3433,13 +3836,12 @@ function ChapterWriterView({
         .then(setCitationFlags)
         .catch(() => {})
     }
-    if (!bibliography && !loadingBibliography) fetchBibliography()
   }
 
-  // Same lazy-compile-and-cache as the drawer — triggered when the citation popover
-  // needs to resolve an IEEE "[N]" click and the bibliography hasn't been compiled yet.
+  // Triggered when the citation popover needs to resolve an IEEE "[N]" click and nothing has been
+  // compiled yet.
   const handleRequestBibliography = () => {
-    if (!bibliography && !loadingBibliography) fetchBibliography()
+    if (bibliographyState.status === 'idle' || bibliographyState.status === 'error') fetchBibliography()
   }
 
   // ── Thesis Foundation (Phase 2): version history ────────────────────────────
@@ -3610,6 +4012,23 @@ function ChapterWriterView({
     try { await researchApi.discardSectionFix(project.id) } catch { /* stale reservations are reconciled */ }
   }
 
+  const handleChooseCitationSource = async (flagId: string, literatureId: string) => {
+    setBusyCitationFlagId(flagId)
+    try {
+      const updated = await researchApi.chooseCitationSource(project.id, flagId, literatureId)
+      setLocalContent(updated.content.replace(/\r\n/g, '\n'))
+      setCitationFlags(prev => prev.filter(flag => flag.id !== flagId))
+      await loadSections(project.id)
+      toast.success('Citation source saved to the reference list.')
+    } catch (err) {
+      // The server explains why a choice could not be recorded (text edited since, paper no longer
+      // shares the author and year, reference list could not be updated) — show that, not a generic line.
+      toast.error(extractErrorMessage(err) ?? 'Could not save this choice; the section may have changed.')
+    } finally {
+      setBusyCitationFlagId(null)
+    }
+  }
+
   const handleRemoveCitationClaim = async (flagId: string) => {
     setBusyCitationFlagId(flagId)
     try {
@@ -3724,6 +4143,10 @@ function ChapterWriterView({
   const handleContentChange = (val: string) => {
     setLocalContent(val)
     setIsDirty(true)
+    // Updates the sidebar's word-count badge and status immediately, ahead of the
+    // debounced save below — a pure local store write (no request), so the badge
+    // no longer lags typing until the next save/approve/generate round-trip.
+    if (activeSection) updateSectionContent(project.id, activeSection.code, val)
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     // DocumentSurface's onSave fires with its own 1s debounce; keep a 4s
     // fallback here so tab-switching without triggering onSave still saves.
@@ -3827,6 +4250,21 @@ function ChapterWriterView({
     ), { duration: 10000 })
   }
 
+  const ensureProposalDesignReady = async () => {
+    if (project.documentMode !== 'PROPOSAL') return true
+    const view = await proposalJourneyApi.current(project.id)
+    if (view.summary.designRequired && (!view.summary.acceptedRevisionId || view.readiness?.canGenerate !== true)) {
+      if (isDirty) {
+        toast.error('Save your changes, then open Design study in your proposal workspace before generating.')
+        return false
+      }
+      toast('Complete your study design before writing. Opening your proposal workspace.')
+      navigateToWorkflow(`/app/research-agent/${project.id}/proposal-workflow?tab=design`)
+      return false
+    }
+    return true
+  }
+
   const handleGenerate = async (targetWordCount = defaultTargetWordCount) => {
     if (!activeSection) return
     if (!hasEnoughCreditsForSection()) return
@@ -3839,6 +4277,7 @@ function ChapterWriterView({
       return
     }
     try {
+      if (!await ensureProposalDesignReady()) return
       await generateSection(project.id, selectedCode, targetWordCount)
       syncAfterGeneration()
       toast.success(`Generation started for section ${selectedCode}.`)
@@ -3864,6 +4303,7 @@ function ChapterWriterView({
     }
     if (!hasEnoughCreditsForSection()) return
     try {
+      if (!await ensureProposalDesignReady()) return
       await regenerateSection(project.id, selectedCode)
       syncAfterGeneration()
     } catch {
@@ -3872,13 +4312,15 @@ function ChapterWriterView({
   }
 
   const confirmRegenerate = async () => {
-    setShowRegenConfirm(false)
-    if (!hasEnoughCreditsForSection()) return
+    if (!hasEnoughCreditsForSection()) { setShowRegenConfirm(false); return }
     try {
+      if (!await ensureProposalDesignReady()) return
       await regenerateSection(project.id, selectedCode)
       syncAfterGeneration()
     } catch {
       toast.error('Regeneration failed.')
+    } finally {
+      setShowRegenConfirm(false)
     }
   }
 
@@ -4088,6 +4530,68 @@ function ChapterWriterView({
       // shaped (Author (Year) 'Title'...) with no prose sentence anywhere. Regenerating is the
       // right fix (the model didn't follow the "continuous prose" instruction), so offer that
       // directly rather than the "approve anyway" pattern used for citation-content flags.
+      // METHODOLOGY_VIOLATION (409) — this section contradicts the project's confirmed methodology
+      // (the deterministic rules plus the AI check in MethodologyConsistencyVerifier). This used to
+      // fall through to a generic toast that gave a count but not the passages, and offered no way to
+      // act on "fix the flagged passage(s), or explicitly approve anyway". Show what was flagged.
+      if (errorCode === 'METHODOLOGY_VIOLATION') {
+        const violations = ((err as ApiError)?.details as { violations?: MethodologyViolation[] } | undefined)?.violations ?? []
+        const ordered = [...violations].sort((a, b) => (a.severity === 'Blocking' ? 0 : 1) - (b.severity === 'Blocking' ? 0 : 1))
+        // The explanations are long, so this panel can be taller than the screen: it scrolls, the title row
+        // carries a close button, and the actions sit directly under the title instead of at the bottom,
+        // where they used to be pushed off-screen with no way to dismiss the panel.
+        toast((t) => (
+          <div className="flex max-h-[80vh] w-[440px] max-w-full flex-col gap-2 overflow-y-auto text-[13px]">
+            <div className="flex items-start justify-between gap-3">
+              <span className="font-semibold text-amber-800">
+                {violations.length || 'Some'} passage{violations.length === 1 ? '' : 's'} in {selectedCode} contradict{violations.length === 1 ? 's' : ''} this project's confirmed methodology.
+              </span>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => toast.dismiss(t.id)}
+                className="shrink-0 rounded px-1.5 text-[16px] leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => { toast.dismiss(t.id); handleRegenerate() }}
+                className="font-semibold text-[#7c3aed] hover:text-[#6d28d9]"
+              >
+                Regenerate section
+              </button>
+              <button
+                onClick={() => { toast.dismiss(t.id); handleApprove(true) }}
+                className="font-semibold text-amber-700 hover:text-amber-900"
+              >
+                Approve anyway
+              </button>
+              <button onClick={() => toast.dismiss(t.id)} className="text-slate-500 hover:text-slate-700">
+                Dismiss
+              </button>
+            </div>
+            {ordered.slice(0, 3).map((v, i) => (
+              <div key={i} className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-[12px] leading-snug">
+                <div className="line-clamp-3 italic text-slate-700">“{v.quote}”</div>
+                <div className="mt-1 text-slate-600">{v.explanation}</div>
+                {v.suggestedCorrection && (
+                  <div className="mt-1 text-slate-600"><strong>Suggested: </strong>{v.suggestedCorrection}</div>
+                )}
+              </div>
+            ))}
+            {violations.length > 3 && (
+              <span className="text-[12px] text-slate-500">And {violations.length - 3} more.</span>
+            )}
+            <span className="text-[12px] text-slate-600">
+              If the confirmed methodology itself is incomplete or wrong (for example no data-collection method is set), correct it on the Methodology Type step rather than editing the text.
+            </span>
+          </div>
+        ), { duration: 30000 })
+        return
+      }
+
       if (errorCode === 'PROSE_BODY_MISSING') {
         toast((t) => (
           <div className="flex flex-col gap-2 text-[13px]">
@@ -4171,6 +4675,7 @@ function ChapterWriterView({
       const issues = [...alignmentResult.issues, ...qualityResult.issues]
       const messages = [alignmentResult.message, qualityResult.message].filter(Boolean)
       setAlignment({
+        assessmentStatus: alignmentResult.assessmentStatus === 'Unknown' || qualityResult.assessmentStatus === 'Unknown' ? 'Unknown' : 'Completed',
         isValid: alignmentResult.isValid && qualityResult.isValid,
         issues,
         message: messages.join(' '),
@@ -4333,7 +4838,7 @@ function ChapterWriterView({
 
           <p className={cn('text-[12px] font-medium flex-1 truncate',
             alignment.isValid ? 'text-emerald-700' : 'text-amber-700')}>
-            {alignment.message}
+            {alignment.assessmentStatus === 'Unknown' ? `Review incomplete. ${alignment.message}` : alignment.message}
           </p>
 
           {alignment.issues.length > 0 && (
@@ -4568,57 +5073,36 @@ function ChapterWriterView({
             : activeSection && (
               <>
                 {/* ── Regenerate confirmation modal ───────────────────────── */}
+                {/* "A copy is saved to History" is accurate, not reassurance copy — confirmed via
+                    discovery: SectionVersionHistoryDrawer snapshots a version the first time a
+                    Draft is regenerated or hand-edited, which is exactly the Edited/Approved case
+                    this confirmation gates on (Research Agent UX audit, 2026-10-03). */}
                 {showRegenConfirm && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-                      {/* Icon + header */}
-                      <div className="flex flex-col items-center px-8 pt-8 pb-4 text-center">
-                        <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center mb-4">
-                          <RefreshCw size={22} className="text-orange-500" />
-                        </div>
-                        <h3 className="text-[16px] font-bold text-slate-800 mb-1">Regenerate section?</h3>
-                        <p className="text-[13px] text-slate-500 leading-relaxed">
-                          Your current draft of <span className="font-semibold text-slate-700">{activeSection.code}: {activeSection.title}</span> will be replaced. This cannot be undone.
-                        </p>
-                        {activeSection.status === 'Approved' && (
-                          <p className="mt-2 text-[12px] text-amber-600 leading-relaxed">
-                            This section is currently <span className="font-semibold">Approved</span>. Regenerating will reset it to Draft and you'll need to re-approve it.
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Preview of what's being discarded */}
-                      <div className="mx-6 mb-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                        <p className="text-[11px] font-medium text-slate-500 mb-0.5">
-                          Current draft &middot; {activeSection.wordCount.toLocaleString()} words
-                        </p>
-                        <p className="text-[12px] text-slate-600 line-clamp-2">
-                          {regenPreviewExcerpt || 'No content yet.'}
-                        </p>
-                      </div>
-
-                      <p className="px-6 pb-2 text-[12px] text-slate-500 text-center">
-                        This will use {sectionGenerationCost} credits.
+                  <ConfirmActionModal
+                    title="Regenerate this section?"
+                    message={`Your current draft of ${activeSection.code}: ${activeSection.title} will be replaced. A copy is saved to History, so you can restore it afterwards.${activeSection.status === 'Approved' ? ' This section is currently Approved — regenerating resets it to Draft and you\'ll need to re-approve it.' : ''}`}
+                    confirmLabel={`Regenerate (${sectionGenerationCost} credits)`}
+                    tone="reversible"
+                    icon={<RefreshCw size={20} className="text-purple-accent" />}
+                    onClose={() => setShowRegenConfirm(false)}
+                    onConfirm={confirmRegenerate}
+                  >
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-medium text-slate-500 mb-0.5">
+                        Current draft &middot; {activeSection.wordCount.toLocaleString()} words
                       </p>
-
-                      {/* Actions */}
-                      <div className="flex gap-2 px-6 pb-6 pt-2">
-                        <button
-                          onClick={() => setShowRegenConfirm(false)}
-                          className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[13px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={confirmRegenerate}
-                          className="flex-1 py-2.5 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[13px] font-semibold transition-colors shadow-md shadow-[#7c3aed]/20 flex items-center justify-center gap-1.5"
-                        >
-                          <RefreshCw size={13} /> Regenerate
-                        </button>
-                      </div>
+                      <p className="text-[12px] text-slate-600 line-clamp-2">
+                        {regenPreviewExcerpt || 'No content yet.'}
+                      </p>
                     </div>
-                  </div>
+                  </ConfirmActionModal>
                 )}
+
+                <ReviewNotesPanel
+                  projectId={project.id}
+                  sectionCode={activeSection.code}
+                  refreshKey={`${activeSection.status}:${activeSection.citationsPendingVerification}`}
+                />
 
                 <DocumentSurface
                   ref={documentSurfaceRef}
@@ -4634,7 +5118,6 @@ function ChapterWriterView({
                   isStalled={isSectionStalled}
                   isSaving={isSaving}
                   hasContent={hasContent}
-                  citationLabel={CITATION_LABELS[project.citationStyle]}
                   citationStyle={project.citationStyle}
                   literature={literature}
                   bibliography={bibliography}
@@ -4650,17 +5133,19 @@ function ChapterWriterView({
                   onApprove={handleApprove}
                   onRequestBibliography={handleRequestBibliography}
                   onRequestLiteratureRefresh={refetchLiterature}
-                  onResolveCitationGap={() => setShowReferencesDrawer(true)}
+                  onResolveCitationGap={handleOpenReferences}
+                  onOpenReferences={handleOpenReferences}
                   busyCitationFlagId={busyCitationFlagId}
                   onRepairCitationFlag={handleRepairCitationFlag}
                   onRemoveCitationClaim={handleRemoveCitationClaim}
                   onDismissCitationFlag={handleDismissCitationFlag}
+                  onChooseCitationSource={handleChooseCitationSource}
                 />
 
                 <ReferencesDrawer
                   open={showReferencesDrawer}
                   onClose={() => setShowReferencesDrawer(false)}
-                  loading={loadingBibliography}
+                  bibliography={bibliographyState}
                   entries={bibliography ?? []}
                   citationStyle={project.citationStyle}
                   onInsert={handleInsertCitation}
@@ -4672,6 +5157,7 @@ function ChapterWriterView({
                   onRepairFlag={handleRepairCitationFlag}
                   onRemoveClaim={handleRemoveCitationClaim}
                   onDismissFlag={handleDismissCitationFlag}
+                  onChooseSource={handleChooseCitationSource}
                 />
 
                 <SectionVersionHistoryDrawer
@@ -4727,6 +5213,12 @@ export default function ResearchAgentPage() {
     isValidating: false, isExporting: false, isThesisOrDissertation: false,
   })
   const [activeChapterSection, setActiveChapterSection] = useState<ProjectSection | null>(null)
+  // Real save-state signal — driven by the actual syncProject promise this page already
+  // calls on every step change, not a decorative "Progress automatically saved" label with
+  // nothing behind it (Research Agent UX audit, 2026-10-03). Resets to idle a couple of
+  // seconds after a successful save so it doesn't sit there permanently.
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const saveStateResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Bootstrap: create project on backend then navigate to its real ID.
   // The module-level flag prevents double-creation from StrictMode remounts.
@@ -4790,7 +5282,14 @@ export default function ResearchAgentPage() {
     if (idx < 0 || idx >= STEPS.length || !project) return
     setSearchParams({ step: String(idx) }, { replace: false })
     setStep(project.id, idx)
-    syncProject(project.id).catch(console.error)
+    setSaveState('saving')
+    if (saveStateResetRef.current) clearTimeout(saveStateResetRef.current)
+    syncProject(project.id)
+      .then(() => {
+        setSaveState('saved')
+        saveStateResetRef.current = setTimeout(() => setSaveState('idle'), 2500)
+      })
+      .catch(err => { console.error(err); setSaveState('idle') })
   }
 
   const goNext = () => goToStep(currentStep + 1)
@@ -4801,6 +5300,16 @@ export default function ResearchAgentPage() {
   // download itself already happens via the Download panel's own buttons on this page; Finish's
   // job is just to exit the wizard back to the project list.
   const handleFinish = () => navigate('/app/proposal-studio')
+
+  // "Save and exit" — there's no dedicated save-and-exit action anywhere in the repo to reuse
+  // (confirmed via discovery), so this just makes the already-real autosave explicit before
+  // leaving, same as every other navigation away from a step already does.
+  const handleSaveAndExit = () => {
+    if (!project) return
+    syncProject(project.id)
+      .catch(console.error)
+      .finally(() => navigate('/app/proposal-studio'))
+  }
 
   const setCite = (style: CitationStyle) => {
     if (!project) return
@@ -4823,6 +5332,10 @@ export default function ResearchAgentPage() {
 
   // Next must stay locked on a chapter step until the active section is Approved.
   const nextDisabledForChapter = stepType === 'chapter' && activeChapterSection?.status !== 'Approved'
+  // Next must stay locked on Research Title until a title is actually chosen or written —
+  // previously nothing blocked moving on with no title at all (Research Agent UX audit).
+  const nextDisabledForTitle = STEPS[currentStep]?.id === 'research-title'
+    && (!project?.title || project.title === 'Untitled Research Project')
 
   if (loadError) {
     return (
@@ -4917,10 +5430,28 @@ export default function ResearchAgentPage() {
               : getStepLabel(STEPS[currentStep], project.methodologyType)}
           </span>
 
+          {/* Saved indicator — driven by the real syncProject state, not decorative copy. */}
+          {saveState !== 'idle' && (
+            <span className="text-[11px] shrink-0 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+              {saveState === 'saving'
+                ? <><Loader2 size={11} className="animate-spin" /> Saving…</>
+                : <><Check size={11} style={{ color: 'var(--color-green)' }} /> Saved</>}
+            </span>
+          )}
+
           <div className="flex-1" />
 
           {/* Step counter lives in the sidebar header ("Step N of M · X% complete") —
               not repeated here to avoid showing the same fact twice in one screen. */}
+
+          {/* Save and exit — makes the already-real autosave explicit before leaving. */}
+          <button
+            onClick={handleSaveAndExit}
+            className="shrink-0 flex items-center gap-1.5 text-[12px] hover:bg-slate-50 transition-colors"
+            style={{ height: 28, border: '0.5px solid var(--border-strong)', borderRadius: 6, padding: '0 10px', color: 'var(--text-secondary)' }}
+          >
+            Save and exit
+          </button>
 
           {/* Check alignment / Export .docx — chapter writer view only. The handlers
               live inside ChapterWriterView (they close over isDirty/handleSave/project.id);
@@ -5039,32 +5570,37 @@ export default function ResearchAgentPage() {
             <ChevronLeft size={14} /> Previous
           </button>
 
-          {/* Centre description — only shown when it adds information the Next
-              button doesn't already convey (the button itself reads "Next: {label}",
-              so a plain "ready for X" message here would just repeat it). */}
+          {/* Centre: a chapter-gating reason takes priority (real, actionable info); otherwise
+              the save state — this used to repeat the page's own subtitle verbatim, which the
+              Next button's "Next: {label}" text already conveyed (Research Agent UX audit). */}
           <p className="flex-1 text-center text-[12px]" style={{ color: 'var(--text-secondary)' }}>
             {stepType === 'chapter' && nextStep && nextDisabledForChapter
               ? `Approve this section to unlock ${nextStep.label}`
-              : stepType !== 'chapter' ? STEPS[currentStep].description ?? '' : ''}
+              : nextDisabledForTitle ? 'Choose or write a title to continue'
+              : saveState === 'saving' ? 'Saving…'
+              : saveState === 'saved' ? 'Saved'
+              : ''}
           </p>
 
           {/* Next / Finish */}
-          <button
-            onClick={currentStep >= STEPS.length - 1 ? handleFinish : goNext}
-            disabled={(currentStep >= STEPS.length - 1 && nextVariant !== 'green') || nextDisabledForChapter}
-            aria-label={`Go to next step${nextStep ? `: ${nextStep.label}` : ''}`}
-            className={cn(
-              'flex items-center gap-2 px-5 py-1.5 rounded-lg text-[13px] font-semibold transition-colors',
-              nextVariant === 'purple'
-                ? 'bg-purple-accent hover:bg-purple-deep text-white shadow-md shadow-violet-200'
-                : nextVariant === 'green'
-                ? 'bg-green-accent hover:bg-emerald-600 text-white'
-                : 'hover:bg-slate-50',
-            )}
-            style={nextVariant === 'default' ? { border: '0.5px solid var(--border-strong)', color: 'var(--text-secondary)' } : {}}
-          >
-            {nextLabel} <ChevronRight size={14} />
-          </button>
+          <Tooltip label={nextDisabledForTitle ? 'Choose or write a title to continue' : nextLabel}>
+            <button
+              onClick={currentStep >= STEPS.length - 1 ? handleFinish : goNext}
+              disabled={(currentStep >= STEPS.length - 1 && nextVariant !== 'green') || nextDisabledForChapter || nextDisabledForTitle}
+              aria-label={`Go to next step${nextStep ? `: ${nextStep.label}` : ''}`}
+              className={cn(
+                'flex items-center gap-2 px-5 py-1.5 rounded-lg text-[13px] font-semibold transition-colors',
+                nextVariant === 'purple'
+                  ? 'bg-purple-accent hover:bg-purple-deep text-white shadow-md shadow-violet-200'
+                  : nextVariant === 'green'
+                  ? 'bg-green-accent hover:bg-emerald-600 text-white'
+                  : 'hover:bg-slate-50',
+              )}
+              style={nextVariant === 'default' ? { border: '0.5px solid var(--border-strong)', color: 'var(--text-secondary)' } : {}}
+            >
+              {nextLabel} <ChevronRight size={14} />
+            </button>
+          </Tooltip>
         </div>
 
       </div>

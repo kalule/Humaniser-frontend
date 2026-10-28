@@ -32,6 +32,18 @@ export function formatDate(dateStr: string): string {
   })
 }
 
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/**
+ * Format an ISO date string as "7 Sep 2026" — day-first, matching the
+ * Proposal Studio / Systematic Review list rows. Built by hand rather than
+ * via Intl because en-GB's short month gives "Sept" for September, not "Sep".
+ */
+export function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} ${d.getFullYear()}`
+}
+
 // ─── Text utilities ───────────────────────────────────────────────────────────
 
 /**

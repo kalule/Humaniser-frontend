@@ -1,0 +1,20 @@
+{
+  "school_sample_for_university_topic": "direct",
+  "all_ineligible_filter_retained": 1,
+  "unsupported_between_group_claim_survived_outline": true,
+  "all_group_improvement_receives_causal_ceiling": "causal",
+  "universal_absence_gap_survived": "No study exists on independent competence.",
+  "assembled_prompt_requires_fixed_synthesis": true,
+  "assembled_prompt_asserts_shared_author_independence": true,
+  "mixed_citation_pair_claim_status": "SupportedTrustedEvidence",
+  "mixed_citation_pair_individual_statuses": [
+    {
+      "SourceId": "S1",
+      "Status": "SupportedTrustedEvidence"
+    },
+    {
+      "SourceId": "S2",
+      "Status": "Misaligned"
+    }
+  ]
+}

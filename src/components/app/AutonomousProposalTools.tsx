@@ -1,19 +1,23 @@
+import { resumeOnOpen } from '../../lib/proposalResume'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
   Search, X, Loader2, ArrowLeft, ArrowRight,
-  Globe, FolderOpen, ArrowLeftRight, Check, ExternalLink, BookText,
+  Globe, FolderOpen, ArrowLeftRight, Check, ExternalLink,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useResearchStore } from '../../store/researchStore'
 import { useAuthStore } from '../../store/authStore'
 import { useUiStore } from '../../store/uiStore'
 import { CREDIT_COSTS } from '../../config/creditCosts'
+import { startAutonomousProposal } from '../../lib/startAutonomousProposal'
+import { generationSignature, recoverProposalGeneration } from '../../lib/proposalGenerationRecovery'
 import { findSimilarPapers, MIN_QUERY_LENGTH, type LiteratureCitation } from '../../api/semanticScholar'
-import { CHAPTER_STEPS, SECTION_PROMPTS } from '../../data/proposalOutline'
-import type { AcademicLevel, CitationStyle, DocumentMode, GeneratorMode, GenerationPhase } from '../../types/research'
+import { CHAPTER_STEPS } from '../../data/proposalOutline'
+import type { AcademicLevel, CitationStyle, DocumentMode, GeneratorMode, GenerationPhase, ProjectSection } from '../../types/research'
+import { GenerationProgressDialog } from './GenerationProgressDialog'
 
 // ── Autonomous Proposal + Similar Papers Finder ─────────────────────────────
 // Hoisted out of the old "AI Thesis" page (now Thesis Studio, which no longer
@@ -33,6 +37,7 @@ export interface ProposalConfig {
   geographicalArea: string
   studyPopulation:  string
   targetWords:      number
+  methodologyType: 'Qualitative' | 'Quantitative' | 'Mixed Methods'
 }
 
 // The tool always produces a PROPOSAL document via the AGENT (autonomous)
@@ -80,14 +85,17 @@ const CITATION_SELECT_OPTIONS: { value: CitationStyle; label: string }[] = [
   { value: 'ieee',    label: 'IEEE — Institute of Electrical and Electronics Engineers' },
 ]
 
-export function AutonomousProposalModal({ onClose, onCreate }: {
+export function AutonomousProposalModal({ onClose, onCreate, initialTitle = '', initialLevel = 'MASTERS' }: {
   onClose:  () => void
-  onCreate: (config: ProposalConfig) => void
+  onCreate: (config: ProposalConfig) => Promise<void>
+  /** Carried over from the "Start your proposal" dialog so the student does not type the topic twice. */
+  initialTitle?: string
+  initialLevel?: AcademicLevel
 }) {
   const [tab,              setTab]              = useState<ModalTab>('basic')
-  const [title,            setTitle]            = useState('')
+  const [title,            setTitle]            = useState(initialTitle)
   const [fieldInterest,    setFieldInterest]    = useState('')
-  const [academicLevel,    setAcademicLevel]    = useState<AcademicLevel>('MASTERS')
+  const [academicLevel,    setAcademicLevel]    = useState<AcademicLevel>(initialLevel)
   const [sourceType,       setSourceType]       = useState<SourceType>('hybrid')
   const [citationStyle,    setCitationStyle]    = useState<CitationStyle>('apa7')
   const [locationEnabled,  setLocationEnabled]  = useState(true)
@@ -96,13 +104,14 @@ export function AutonomousProposalModal({ onClose, onCreate }: {
   const [targetWords,      setTargetWords]      = useState(8000)
   const [lengthUnit,       setLengthUnit]       = useState<'words' | 'pages'>('words')
   const [loading,          setLoading]          = useState(false)
+  const [methodologyType, setMethodologyType] = useState<ProposalConfig['methodologyType'] | ''>('')
 
   const tabIndex   = MODAL_TABS.findIndex(t => t.key === tab)
   const isLastTab  = tabIndex === MODAL_TABS.length - 1
-  const canProceed = title.trim().length > 0
+  const canProceed = title.trim().length > 0 && (!isLastTab || methodologyType !== '')
 
   const goNext = () => {
-    if (!canProceed) return
+    if (!canProceed || loading) return
     if (isLastTab) {
       handleCreate()
       return
@@ -115,20 +124,26 @@ export function AutonomousProposalModal({ onClose, onCreate }: {
   }
 
   const handleCreate = async () => {
-    if (!canProceed) return
+    if (!canProceed || !methodologyType || loading) return
     setLoading(true)
-    await new Promise(r => setTimeout(r, 400))
-    onCreate({
-      title:            title.trim(),
-      fieldInterest:    fieldInterest.trim(),
-      academicLevel,
-      sourceType,
-      citationStyle,
-      locationEnabled,
-      geographicalArea: geographicalArea.trim(),
-      studyPopulation:  studyPopulation.trim(),
-      targetWords,
-    })
+    try {
+      await onCreate({
+        title:            title.trim(),
+        fieldInterest:    fieldInterest.trim(),
+        academicLevel,
+        sourceType,
+        citationStyle,
+        locationEnabled,
+        geographicalArea: geographicalArea.trim(),
+        studyPopulation:  studyPopulation.trim(),
+        targetWords,
+        methodologyType,
+      })
+    } catch {
+      toast.error('Could not create the research project. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -307,6 +322,18 @@ export function AutonomousProposalModal({ onClose, onCreate }: {
 
           {tab === 'options' && (
             <div className="flex flex-col gap-5">
+              <div>
+                <label htmlFor="autonomous-methodology" className="text-[12px] font-semibold text-slate-700 mb-1.5 block">Research approach *</label>
+                <select id="autonomous-methodology" value={methodologyType}
+                  onChange={e => setMethodologyType(e.target.value as ProposalConfig['methodologyType'] | '')}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-[13px] text-slate-800 bg-white">
+                  <option value="">Select your research approach</option>
+                  <option value="Qualitative">Qualitative</option>
+                  <option value="Quantitative">Quantitative</option>
+                  <option value="Mixed Methods">Mixed Methods</option>
+                </select>
+                <p className="text-[12px] text-slate-500 mt-2">Generating confirms this approach for your proposal. You can refine the design in the research workspace.</p>
+              </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-[12px] font-semibold text-slate-700">Document Length</label>
@@ -553,117 +580,74 @@ export interface GenerationState {
   phase:        GenerationPhase
   index:        number
   currentLabel: string
+  currentSection?: string | null
+  totalCount?: number
   words:        number
   failedCount:  number
   articleView:  boolean
+  lastActivity?: string | null
   stalled:      boolean
+  /** Epoch ms this run was started from this page; unset when reattached after a refresh. */
+  startedAt?:   number
+  /** Per-section word target the run was started with. */
+  perSectionWords?: number
 }
 
-export function GenerationPanel({ gen, onToggleArticleView, onCancel, onClose, onOpenDocument }: {
+const NO_SECTIONS: ProjectSection[] = []
+// Sections carry full section text, so refreshing them is much heavier than the status poll.
+const SECTIONS_REFRESH_MS = 6000
+
+export function GenerationPanel({ gen, onToggleArticleView, onCancel, onClose, onOpenDocument, onResume, resuming }: {
   gen:                 GenerationState
   onToggleArticleView: () => void
   onCancel:            () => void
   onClose:             () => void
   onOpenDocument:      () => void
+  onResume:            () => void
+  resuming:            boolean
 }) {
-  const sections = useResearchStore(s => s.sections[gen.projectId]) ?? []
-  const isActive = gen.phase === 'Starting' || gen.phase === 'Generating'
+  const sections     = useResearchStore(s => s.sections[gen.projectId]) ?? NO_SECTIONS
+  const loadSections = useResearchStore(s => s.loadSections)
+  const storedTarget = useResearchStore(s => s.projects.find(p => p.id === gen.projectId)?.sectionContent?.targetSectionWordCount)
+  const active       = gen.phase === 'Starting' || gen.phase === 'Generating'
 
-  const statusText: Record<GenerationPhase, string> = {
-    NotStarted: 'Not started',
-    Starting:   'Starting generation…',
-    Generating: `Writing ${gen.currentLabel}…`,
-    Completed:  'Proposal generated!',
-    Cancelled:  `Cancelled after ${gen.index} of ${PROPOSAL_SECTION_COUNT} sections`,
-    Error:      'The agent could not continue after automatic retries. Your completed sections are safe.',
-  }
+  // The status poll only reports counts; which sections are finished (and their real word counts)
+  // comes from the sections themselves, so keep them fresh while the run is going and once more
+  // when it ends.
+  useEffect(() => {
+    const refresh = () => { loadSections(gen.projectId).catch(() => {}) }
+    refresh()
+    if (!active) return
+    const id = window.setInterval(refresh, SECTIONS_REFRESH_MS)
+    return () => window.clearInterval(id)
+  }, [gen.projectId, active, gen.index, loadSections])
+
+  const parsedStored = Number.parseInt(String(storedTarget ?? ''), 10)
+  const targetWords  = gen.perSectionWords ?? (Number.isFinite(parsedStored) && parsedStored > 0 ? parsedStored : 500)
 
   return (
-    <div className="rounded-2xl border border-slate-200 overflow-hidden mb-8 shadow-sm">
-      <div className="flex items-center justify-between gap-4 px-5 py-4 bg-slate-800">
-        <div className="min-w-0">
-          <p className="text-[14px] font-semibold text-white truncate">
-            {gen.phase === 'Completed' ? 'Proposal Generated' : gen.phase === 'Cancelled' ? 'Generation Cancelled' : 'Generating Proposal…'}
-          </p>
-          <p className="text-[12px] text-slate-300 mt-0.5">
-            {gen.currentLabel || 'Preparing sections'} · Section {gen.index}/{PROPOSAL_SECTION_COUNT} · {gen.words.toLocaleString()} words
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={onToggleArticleView}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 text-[12px] font-medium text-slate-200 hover:bg-slate-700 transition-colors"
-          >
-            <BookText size={13} /> Article View
-          </button>
-          {isActive && (
-            <button
-              onClick={onCancel}
-              className="px-3.5 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-[12px] font-semibold transition-colors"
-            >
-              Cancel
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            className="px-3.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[12px] font-semibold transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white">
-        {gen.articleView ? (
-          <div className="max-h-[420px] overflow-y-auto p-6 flex flex-col gap-5">
-            {CHAPTER_STEPS.map(step => {
-              const sec = sections.find(s => s.code === step.sectionKey)
-              if (!sec?.content) return null
-              return (
-                <div key={step.id}>
-                  <p className="text-[13px] font-bold text-slate-800 mb-1.5">
-                    {SECTION_PROMPTS[step.sectionKey ?? '']?.heading ?? step.label}
-                  </p>
-                  <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap">{sec.content}</p>
-                </div>
-              )
-            })}
-            {sections.every(s => !s.content) && (
-              <p className="text-[13px] text-slate-400 text-center py-10">Sections will appear here as they're written.</p>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center gap-3 py-16">
-            {isActive && <Loader2 size={26} className="animate-spin text-[#7c3aed]" />}
-            {gen.phase === 'Completed' && <Check size={26} className="text-emerald-500" />}
-            <p className="text-[13px] font-medium text-slate-700">{statusText[gen.phase]}</p>
-            {gen.phase === 'Starting' && <p className="text-[12px] text-slate-400">Preparing sections…</p>}
-            {gen.phase === 'Starting' && gen.index > 0 && (
-              <p className="text-[12px] text-violet-600">The agent is continuing automatically from your saved progress.</p>
-            )}
-            {isActive && gen.stalled && (
-              <p className="text-[12px] text-amber-600 max-w-xs text-center">
-                This is taking longer than usual. It should recover automatically within a
-                few minutes — no need to leave this page.
-              </p>
-            )}
-            {gen.failedCount > 0 && (gen.phase === 'Completed' || gen.phase === 'Cancelled') && (
-              <p className="text-[12px] text-amber-600">
-                {gen.failedCount} section{gen.failedCount === 1 ? '' : 's'} failed and can be retried from the document editor.
-              </p>
-            )}
-            {(gen.phase === 'Completed' || gen.phase === 'Cancelled' || gen.phase === 'Error') && (
-              <button
-                onClick={onOpenDocument}
-                className="mt-2 px-5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#4c1d95] text-white text-[13px] font-semibold transition-colors"
-              >
-                Open Document
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+    <GenerationProgressDialog
+      title={gen.title}
+      phase={gen.phase}
+      completedCount={gen.index}
+      totalCount={gen.totalCount ?? PROPOSAL_SECTION_COUNT}
+      currentSection={gen.currentSection}
+      wordsWritten={gen.words}
+      failedCount={gen.failedCount}
+      stalled={gen.stalled}
+      lastActivity={gen.lastActivity}
+      targetWords={targetWords}
+      startedAt={gen.startedAt ?? null}
+      steps={CHAPTER_STEPS}
+      sections={sections}
+      articleView={gen.articleView}
+      onToggleArticleView={onToggleArticleView}
+      onStop={onCancel}
+      onDone={onClose}
+      onOpenDocument={onOpenDocument}
+      onResume={onResume}
+      resuming={resuming}
+    />
   )
 }
 
@@ -681,10 +665,6 @@ export function GenerationPanel({ gen, onToggleArticleView, onCancel, onClose, o
 // the exact status+count signature so a job that later actually resumes
 // progress (new count) still surfaces normally.
 const DISMISSED_STORAGE_KEY = 'humaniser:dismissedProposalGenerations'
-
-function generationSignature(status: { status: string; completedCount: number }): string {
-  return `${status.status}|${status.completedCount}`
-}
 
 function readDismissedSignature(projectId: string): string | null {
   try {
@@ -715,6 +695,10 @@ export function useAutonomousProposalFlow() {
   const [showCreateModal, setShowCreateModal]   = useState(false)
   const [showSimilarModal, setShowSimilarModal] = useState(false)
   const [gen, setGen] = useState<GenerationState | null>(null)
+  const [resuming, setResuming] = useState(false)
+  const resumePending = useRef(false)
+  const explicitOpenRevision = useRef(0)
+  const [pollRevision, setPollRevision] = useState(0)
 
   // Tracks the last time completedCount/currentSection/wordsWritten actually changed, so the
   // poll below can tell "still working" apart from "the job died mid-chapter and nothing will
@@ -723,44 +707,43 @@ export function useAutonomousProposalFlow() {
   const progressRef = useRef<{ projectId: string; key: string; since: number } | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+    const recoveryRevision = explicitOpenRevision.current
     // Reattach to an already-running generation on mount — e.g. the tab was
     // refreshed, or the user navigated away and back. Generation itself is a
     // Hangfire job (ProposalGenerationJob) driven entirely server-side, so it
     // kept running the whole time; only the panel needs to catch back up.
     // Agent-mode proposals are the only ones that ever have a generation job
-    // running, so filtering on generatorMode is the real discriminator (this
-    // tool only ever starts one run at a time — see isGenerating below — so
-    // the most-recently-touched Agent-mode proposal is the only candidate).
+    // running. Search all candidates so a newer draft cannot hide an older job.
     researchStore.loadProjects().then(() => {
-      const candidate = [...researchStore.projects]
-        .filter(p => p.generatorMode === 'AGENT' && p.documentMode === 'PROPOSAL')
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
-      if (!candidate) return
-      return researchStore.getGenerationStatus(candidate.id).then(status => {
-        const active = status.status === 'Starting' || status.status === 'Generating'
-        const incompleteTerminal = status.completedCount < status.totalCount
-          && (status.status === 'Error' || status.status === 'Cancelled' || status.status === 'Completed')
-        const dismissed = incompleteTerminal && readDismissedSignature(candidate.id) === generationSignature(status)
-        if (active || (incompleteTerminal && !dismissed)) {
+      return recoverProposalGeneration(useResearchStore.getState().projects, researchStore.getGenerationStatus, readDismissedSignature).then(recovered => {
+        if (cancelled || explicitOpenRevision.current !== recoveryRevision || !recovered) return
+        const { project: candidate, status } = recovered
+        if (status) {
           progressRef.current = {
             projectId: candidate.id,
             key:       `${status.completedCount}|${status.currentSection}|${status.wordsWritten}`,
             since:     Date.now(),
           }
-          setGen({
+          setGen(current => current ?? ({
             projectId:    candidate.id,
             title:        candidate.title,
-            phase:        status.status,
+            lastActivity: status.heartbeatAt && Date.now() - Date.parse(status.heartbeatAt) > 120_000
+            ? 'Worker heartbeat overdue' : status.lastActivity,
+          phase:        status.status,
             index:        status.completedCount,
             currentLabel: labelForSectionCode(status.currentSection),
+            currentSection: status.currentSection,
+            totalCount: status.totalCount,
             words:        status.wordsWritten,
             failedCount:  status.failedCount,
             articleView:  false,
             stalled:      false,
-          })
+          }))
         }
       })
     }).catch(() => {})
+    return () => { cancelled = true }
   }, [])
 
   // Polls GET .../generation-status while a run is in flight — the job is a
@@ -789,7 +772,7 @@ export function useAutonomousProposalFlow() {
         if (cancelled) return
         consecutiveFailures = 0
 
-        const key = `${status.completedCount}|${status.currentSection}|${status.wordsWritten}`
+        const key = `${status.completedCount}|${status.currentSection}|${status.wordsWritten}|${status.lastActivity ?? ''}`
         const now = Date.now()
         if (!progressRef.current || progressRef.current.projectId !== projectId || progressRef.current.key !== key) {
           progressRef.current = { projectId, key, since: now }
@@ -800,9 +783,14 @@ export function useAutonomousProposalFlow() {
 
         setGen(g => (g && g.projectId === projectId) ? {
           ...g,
+          startedAt: status.runStartedAt && Number.isFinite(Date.parse(status.runStartedAt)) ? Date.parse(status.runStartedAt) : g.startedAt,
+          lastActivity: status.heartbeatAt && now - Date.parse(status.heartbeatAt) > 120_000
+            ? 'Worker heartbeat overdue' : status.lastActivity,
           phase:        status.status,
           index:        status.completedCount,
           currentLabel: labelForSectionCode(status.currentSection),
+          currentSection: status.currentSection,
+          totalCount: status.totalCount,
           words:        status.wordsWritten,
           failedCount:  status.failedCount,
           stalled,
@@ -827,7 +815,7 @@ export function useAutonomousProposalFlow() {
 
     poll()
     return () => { cancelled = true; if (timer) window.clearTimeout(timer) }
-  }, [gen?.projectId])
+  }, [gen?.projectId, pollRevision])
 
   // A generation in flight is tracked by one `gen` state slot — starting a
   // second one while the first is running would reassign `gen` to the new
@@ -855,6 +843,10 @@ export function useAutonomousProposalFlow() {
       fieldInterest: config.fieldInterest,
       academicLevel: config.academicLevel,
       citationStyle: config.citationStyle,
+      methodologyType: config.methodologyType,
+      studyLocation: config.locationEnabled ? config.geographicalArea : '',
+      studyPopulation: config.locationEnabled ? config.studyPopulation : '',
+      gatherMode: config.sourceType,
     })
 
     // These all reuse the exact sectionContent keys ResearchAgentPage's own
@@ -865,13 +857,11 @@ export function useAutonomousProposalFlow() {
     const perSectionWords = Math.max(150, Math.round(config.targetWords / PROPOSAL_SECTION_COUNT))
     researchStore.setContent(project.id, 'sourceTypePreference', config.sourceType)
     researchStore.setContent(project.id, 'location-enabled', config.locationEnabled ? 'true' : 'false')
-    researchStore.setContent(project.id, 'location', config.geographicalArea)
-    researchStore.setContent(project.id, 'location-population', config.studyPopulation)
+    researchStore.setContent(project.id, 'location', config.locationEnabled ? config.geographicalArea : '')
+    researchStore.setContent(project.id, 'location-population', config.locationEnabled ? config.studyPopulation : '')
     researchStore.setContent(project.id, 'targetSectionWordCount', String(perSectionWords))
 
-    setShowCreateModal(false)
     progressRef.current = { projectId: project.id, key: '0||0', since: Date.now() }
-    setGen({ projectId: project.id, title: config.title, phase: 'Starting', index: 0, currentLabel: '', words: 0, failedCount: 0, articleView: false, stalled: false })
 
     try {
       // Local mutations above (updateProject/setContent) only touch client
@@ -879,14 +869,19 @@ export function useAutonomousProposalFlow() {
       // citationStyle/sectionContent set here once syncProject actually
       // pushes them, so this must happen before starting the job.
       await researchStore.syncProject(project.id)
+      const status = await startAutonomousProposal(project.id, { methodologyType: config.methodologyType }, perSectionWords)
+      setShowCreateModal(false)
+      setGen({ projectId: project.id, title: config.title, phase: status.status, index: status.completedCount, currentLabel: labelForSectionCode(status.currentSection), currentSection: status.currentSection, totalCount: status.totalCount, words: status.wordsWritten, failedCount: status.failedCount, articleView: false, stalled: false, startedAt: Date.now(), perSectionWords })
+      researchStore.loadProject(project.id).catch(() => {})
       // Enqueues ProposalGenerationJob server-side (Hangfire) and returns
       // immediately — the polling effect above picks up progress from here.
       // Runs independently of this page: closing the tab, navigating away, or
       // refreshing no longer stops generation.
-      await researchStore.generateAutonomous(project.id, perSectionWords)
-    } catch {
-      setGen(g => (g && g.projectId === project.id) ? { ...g, phase: 'Error' } : g)
-      toast.error('Could not start autonomous generation — check the server is running.')
+    } catch (error) {
+      setShowCreateModal(false)
+      setGen({ projectId: project.id, title: config.title, phase: 'Error', index: 0, currentLabel: '', words: 0, failedCount: 0, articleView: false, stalled: false })
+      const apiError = error as { response?: { data?: { message?: string } }; message?: string }
+      toast.error(apiError.response?.data?.message || apiError.message || 'Could not start generation. Open the research workspace to review your setup.')
     }
   }
 
@@ -898,20 +893,83 @@ export function useAutonomousProposalFlow() {
     setShowCreateModal(true)
   }
 
+  const onResumeGeneration = async () => {
+    if (!gen || resumePending.current) return
+    resumePending.current = true
+    setResuming(true)
+    const projectId = gen.projectId
+    try {
+      await researchStore.loadProject(projectId)
+      const stored = useResearchStore.getState().projects.find(p => p.id === projectId)?.sectionContent?.targetSectionWordCount
+      const parsed = Number.parseInt(String(stored ?? ''), 10)
+      const target = gen.perSectionWords ?? (Number.isFinite(parsed) && parsed > 0 ? parsed : 500)
+      const status = await researchStore.generateAutonomous(projectId, target)
+      progressRef.current = { projectId, key: `${status.completedCount}|${status.currentSection}|${status.wordsWritten}`, since: Date.now() }
+      setGen(g => g?.projectId === projectId ? { ...g, phase: status.status, index: status.completedCount, currentSection: status.currentSection, currentLabel: labelForSectionCode(status.currentSection), totalCount: status.totalCount, words: status.wordsWritten, failedCount: status.failedCount, stalled: false, articleView: false, startedAt: Date.now(), perSectionWords: target } : g)
+      setPollRevision(v => v + 1)
+    } catch (error) {
+      const apiError = error as { response?: { data?: { message?: string } }; message?: string }
+      toast.error(apiError.response?.data?.message || apiError.message || 'Could not resume generation. Try again.')
+    } finally {
+      resumePending.current = false
+      setResuming(false)
+    }
+  }
+
+  const onOpenAutonomousProposal = async (projectId: string) => {
+    if (resumePending.current) return
+    resumePending.current = true
+    explicitOpenRevision.current += 1
+    setResuming(true)
+    try {
+      await researchStore.loadProject(projectId)
+      const project = useResearchStore.getState().projects.find(p => p.id === projectId)
+      if (!project) return
+      const parsed = Number.parseInt(project.sectionContent?.targetSectionWordCount ?? '', 10)
+      const target = Number.isFinite(parsed) && parsed > 0 ? parsed : 500
+      const status = await resumeOnOpen(projectId, target, useResearchStore.getState())
+      if (status.status === 'NotStarted' || (status.status === 'Completed' && status.completedCount >= status.totalCount && !status.failedCount)) {
+        navigate(`/app/research-agent/${projectId}${status.status === 'Completed' ? '?section=1.0' : ''}`)
+        return
+      }
+      progressRef.current = { projectId, key: `${status.completedCount}|${status.currentSection}|${status.wordsWritten}`, since: Date.now() }
+      setGen({ projectId, title: project.title, phase: status.status, index: status.completedCount,
+        currentLabel: labelForSectionCode(status.currentSection), currentSection: status.currentSection,
+        totalCount: status.totalCount, words: status.wordsWritten, failedCount: status.failedCount,
+        articleView: false, stalled: false, startedAt: Date.now(), perSectionWords: target })
+      setPollRevision(v => v + 1)
+      void researchStore.loadProjects()
+    } catch (error) {
+      const apiError = error as { response?: { data?: { message?: string } }; message?: string }
+      toast.error(apiError.response?.data?.message || apiError.message || 'Generation could not resume. Review the proposal workspace.')
+      navigate(`/app/research-agent/${projectId}`)
+    } finally {
+      resumePending.current = false
+      setResuming(false)
+    }
+  }
+
   const onToggleArticleView = () => setGen(g => g ? { ...g, articleView: !g.articleView } : g)
   const onCancelGeneration  = () => { if (gen) researchStore.cancelGeneration(gen.projectId).catch(() => {}) }
   const onCloseGeneration   = () => {
     if (!gen) return
-    const projectId = gen.projectId
-    researchStore.cancelGeneration(projectId)
-      .then(status => writeDismissedSignature(projectId, generationSignature(status)))
-      // The job was already terminal (Error/Cancelled/Completed) — cancelGeneration
-      // rejects in that case, but the shown gen.phase is still the right signature
-      // to dismiss so this exact outcome doesn't resurrect on next mount.
-      .catch(() => writeDismissedSignature(projectId, generationSignature({ status: gen.phase, completedCount: gen.index })))
+    if (gen.phase === 'NeedsReview') {
+      setGen(null)
+      return
+    }
+    // Closing the view does not stop the worker; only the explicit Stop action cancels.
+    writeDismissedSignature(gen.projectId, generationSignature({ status: gen.phase, completedCount: gen.index }))
     setGen(null)
   }
-  const onOpenGeneratedDocument = () => { if (gen) navigate(`/app/research-agent/${gen.projectId}`) }
+  const onOpenGeneratedDocument = () => {
+    if (!gen) return
+    if (gen.phase === 'Completed' && gen.index >= (gen.totalCount ?? PROPOSAL_SECTION_COUNT) && !gen.failedCount) {
+      navigate(`/app/research-agent/${gen.projectId}?section=1.0`)
+      return
+    }
+    const suffix = gen.currentSection ? `?section=${encodeURIComponent(gen.currentSection)}` : ''
+    navigate(`/app/research-agent/${gen.projectId}${suffix}`)
+  }
 
   return {
     gen,
@@ -923,5 +981,6 @@ export function useAutonomousProposalFlow() {
     onCancelGeneration,
     onCloseGeneration,
     onOpenGeneratedDocument,
+    onResumeGeneration, onOpenAutonomousProposal, resuming,
   }
 }

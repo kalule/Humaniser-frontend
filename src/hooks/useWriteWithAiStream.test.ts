@@ -17,6 +17,17 @@ function errorFrame(error: string): string {
 const sampleResult: Partial<WriteWithAiResponse> = { title: 'Test Essay', content: 'Body text.', wordCount: 2 }
 
 describe('parseWriteWithAiSseFrames', () => {
+  it('preserves incomplete status, unfinished work and source references in a result frame', () => {
+    const unfinished: Partial<WriteWithAiResponse> = {
+      completionStatus: 'Incomplete', completionReason: 'Evidence for dissolution is still needed.',
+      title: 'Rise and fall', content: 'Unfinished work', references: [{ sourceId: 'S1', title: 'Emergence evidence', source: 'web', url: null }],
+      essayFlags: [{ code: 'EssayIncomplete', section: 'Essay', message: 'More evidence needed.', citationSourceIds: [] }],
+    }
+    const frame = resultFrame(unfinished)
+    const first = parseWriteWithAiSseFrames('', frame.slice(0, 40))
+    const second = parseWriteWithAiSseFrames(first.remainder, frame.slice(40))
+    expect(second.events).toEqual([{ result: unfinished }])
+  })
   it('extracts a single stage event delivered in one chunk', () => {
     const { events, remainder } = parseWriteWithAiSseFrames('', stageFrame('drafting'))
     expect(events).toEqual([{ stage: 'drafting' }])

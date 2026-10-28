@@ -1,0 +1,15 @@
+﻿{
+    "id":  "5ea259b1-f33d-4971-ab99-adad3f4b58dd",
+    "sectionCode":  "2.0",
+    "claim":  "A study of undergraduate students at a rural South African university found that their LMS experiences were shaped by infrastructural limitations, digital literacy gaps and variation in faculty engagement.",
+    "literatureId":  "0a234898-2c53-4aba-851c-48c9545c821a",
+    "coverage":  "Abstract",
+    "start":  856,
+    "length":  270,
+    "quote":  "The findings revealed that while students identified the opportunity for learning flexibility and access through the LMS, their experience was primarily shaped by infrastructural limitations, gaps in digital literacy, and variation in the level of engagement by faculty.",
+    "sourceHash":  "a2ee6e401db2b8ecdf5b4cde360bd94b3a0e01a4074fa6949bc2831daa0ed1d1",
+    "corpusHash":  "0960c1da836b9f803afedc197362274a28f3d9b4577cd6b4afaf7d371be7931f",
+    "purpose":  "Support",
+    "status":  "Pass",
+    "message":  "The claim is supported by the quoted abstract passage. The source explicitly reports findings about undergraduate students at a rural South African university whose LMS experiences were shaped by infrastructural limitations, digital literacy gaps, and faculty engagement variation—matching all three factors cited in the claim."
+}

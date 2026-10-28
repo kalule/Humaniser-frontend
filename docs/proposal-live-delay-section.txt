@@ -1,0 +1,17 @@
+﻿ SectionCode | Status | WordCount | content_characters | GenerationError |          GeneratedAt          
+-------------+--------+-----------+--------------------+-----------------+-------------------------------
+ 1.0         |      2 |       366 |               5955 |                 | 2026-10-04 14:01:56.069375+00
+(1 row)
+
+  id   | statename  |                                               job_type                                                | duration_ms 
+-------+------------+-------------------------------------------------------------------------------------------------------+-------------
+ 12177 | Enqueued   | HumaniseAI.Infrastructure.Services.FactsConsistencyVerificationJob, HumaniseAI.Infrastructure         | 
+ 12176 | Processing | HumaniseAI.Infrastructure.Services.SourceExtractionJob, HumaniseAI.Infrastructure                     | 
+ 12175 | Processing | HumaniseAI.Infrastructure.Services.LiteratureIdentityMetadataExtractionJob, HumaniseAI.Infrastructure | 
+ 12174 | Succeeded  | HumaniseAI.Infrastructure.Services.CitationClaimSupportVerificationJob, HumaniseAI.Infrastructure     | 40006
+ 12169 | Succeeded  | HumaniseAI.Infrastructure.Services.LiteratureAnalysisJob, HumaniseAI.Infrastructure                   | 682
+ 12168 | Succeeded  | HumaniseAI.Infrastructure.Services.LiteratureDistillationJob, HumaniseAI.Infrastructure               | 88232
+ 12167 | Succeeded  | HumaniseAI.Application.Services.IResearchService, HumaniseAI.Application                              | 18948
+ 12166 | Succeeded  | HumaniseAI.Infrastructure.Services.ProposalGenerationJob, HumaniseAI.Infrastructure                   | 341508
+(8 rows)
+

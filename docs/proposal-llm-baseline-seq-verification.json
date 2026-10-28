@@ -1,0 +1,9 @@
+﻿{
+    "filter":  "EventType = \u0027LlmAttemptCompleted\u0027 and LlmUsage.ProposalId = \u00274ffb55e2-c8da-4feb-99c6-086c565fed6c\u0027",
+    "seqUrl":  "http://localhost:5341",
+    "matchingEventCount":  73,
+    "eventType":  "LlmAttemptCompleted",
+    "verifiedUtc":  "2026-10-04T12:28:09.4487068Z",
+    "proposalId":  "4ffb55e2-c8da-4feb-99c6-086c565fed6c",
+    "ledgerIdDifferenceCount":  0
+}

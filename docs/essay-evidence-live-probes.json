@@ -1,0 +1,563 @@
+{
+  "model": "google/gemini-2.5-flash",
+  "synthetic": true,
+  "planning": {
+    "parsed": {
+      "scope": {
+        "populationOrContext": "university students",
+        "phenomenon": "sleep loss and working memory",
+        "outcomesOrConstructs": [
+          "working memory",
+          "spatial-span task performance",
+          "N-back outcome"
+        ],
+        "requiredPerspective": "cognitive perspective",
+        "explicitRequirements": [
+          "Use only the supplied SYNTHETIC fixtures",
+          "preserve conflicting findings",
+          "label the analysis as synthetic rather than real research"
+        ],
+        "proposedFraming": [
+          "Sleep loss impairs every component of university students working memory and lowers grades."
+        ]
+      },
+      "sources": [
+        {
+          "sourceId": "S1",
+          "population": "university students",
+          "setting": null,
+          "design": "experiment",
+          "conditions": [
+            "acute total sleep deprivation",
+            "normal-sleep"
+          ],
+          "constructs": [
+            "working memory"
+          ],
+          "tasks": [
+            "spatial-span task"
+          ],
+          "outcomes": [
+            "spatial-span task performance"
+          ],
+          "findings": [
+            {
+              "text": "spatial-span task performance was lower after acute total sleep deprivation",
+              "relevance": "direct"
+            }
+          ],
+          "limitations": [
+            "no phonological-loop component measured",
+            "grades or downstream academic outcomes not measured",
+            "sample size, effect size, statistical details unknown"
+          ],
+          "supportingExcerpt": "SYNTHETIC FIXTURE, NOT A REAL PAPER. An experiment compared university students after acute total sleep deprivation and a normal-sleep condition. Spatial-span task performance was lower in the deprivation condition. No phonological-loop component, grades or downstream academic outcomes were measured. Sample size, effect size and statistical details are unknown in this excerpt."
+        },
+        {
+          "sourceId": "S4",
+          "population": "university students",
+          "setting": null,
+          "design": "study",
+          "conditions": [
+            "repeated partial sleep restriction"
+          ],
+          "constructs": [
+            "working memory"
+          ],
+          "tasks": [
+            "N-back task"
+          ],
+          "outcomes": [
+            "N-back outcome"
+          ],
+          "findings": [
+            {
+              "text": "repeated partial sleep restriction showed no detectable change on N-back outcome",
+              "relevance": "direct"
+            }
+          ],
+          "limitations": [
+            "no power calculation or effect size supplied",
+            "does not prove absence of every possible effect"
+          ],
+          "supportingExcerpt": "SYNTHETIC FIXTURE, NOT A REAL PAPER. A university-student study under repeated partial sleep restriction reported no detectable change on its N-back outcome. This null task result is relevant to the argument, but it does not prove absence of every possible effect. The excerpt supplies no power calculation or effect size."
+        },
+        {
+          "sourceId": "S2",
+          "population": "soldiers",
+          "setting": null,
+          "design": null,
+          "conditions": [
+            "acute total sleep deprivation"
+          ],
+          "constructs": [
+            "working memory"
+          ],
+          "tasks": [
+            "N-back task"
+          ],
+          "outcomes": [
+            "task responses"
+          ],
+          "findings": [
+            {
+              "text": "N-back task responses were slower after acute total sleep deprivation",
+              "relevance": "indirect"
+            }
+          ],
+          "limitations": [
+            "does not establish phonological-loop mechanism",
+            "university-student effects not established"
+          ],
+          "supportingExcerpt": "SYNTHETIC FIXTURE, NOT A REAL PAPER. Soldiers completed an N-back task after acute total sleep deprivation. Task responses were slower. The excerpt does not establish a phonological-loop mechanism or university-student effects."
+        },
+        {
+          "sourceId": "S3",
+          "population": "rats",
+          "setting": null,
+          "design": null,
+          "conditions": [
+            "disrupted sleep"
+          ],
+          "constructs": [
+            "reversal learning"
+          ],
+          "tasks": [
+            "reversal-learning tasks"
+          ],
+          "outcomes": [
+            "reversal-learning performance"
+          ],
+          "findings": [
+            {
+              "text": "reversal-learning performance was worse after disrupted sleep",
+              "relevance": "indirect"
+            }
+          ],
+          "limitations": [
+            "human visuospatial working memory not measured"
+          ],
+          "supportingExcerpt": "SYNTHETIC FIXTURE, NOT A REAL PAPER. Rats completed reversal-learning tasks after disrupted sleep. Reversal-learning performance was worse. Human visuospatial working memory was not measured."
+        },
+        {
+          "sourceId": "S5",
+          "population": "Esports players",
+          "setting": null,
+          "design": "observational comparison",
+          "conditions": [
+            "poor sleep quality"
+          ],
+          "constructs": [
+            "vigilance"
+          ],
+          "tasks": [
+            "vigilance-task"
+          ],
+          "outcomes": [
+            "vigilance-task performance"
+          ],
+          "findings": [
+            {
+              "text": "poor sleep quality was associated with lower vigilance-task performance",
+              "relevance": "indirect"
+            }
+          ],
+          "limitations": [
+            "working memory and grades not measured",
+            "exposure differs from acute total deprivation and repeated partial restriction"
+          ],
+          "supportingExcerpt": "SYNTHETIC FIXTURE, NOT A REAL PAPER. Esports players reporting poor sleep quality had lower vigilance-task performance in an observational comparison. Working memory and grades were not measured. The exposure differs from acute total deprivation and repeated partial restriction."
+        }
+      ],
+      "claims": [
+        {
+          "text": "Acute total sleep deprivation impairs spatial-span task performance in university students.",
+          "sourceIds": [
+            "S1"
+          ],
+          "supportStatus": "direct",
+          "limitations": [
+            "no phonological-loop component measured",
+            "grades or downstream academic outcomes not measured",
+            "sample size, effect size, statistical details unknown"
+          ],
+          "action": "retain",
+          "wording": "Acute total sleep deprivation impairs spatial-span task performance in university students."
+        },
+        {
+          "text": "Repeated partial sleep restriction does not detectably change N-back outcome in university students.",
+          "sourceIds": [
+            "S4"
+          ],
+          "supportStatus": "direct",
+          "limitations": [
+            "no power calculation or effect size supplied",
+            "does not prove absence of every possible effect"
+          ],
+          "action": "retain",
+          "wording": "Repeated partial sleep restriction does not detectably change N-back outcome in university students."
+        },
+        {
+          "text": "Acute total sleep deprivation slows N-back task responses in soldiers.",
+          "sourceIds": [
+            "S2"
+          ],
+          "supportStatus": "indirect",
+          "limitations": [
+            "does not establish phonological-loop mechanism",
+            "university-student effects not established"
+          ],
+          "action": "qualify",
+          "wording": "Acute total sleep deprivation slows N-back task responses in soldiers, but this does not directly transfer to university students."
+        },
+        {
+          "text": "Disrupted sleep worsens reversal-learning performance in rats.",
+          "sourceIds": [
+            "S3"
+          ],
+          "supportStatus": "indirect",
+          "limitations": [
+            "human visuospatial working memory not measured"
+          ],
+          "action": "qualify",
+          "wording": "Disrupted sleep worsens reversal-learning performance in rats, which is not directly comparable to human working memory."
+        },
+        {
+          "text": "Poor sleep quality is associated with lower vigilance-task performance in Esports players.",
+          "sourceIds": [
+            "S5"
+          ],
+          "supportStatus": "indirect",
+          "limitations": [
+            "working memory and grades not measured",
+            "exposure differs from acute total deprivation and repeated partial restriction"
+          ],
+          "action": "qualify",
+          "wording": "Poor sleep quality is associated with lower vigilance-task performance in Esports players, but this is not a direct measure of working memory in university students."
+        },
+        {
+          "text": "Sleep loss impairs every component of university students working memory.",
+          "sourceIds": [
+            "S1",
+            "S4"
+          ],
+          "supportStatus": "conflicting",
+          "limitations": [
+            "only spatial-span and N-back tasks measured",
+            "no phonological-loop component measured",
+            "conflicting findings for different sleep loss types and tasks"
+          ],
+          "action": "interpret",
+          "wording": "The evidence does not consistently support that sleep loss impairs every component of university students' working memory, showing impairment in spatial-span but no detectable change in N-back performance under different conditions."
+        },
+        {
+          "text": "Sleep loss lowers grades in university students.",
+          "sourceIds": [
+            "S1",
+            "S5"
+          ],
+          "supportStatus": "unsupported",
+          "limitations": [
+            "grades not measured in any relevant study"
+          ],
+          "action": "omit",
+          "wording": "The provided synthetic evidence does not address the impact of sleep loss on university students' grades."
+        }
+      ],
+      "boundedThesis": "SYNTHETIC ANALYSIS: Acute total sleep deprivation impairs spatial-span working memory in university students, but repeated partial sleep restriction does not detectably affect N-back performance, indicating a nuanced and task-dependent impact of sleep loss on cognitive functions in this population. The available synthetic evidence does not address the impact on academic grades or all working memory components.",
+      "gaps": [
+        "The synthetic evidence does not measure the phonological-loop component of working memory in university students.",
+        "The synthetic evidence does not measure academic grades or downstream academic outcomes.",
+        "The synthetic evidence lacks details on sample size, effect size, and statistical power for some findings.",
+        "The synthetic evidence does not establish mechanisms for observed effects."
+      ]
+    },
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 3019,
+      "output_tokens": 1773,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": null,
+      "inference_geo": null,
+      "server_tool_use": null,
+      "service_tier": "standard",
+      "speed": "standard",
+      "cost": 0.0053382,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0.0053382,
+        "upstream_inference_prompt_cost": 0.0009057,
+        "upstream_inference_completions_cost": 0.0044325
+      }
+    },
+    "elapsedMs": 9514
+  },
+  "verification": {
+    "parsed": {
+      "citations": [
+        {
+          "id": 1,
+          "supportGrade": "Supported",
+          "claimMatch": "yes",
+          "journalMatch": "yes",
+          "authorMatch": "yes",
+          "confidence": 95,
+          "reasoning": "The abstract directly states that the experiment found lower task performance in the total-deprivation condition.",
+          "geographyFit": "not_applicable",
+          "scopeFit": "not_applicable",
+          "temporalFit": "not_applicable",
+          "comparisonFit": "yes",
+          "categoryFit": "not_applicable",
+          "evidenceQuote": "",
+          "constructFit": "yes",
+          "outcomeFit": "yes",
+          "exposureFit": "yes",
+          "mechanismFit": "not_applicable",
+          "causalFit": "yes",
+          "numericalFit": "not_applicable",
+          "conflictFit": "not_applicable",
+          "mechanismApplicable": false,
+          "conflictApplicable": false
+        },
+        {
+          "id": 2,
+          "supportGrade": "Contradicted",
+          "claimMatch": "no",
+          "journalMatch": "yes",
+          "authorMatch": "yes",
+          "confidence": 95,
+          "reasoning": "The abstract explicitly states that 'No phonological-loop component was measured,' directly contradicting the claim that the experiment established phonological-loop impairment.",
+          "geographyFit": "not_applicable",
+          "scopeFit": "not_applicable",
+          "temporalFit": "not_applicable",
+          "comparisonFit": "not_applicable",
+          "categoryFit": "not_applicable",
+          "evidenceQuote": "",
+          "constructFit": "no",
+          "outcomeFit": "no",
+          "exposureFit": "yes",
+          "mechanismFit": "not_applicable",
+          "causalFit": "no",
+          "numericalFit": "not_applicable",
+          "conflictFit": "not_applicable",
+          "mechanismApplicable": false,
+          "conflictApplicable": false
+        },
+        {
+          "id": 3,
+          "supportGrade": "Supported",
+          "claimMatch": "yes",
+          "journalMatch": "yes",
+          "authorMatch": "yes",
+          "confidence": 95,
+          "reasoning": "The abstract directly states that the study reported no detectable change in N-back under repeated partial restriction.",
+          "geographyFit": "not_applicable",
+          "scopeFit": "not_applicable",
+          "temporalFit": "not_applicable",
+          "comparisonFit": "not_applicable",
+          "categoryFit": "not_applicable",
+          "evidenceQuote": "",
+          "constructFit": "yes",
+          "outcomeFit": "yes",
+          "exposureFit": "yes",
+          "mechanismFit": "not_applicable",
+          "causalFit": "yes",
+          "numericalFit": "not_applicable",
+          "conflictFit": "not_applicable",
+          "mechanismApplicable": false,
+          "conflictApplicable": false
+        },
+        {
+          "id": 4,
+          "supportGrade": "Contradicted",
+          "claimMatch": "no",
+          "journalMatch": "yes",
+          "authorMatch": "yes",
+          "confidence": 95,
+          "reasoning": "The abstract states that 'Results across the included studies were mixed; some reported declines and others no detectable changes,' which contradicts the claim that 'All studies agreed that performance declined.'",
+          "geographyFit": "not_applicable",
+          "scopeFit": "not_applicable",
+          "temporalFit": "not_applicable",
+          "comparisonFit": "not_applicable",
+          "categoryFit": "not_applicable",
+          "evidenceQuote": "",
+          "constructFit": "yes",
+          "outcomeFit": "yes",
+          "exposureFit": "not_applicable",
+          "mechanismFit": "not_applicable",
+          "causalFit": "not_applicable",
+          "numericalFit": "not_applicable",
+          "conflictFit": "no",
+          "mechanismApplicable": false,
+          "conflictApplicable": true
+        },
+        {
+          "id": 5,
+          "supportGrade": "Supported",
+          "claimMatch": "yes",
+          "journalMatch": "yes",
+          "authorMatch": "yes",
+          "confidence": 95,
+          "reasoning": "The abstract directly states that the pilot measured lower journey time on the modified route.",
+          "geographyFit": "not_applicable",
+          "scopeFit": "not_applicable",
+          "temporalFit": "not_applicable",
+          "comparisonFit": "yes",
+          "categoryFit": "not_applicable",
+          "evidenceQuote": "",
+          "constructFit": "yes",
+          "outcomeFit": "yes",
+          "exposureFit": "yes",
+          "mechanismFit": "not_applicable",
+          "causalFit": "yes",
+          "numericalFit": "not_applicable",
+          "conflictFit": "not_applicable",
+          "mechanismApplicable": false,
+          "conflictApplicable": false
+        },
+        {
+          "id": 6,
+          "supportGrade": "Contradicted",
+          "claimMatch": "no",
+          "journalMatch": "yes",
+          "authorMatch": "yes",
+          "confidence": 95,
+          "reasoning": "The abstract states that the experiment 'did not test partial restriction,' directly contradicting the claim that partial restriction reduced task performance.",
+          "geographyFit": "not_applicable",
+          "scopeFit": "not_applicable",
+          "temporalFit": "not_applicable",
+          "comparisonFit": "not_applicable",
+          "categoryFit": "not_applicable",
+          "evidenceQuote": "",
+          "constructFit": "yes",
+          "outcomeFit": "yes",
+          "exposureFit": "no",
+          "mechanismFit": "not_applicable",
+          "causalFit": "no",
+          "numericalFit": "not_applicable",
+          "conflictFit": "not_applicable",
+          "mechanismApplicable": false,
+          "conflictApplicable": false
+        },
+        {
+          "id": 7,
+          "supportGrade": "Contradicted",
+          "claimMatch": "no",
+          "journalMatch": "yes",
+          "authorMatch": "yes",
+          "confidence": 95,
+          "reasoning": "The abstract states that the experiment 'did not measure grades,' directly contradicting the claim that it measured lower university grades.",
+          "geographyFit": "not_applicable",
+          "scopeFit": "not_applicable",
+          "temporalFit": "not_applicable",
+          "comparisonFit": "not_applicable",
+          "categoryFit": "not_applicable",
+          "evidenceQuote": "",
+          "constructFit": "no",
+          "outcomeFit": "no",
+          "exposureFit": "yes",
+          "mechanismFit": "not_applicable",
+          "causalFit": "no",
+          "numericalFit": "not_applicable",
+          "conflictFit": "not_applicable",
+          "mechanismApplicable": false,
+          "conflictApplicable": false
+        }
+      ]
+    },
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 2887,
+      "output_tokens": 1702,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": null,
+      "inference_geo": null,
+      "server_tool_use": null,
+      "service_tier": "standard",
+      "speed": "standard",
+      "cost": 0.0051211,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0.0051211,
+        "upstream_inference_prompt_cost": 0.0008661,
+        "upstream_inference_completions_cost": 0.004255
+      }
+    },
+    "elapsedMs": 7470
+  },
+  "cases": [
+    {
+      "case": "direct_task",
+      "claim": "In this experiment, task performance was lower in the total-deprivation condition.",
+      "syntheticEvidence": "SYNTHETIC: An experiment found lower task performance in the total-deprivation condition than normal sleep.",
+      "expectedAccepted": true,
+      "actualAccepted": true,
+      "passed": true
+    },
+    {
+      "case": "component_overreach",
+      "claim": "The experiment established phonological-loop impairment.",
+      "syntheticEvidence": "SYNTHETIC: Soldiers completed N-back after total deprivation and responses were slower. No phonological-loop component was measured.",
+      "expectedAccepted": false,
+      "actualAccepted": false,
+      "passed": true
+    },
+    {
+      "case": "null_result",
+      "claim": "The study found no detectable N-back change under repeated partial restriction.",
+      "syntheticEvidence": "SYNTHETIC: The study reported no detectable change in N-back under repeated partial restriction.",
+      "expectedAccepted": true,
+      "actualAccepted": true,
+      "passed": true
+    },
+    {
+      "case": "false_consensus",
+      "claim": "All studies agreed that performance declined.",
+      "syntheticEvidence": "SYNTHETIC: Results across the included studies were mixed; some reported declines and others no detectable changes.",
+      "expectedAccepted": false,
+      "actualAccepted": false,
+      "passed": true
+    },
+    {
+      "case": "transport_direct",
+      "claim": "In this pilot, journey time was lower on the modified route.",
+      "syntheticEvidence": "SYNTHETIC: A transport pilot measured lower journey time on the modified route than on the comparison route.",
+      "expectedAccepted": true,
+      "actualAccepted": true,
+      "passed": true
+    },
+    {
+      "case": "exposure_mismatch",
+      "claim": "Partial restriction reduced task performance in the experiment.",
+      "syntheticEvidence": "SYNTHETIC: The experiment tested acute total deprivation only and observed lower task performance; it did not test partial restriction.",
+      "expectedAccepted": false,
+      "actualAccepted": false,
+      "passed": true
+    },
+    {
+      "case": "grades_overreach",
+      "claim": "The experiment measured lower university grades after deprivation.",
+      "syntheticEvidence": "SYNTHETIC: The experiment measured lower spatial-span performance after deprivation. It did not measure grades.",
+      "expectedAccepted": false,
+      "actualAccepted": false,
+      "passed": true
+    }
+  ],
+  "scope": "Two direct provider probes with production prompt text; not a full essay generation or original-article replication.",
+  "providerReportedCostUsd": 0.0104593,
+  "localRegression": {
+    "backendPassed": 335,
+    "backendFailed": 0,
+    "frontendTargetedPassed": 35,
+    "frontendTargetedFailed": 0,
+    "typescript": "passed"
+  }
+}

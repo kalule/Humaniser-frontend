@@ -1,0 +1,49 @@
+{
+    "id":  "4ffb55e2-c8da-4feb-99c6-086c565fed6c",
+    "title":  "Factors influencing adoption of digital learning among university students in South Africa",
+    "academicLevel":  "MASTERS",
+    "fieldInterest":  "Educational technology and digital learning adoption",
+    "selectedTopic":  {
+                          "id":  "baseline-digital-learning",
+                          "title":  "Factors influencing adoption of digital learning among university students in South Africa",
+                          "description":  "Proposed cross-sectional survey of digital learning adoption among students at South African public universities.",
+                          "tags":  [
+                                       "digital learning",
+                                       "technology adoption",
+                                       "higher education"
+                                   ],
+                          "gapSummary":  ""
+                      },
+    "suggestedTopics":  [
+
+                        ],
+    "generatedTitles":  [
+
+                        ],
+    "currentStep":  1,
+    "sectionContent":  {
+
+                       },
+    "documentMode":  "PROPOSAL",
+    "generatorMode":  "GENERATOR",
+    "citationStyle":  "harvard",
+    "progressPct":  0,
+    "createdAt":  "2026-10-04T12:13:22.7018100Z",
+    "updatedAt":  "2026-10-04T12:14:25.5792526Z",
+    "documentType":  "Proposal",
+    "methodologyType":  "Quantitative",
+    "methodologySubType":  "Cross-Sectional Survey",
+    "isExternallySourced":  false,
+    "institution":  "",
+    "supervisorName":  "",
+    "notes":  null,
+    "studyLocation":  "South Africa",
+    "studyPopulation":  "Students aged 18 or older enrolled at South African public universities",
+    "gatherMode":  "documents",
+    "selectedLibraryDocumentIds":  [
+
+                                   ],
+    "researchState":  "Proposal",
+    "universityTemplateId":  null,
+    "confirmedMethodology":  null
+}

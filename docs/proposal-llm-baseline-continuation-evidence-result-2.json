@@ -1,0 +1,15 @@
+﻿{
+    "id":  "d18ab00a-8356-48f0-aad3-16ef7c377082",
+    "sectionCode":  "1.0",
+    "claim":  "A comparative assessment of e-learning and m-learning adoption in South Africa distributed questionnaires among students at North-West University and Vaal University of Technology.",
+    "literatureId":  "de9fcbf2-9bc6-4aaf-8175-ca2a2c14a3be",
+    "coverage":  "Abstract",
+    "start":  1263,
+    "length":  203,
+    "quote":  "In carrying out this research, we distributed questionnaires among students of the North-West University, South Africa in all the three (3) campuses and Vaal University of Technology (VUT), South Africa.",
+    "sourceHash":  "d094c3a5816192eb4bbdf22ca071b111715f954d93eeae70deb3082d49ab2520",
+    "corpusHash":  "0960c1da836b9f803afedc197362274a28f3d9b4577cd6b4afaf7d371be7931f",
+    "purpose":  "Support",
+    "status":  "Pass",
+    "message":  "The quoted passage directly supports the claim. The source explicitly states that questionnaires were distributed among students at North-West University (all three campuses) and Vaal University of Technology in South Africa, which matches the claim\u0027s assertion of a comparative assessment involving these two institutions."
+}

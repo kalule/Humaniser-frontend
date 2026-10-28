@@ -1,0 +1,61 @@
+﻿CREATE VIEW
+ KnownCostSubtotalUsd | LedgerRecords | LogicalCalls | PhysicalAttempts | UnknownUsageCount | PartialUsageCount | UnpricedUsageCount | IncompleteCostRecordCount | ApplicationCacheHitCount | ReportedUncachedInputTokens | ReportedOutputTokens | ReportedCacheReadTokens | ReportedCacheCreationTokens 
+----------------------+---------------+--------------+------------------+-------------------+-------------------+--------------------+---------------------------+--------------------------+-----------------------------+----------------------+-------------------------+-----------------------------
+          0.362580000 |            73 |           73 |               73 |                 0 |                 0 |                  0 |                         0 |                        0 |                      177745 |                36967 |                       0 |                           0
+(1 row)
+
+        Pipeline        |        Stage         | Records | KnownCostUsd | IncompleteUsageCount | UnpricedUsageCount 
+------------------------+----------------------+---------+--------------+----------------------+--------------------
+ LegacyProposalWorkflow | EvidenceProcessing   |      68 |  0.348739000 |                    0 |                  0
+ LegacyProposalWorkflow | Planning             |       3 |  0.008185000 |                    0 |                  0
+ StrictProposalWorkflow | EvidenceVerification |       1 |  0.003911000 |                    0 |                  0
+ LegacyProposalWorkflow | Research             |       1 |  0.001745000 |                    0 |                  0
+(4 rows)
+
+ SectionId | SectionCode |        Stage         | KnownCostUsd | Records | IncompleteCostRecordCount 
+-----------+-------------+----------------------+--------------+---------+---------------------------
+           | 1.0         | EvidenceVerification |  0.003911000 |       1 |                         0
+           |             | EvidenceProcessing   |  0.348739000 |      68 |                         0
+           |             | Planning             |  0.008185000 |       3 |                         0
+           |             | Research             |  0.001745000 |       1 |                         0
+(4 rows)
+
+ Operation | SectionCode | KnownCostUsd | Records | IncompleteCostRecordCount 
+-----------+-------------+--------------+---------+---------------------------
+(0 rows)
+
+ Operation | KnownCostUsd | Records | IncompleteCostRecordCount 
+-----------+--------------+---------+---------------------------
+(0 rows)
+
+ LogicalCallId | PhysicalAttempt | BackgroundJobId | BackgroundJobAttempt | RetryReason | KnownCostUsd | UsageCompleteness | PricingStatus | ProviderRequestId 
+---------------+-----------------+-----------------+----------------------+-------------+--------------+-------------------+---------------+-------------------
+(0 rows)
+
+ Operation | Stage | SectionCode | Model | Status | UsageCompleteness | PricingStatus | LogicalCallId | PhysicalAttempt | BackgroundJobId | KnownCostUsd 
+-----------+-------+-------------+-------+--------+-------------------+---------------+---------------+-----------------+-----------------+--------------
+(0 rows)
+
+   WaterfallBucket    | KnownCostUsd | Records | IncompleteCostRecordCount 
+----------------------+--------------+---------+---------------------------
+ EvidenceProcessing   |  0.348739000 |      68 |                         0
+ EvidenceVerification |  0.003911000 |       1 |                         0
+ Planning             |  0.008185000 |       3 |                         0
+ Research             |  0.001745000 |       1 |                         0
+(4 rows)
+
+           GenerationRunId            |        Pipeline        |         Operation          |           Model           |                          PriceScheduleVersion                           | KnownCostUsd | Records | IncompleteCostRecordCount 
+--------------------------------------+------------------------+----------------------------+---------------------------+-------------------------------------------------------------------------+--------------+---------+---------------------------
+ 943df4a9-3dde-4bfc-b40a-d35facc2b8d0 | LegacyProposalWorkflow | DiscoveryDimensionPlanning | claude-haiku-4-5-20251001 | sha256:494574674e2ffe052f1a2076e2880fdd19e6c3c357df5af29e93437989173cf7 |  0.001811000 |       1 |                         0
+ af954834-8847-417b-b03b-e114895cf8d5 | LegacyProposalWorkflow | TopicScopeResolution       | claude-haiku-4-5-20251001 | sha256:494574674e2ffe052f1a2076e2880fdd19e6c3c357df5af29e93437989173cf7 |  0.001745000 |       1 |                         0
+ 12a9ebb7-0e1d-46aa-b01e-69656d7b5c17 | StrictProposalWorkflow | EvidenceBinding            | claude-haiku-4-5-20251001 | sha256:494574674e2ffe052f1a2076e2880fdd19e6c3c357df5af29e93437989173cf7 |  0.003911000 |       1 |                         0
+ 0aa9e0cb-7603-445e-8192-51407b03d73b | LegacyProposalWorkflow | EvidenceScreening          | claude-haiku-4-5-20251001 | sha256:494574674e2ffe052f1a2076e2880fdd19e6c3c357df5af29e93437989173cf7 |  0.294900000 |      28 |                         0
+ cd1055f9-283e-497e-b03c-2e075bd49865 | LegacyProposalWorkflow | SourceDistillation         | claude-haiku-4-5-20251001 | sha256:494574674e2ffe052f1a2076e2880fdd19e6c3c357df5af29e93437989173cf7 |  0.053839000 |      40 |                         0
+ af954834-8847-417b-b03b-e114895cf8d5 | LegacyProposalWorkflow | ConceptTermClassification  | claude-haiku-4-5-20251001 | sha256:494574674e2ffe052f1a2076e2880fdd19e6c3c357df5af29e93437989173cf7 |  0.002252000 |       1 |                         0
+ 4d8dae02-442f-49af-9e8f-6a3dc432f65f | LegacyProposalWorkflow | DiscoveryQueryPlanning     | claude-haiku-4-5-20251001 | sha256:494574674e2ffe052f1a2076e2880fdd19e6c3c357df5af29e93437989173cf7 |  0.004122000 |       1 |                         0
+(7 rows)
+
+ TaskType | Model | CreatedAt | EstimatedCost | UsageCompleteness | CorrelationId 
+----------+-------+-----------+---------------+-------------------+---------------
+(0 rows)
+

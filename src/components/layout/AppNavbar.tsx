@@ -53,6 +53,7 @@ export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => voi
       <div className="flex items-center gap-4">
         <button
           onClick={onMobileMenuClick}
+          aria-label="Open menu"
           className="md:hidden transition-colors"
           style={{ color: 'var(--text-muted)' }}
           onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}

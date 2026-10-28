@@ -1,0 +1,85 @@
+[
+    {
+        "id":  "182d9723-0a33-41f6-b7ba-489e86cfdfe3",
+        "title":  "Core concepts + Student factors and characteristics",
+        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (student attitudes OR digital literacy OR self-efficacy OR motivation OR learning preferences OR generational differences)",
+        "description":  "Find literature covering how student characteristics, attitudes, and digital competencies influence digital learning adoption and outcomes.",
+        "targets":  [
+                        "Core concepts",
+                        "Student factors and characteristics"
+                    ],
+        "enabled":  true,
+        "sortOrder":  0,
+        "createdAt":  "2026-10-04T12:15:33.9007281Z",
+        "updatedAt":  "2026-10-04T12:15:33.9007281Z"
+    },
+    {
+        "id":  "a9704fe4-d200-461e-8545-58832911dbe0",
+        "title":  "Core concepts + Institutional and infrastructure",
+        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (institutional support OR technical infrastructure OR internet access OR broadband connectivity OR device availability)",
+        "description":  "Find literature on the institutional, infrastructure, and access requirements that enable or constrain digital learning implementation.",
+        "targets":  [
+                        "Core concepts",
+                        "Institutional and infrastructure"
+                    ],
+        "enabled":  true,
+        "sortOrder":  1,
+        "createdAt":  "2026-10-04T12:15:33.9007281Z",
+        "updatedAt":  "2026-10-04T12:15:33.9007281Z"
+    },
+    {
+        "id":  "fc44e522-eee1-49d3-8411-4efe9effe164",
+        "title":  "Core concepts + Pedagogical and instructional design",
+        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (course design OR teaching methods OR interactive content OR instructional quality OR assessment strategies)",
+        "description":  "Find literature covering instructional design, teaching approaches, and assessment methods in digital learning environments.",
+        "targets":  [
+                        "Core concepts",
+                        "Pedagogical and instructional design"
+                    ],
+        "enabled":  true,
+        "sortOrder":  2,
+        "createdAt":  "2026-10-04T12:15:33.9007281Z",
+        "updatedAt":  "2026-10-04T12:15:33.9007281Z"
+    },
+    {
+        "id":  "bed38e74-ba01-43dd-9c12-31a2b6c9393d",
+        "title":  "Core concepts + Socioeconomic and contextual barriers",
+        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (digital divide OR socioeconomic status OR rural urban disparities OR gender equity OR language barriers)",
+        "description":  "Find literature examining equity challenges, socioeconomic disparities, and contextual barriers affecting digital learning access and success.",
+        "targets":  [
+                        "Core concepts",
+                        "Socioeconomic and contextual barriers"
+                    ],
+        "enabled":  true,
+        "sortOrder":  3,
+        "createdAt":  "2026-10-04T12:15:33.9007281Z",
+        "updatedAt":  "2026-10-04T12:15:33.9007281Z"
+    },
+    {
+        "id":  "b7373444-d5bd-49ff-bd71-ed24f41a2428",
+        "title":  "Core concepts + Technology acceptance models",
+        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (Technology Acceptance Model OR UTAUT OR perceived usefulness OR perceived ease of use OR adoption intention)",
+        "description":  "Find literature applying technology acceptance and adoption frameworks to understand student and institutional digital learning uptake.",
+        "targets":  [
+                        "Core concepts",
+                        "Technology acceptance models"
+                    ],
+        "enabled":  true,
+        "sortOrder":  4,
+        "createdAt":  "2026-10-04T12:15:33.9007281Z",
+        "updatedAt":  "2026-10-04T12:15:33.9007281Z"
+    },
+    {
+        "id":  "970ca919-f0d8-4c80-925a-33a7f021af06",
+        "title":  "Local context",
+        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (South Africa OR South African higher education OR Sub-Saharan Africa OR developing countries OR resource-constrained settings) AND (university students OR public universit*)",
+        "description":  "Find literature specifically examining digital learning adoption among university students in South Africa and similar developing-country contexts.",
+        "targets":  [
+                        "Local context"
+                    ],
+        "enabled":  true,
+        "sortOrder":  5,
+        "createdAt":  "2026-10-04T12:15:33.9007281Z",
+        "updatedAt":  "2026-10-04T12:15:33.9007281Z"
+    }
+]

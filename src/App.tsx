@@ -54,10 +54,12 @@ const CitationPage     = lazy(() => import('./pages/app/CitationPage'))
 const FlashcardPage    = lazy(() => import('./pages/app/FlashcardPage'))
 const LecturePage      = lazy(() => import('./pages/app/LecturePage'))
 const LibraryPage      = lazy(() => import('./pages/app/LibraryPage'))
-const DocumentEditorPage = lazy(() => import('./pages/app/DocumentEditorPage'))
+const DocumentEditorPage = lazy(() => import('./pages/app/DocumentEditorRoute'))
 const WebLibraryPage      = lazy(() => import('./pages/app/WebLibraryPage'))
 const FindPapersPage      = lazy(() => import('./pages/app/FindPapersPage'))
+const DeepResearchPage    = lazy(() => import('./pages/app/DeepResearchPage'))
 const CollectionsPage     = lazy(() => import('./pages/app/CollectionsPage'))
+const EvidencePackagesPage = lazy(() => import('./pages/app/EvidencePackagesPage'))
 const CollectionDetailPage = lazy(() => import('./pages/app/CollectionDetailPage'))
 const WebLibraryPdfViewerPage = lazy(() => import('./pages/app/WebLibraryPdfViewerPage'))
 const ProposalStudioPage  = lazy(() => import('./pages/app/ProposalStudioPage'))
@@ -65,6 +67,7 @@ const ThesisStudioPage    = lazy(() => import('./pages/app/ThesisStudioPage'))
 const ResearchAgentPage   = lazy(() => import('./pages/app/ResearchAgentPage'))
 const DocumentViewPage    = lazy(() => import('./pages/app/DocumentViewPage'))
 const ResearchDashboardPage = lazy(() => import('./pages/app/ResearchDashboardPage'))
+const ProposalWorkflowPage = lazy(() => import('./pages/app/ProposalWorkflowPage'))
 const SystematicReviewPage          = lazy(() => import('./pages/app/SystematicReviewPage'))
 const SystematicReviewWorkspacePage = lazy(() => import('./pages/app/SystematicReviewWorkspacePage'))
 const LiteratureReviewPage          = lazy(() => import('./pages/app/LiteratureReviewPage'))
@@ -239,7 +242,9 @@ function AppInner() {
             <Route path="editor/:documentId"      element={<DocumentEditorPage />} />
             <Route path="web-library"             element={<WebLibraryPage />} />
             <Route path="web-library/find"        element={<FindPapersPage />} />
+            <Route path="deep-research"           element={<DeepResearchPage />} />
             <Route path="web-library/collections" element={<CollectionsPage />} />
+            <Route path="web-library/packages" element={<EvidencePackagesPage />} />
             <Route path="web-library/collections/:collectionId" element={<CollectionDetailPage />} />
             <Route path="web-library/papers/:workId/pdf" element={<WebLibraryPdfViewerPage />} />
             <Route path="proposal-studio"           element={<ProposalStudioPage />} />
@@ -247,6 +252,7 @@ function AppInner() {
             <Route path="research-agent/:projectId" element={<ResearchAgentPage />} />
             <Route path="research-agent/:projectId/document" element={<DocumentViewPage />} />
             <Route path="research-agent/:projectId/dashboard" element={<ResearchDashboardPage />} />
+            <Route path="research-agent/:projectId/proposal-workflow" element={<ProposalWorkflowPage />} />
             <Route path="systematic-review"     element={<SystematicReviewPage />} />
             <Route path="systematic-review/:id" element={<SystematicReviewWorkspacePage />} />
             <Route path="literature-review"     element={<LiteratureReviewPage />} />

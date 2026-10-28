@@ -1,0 +1,26 @@
+﻿                  Id                  |                                                                           Title                                                                           | GenerationStatus | GenerationCurrentSection | GenerationCompletedCount | GenerationFailedCount |           UpdatedAt           
+--------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------+------------------+--------------------------+--------------------------+-----------------------+-------------------------------
+ bf282007-306b-4a22-8201-fee5ead053c1 | Factors influencing adoption of digital learning among university students in South Africa                                                                | Generating       | 1.0                      |                        0 |                     0 | 2026-10-04 14:01:59.744862+00
+ 4ffb55e2-c8da-4feb-99c6-086c565fed6c | Factors influencing adoption of digital learning among university students in South Africa                                                                | NotStarted       |                          |                        0 |                     0 | 2026-10-04 13:54:45.030601+00
+ 8a5c3038-0f47-4101-973d-d0faf3c25536 | The Relationship Between Digital Learning Platform Usability and Student Satisfaction Among Undergraduate Students at Public Universities in South Africa | NotStarted       |                          |                        0 |                     0 | 2026-09-23 15:42:51.555359+00
+ 1553ae5f-0ba6-4f8a-af6b-613cb6d8dacb | The Relationship Between Digital Learning Platform Usability and Student Satisfaction Among Undergraduate Students at Public Universities in South Africa | NotStarted       |                          |                        0 |                     0 | 2026-09-04 10:16:16.998541+00
+(4 rows)
+
+  id   | statename |           createdat           
+-------+-----------+-------------------------------
+ 12089 | Succeeded | 2026-10-04 12:19:34.620616+00
+ 12088 | Succeeded | 2026-10-04 12:18:13.337808+00
+ 12087 | Succeeded | 2026-10-04 12:15:03.804799+00
+ 12086 | Succeeded | 2026-10-04 12:15:03.790106+00
+ 12081 | Succeeded | 2026-10-04 12:14:25.621996+00
+(5 rows)
+
+       TaskType       | Status  |           CreatedAt           | LatencyMs 
+----------------------+---------+-------------------------------+-----------
+ research-title-gen   | Success | 2026-10-04 13:54:44.796951+00 |      1972
+ proposal.section.v1  | Success | 2026-10-04 13:37:38.425317+00 |      9374
+ proposal.section.v1  | Success | 2026-10-04 13:25:12.826143+00 |      6403
+ proposal.evidence.v1 | Success | 2026-10-04 13:24:16.377846+00 |      4777
+ proposal.evidence.v1 | Success | 2026-10-04 13:24:11.485959+00 |      4167
+(5 rows)
+

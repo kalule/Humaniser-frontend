@@ -1,4 +1,38 @@
-import type { ReviewType } from '../types/reviewer'
+import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
+import type { ElementType } from 'react'
+import type { ReviewType, ReviewVerdict } from '../types/reviewer'
+
+// Single source of truth for verdict labels/colors/icons — was duplicated as a
+// plainer, inconsistent copy on the list page (ReviewerPage) while the richer
+// version lived only in ReviewerWorkspacePage (Document Reviewer UX audit,
+// 2026-10-03). The three values below are the only real verdict values the
+// backend produces — no numeric score-to-band thresholds exist in the backend,
+// so none are implied here.
+export const VERDICT_CONFIG: Record<ReviewVerdict, {
+  label: string; description: string; cls: string; chipCls: string; Icon: ElementType
+}> = {
+  Accept: {
+    label:       'Accept',
+    description: 'Ready to move forward as-is, or with only minor polish.',
+    cls:         'bg-green-50 text-green-700 border-green-200',
+    chipCls:     'bg-green-100 text-green-700',
+    Icon:        CheckCircle2,
+  },
+  Revise: {
+    label:       'Revise & Resubmit',
+    description: 'Workable, but needs real changes before it is ready.',
+    cls:         'bg-amber-50 text-amber-700 border-amber-200',
+    chipCls:     'bg-amber-tint text-amber-text',
+    Icon:        AlertTriangle,
+  },
+  Reject: {
+    label:       'Reject',
+    description: 'Not ready — significant rework is needed.',
+    cls:         'bg-red-50 text-red-700 border-red-200',
+    chipCls:     'bg-red-100 text-red-700',
+    Icon:        XCircle,
+  },
+}
 
 // Fixed categorical hue order (never cycled per-instance, only assigned positionally
 // per review) — validated for CVD-safe adjacent contrast. A review has at most 9

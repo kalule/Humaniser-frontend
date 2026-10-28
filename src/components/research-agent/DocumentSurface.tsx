@@ -16,7 +16,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Undo2, Redo2,
   Sparkles, RefreshCw, ThumbsUp, Loader2, Check,
-  CheckCircle2, ShieldCheck, ImageIcon, Upload, Globe, AlertTriangle,
+  CheckCircle2, ShieldCheck, Upload, Globe, AlertTriangle, BookMarked, MoreHorizontal,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { countBodyWords } from '../../lib/wordCount'
@@ -51,7 +51,6 @@ interface DocumentSurfaceProps {
   isStalled?:        boolean
   isSaving:          boolean
   hasContent:        boolean
-  citationLabel:     string
   citationStyle:     CitationStyle
   literature:        FetchedLiterature[] | null   // null = not yet loaded
   bibliography:      ParsedReference[] | null      // null = not yet compiled (IEEE index source)
@@ -77,6 +76,13 @@ interface DocumentSurfaceProps {
   onApprove:         () => void
   onCitationInserted?: (text: string) => void
   onRequestBibliography?: () => void
+  // Opens the References drawer so the student can pick a source to insert — the drawer's own
+  // "Insert" button already calls insertCitationAtCursor via the exposed ref; this just gives
+  // the toolbar a real, already-working entry point instead of leaving citation insertion
+  // discoverable only from the context-strip's separate "References" button (Research Agent UX
+  // audit, 2026-10-03). Optional: if a caller doesn't pass it, the button simply doesn't render
+  // rather than wiring to nothing.
+  onOpenReferences?: () => void
   // Called (at most once per popover open) when a clicked citation resolves to "Unmatched" —
   // literature is only refetched on mount and after this section finishes generating, so a
   // source added to the project's pool any other way (background enrichment, a different
@@ -89,6 +95,7 @@ interface DocumentSurfaceProps {
   onRepairCitationFlag?: (flagId: string, action: CitationFixAction, replacementLiteratureId?: string) => void
   onRemoveCitationClaim?: (flagId: string) => void
   onDismissCitationFlag?: (flagId: string, reason?: string) => void
+  onChooseCitationSource?: (flagId: string, literatureId: string) => void
 }
 
 export interface DocumentSurfaceHandle {
@@ -241,12 +248,13 @@ function TBtn({
       onMouseDown={e => { e.preventDefault(); if (!disabled) onClick() }}
       disabled={disabled}
       title={title}
+      aria-label={title}
       className={cn(
         'flex items-center justify-center w-9 h-9 rounded-lg transition-colors',
         disabled
           ? 'text-slate-300 cursor-not-allowed'
           : active
-          ? 'bg-slate-800 text-white'
+          ? 'bg-purple-tint text-purple-accent'
           : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800',
       )}
     >
@@ -293,7 +301,6 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
   isStalled,
   isSaving,
   hasContent,
-  citationLabel,
   citationStyle,
   literature,
   bibliography,
@@ -312,12 +319,14 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
   onApprove,
   onCitationInserted,
   onRequestBibliography,
+  onOpenReferences,
   onRequestLiteratureRefresh,
   onResolveCitationGap,
   busyCitationFlagId,
   onRepairCitationFlag,
   onRemoveCitationClaim,
   onDismissCitationFlag,
+  onChooseCitationSource,
 }, ref) {
   const docEditorFontSize    = useUiStore(s => s.docEditorFontSize)
   const setDocEditorFontSize = useUiStore(s => s.setDocEditorFontSize)
@@ -585,7 +594,7 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
   // (MarkdownDocxRenderer.DocxImage) decodes and embeds these as real OpenXML
   // pictures. Restricted to png/jpeg/gif — the only types that renderer handles.
   const MAX_IMAGE_BYTES = 3 * 1024 * 1024
-  const [imageMenuOpen, setImageMenuOpen] = useState(false)
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleImageFile = (file: File | undefined) => {
@@ -670,6 +679,7 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
           onRepairFlag={onRepairCitationFlag}
           onRemoveClaim={onRemoveCitationClaim}
           onDismissFlag={onDismissCitationFlag}
+          onChooseSource={onChooseCitationSource}
         />
       )}
 
@@ -802,7 +812,7 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
 
             <div className="flex items-center gap-2">
               {isGenerating ? (
-                <button disabled className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 text-white text-[13px] font-semibold opacity-80 cursor-not-allowed">
+                <button disabled className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-accent text-white text-[13px] font-semibold opacity-80 cursor-not-allowed">
                   <Loader2 size={13} className="animate-spin" /> Generating…
                 </button>
               ) : hasContent ? (
@@ -813,16 +823,26 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
                   >
                     <RefreshCw size={12} /> Regenerate
                   </button>
-                  <button
-                    onMouseDown={e => { e.preventDefault(); onApprove() }}
-                    disabled={isApproved && !hasOpenFlags}
-                    className={cn(
-                      'flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors',
-                    )}
-                  >
-                    <ThumbsUp size={12} />
-                    {isApproved ? 'Approved' : 'Approve'}
-                  </button>
+                  {/* A draft shows a real primary action; an approved section (with nothing
+                      still open) shows a quiet status chip instead of a disabled button that
+                      used to render with no color classes at all — it looked like neither a
+                      clear state nor a clear action (Research Agent UX audit, 2026-10-03). No
+                      "Reopen" control here: confirmed via discovery that no unapprove handler
+                      exists anywhere in the app — adding one needs a backend endpoint, so it's
+                      deferred rather than wired to nothing. */}
+                  {isApproved && !hasOpenFlags ? (
+                    <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-tint text-green-text text-[12px] font-medium">
+                      <CheckCircle2 size={12} /> Approved
+                    </span>
+                  ) : (
+                    <button
+                      onMouseDown={e => { e.preventDefault(); onApprove() }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[12px] font-medium transition-colors"
+                    >
+                      <ThumbsUp size={12} />
+                      {isApproved ? 'Re-approve' : 'Approve section'}
+                    </button>
+                  )}
                 </>
               ) : (
                 <button
@@ -834,7 +854,7 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
                       setShowWCModal(true)
                     }
                   }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-[13px] font-semibold transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-semibold transition-colors"
                 >
                   <Sparkles size={13} /> Generate Entire Section
                 </button>
@@ -943,19 +963,8 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
 
                 <TDivider />
 
-                {/* Zone 4 — Alignment & Lists */}
-                <TBtn onClick={() => editor?.chain().focus().setTextAlign('left').run()} active={editor?.isActive({ textAlign: 'left' })} title="Align Left (Ctrl+Shift+L)">
-                  <AlignLeft size={18} />
-                </TBtn>
-                <TBtn onClick={() => editor?.chain().focus().setTextAlign('center').run()} active={editor?.isActive({ textAlign: 'center' })} title="Align Center (Ctrl+Shift+E)">
-                  <AlignCenter size={18} />
-                </TBtn>
-                <TBtn onClick={() => editor?.chain().focus().setTextAlign('right').run()} active={editor?.isActive({ textAlign: 'right' })} title="Align Right (Ctrl+Shift+R)">
-                  <AlignRight size={18} />
-                </TBtn>
-                <TBtn onClick={() => editor?.chain().focus().setTextAlign('justify').run()} active={editor?.isActive({ textAlign: 'justify' })} title="Justify (Ctrl+Shift+J)">
-                  <AlignJustify size={18} />
-                </TBtn>
+                {/* Zone 4 — Lists (alignment moved into More — rarely changed in academic
+                    prose, per the toolbar audit) */}
                 <TBtn onClick={() => editor?.chain().focus().toggleBulletList().run()} active={editor?.isActive('bulletList')} title="Bullet List (Ctrl+Shift+8)">
                   <List size={18} />
                 </TBtn>
@@ -965,44 +974,105 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
 
                 <TDivider />
 
-                {/* Zone 5 — Insert */}
-                <TBtn onClick={() => editor?.chain().focus().toggleBlockquote().run()} active={editor?.isActive('blockquote')} title="Blockquote (Ctrl+Shift+B)">
-                  <Quote size={18} />
-                </TBtn>
-                <div className="relative">
-                  <TBtn onClick={() => setImageMenuOpen(v => !v)} active={imageMenuOpen} title="Insert image">
-                    <ImageIcon size={18} />
+                {/* Insert citation — opens the References drawer, which already has a real
+                    Insert handler per source; this just gives it toolbar visibility instead of
+                    being discoverable only via the separate context-strip button (Research
+                    Agent UX audit, 2026-10-03). Distinct icon from Blockquote's Quote glyph so
+                    the two aren't mistaken for each other. */}
+                {onOpenReferences && (
+                  <TBtn onClick={onOpenReferences} title="Insert citation">
+                    <BookMarked size={18} />
                   </TBtn>
-                  {imageMenuOpen && (
+                )}
+
+                <TDivider />
+
+                {/* More — alignment, blockquote, image, link and text size: all real, all
+                    rarely used in a single academic-prose section, so they're a menu instead
+                    of six more always-visible icons. */}
+                <div className="relative">
+                  <TBtn onClick={() => setMoreMenuOpen(v => !v)} active={moreMenuOpen} title="More formatting">
+                    <MoreHorizontal size={18} />
+                  </TBtn>
+                  {moreMenuOpen && (
                     <>
-                      <div className="fixed inset-0 z-30" onClick={() => setImageMenuOpen(false)} />
-                      <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-40 py-1 overflow-hidden">
+                      <div className="fixed inset-0 z-30" onClick={() => setMoreMenuOpen(false)} />
+                      <div className="absolute left-0 top-full mt-1 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-40 py-1 overflow-hidden">
+                        <p className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Alignment</p>
+                        {([
+                          ['left', 'Align Left', AlignLeft, 'Ctrl+Shift+L'],
+                          ['center', 'Align Center', AlignCenter, 'Ctrl+Shift+E'],
+                          ['right', 'Align Right', AlignRight, 'Ctrl+Shift+R'],
+                          ['justify', 'Justify', AlignJustify, 'Ctrl+Shift+J'],
+                        ] as const).map(([value, label, Icon, shortcut]) => (
+                          <button
+                            key={value}
+                            onMouseDown={e => { e.preventDefault(); editor?.chain().focus().setTextAlign(value).run() }}
+                            className={cn(
+                              'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors',
+                              editor?.isActive({ textAlign: value }) ? 'bg-purple-tint text-purple-accent font-medium' : 'text-slate-600 hover:bg-slate-50',
+                            )}
+                          >
+                            <Icon size={14} /> {label} <span className="ml-auto text-[10px] text-slate-400">{shortcut}</span>
+                          </button>
+                        ))}
+                        <div className="my-1 border-t border-slate-100" />
                         <button
-                          onMouseDown={e => { e.preventDefault(); setImageMenuOpen(false); fileInputRef.current?.click() }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                          onMouseDown={e => { e.preventDefault(); setMoreMenuOpen(false); editor?.chain().focus().toggleBlockquote().run() }}
+                          className={cn(
+                            'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors',
+                            editor?.isActive('blockquote') ? 'bg-purple-tint text-purple-accent font-medium' : 'text-slate-600 hover:bg-slate-50',
+                          )}
                         >
-                          <Upload size={13} className="text-slate-400" />
-                          Upload from computer
+                          <Quote size={14} /> Blockquote <span className="ml-auto text-[10px] text-slate-400">Ctrl+Shift+B</span>
+                        </button>
+                        <button
+                          onMouseDown={e => { e.preventDefault(); setMoreMenuOpen(false); fileInputRef.current?.click() }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-slate-600 hover:bg-slate-50 transition-colors"
+                        >
+                          <Upload size={14} /> Upload image
                         </button>
                         <button
                           onMouseDown={e => {
                             e.preventDefault()
-                            setImageMenuOpen(false)
                             const url = window.prompt('Image URL')
+                            setMoreMenuOpen(false)
                             if (url) editor?.chain().focus().setImage({ src: url }).run()
                           }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-slate-600 hover:bg-slate-50 transition-colors"
                         >
-                          <Globe size={13} className="text-slate-400" />
-                          By URL
+                          <Globe size={14} /> Image by URL
                         </button>
+                        <button
+                          onMouseDown={e => { e.preventDefault(); setMoreMenuOpen(false); handleSetLink() }}
+                          className={cn(
+                            'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors',
+                            editor?.isActive('link') ? 'bg-purple-tint text-purple-accent font-medium' : 'text-slate-600 hover:bg-slate-50',
+                          )}
+                        >
+                          <LinkIcon size={14} /> Insert Link <span className="ml-auto text-[10px] text-slate-400">Ctrl+K</span>
+                        </button>
+                        <div className="my-1 border-t border-slate-100" />
+                        <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Text size</p>
+                        <div className="flex items-center gap-1 px-3 pb-2">
+                          {DOC_EDITOR_FONT_SIZES.map(size => (
+                            <button
+                              key={size}
+                              onMouseDown={e => { e.preventDefault(); setDocEditorFontSize(size) }}
+                              aria-pressed={docEditorFontSize === size}
+                              className={cn(
+                                'flex-1 py-1.5 rounded-lg text-[12px] font-medium transition-colors border',
+                                docEditorFontSize === size ? 'bg-purple-tint text-purple-accent border-purple-accent' : 'text-slate-500 border-slate-200 hover:bg-slate-50',
+                              )}
+                            >
+                              {size === 14 ? 'Small' : size === 18 ? 'Large' : 'Default'}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </>
                   )}
                 </div>
-                <TBtn onClick={handleSetLink} active={editor?.isActive('link')} title="Insert Link (Ctrl+K)">
-                  <LinkIcon size={18} />
-                </TBtn>
 
                 <input
                   ref={fileInputRef}
@@ -1011,34 +1081,6 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
                   className="hidden"
                   onChange={e => { handleImageFile(e.target.files?.[0]); e.target.value = '' }}
                 />
-              </div>
-
-              {/* Zone 6 — Metadata (right-aligned): body text size + citation style.
-                  Only ever sets --editor-font-size on the document body wrapper —
-                  never touches toolbar/sidebar font sizes. */}
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden">
-                  {DOC_EDITOR_FONT_SIZES.map((size, i) => (
-                    <button
-                      key={size}
-                      onMouseDown={e => { e.preventDefault(); setDocEditorFontSize(size) }}
-                      title={`${size === 14 ? 'Small' : size === 18 ? 'Large' : 'Default'} text (${size}px)`}
-                      aria-pressed={docEditorFontSize === size}
-                      className={cn(
-                        'w-9 h-9 flex items-center justify-center font-medium transition-colors',
-                        i > 0 && 'border-l border-slate-200',
-                        docEditorFontSize === size ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100',
-                      )}
-                      style={{ fontSize: size === 14 ? 12 : size === 18 ? 20 : 16 }}
-                    >
-                      A
-                    </button>
-                  ))}
-                </div>
-
-                <span className="inline-flex items-center px-1.5 h-9 rounded-lg border border-slate-200 text-[11px] font-medium text-slate-600 bg-slate-50 whitespace-nowrap">
-                  {citationLabel}
-                </span>
               </div>
             </div>
           )}

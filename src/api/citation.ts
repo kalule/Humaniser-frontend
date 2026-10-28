@@ -2,6 +2,10 @@ import client from './client'
 import type { CitationDto, ResolvedCitation, SaveCitationRequest, FormatStyle } from '../types/citation'
 
 export const citationApi = {
+  update: async (id: string, data: SaveCitationRequest): Promise<CitationDto> => {
+    const res = await client.put<{ success: boolean; data: CitationDto }>(`/api/v1/citations/${id}`, data)
+    return res.data.data ?? (res.data as unknown as CitationDto)
+  },
   resolve: async (inputType: string, value: string): Promise<ResolvedCitation> => {
     const res = await client.post<{ success: boolean; data: ResolvedCitation }>(
       '/api/v1/citations/resolve',

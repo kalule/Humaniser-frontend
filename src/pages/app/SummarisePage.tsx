@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, Check, Download, FileText, Wand2, TrendingDown, Layers, Upload, Clipboard, AlertCircle, ChevronDown,
+  Loader2, MoreHorizontal,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSummariseStore } from '../../store/summariseStore'
@@ -25,7 +26,7 @@ import {
   SUMMARISE_MODE_DESCRIPTIONS,
 } from '../../types/summarise'
 import type { SummariseMode, SummariseLength } from '../../types/summarise'
-import { cn, primaryButtonClass } from '../../lib/utils'
+import { cn, formatNumber } from '../../lib/utils'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,11 @@ const LENGTHS: { id: SummariseLength; label: string; pct: string; ratio: number;
 // The model doesn't hit its stated target exactly — observed overshoot is up to ~40%.
 // Show a realistic range rather than a false-precision point number.
 const TARGET_OVERSHOOT = 1.4
+
+const MIN_WORDS = 50
+
+// Same size as the Humaniser's output-toolbar buttons, so the two pages share one set of targets.
+const OUTPUT_BTN_SIZE = 'h-8 px-3 gap-1.5 text-[13px] rounded-lg'
 
 const SAMPLE_TEXT =
   `Artificial intelligence is fundamentally transforming healthcare by enabling faster and more accurate diagnoses, personalising treatment plans, and accelerating drug discovery. Machine learning models can now detect cancers from medical imaging with accuracy matching or exceeding human specialists. Predictive analytics allow clinicians to identify high-risk patients before their conditions deteriorate. In drug development, AI reduces the time to identify promising compounds from years to months. However, significant challenges remain: data privacy concerns, algorithmic bias in underrepresented populations, regulatory uncertainty, and the need for clinical validation. Healthcare institutions must invest in AI literacy among clinicians while ensuring that AI augments rather than replaces human judgment. The most successful implementations combine technical capability with clinical expertise and robust governance frameworks.`
@@ -72,7 +78,7 @@ function FormattedOutput({ text, mode }: { text: string; mode: SummariseMode }) 
 
   if (!isListMode) {
     return (
-      <p className="textarea-body text-gray-800 whitespace-pre-wrap">{text}</p>
+      <p className="textarea-body text-text-pri whitespace-pre-wrap">{text}</p>
     )
   }
 
@@ -97,8 +103,8 @@ function FormattedOutput({ text, mode }: { text: string; mode: SummariseMode }) 
         if (numMatch) {
           return (
             <div key={i} className="flex gap-3 pl-1">
-              <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-gray-400 mt-2.5" />
-              <p className="textarea-body text-gray-800 flex-1">{numMatch[2]}</p>
+              <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-purple-accent/50 mt-2.5" />
+              <p className="textarea-body text-text-pri flex-1">{numMatch[2]}</p>
             </div>
           )
         }
@@ -106,13 +112,13 @@ function FormattedOutput({ text, mode }: { text: string; mode: SummariseMode }) 
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
           return (
             <div key={i} className="flex gap-3 pl-1">
-              <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-gray-300 mt-2.5" />
-              <p className="textarea-body text-gray-800 flex-1">{trimmed.slice(2)}</p>
+              <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-purple-accent/30 mt-2.5" />
+              <p className="textarea-body text-text-pri flex-1">{trimmed.slice(2)}</p>
             </div>
           )
         }
 
-        return <p key={i} className="textarea-body text-gray-600">{trimmed}</p>
+        return <p key={i} className="textarea-body text-text-sec">{trimmed}</p>
       })}
     </div>
   )
@@ -129,7 +135,11 @@ export default function SummarisePage() {
 
   const { summarise } = useSummarise()
   const [copied, setCopied] = useState(false)
+  const [overflowOpen, setOverflowOpen] = useState(false)
+  const [mobileView, setMobileView] = useState<'original' | 'summary'>('original')
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const outputRef = useRef<HTMLDivElement>(null)
+  const overflowRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const { text, clearTransfer } = useToolTransferStore.getState()
@@ -140,6 +150,8 @@ export default function SummarisePage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => () => { if (copyTimer.current) clearTimeout(copyTimer.current) }, [])
 
   const { isDragging, isProcessing: isFileProcessing, dragHandlers, openFilePicker, fileInputElement } = useDragDrop({
     onText: (t) => setInputText(t),
@@ -157,22 +169,31 @@ export default function SummarisePage() {
   }, [setInputText])
 
   const wordCount    = inputText.trim().split(/\s+/).filter(Boolean).length
-  const canSummarise = wordCount >= 50 && !isLoading
+  const canSummarise = wordCount >= MIN_WORDS && !isLoading
+  const hasOutput    = !!result && !isLoading
 
-  const handleSummarise = async () => {
+  const handleSummarise = useCallback(async () => {
     if (!canSummarise) return
     const res = await summarise(inputText, selectedMode, selectedLength)
-    if (res) setTimeout(() => outputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100)
-  }
+    if (res) {
+      setMobileView('summary')
+    }
+  }, [canSummarise, summarise, inputText, selectedMode, selectedLength])
 
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
     if (!result?.summary) return
-    await navigator.clipboard.writeText(result.summary)
+    try {
+      await navigator.clipboard.writeText(result.summary)
+    } catch {
+      toast.error('Failed to copy to clipboard')
+      return
+    }
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+    if (copyTimer.current) clearTimeout(copyTimer.current)
+    copyTimer.current = setTimeout(() => setCopied(false), 2000)
+  }, [result])
 
-  const handleDownload = () => {
+  const handleDownload = useCallback(() => {
     if (!result?.summary) return
     const blob = new Blob([result.summary], { type: 'text/plain' })
     const url  = URL.createObjectURL(blob)
@@ -181,8 +202,24 @@ export default function SummarisePage() {
     a.download = `summary-${result.mode.toLowerCase()}.txt`
     a.click()
     URL.revokeObjectURL(url)
-    toast.success('Downloaded!')
-  }
+    toast.success('Downloaded successfully!')
+  }, [result])
+
+  const handleClear = useCallback(() => {
+    reset()
+    setMobileView('original')
+  }, [reset])
+
+  // Same shortcuts as the Humaniser: Ctrl/Cmd+Enter runs, Ctrl+Shift+C copies, Ctrl+Shift+X clears.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void handleSummarise(); return }
+      if (e.ctrlKey && e.shiftKey && e.key === 'C')      { e.preventDefault(); void handleCopy(); return }
+      if (e.ctrlKey && e.shiftKey && e.key === 'X')      { e.preventDefault(); handleClear() }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [handleSummarise, handleCopy, handleClear])
 
   const [modeMenuOpen, setModeMenuOpen] = useState(false)
   const modeMenuRef = useRef<HTMLDivElement>(null)
@@ -196,17 +233,27 @@ export default function SummarisePage() {
     return () => document.removeEventListener('mousedown', onDown)
   }, [modeMenuOpen])
 
+  useEffect(() => {
+    if (!overflowOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (!overflowRef.current?.contains(e.target as Node)) setOverflowOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [overflowOpen])
+
+  // Same compact controls strip as the Humaniser: shown only once there is text to work on (so the
+  // empty page stays quiet), purple-filled selected state, 13px labels. Mode is a dropdown because the
+  // five names (Executive Summary / Abstract / TL;DR ...) aren't self-explanatory, so each menu row
+  // carries its description. Length has three options, so it stays visible as pills.
   const pillClass = (active: boolean) => cn(
-    'px-4 h-9 flex items-center rounded-lg text-[14px] font-medium transition-all duration-150 border whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed',
+    'px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 border whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed',
     active
-      ? 'bg-neutral-900 text-white border-neutral-900 shadow-sm'
+      ? 'bg-purple-accent text-white border-purple-accent shadow-sm'
       : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:text-neutral-900',
   )
   const groupLabelClass = 'text-[12px] font-semibold text-neutral-500 uppercase tracking-wider shrink-0'
 
-  // Same one-row toolbar as Paraphraser. Mode is a dropdown because the five names
-  // (Executive Summary / Abstract / TL;DR ...) aren't self-explanatory, so each menu row
-  // carries its description. Length has three options, so it stays visible as pills.
   const toggleBar = (
     <div className="bg-neutral-100 rounded-xl px-4 py-3 flex items-center flex-wrap gap-x-4 gap-y-2">
 
@@ -220,7 +267,8 @@ export default function SummarisePage() {
             disabled={isLoading}
             aria-haspopup="listbox"
             aria-expanded={modeMenuOpen}
-            className={cn(pillClass(false), 'gap-1.5 min-w-[11rem] justify-between')}
+            title={SUMMARISE_MODE_DESCRIPTIONS[selectedMode]}
+            className={cn(pillClass(selectedMode !== 'KeyPoints'), 'inline-flex items-center gap-1.5')}
           >
             {SUMMARISE_MODE_LABELS[selectedMode]}
             <ChevronDown size={14} className={cn('transition-transform duration-150', modeMenuOpen && 'rotate-180')} />
@@ -268,7 +316,7 @@ export default function SummarisePage() {
                 </button>
               ))}
             </div>
-            {wordCount >= 50 && (() => {
+            {wordCount >= MIN_WORDS && (() => {
               const active = LENGTHS.find(l => l.id === selectedLength)!
               const low  = Math.max(active.floor, Math.round(wordCount * active.ratio))
               const high = Math.round(low * TARGET_OVERSHOOT)
@@ -281,19 +329,30 @@ export default function SummarisePage() {
           </div>
         </>
       )}
-
-      {/* Description of the selected mode: ml-auto keeps it on the same row when
-          there's room and wraps underneath when there isn't. */}
-      <p className="ml-auto text-xs text-neutral-500">{SUMMARISE_MODE_DESCRIPTIONS[selectedMode]}</p>
     </div>
   )
 
+  // Mobile Original / Summary switch — only once there is a result to switch to.
+  const mobileTabs = hasOutput ? (
+    <div role="tablist" aria-label="View" className="flex items-center gap-1.5">
+      {([['summary', 'Summary'], ['original', 'Original']] as const).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={mobileView === id}
+          onClick={() => setMobileView(id)}
+          className={cn('px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors',
+            mobileView === id ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600')}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  ) : null
+
   const leftPanel = {
-    header: (
-      <div className="flex items-center px-4 py-2.5 border-b border-[#e0e0da] shrink-0">
-        <PanelLabel label="Your text" />
-      </div>
-    ),
+    header: <ResultsPanelHeader title={<PanelLabel label="Original" />} />,
     body: (
       <div className="flex-1 min-h-0 flex flex-col relative" {...dragHandlers}>
         {fileInputElement}
@@ -303,15 +362,17 @@ export default function SummarisePage() {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             disabled={isLoading}
-            className="textarea-body absolute inset-0 w-full h-full bg-white text-gray-800 resize-none outline-none focus:ring-2 focus:ring-inset focus:ring-purple-accent/30 rounded-lg px-4 py-4 disabled:opacity-60 disabled:cursor-not-allowed"
+            aria-label="Original text"
+            className="textarea-body absolute inset-0 w-full h-full bg-transparent text-text-pri px-5 py-3 resize-none outline-none focus:ring-2 focus:ring-inset focus:ring-purple-accent/30 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
           />
           {!inputText && (
-            <div className="textarea-body pointer-events-none absolute inset-0 px-4 py-4 text-gray-300 select-none">
-              Paste or type your text here. Minimum 50 words, or{' '}
+            <div className="textarea-body pointer-events-none absolute inset-0 px-5 py-3 text-text-mut select-none">
+              Paste your text here (minimum {MIN_WORDS} words), or{' '}
               <button
                 type="button"
                 onClick={() => setInputText(SAMPLE_TEXT)}
-                className="pointer-events-auto text-purple-accent hover:underline transition-colors"
+                disabled={isLoading}
+                className="pointer-events-auto text-purple-accent underline decoration-dotted underline-offset-2 hover:text-purple-deep transition-colors disabled:opacity-40"
               >
                 try a sample
               </button>
@@ -321,10 +382,17 @@ export default function SummarisePage() {
         </div>
       </div>
     ),
+    // Same bottom rows as the Humaniser: word count + Paste/Upload, then Clear opposite the primary action.
     footer: (
       <>
         <PanelFooterBar
-          metadata={<span className="text-xs font-normal tabular-nums text-gray-400">{wordCount} words</span>}
+          metadata={
+            <span className={cn('text-xs font-normal tabular-nums',
+              wordCount > 0 && wordCount < MIN_WORDS ? 'text-amber-600' : 'text-gray-400')}>
+              {formatNumber(wordCount)} words
+              {wordCount > 0 && wordCount < MIN_WORDS && ` · ${MIN_WORDS - wordCount} more needed`}
+            </span>
+          }
           actions={
             <>
               <UtilityButton
@@ -345,32 +413,24 @@ export default function SummarisePage() {
           }
         />
         <ToolBottomActionRow
-          clearButton={<ClearButton onClick={() => reset()} disabled={!(inputText || result)} />}
-          hint={wordCount === 0
-            ? 'Minimum 50 words'
-            : wordCount < 50
-            ? `Minimum 50 words required (${50 - wordCount} more needed).`
-            : undefined}
+          clearButton={<ClearButton onClick={handleClear} disabled={!(inputText || result) || isLoading} />}
           primaryButton={
             <button
               type="button"
-              onClick={handleSummarise}
+              onClick={() => void handleSummarise()}
               disabled={!canSummarise}
-              className={primaryButtonClass(canSummarise)}
-            >
-              {isLoading ? (
-                <>
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                  >
-                    <Wand2 size={14} />
-                  </motion.div>
-                  Summarising…
-                </>
-              ) : (
-                result ? 'Resummarise' : 'Summarise'
+              title="Summarise (Ctrl+Enter / Cmd+Enter)"
+              className={cn(
+                'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all shrink-0',
+                isLoading
+                  ? 'bg-purple-accent text-white opacity-90 cursor-wait'
+                  : !canSummarise
+                  ? 'bg-[#c4b5fd] text-white cursor-not-allowed'
+                  : 'bg-purple-accent hover:bg-purple-deep text-white shadow shadow-purple-400/20',
               )}
+            >
+              {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
+              {isLoading ? 'Summarising your writing…' : result ? 'Resummarise' : 'Summarise'}
             </button>
           }
         />
@@ -381,20 +441,21 @@ export default function SummarisePage() {
   const rightPanel = {
     header: (
       <ResultsPanelHeader
-        title={<PanelLabel label={SUMMARISE_MODE_LABELS[selectedMode]} />}
+        tinted={hasOutput}
+        title={<PanelLabel label={SUMMARISE_MODE_LABELS[selectedMode]} colorOverride={hasOutput ? 'var(--color-purple)' : undefined} />}
       />
     ),
-    footer: result && (
+    footer: hasOutput && result && (
       <PanelFooterBar
         metadata={
           <>
             <span className="text-xs font-normal tabular-nums text-gray-400">
-              {result.originalWordCount} → {result.summaryWordCount} words
+              {formatNumber(result.originalWordCount)} → {formatNumber(result.summaryWordCount)} words
             </span>
             {result.isChunked && (
               <span
                 title={`Processed in ${result.chunksProcessed} parallel chunks then synthesised`}
-                className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-500 cursor-default"
+                className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-purple-50 border border-purple-100 text-purple-600 cursor-default"
               >
                 <Layers size={10} />
                 {result.chunksProcessed} chunks
@@ -409,56 +470,86 @@ export default function SummarisePage() {
         actions={result.summary && (
           <>
             <OutputActionButton
-              icon={copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
-              onClick={handleCopy}
+              icon={copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+              onClick={() => void handleCopy()}
+              className={OUTPUT_BTN_SIZE}
+              title="Copy result (Ctrl+Shift+C)"
             >
-              {copied ? <span className="text-green-500">Copied</span> : 'Copy'}
+              {copied ? <span className="text-emerald-600">Copied</span> : 'Copy'}
             </OutputActionButton>
-            <SendToMenu text={result.summary} />
-            <OutputActionButton icon={<Download size={11} />} onClick={handleDownload}>
-              Download
-            </OutputActionButton>
+            <div className="relative" ref={overflowRef}>
+              <OutputActionButton
+                icon={<MoreHorizontal size={16} />}
+                className={cn(OUTPUT_BTN_SIZE, 'w-8 justify-center px-0')}
+                onClick={() => setOverflowOpen(v => !v)}
+                aria-haspopup="menu"
+                aria-expanded={overflowOpen}
+                aria-label="More actions"
+                title="More actions"
+              >
+                <span className="sr-only">More</span>
+              </OutputActionButton>
+              {overflowOpen && (
+                <div role="menu" className="absolute right-0 bottom-full mb-1.5 z-30 w-48 bg-white border border-gray-200 rounded-xl shadow-elevated overflow-hidden py-1">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { handleDownload(); setOverflowOpen(false) }}
+                    className="flex items-center gap-2.5 w-full px-3 py-2 text-[13px] text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                  >
+                    <Download size={12} className="text-gray-400 shrink-0" /> Download .txt
+                  </button>
+                  <div className="px-1">
+                    <SendToMenu text={result.summary} inline className="w-full [&>button]:w-full [&>button]:justify-start [&>button]:h-auto [&>button]:px-2 [&>button]:py-2 [&>button]:border-0 [&>button]:text-[13px]" />
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
       />
     ),
     body: (
-      <div ref={outputRef} className="flex-1 min-h-0 flex flex-col">
+      <div
+        ref={outputRef}
+        className="flex-1 min-h-0 overflow-y-auto px-5 py-3"
+        aria-live="polite"
+        aria-label="Summary output"
+      >
         <AnimatePresence mode="wait">
           {!result && !isLoading && !error ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex-1 min-h-0 overflow-y-auto py-4 flex flex-col items-center justify-center gap-3 px-8 text-center"
+              className="flex flex-col items-center justify-center h-full gap-3 text-center px-8"
             >
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center">
-                <FileText size={16} className="text-indigo-500 opacity-70" />
+              <div className="w-9 h-9 rounded-xl bg-purple-50 border border-[#c4b5fd] flex items-center justify-center">
+                <FileText size={16} className="text-purple-accent opacity-70" />
               </div>
               <div>
-                <p className="text-[14px] font-medium text-gray-600">Summary will appear here</p>
-                <p className="text-[12px] text-gray-400 mt-1 max-w-[220px] leading-relaxed">
-                  Condenses your text to the key points at the length you choose — paste text, then click Summarise.
+                <p className="text-[14px] font-medium text-text-sec">Summary will appear here</p>
+                <p className="text-[12px] text-text-mut mt-1 max-w-[220px] leading-relaxed">
+                  Condenses your text to the key points at the length you choose — paste your writing and click Summarise.
                 </p>
               </div>
               {/* Demo only when the panel is tall enough to show it without touching the edges */}
               <div className="hidden [@media(min-height:760px)]:block w-full max-w-xs mt-1 opacity-60 text-left">
-                <div className="p-3 rounded-lg border border-[#e0e0da] bg-gray-50 text-xs leading-6 text-gray-400">
+                <div className="p-3 rounded-lg border border-[#e0e0da] bg-[#f8fafc] text-xs leading-6 text-text-mut">
                   <span className="line-through decoration-gray-300">AI is transforming healthcare by enabling faster, more accurate diagnoses and personalising treatment plans. Predictive analytics let clinicians spot high-risk patients early.</span>
                 </div>
                 <div className="p-3 mt-1.5 rounded-lg border border-purple-100 bg-purple-50 text-xs leading-6 text-purple-700 font-medium">
                   AI speeds up diagnosis, personalises treatment, and flags high-risk patients earlier.
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1.5 text-center">Condensed to the essentials</p>
+                <p className="text-[10px] text-text-mut mt-1.5 text-center">Condensed to the essentials</p>
               </div>
             </motion.div>
           ) : isLoading ? (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex-1 px-5 py-4"
-            >
+            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 pt-1">
+              <div className="flex items-center gap-2 mb-4">
+                <Loader2 size={14} className="animate-spin text-purple-accent" />
+                <span className="text-sm text-purple-accent font-medium">Summarising your writing…</span>
+              </div>
               <Skeleton variant="text" tone="light" lines={6} />
             </motion.div>
           ) : !result && error ? (
@@ -466,18 +557,18 @@ export default function SummarisePage() {
               key="error"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex-1 flex flex-col items-center justify-center h-full gap-3 text-center px-8"
+              className="flex flex-col items-center justify-center h-full gap-3 text-center px-8"
             >
               <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center">
                 <AlertCircle size={16} className="text-red-500" />
               </div>
               <div>
-                <p className="text-[14px] font-medium text-gray-600">Couldn't summarise your text</p>
-                <p className="text-[12px] text-gray-400 mt-1 max-w-[240px] leading-relaxed">{error}</p>
+                <p className="text-[14px] font-medium text-text-sec">Couldn't summarise your text</p>
+                <p className="text-[12px] text-text-mut mt-1 max-w-[240px] leading-relaxed">{error}</p>
               </div>
               <button
                 type="button"
-                onClick={handleSummarise}
+                onClick={() => void handleSummarise()}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-purple-accent hover:bg-purple-deep text-white transition-colors"
               >
                 <Wand2 size={12} /> Retry
@@ -488,7 +579,7 @@ export default function SummarisePage() {
               key="output"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex-1 overflow-y-auto px-5 py-4"
+              transition={{ duration: 0.2 }}
             >
               <FormattedOutput text={result.summary} mode={selectedMode} />
             </motion.div>
@@ -503,7 +594,9 @@ export default function SummarisePage() {
       <ToolWorkspaceCard
         className="lg:sticky lg:top-4"
         style={{ height: 'calc(100vh - 7rem)' }}
-        toggleBar={toggleBar}
+        toggleBar={inputText ? toggleBar : undefined}
+        mobileTabs={mobileTabs}
+        mobilePanel={hasOutput ? (mobileView === 'original' ? 'left' : 'right') : undefined}
         leftPanel={leftPanel}
         rightPanel={rightPanel}
         sidebar={
@@ -529,7 +622,7 @@ export default function SummarisePage() {
                             </div>
                             <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                               <motion.div
-                                className="h-full rounded-full bg-gray-900"
+                                className="h-full rounded-full bg-purple-accent"
                                 initial={{ width: '0%' }}
                                 animate={{ width: `${Math.round((result.summaryWordCount / result.originalWordCount) * 100)}%` }}
                                 transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -562,7 +655,7 @@ export default function SummarisePage() {
 
                       {result.isChunked && (
                         <div className="mt-auto w-full">
-                          <div className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100 text-[11px] text-indigo-500 font-medium">
+                          <div className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-50 border border-purple-100 text-[11px] text-purple-600 font-medium">
                             <Layers size={11} />
                             {result.chunksProcessed} chunk{result.chunksProcessed !== 1 ? 's' : ''} processed
                           </div>

@@ -1,0 +1,260 @@
+{
+  "cases": [
+    {
+      "id": "relationship",
+      "workflow": "DeepResearch",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 8
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "judged": 0,
+        "total": 1
+      },
+      "verifiedSourceRate": {
+        "value": 1.0,
+        "judged": 1,
+        "total": 1
+      },
+      "duplicateRate": 0.7333333333333333,
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 1
+      },
+      "claimSupportAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 1
+      },
+      "contradictoryEvidenceFound": 0,
+      "nullEvidenceFound": 0,
+      "falseResearchGapRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "searchesPerSession": 1,
+      "llmTokensPerSession": 5336,
+      "estimatedLlmCostPerSessionUsd": 0.01222,
+      "timePerSessionSeconds": 41.1260764,
+      "completionReason": "BudgetIterations"
+    },
+    {
+      "id": "south-africa",
+      "workflow": "DeepResearch",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 8
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "judged": 0,
+        "total": 3
+      },
+      "verifiedSourceRate": {
+        "value": 1.0,
+        "judged": 3,
+        "total": 3
+      },
+      "duplicateRate": 0.7575757575757576,
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 3
+      },
+      "claimSupportAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "contradictoryEvidenceFound": 0,
+      "nullEvidenceFound": 0,
+      "falseResearchGapRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "searchesPerSession": 1,
+      "llmTokensPerSession": 5763,
+      "estimatedLlmCostPerSessionUsd": 0.014031,
+      "timePerSessionSeconds": 38.2468412,
+      "completionReason": "BudgetIterations"
+    },
+    {
+      "id": "limited-literature",
+      "workflow": "DeepResearch",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 8
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "verifiedSourceRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "duplicateRate": 0.7333333333333333,
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "claimSupportAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "contradictoryEvidenceFound": 0,
+      "nullEvidenceFound": 0,
+      "falseResearchGapRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "searchesPerSession": 1,
+      "llmTokensPerSession": 5010,
+      "estimatedLlmCostPerSessionUsd": 0.011146,
+      "timePerSessionSeconds": 34.1067422,
+      "completionReason": "BudgetIterations"
+    },
+    {
+      "id": "contradictory-null",
+      "workflow": "DeepResearch",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 8
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "judged": 0,
+        "total": 4
+      },
+      "verifiedSourceRate": {
+        "value": 1.0,
+        "judged": 4,
+        "total": 4
+      },
+      "duplicateRate": 0.9726962457337884,
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 4
+      },
+      "claimSupportAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 2
+      },
+      "contradictoryEvidenceFound": 0,
+      "nullEvidenceFound": 0,
+      "falseResearchGapRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "searchesPerSession": 1,
+      "llmTokensPerSession": 4785,
+      "estimatedLlmCostPerSessionUsd": 0.012405,
+      "timePerSessionSeconds": 39.8124684,
+      "completionReason": "BudgetIterations"
+    },
+    {
+      "id": "methodology",
+      "workflow": "DeepResearch",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 8
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "judged": 0,
+        "total": 7
+      },
+      "verifiedSourceRate": {
+        "value": 1.0,
+        "judged": 7,
+        "total": 7
+      },
+      "duplicateRate": 0.75,
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 7
+      },
+      "claimSupportAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 2
+      },
+      "contradictoryEvidenceFound": 0,
+      "nullEvidenceFound": 5,
+      "falseResearchGapRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "searchesPerSession": 1,
+      "llmTokensPerSession": 6612,
+      "estimatedLlmCostPerSessionUsd": 0.015808,
+      "timePerSessionSeconds": 38.0070389,
+      "completionReason": "BudgetIterations"
+    },
+    {
+      "id": "obscure",
+      "workflow": "DeepResearch",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 8
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "verifiedSourceRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "duplicateRate": 0.7575757575757576,
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "claimSupportAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "contradictoryEvidenceFound": 0,
+      "nullEvidenceFound": 0,
+      "falseResearchGapRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "searchesPerSession": 1,
+      "llmTokensPerSession": 4825,
+      "estimatedLlmCostPerSessionUsd": 0.010929,
+      "timePerSessionSeconds": 34.3740095,
+      "completionReason": "BudgetIterations"
+    }
+  ],
+  "integrationGate": "Not evaluated: paired baseline and independent quality judgments required.",
+  "averageSearchesPerSession": 1.0,
+  "estimatedLlmCostTotalUsd": 0.076539,
+  "costScope": "LLM estimate only; not a provider billing statement."
+}

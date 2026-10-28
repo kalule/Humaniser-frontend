@@ -19,6 +19,7 @@ import { CREDIT_COSTS } from '../../config/creditCosts'
 import { SECTION_PROMPTS, CHAPTER_STEPS, getStepLabel } from '../../data/proposalOutline'
 import { DocumentSurface, type DocumentSurfaceHandle } from '../../components/research-agent/DocumentSurface'
 import { parseBibliographyEntries, type ParsedReference } from '../../lib/citationFormat'
+import { apiErrorMessage } from '../../lib/deepResearch'
 import '../../styles/research-agent-editor.css'
 import type {
   AcademicLevel, AlignmentValidationResult, CitationFlag, CitationStyle, DimensionCoverageSummary,
@@ -445,8 +446,8 @@ function ResearchTitleTab({ project }: { project: ResearchProject }) {
       setGeneratedTitles(project.id, results)
       setSelectedId(null)
       setCustomTitle('')
-    } catch {
-      toast.error('Failed to generate titles. Please try again.')
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Failed to generate titles. Please try again.'))
     } finally {
       setGenerating(false)
     }
@@ -2757,7 +2758,6 @@ function WriteWorkspaceTab({ project, approvedSourcesCount }: { project: Researc
               isGenerating={isGenerating}
               isSaving={isSaving}
               hasContent={hasContent}
-              citationLabel={CITATION_LABELS[project.citationStyle]}
               citationStyle={project.citationStyle}
               literature={literature}
               bibliography={bibliography}

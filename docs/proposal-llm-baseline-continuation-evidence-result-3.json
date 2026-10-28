@@ -1,0 +1,15 @@
+﻿{
+    "id":  "1989925a-287c-49b4-b56c-a5618966e5e1",
+    "sectionCode":  "1.2",
+    "claim":  "A discursive study examined Moodle learning management system use in rural South African universities.",
+    "literatureId":  "d1d90eba-574d-4349-9b8f-cafa67b184ee",
+    "coverage":  "Abstract",
+    "start":  0,
+    "length":  122,
+    "quote":  "This discursive study examined the use of the learning management system (LMS) Moodle in rural South African universities.",
+    "sourceHash":  "aa1fd3b867430e0970550216a9e61813394f47a6355546d573de3c6c600a76b1",
+    "corpusHash":  "0960c1da836b9f803afedc197362274a28f3d9b4577cd6b4afaf7d371be7931f",
+    "purpose":  "Support",
+    "status":  "Pass",
+    "message":  "The quoted passage directly supports the claim. The source explicitly states it is \u0027a discursive study\u0027 that \u0027examined the use of the learning management system (LMS) Moodle in rural South African universities.\u0027 All key elements match: study type (discursive), subject (Moodle LMS use), geography (rural South African universities)."
+}

@@ -3,6 +3,8 @@ import { AlertTriangle, ExternalLink, Loader2, Trash2, X } from 'lucide-react'
 import type { ResolvedCitation } from '../../lib/citationMatch'
 import type { CitationFixAction, CitationFlag, FetchedLiterature } from '../../types/research'
 import { citationFixBlockedReason } from './citationFixOptions'
+import { AmbiguousSourceChooser } from './AmbiguousSourceChooser'
+import { candidatesForAmbiguousFlag } from '../../lib/citationMatch'
 
 interface CitationPopoverProps {
   anchor:       { x: number; y: number }   // viewport coords of the clicked citation (bottom-left corner)
@@ -17,6 +19,7 @@ interface CitationPopoverProps {
   onRepairFlag?: (flagId: string, action: CitationFixAction, replacementLiteratureId?: string) => void
   onRemoveClaim?: (flagId: string) => void
   onDismissFlag?: (flagId: string, reason?: string) => void
+  onChooseSource?: (flagId: string, literatureId: string) => void
 }
 
 const MISMATCH_LABELS: Record<string, string> = {
@@ -31,11 +34,12 @@ const MISMATCH_LABELS: Record<string, string> = {
   GeographicMismatch:   'The source studies a different country or region',
   GeneralizationBeyondSample: 'The claim is broader than the source sample supports',
   PopulationScopeViolation: 'The source population does not match this claim',
+  AmbiguousCitation:    'Several papers share this author and year',
 }
 
 export function CitationPopover({
   anchor, data, flags, literature = [], busyFlagId, onClose, onRemove,
-  onRepairFlag, onRemoveClaim, onDismissFlag,
+  onRepairFlag, onRemoveClaim, onDismissFlag, onChooseSource,
 }: CitationPopoverProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [replaceFlagId, setReplaceFlagId] = useState<string | null>(null)
@@ -87,7 +91,11 @@ export function CitationPopover({
             {data.map((entry, i) => (
               <div key={i} className={i > 0 ? 'border-t border-slate-100' : undefined}>
                 <div className="flex items-start justify-between gap-2 px-4 pt-3.5">
-                  {entry.matchedSource ? (
+                  {entry.matchedSource && entry.candidates ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-[10px] font-semibold uppercase tracking-wide">
+                      Ambiguous
+                    </span>
+                  ) : entry.matchedSource ? (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#ede9fe] text-[#7c3aed] text-[10px] font-semibold uppercase tracking-wide">
                       Source
                     </span>
@@ -119,6 +127,32 @@ export function CitationPopover({
                     <p className="text-[11px] text-amber-600 mt-2 leading-relaxed">
                       No matching source found in this project's literature.
                     </p>
+                  )}
+
+                  {entry.candidates && (
+                    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                      <p className="text-[11px] font-semibold text-amber-700 leading-snug">
+                        {entry.candidates.length} papers in this project match this author and year
+                      </p>
+                      <p className="text-[11px] text-amber-700/90 mt-1 leading-relaxed">
+                        The one shown above may not be the paper you meant. Check the list, and cite the exact
+                        paper (for example by adding a, b to the year) if it is not the first.
+                      </p>
+                      <ul className="mt-1.5 space-y-1.5">
+                        {entry.candidates.map(c => (
+                          <li key={c.id} className="text-[11px] text-slate-700 leading-snug">
+                            <span className="font-medium">{c.title}</span>
+                            <span className="text-slate-500"> — {c.authors}</span>
+                            {c.viewUrl && (
+                              <a href={c.viewUrl} target="_blank" rel="noopener noreferrer"
+                                 className="ml-1 inline-flex items-center gap-0.5 text-[#7c3aed] hover:text-[#6d28d9]">
+                                view <ExternalLink size={10} />
+                              </a>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
 
                   {entry.viewUrl && (
@@ -157,10 +191,17 @@ export function CitationPopover({
                               {flags[i]!.llmReasoning}
                             </p>
                           )}
+                          {flags[i]!.mismatchTypes.includes('AmbiguousCitation') && onChooseSource && (
+                            <AmbiguousSourceChooser
+                              candidates={candidatesForAmbiguousFlag(flags[i]!.literatureId, literature)}
+                              busy={busyFlagId === flags[i]!.id}
+                              onChoose={id => onChooseSource(flags[i]!.id, id)}
+                            />
+                          )}
                           <div className="mt-2 flex flex-wrap gap-1">
-                            {onRepairFlag && <button disabled={busyFlagId === flags[i]!.id || !!citationFixBlockedReason(flags[i]!, 'RewriteClaim')} title={citationFixBlockedReason(flags[i]!, 'RewriteClaim')} onClick={() => onRepairFlag(flags[i]!.id, 'RewriteClaim')} className="rounded border border-violet-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-violet-700 disabled:opacity-50">Rewrite</button>}
-                            {onRepairFlag && <button disabled={busyFlagId === flags[i]!.id || !!citationFixBlockedReason(flags[i]!, 'ReplaceCitation')} title={citationFixBlockedReason(flags[i]!, 'ReplaceCitation')} onClick={() => { setReplaceFlagId(flags[i]!.id); setReplacementQuery('') }} className="rounded border border-violet-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-violet-700 disabled:opacity-50">Replace source</button>}
-                            {onRepairFlag && <button disabled={busyFlagId === flags[i]!.id || !!citationFixBlockedReason(flags[i]!, 'MarkResearcherProposed')} title={citationFixBlockedReason(flags[i]!, 'MarkResearcherProposed')} onClick={() => onRepairFlag(flags[i]!.id, 'MarkResearcherProposed')} className="rounded border border-slate-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-slate-600 disabled:opacity-50">Researcher-proposed</button>}
+                            {onRepairFlag && !flags[i]!.mismatchTypes.includes('AmbiguousCitation') && <button disabled={busyFlagId === flags[i]!.id || !!citationFixBlockedReason(flags[i]!, 'RewriteClaim')} title={citationFixBlockedReason(flags[i]!, 'RewriteClaim')} onClick={() => onRepairFlag(flags[i]!.id, 'RewriteClaim')} className="rounded border border-violet-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-violet-700 disabled:opacity-50">Rewrite</button>}
+                            {onRepairFlag && !flags[i]!.mismatchTypes.includes('AmbiguousCitation') && <button disabled={busyFlagId === flags[i]!.id || !!citationFixBlockedReason(flags[i]!, 'ReplaceCitation')} title={citationFixBlockedReason(flags[i]!, 'ReplaceCitation')} onClick={() => { setReplaceFlagId(flags[i]!.id); setReplacementQuery('') }} className="rounded border border-violet-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-violet-700 disabled:opacity-50">Replace source</button>}
+                            {onRepairFlag && !flags[i]!.mismatchTypes.includes('AmbiguousCitation') && <button disabled={busyFlagId === flags[i]!.id || !!citationFixBlockedReason(flags[i]!, 'MarkResearcherProposed')} title={citationFixBlockedReason(flags[i]!, 'MarkResearcherProposed')} onClick={() => onRepairFlag(flags[i]!.id, 'MarkResearcherProposed')} className="rounded border border-slate-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-slate-600 disabled:opacity-50">Researcher-proposed</button>}
                             {onRemoveClaim && <button disabled={busyFlagId === flags[i]!.id} onClick={() => onRemoveClaim(flags[i]!.id)} className="rounded border border-red-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-red-600 disabled:opacity-50">Remove claim</button>}
                             {onDismissFlag && <button disabled={busyFlagId === flags[i]!.id} onClick={() => { setDismissFlagId(flags[i]!.id); setDismissReason('') }} className="px-1 py-1 text-[10px] font-semibold text-amber-800 underline disabled:opacity-50">Dismiss</button>}
                           </div>

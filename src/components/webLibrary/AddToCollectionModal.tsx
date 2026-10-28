@@ -6,9 +6,11 @@ import { useWebLibraryStore } from '../../store/webLibraryStore'
 
 interface AddToCollectionModalProps {
   open:               boolean
-  documentId:         string | null
+  /** One document (row action) or several (bulk-action bar) — same picker either way. */
+  documentIds:        string[]
   /** Collections the paper already belongs to, if known (e.g. a Find Papers search result
-   *  already carries this). Defaults to empty — unknown membership reads as "not yet in any". */
+   *  already carries this). Defaults to empty — unknown membership reads as "not yet in any".
+   *  Ignored when documentIds.length > 1 (bulk membership isn't tracked client-side). */
   initialCollectionIds?: string[]
   onClose: () => void
   /** Fires after every successful add/remove so callers can refresh their own membership state. */
@@ -16,7 +18,7 @@ interface AddToCollectionModalProps {
 }
 
 export function AddToCollectionModal({
-  open, documentId, initialCollectionIds = [], onClose, onChanged,
+  open, documentIds, initialCollectionIds = [], onClose, onChanged,
 }: AddToCollectionModalProps) {
   const { collections, collectionsLoaded, loadCollections, createCollection, addToCollection, removeFromCollection } = useWebLibraryStore()
 
@@ -25,17 +27,18 @@ export function AddToCollectionModal({
   const [creating, setCreating]     = useState(false)
   const [newName, setNewName]       = useState('')
   const [pending, setPending]       = useState<Set<string>>(new Set())
+  const isBulk = documentIds.length > 1
 
   useEffect(() => {
     if (open && !collectionsLoaded) void loadCollections()
   }, [open, collectionsLoaded, loadCollections])
 
   useEffect(() => {
-    if (open) setSelected(new Set(initialCollectionIds))
+    if (open) setSelected(new Set(isBulk ? [] : initialCollectionIds))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, documentId])
+  }, [open, documentIds.join(',')])
 
-  if (!documentId) return null
+  if (documentIds.length === 0) return null
 
   const filtered = collections.filter(c => c.name.toLowerCase().includes(query.toLowerCase()))
 
@@ -44,10 +47,10 @@ export function AddToCollectionModal({
     setPending(p => new Set(p).add(collectionId))
     try {
       if (isMember) {
-        await removeFromCollection(collectionId, documentId)
+        await Promise.all(documentIds.map(id => removeFromCollection(collectionId, id)))
         setSelected(s => { const n = new Set(s); n.delete(collectionId); onChanged?.([...n]); return n })
       } else {
-        await addToCollection(collectionId, documentId)
+        await Promise.all(documentIds.map(id => addToCollection(collectionId, id)))
         setSelected(s => { const n = new Set(s).add(collectionId); onChanged?.([...n]); return n })
       }
     } finally {
@@ -63,7 +66,7 @@ export function AddToCollectionModal({
   }
 
   return (
-    <Modal isOpen={open} onClose={onClose} title="Add to collection" size="sm">
+    <Modal isOpen={open} onClose={onClose} title={isBulk ? `Add ${documentIds.length} papers to collection` : 'Add to collection'} size="sm">
       <div className="space-y-3">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />

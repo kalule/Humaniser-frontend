@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <AssemblyName>HumaniseAI.IntegrationTests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Reference Include="HumaniseAI.Infrastructure"><HintPath>../../../../Humaniser/HumaniseAI.IntegrationTests/bin/Debug/net8.0/HumaniseAI.Infrastructure.dll</HintPath></Reference>
+    <Reference Include="HumaniseAI.Application"><HintPath>../../../../Humaniser/HumaniseAI.IntegrationTests/bin/Debug/net8.0/HumaniseAI.Application.dll</HintPath></Reference>
+    <Reference Include="HumaniseAI.Domain"><HintPath>../../../../Humaniser/HumaniseAI.IntegrationTests/bin/Debug/net8.0/HumaniseAI.Domain.dll</HintPath></Reference>
+    <Reference Include="Moq"><HintPath>../../../../Humaniser/HumaniseAI.IntegrationTests/bin/Debug/net8.0/Moq.dll</HintPath></Reference>
+    <Reference Include="Castle.Core"><HintPath>../../../../Humaniser/HumaniseAI.IntegrationTests/bin/Debug/net8.0/Castle.Core.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

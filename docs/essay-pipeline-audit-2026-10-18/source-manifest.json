@@ -1,0 +1,37 @@
+[
+    {
+        "Path":  "C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.Infrastructure\\Services\\WorkbenchService.cs",
+        "LastWriteTimeUtc":  "2026-10-18T12:42:11.9157717Z",
+        "SHA256":  "C838BCD0F5F6A0570D72192B0E70ECDB6A8849681511E6756CD833970061B4E2"
+    },
+    {
+        "Path":  "C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.Infrastructure\\Services\\EssayOutlineBuilder.cs",
+        "LastWriteTimeUtc":  "2026-10-18T12:13:31.7578417Z",
+        "SHA256":  "34A279FD10005F4AAAE1CBA13E82E6916C4B0E3403375BBB77C43DBED829338E"
+    },
+    {
+        "Path":  "C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.Infrastructure\\Services\\EssayDraftContract.cs",
+        "LastWriteTimeUtc":  "2026-10-18T11:52:06.1952440Z",
+        "SHA256":  "8B0915A56E97A37F6BCEDA6B1319505D0AC4839AFA67A60CDBFE766DC163B65E"
+    },
+    {
+        "Path":  "C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.Infrastructure\\Services\\EssayCitationVerifier.cs",
+        "LastWriteTimeUtc":  "2026-10-17T19:03:19.7690616Z",
+        "SHA256":  "E17538694B158CF8D3F6FC0AA8F2E7DBA00E4190E2405DF4D50290057922C8DC"
+    },
+    {
+        "Path":  "C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.Infrastructure\\Services\\SourceRecordExtractor.cs",
+        "LastWriteTimeUtc":  "2026-10-18T08:38:32.4809774Z",
+        "SHA256":  "21AC44C365CFF2A36647DD7D4B74FA055479E9AA1542464402CA3D7722C4EB1C"
+    },
+    {
+        "Path":  "C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.Infrastructure\\Services\\EssayEvidencePlanning.cs",
+        "LastWriteTimeUtc":  "2026-10-18T04:48:12.8308193Z",
+        "SHA256":  "0BDF054621ADFB478FA3200E271C06A56364DDA93F9CE7CA25D31037AC0FC614"
+    },
+    {
+        "Path":  "C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.IntegrationTests\\bin\\Debug\\net8.0\\HumaniseAI.Infrastructure.dll",
+        "LastWriteTimeUtc":  "2026-10-18T12:43:28.5547415Z",
+        "SHA256":  "2EE03ECA942C15718BB74F072E70FE65487861FFF3A1BB785D9AB0BA6ED5B87C"
+    }
+]

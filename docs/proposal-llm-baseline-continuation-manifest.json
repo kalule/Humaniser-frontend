@@ -1,0 +1,28 @@
+﻿{
+    "knownContinuationCostUsd":  0.028769,
+    "proposalId":  "4ffb55e2-c8da-4feb-99c6-086c565fed6c",
+    "providerInvoiceReconciled":  false,
+    "apiBuildPath":  "artifacts/baseline-parser-isolated/bin/HumaniseAI.API/debug",
+    "finalized":  false,
+    "knownLifetimeLlmCostUsd":  0.391349,
+    "ledgerRecords":  80,
+    "capturedUtc":  "2026-10-04T13:42:54.9132625Z",
+    "unpricedUsageCount":  0,
+    "partialUsageCount":  0,
+    "knownInitialSubtotalUsd":  0.36258,
+    "nonLlmChargesMeasured":  false,
+    "lastCallUtc":  "2026-10-04T13:37:38.425317+00:00",
+    "seqLedgerIdDifferences":  0,
+    "unknownUsageCount":  0,
+    "status":  "BlockedAtExactClaimPunctuation",
+    "firstCallUtc":  "2026-10-04T12:14:44.027484+00:00",
+    "testsPassed":  94,
+    "applicationBuildHashes":  {
+                                   "HumaniseAI.Infrastructure.dll":  "16C8FBF958A38F0A8980BF9B65E6C6683BEC98F218F3419E01E21D8E4829C7E6",
+                                   "HumaniseAI.Domain.dll":  "918F8C4E0EE2116E5EE2F4FD7E5C103493744557386579D0FDC46F34ABD5CB14",
+                                   "HumaniseAI.API.dll":  "A5D14C6F597E70A6F830FFC9BD21A128F9BE7205C6FE0F4CA287235DDA120087",
+                                   "HumaniseAI.Application.dll":  "3FC2400085EAE517E4BE39059AB6FC2041604397595515CEB316FBE6037967F2"
+                               },
+    "seqCompletionEvents":  80,
+    "pendingBaselineJobs":  0
+}

@@ -1,3 +1,5 @@
+import { ProductionHumaniser } from '../../components/app/ProductionHumaniser'
+import { humaniseJobs } from '../../api/humaniseJobs'
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation } from '@tanstack/react-query'
@@ -340,6 +342,13 @@ function EngineBadges({ layerScores }: { layerScores: LayerScores }) {
 // ── Main EditorPage ───────────────────────────────────────────────────────────
 
 export function EditorPage() {
+  const [validatedHumaniser, setValidatedHumaniser] = useState(false)
+  useEffect(() => {
+    let active = true
+    void humaniseJobs.capabilities().then(c => { if (active) setValidatedHumaniser(c.enabled) }).catch(() => {})
+    return () => { active = false }
+  }, [])
+
   const user = useAuthStore((s) => s.user)
   const updateUser = useAuthStore((s) => s.updateUser)
   const {
@@ -668,6 +677,8 @@ export function EditorPage() {
     : 0
 
   const mobileTabsActive = hasOutput
+
+  if (validatedHumaniser) return <ProductionHumaniser />
 
   return (
     <div className="min-h-0 bg-transparent px-4 py-6 w-full">

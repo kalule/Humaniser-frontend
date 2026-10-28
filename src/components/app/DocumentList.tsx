@@ -10,6 +10,12 @@ export interface DocumentListAction {
   label: string
   onClick: (e: React.MouseEvent) => void
   disabled?: boolean
+  /** Optional visible action label; existing icon-only consumers are unchanged. */
+  showLabel?: boolean
+  // Overflow-menu styling only. Defaults to true so existing delete-only
+  // menus (ThesisStudioPage) keep their red styling unchanged; pass false
+  // for a non-destructive action sharing the menu, e.g. "Open".
+  destructive?: boolean
 }
 
 export interface DocumentListEntry {
@@ -22,7 +28,11 @@ export interface DocumentListEntry {
   // + Proposal Studio UX audit.
   metaLine: string
   badges?: { label: string; className: string }[]
-  statusBadge?: { label: string; className: string }
+  // progressPct is optional and purely additive — only a caller that has real
+  // progress data (Proposal Studio) passes it, which renders a thin bar under
+  // the chip; callers with a fixed enum status (ThesisStudioPage) omit it and
+  // are unaffected.
+  statusBadge?: { label: string; className: string; progressPct?: number }
   onOpen: () => void
   inlineActions: DocumentListAction[]
   overflowActions: DocumentListAction[]
@@ -57,7 +67,10 @@ function RowOverflowMenu({ actions }: { actions: DocumentListAction[] }) {
                   key={a.key}
                   onClick={e => { setOpen(false); a.onClick(e) }}
                   disabled={a.disabled}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors disabled:opacity-40',
+                    a.destructive === false ? 'text-slate-700 hover:bg-slate-50' : 'text-red-600 hover:bg-red-50',
+                  )}
                 >
                   {a.icon} {a.label}
                 </button>
@@ -78,36 +91,55 @@ function DocumentListRow({ entry }: { entry: DocumentListEntry }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={entry.onOpen}
-      className="group flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 last:border-0 first:rounded-t-xl last:rounded-b-xl hover:bg-slate-50/80 cursor-pointer transition-colors"
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${entry.title}`}
+      onKeyDown={e => {
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); entry.onOpen() }
+      }}
+      className="group flex flex-wrap items-center gap-3 px-4 py-3.5 border-b border-slate-100 last:border-0 first:rounded-t-xl last:rounded-b-xl hover:bg-slate-50/80 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 focus-visible:ring-inset"
     >
       <div className={cn('w-9 h-9 shrink-0 rounded-lg border flex items-center justify-center', entry.iconClassName)}>
         {entry.icon}
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p
-            title={entry.title}
-            className="min-w-0 text-[13px] font-semibold text-slate-800 group-hover:text-orange-600 transition-colors truncate leading-snug"
-          >
-            {entry.title}
-          </p>
+      <div className="min-w-0 flex-1 basis-[180px]">
+        <p
+          title={entry.title}
+          className="min-w-0 text-[13px] font-semibold text-slate-800 group-hover:text-orange-600 transition-colors line-clamp-2 leading-snug"
+        >
+          {entry.title}
+        </p>
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          <p className="text-[11px] text-slate-500">{entry.metaLine}</p>
           {entry.badges?.map(b => (
             <span key={b.label} className={cn('shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border', b.className)}>
               {b.label}
             </span>
           ))}
         </div>
-        <p className="text-[11px] text-slate-500 mt-0.5">{entry.metaLine}</p>
       </div>
 
       {entry.statusBadge && (
-        <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0', entry.statusBadge.className)}>
-          {entry.statusBadge.label}
-        </span>
+        <div className="flex flex-col items-end justify-center gap-1 shrink-0 min-w-[108px]">
+          <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-full', entry.statusBadge.className)}>
+            {entry.statusBadge.label}
+          </span>
+          {entry.statusBadge.progressPct !== undefined && entry.statusBadge.progressPct > 0 && entry.statusBadge.progressPct < 100 && (
+            <div
+              role="progressbar"
+              aria-valuenow={Math.round(entry.statusBadge.progressPct)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              className="w-full h-[3px] rounded-full bg-slate-100 overflow-hidden"
+            >
+              <div className="h-full rounded-full bg-purple-accent" style={{ width: `${entry.statusBadge.progressPct}%` }} />
+            </div>
+          )}
+        </div>
       )}
 
-      <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center gap-1 shrink-0 ml-auto" onClick={e => e.stopPropagation()}>
         {entry.inlineActions.map(a => (
           <Tooltip key={a.key} label={a.label}>
             <button
@@ -115,13 +147,13 @@ function DocumentListRow({ entry }: { entry: DocumentListEntry }) {
               disabled={a.disabled}
               aria-label={a.label}
               className={cn(
-                'w-7 h-7 rounded-lg flex items-center justify-center transition-colors',
+                a.showLabel ? 'px-2 min-h-9 rounded-lg flex items-center justify-center gap-1.5 text-xs transition-colors' : 'w-7 h-7 rounded-lg flex items-center justify-center transition-colors',
                 a.disabled
                   ? 'text-slate-300 cursor-not-allowed'
                   : 'text-slate-500 hover:text-[#7c3aed] hover:bg-violet-50',
               )}
             >
-              {a.icon}
+              {a.icon}{a.showLabel && <span>{a.label}</span>}
             </button>
           </Tooltip>
         ))}
@@ -168,7 +200,7 @@ export function DocumentList({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         {filterBar}
         <div className="flex items-center gap-2 ml-auto">
           <div className="relative max-w-xs w-full">
@@ -188,7 +220,6 @@ export function DocumentList({
           positioned child of the last row and needs to pop out below this
           container's edge. */}
       <div className="border border-slate-200 rounded-xl">
-        <AnimatePresence>
           {entries.length === 0 ? (
             <div className="py-16 flex flex-col items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
@@ -208,7 +239,6 @@ export function DocumentList({
           ) : (
             entries.map(entry => <DocumentListRow key={entry.id} entry={entry} />)
           )}
-        </AnimatePresence>
       </div>
     </div>
   )

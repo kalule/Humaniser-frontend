@@ -1,0 +1,221 @@
+
+> humaniser-frontend@1.0.0 build
+> tsc -b && vite build
+
+vite v6.4.3 building for production...
+transforming...
+✓ 3948 modules transformed.
+rendering chunks...
+[plugin vite:reporter] 
+(!) C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/store/authStore.ts is dynamically imported by C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/api/client.ts, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/api/client.ts but also statically imported by C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/App.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/app/AutonomousProposalTools.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/layout/AccountMenu.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/layout/Navbar.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/layout/Sidebar.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/layout/ToolSidebar.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/research-design/ProposalDesignReadinessPanel.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/ui/CreditLimitModal.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/ui/DetectorCapModal.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/ui/GoogleButton.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/ui/OnboardingModal.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/ui/WordLimitModal.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/hooks/useCreditGate.ts, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/hooks/useDetector.ts, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/hooks/useGrammar.ts, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/hooks/useParaphrase.ts, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/hooks/useSummarise.ts, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/PricingPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/app/AccountPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/app/AnalystPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/app/BillingPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/app/EditorPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/app/ResearchAgentPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/app/ResearchDashboardPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/app/ResearchDesignPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/auth/LoginPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/auth/RegisterPage.tsx, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/api/auth.ts is dynamically imported by C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/api/client.ts, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/store/authStore.ts but also statically imported by C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/layout/AccountMenu.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/layout/Navbar.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/layout/Sidebar.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/ui/GoogleButton.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/auth/ForgotPasswordPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/auth/LoginPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/auth/RegisterPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/auth/ResetPasswordPage.tsx, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/store/uiStore.ts is dynamically imported by C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/api/client.ts, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/app/AnalystPage.tsx but also statically imported by C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/app/AutonomousProposalTools.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/research-agent/DocumentSurface.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/ui/CreditLimitModal.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/ui/DetectorCapModal.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/ui/OnboardingModal.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/ui/TopUpModal.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/components/ui/WordLimitModal.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/hooks/useCreditGate.ts, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/app/BillingPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/app/EditorPage.tsx, C:/Users/42153/OneDrive/Desktop/IT Projects/Humaniser-frontend/src/pages/app/ResearchAgentPage.tsx, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/index.html                                              5.35 kB │ gzip:   1.53 kB
+dist/assets/pdf.worker.min-qwK7q_zL.mjs                  1,046.21 kB
+dist/assets/ResearchDesignPage-Cp6VZzYU.css                  1.09 kB │ gzip:   0.39 kB
+dist/assets/research-agent-editor-Duhs8k-Z.css               7.70 kB │ gzip:   2.10 kB
+dist/assets/AnnotationLayer-BCQFzVNc.css                     9.38 kB │ gzip:   2.02 kB
+dist/assets/index-CrBUxUHn.css                             128.74 kB │ gzip:  19.79 kB
+dist/assets/tiny-invariant-CopsF_GD.js                       0.08 kB │ gzip:   0.10 kB
+dist/assets/library-rApMek8x.js                              0.11 kB │ gzip:   0.12 kB
+dist/assets/toolTransferStore-BH1V8e-O.js                    0.18 kB │ gzip:   0.15 kB
+dist/assets/legal-CJZ_5Zeq.js                                0.27 kB │ gzip:   0.24 kB
+dist/assets/minus-CebT-ScA.js                                0.29 kB │ gzip:   0.24 kB
+dist/assets/check-Bx_X5rpp.js                                0.29 kB │ gzip:   0.24 kB
+dist/assets/circle-CXjSPbrI.js                               0.30 kB │ gzip:   0.24 kB
+dist/assets/rateLimitStore-DOp26N0A.js                       0.30 kB │ gzip:   0.19 kB
+dist/assets/message-circle-DArSSuyv.js                       0.32 kB │ gzip:   0.26 kB
+dist/assets/user-DKLmlvPS.js                                 0.32 kB │ gzip:   0.20 kB
+dist/assets/bookmark-BJN1EKaw.js                             0.34 kB │ gzip:   0.27 kB
+dist/assets/arrow-right-ChN0g4Mg.js                          0.34 kB │ gzip:   0.27 kB
+dist/assets/arrow-left-CwqsaJ4u.js                           0.34 kB │ gzip:   0.27 kB
+dist/assets/arrow-up-right-BnCH7SWs.js                       0.34 kB │ gzip:   0.27 kB
+dist/assets/search-DBQEx04b.js                               0.34 kB │ gzip:   0.27 kB
+dist/assets/circle-check-B9eLigLx.js                         0.35 kB │ gzip:   0.27 kB
+dist/assets/humanise-C4fA_p_2.js                             0.35 kB │ gzip:   0.23 kB
+dist/assets/trending-up-B6KR4db8.js                          0.35 kB │ gzip:   0.27 kB
+dist/assets/creditCosts-DKaC1toU.js                          0.35 kB │ gzip:   0.20 kB
+dist/assets/circle-check-big-DzeyxN7-.js                     0.36 kB │ gzip:   0.28 kB
+dist/assets/user-DeVZLXYm.js                                 0.36 kB │ gzip:   0.28 kB
+dist/assets/detector-D8T1Yyfb.js                             0.37 kB │ gzip:   0.24 kB
+dist/assets/align-left-DW2A9KTp.js                           0.37 kB │ gzip:   0.27 kB
+dist/assets/useCreditGate-DgP8uQoc.js                        0.37 kB │ gzip:   0.27 kB
+dist/assets/info-BI8akNwA.js                                 0.37 kB │ gzip:   0.28 kB
+dist/assets/rotate-ccw-CPGBpohL.js                           0.37 kB │ gzip:   0.29 kB
+dist/assets/lock-RGsC8me6.js                                 0.37 kB │ gzip:   0.29 kB
+dist/assets/rotate-cw-H2cOit9v.js                            0.37 kB │ gzip:   0.29 kB
+dist/assets/circle-x-BwYklBCM.js                             0.38 kB │ gzip:   0.28 kB
+dist/assets/OutputActionButton-BNfMPT7p.js                   0.38 kB │ gzip:   0.28 kB
+dist/assets/undo-2-B5d-FVNR.js                               0.38 kB │ gzip:   0.28 kB
+dist/assets/mail-vwtMZfUZ.js                                 0.39 kB │ gzip:   0.31 kB
+dist/assets/table-2-Bm2IAn4U.js                              0.39 kB │ gzip:   0.29 kB
+dist/assets/briefcase-Bu4jcpa5.js                            0.39 kB │ gzip:   0.30 kB
+dist/assets/ellipsis-De50BtJx.js                             0.39 kB │ gzip:   0.27 kB
+dist/assets/paraphrase-DcIzNFyz.js                           0.40 kB │ gzip:   0.28 kB
+dist/assets/ellipsis-vertical-B9g4tIQa.js                    0.40 kB │ gzip:   0.27 kB
+dist/assets/copy-BWV80zaP.js                                 0.40 kB │ gzip:   0.31 kB
+dist/assets/download-Chw1c7lx.js                             0.41 kB │ gzip:   0.30 kB
+dist/assets/circle-help-CpNLEq8Y.js                          0.41 kB │ gzip:   0.30 kB
+dist/assets/maximize-2-C2erse8k.js                           0.41 kB │ gzip:   0.29 kB
+dist/assets/minimize-2-CbmiIP_A.js                           0.41 kB │ gzip:   0.29 kB
+dist/assets/arrow-up-down-C_9eAKcJ.js                        0.42 kB │ gzip:   0.30 kB
+dist/assets/compass-BMIlNVzF.js                              0.42 kB │ gzip:   0.31 kB
+dist/assets/book-marked-BWtyzMb_.js                          0.42 kB │ gzip:   0.31 kB
+dist/assets/arrow-left-right-BUPQnUpA.js                     0.42 kB │ gzip:   0.30 kB
+dist/assets/circle-alert-D7yEgmyp.js                         0.42 kB │ gzip:   0.29 kB
+dist/assets/eye-CuCRK2sl.js                                  0.42 kB │ gzip:   0.30 kB
+dist/assets/external-link-ByGA4hzT.js                        0.42 kB │ gzip:   0.30 kB
+dist/assets/cloud-upload-CsPATtEc.js                         0.42 kB │ gzip:   0.31 kB
+dist/assets/clipboard-DBzpX_JN.js                            0.43 kB │ gzip:   0.31 kB
+dist/assets/chart-no-axes-column-DqNifwL4.js                 0.43 kB │ gzip:   0.30 kB
+dist/assets/triangle-alert-CgEgLw2c.js                       0.44 kB │ gzip:   0.31 kB
+dist/assets/pencil-EZ58ELAK.js                               0.45 kB │ gzip:   0.33 kB
+dist/assets/pen-line-D51tpviQ.js                             0.45 kB │ gzip:   0.33 kB
+dist/assets/book-open-DVybjnA0.js                            0.45 kB │ gzip:   0.31 kB
+dist/assets/lightbulb-7PJNIwcy.js                            0.45 kB │ gzip:   0.33 kB
+dist/assets/folder-open-CSyjDnf-.js                          0.47 kB │ gzip:   0.32 kB
+dist/assets/grid-3x3-BOi8M3AJ.js                             0.47 kB │ gzip:   0.32 kB
+dist/assets/humaniserStore-gIScMkvB.js                       0.47 kB │ gzip:   0.26 kB
+dist/assets/file-plus-Ybgl-9o8.js                            0.47 kB │ gzip:   0.31 kB
+dist/assets/file-up-Bpv0z01I.js                              0.47 kB │ gzip:   0.32 kB
+dist/assets/list-D8U4AhY6.js                                 0.48 kB │ gzip:   0.29 kB
+dist/assets/thumbs-up-FGfEfSSB.js                            0.48 kB │ gzip:   0.34 kB
+dist/assets/users-2yXfm5pa.js                                0.48 kB │ gzip:   0.33 kB
+dist/assets/folder-input-BI08tMtT.js                         0.49 kB │ gzip:   0.33 kB
+dist/assets/tag-BWWuVPX_.js                                  0.49 kB │ gzip:   0.35 kB
+dist/assets/file-search-DTTl0c8T.js                          0.50 kB │ gzip:   0.35 kB
+dist/assets/graduation-cap-CxaJ920t.js                       0.51 kB │ gzip:   0.35 kB
+dist/assets/trash-2-CmAJ5OWx.js                              0.53 kB │ gzip:   0.36 kB
+dist/assets/Tooltip-DqXbPibS.js                              0.56 kB │ gzip:   0.39 kB
+dist/assets/quote-CT4N9QyH.js                                0.56 kB │ gzip:   0.31 kB
+dist/assets/useDocumentTitle-BIW9ZQ6P.js                     0.57 kB │ gzip:   0.34 kB
+dist/assets/researchLibrary-DzLbNSab.js                      0.59 kB │ gzip:   0.29 kB
+dist/assets/layers-WSObFt_4.js                               0.59 kB │ gzip:   0.34 kB
+dist/assets/eye-off-CafuoQ1a.js                              0.60 kB │ gzip:   0.38 kB
+dist/assets/ToolBottomActionRow-Ck-lTG4b.js                  0.64 kB │ gzip:   0.37 kB
+dist/assets/index.browser-90Wfr7yE.js                        0.64 kB │ gzip:   0.48 kB
+dist/assets/DraftNotice-BbmG7ll6.js                          0.66 kB │ gzip:   0.43 kB
+dist/assets/Badge-De5SeDt0.js                                0.66 kB │ gzip:   0.37 kB
+dist/assets/infinity-BU607jT1.js                             0.83 kB │ gzip:   0.43 kB
+dist/assets/useFileInput-BWRW7EzM.js                         0.95 kB │ gzip:   0.62 kB
+dist/assets/Pagination-CqR8RRLj.js                           1.03 kB │ gzip:   0.47 kB
+dist/assets/Skeleton-BZKqfHk5.js                             1.04 kB │ gzip:   0.52 kB
+dist/assets/ScoreBar-BMZ5kaU4.js                             1.09 kB │ gzip:   0.43 kB
+dist/assets/ToolWorkspaceCard-BcpHwPes.js                    1.10 kB │ gzip:   0.48 kB
+dist/assets/CareersPage-fvUvmW8o.js                          1.26 kB │ gzip:   0.71 kB
+dist/assets/FeedbackPage-Chak0zin.js                         1.37 kB │ gzip:   0.81 kB
+dist/assets/StaticPageLayout-Dj3e4Mir.js                     1.37 kB │ gzip:   0.61 kB
+dist/assets/Button-CmzuvJ6A.js                               1.44 kB │ gzip:   0.70 kB
+dist/assets/BlogPage-DNUFQGLz.js                             1.50 kB │ gzip:   0.88 kB
+dist/assets/WebLibraryTabBar-BUsB3HBE.js                     1.51 kB │ gzip:   0.84 kB
+dist/assets/toolsCatalog-F1Y1dagk.js                         1.68 kB │ gzip:   0.78 kB
+dist/assets/proposalWorkflow-Dn4LzihK.js                     1.78 kB │ gzip:   0.67 kB
+dist/assets/GoogleButton-C41ZMfxJ.js                         1.79 kB │ gzip:   1.03 kB
+dist/assets/PopiaPage-Cg2U1v1C.js                            2.13 kB │ gzip:   1.03 kB
+dist/assets/CookiePolicyPage-BoZ5V6d7.js                     2.14 kB │ gzip:   1.09 kB
+dist/assets/ConfirmActionModal-DvVGQxse.js                   2.23 kB │ gzip:   0.90 kB
+dist/assets/reviewer-B9FGCkPb.js                             2.23 kB │ gzip:   1.07 kB
+dist/assets/AboutPage-CQK5IZY0.js                            2.25 kB │ gzip:   1.16 kB
+dist/assets/SendToMenu-BWBJ0xOP.js                           2.38 kB │ gzip:   1.24 kB
+dist/assets/AdminAuditLogPage-DFu-wnvk.js                    2.43 kB │ gzip:   1.06 kB
+dist/assets/AdminShell-DgK867d0.js                           2.50 kB │ gzip:   1.00 kB
+dist/assets/deepResearch-DhSjb5Gt.js                         2.50 kB │ gzip:   1.22 kB
+dist/assets/useCitation-DPchlCry.js                          2.86 kB │ gzip:   1.07 kB
+dist/assets/SectionFixDiffModal-D6-LYM4U.js                  2.88 kB │ gzip:   1.17 kB
+dist/assets/Modal-L1e6XOxA.js                                2.88 kB │ gzip:   1.25 kB
+dist/assets/workbench-COKjaa3a.js                            2.88 kB │ gzip:   0.89 kB
+dist/assets/ToolSidebar-DUkZ4DfV.js                          3.02 kB │ gzip:   1.21 kB
+dist/assets/citationFormat-DLC19ofH.js                       3.02 kB │ gzip:   1.24 kB
+dist/assets/AdminPaymentsPage-D6O5Hwb_.js                    3.10 kB │ gzip:   1.26 kB
+dist/assets/reviewerCategories-CrDeRz3Y.js                   3.62 kB │ gzip:   1.63 kB
+dist/assets/AdminSubscriptionsPage-arExw3TL.js               3.68 kB │ gzip:   1.36 kB
+dist/assets/ProposalDesignReadinessPanel-Rowsn2k9.js         3.84 kB │ gzip:   1.68 kB
+dist/assets/AdminUsersPage-Dx8xEivW.js                       3.92 kB │ gzip:   1.53 kB
+dist/assets/WebLibraryPdfViewerPage-D6jHnE0i.js              3.93 kB │ gzip:   1.59 kB
+dist/assets/BindEvidenceModal-ZwiLK4A7.js                    4.03 kB │ gzip:   1.70 kB
+dist/assets/ContactPage-Bf5F3H5Z.js                          4.07 kB │ gzip:   1.52 kB
+dist/assets/PanelFooterBar-C8Aw98ub.js                       4.17 kB │ gzip:   1.64 kB
+dist/assets/classifyApiError-DVAV4rrA.js                     4.20 kB │ gzip:   1.67 kB
+dist/assets/researchDesign-BVOJZnea.js                       4.21 kB │ gzip:   1.86 kB
+dist/assets/ForgotPasswordPage-MmvjamTC.js                   4.46 kB │ gzip:   1.74 kB
+dist/assets/FeaturesPage-BQfPjjp-.js                         4.62 kB │ gzip:   1.99 kB
+dist/assets/DocumentList-BNOYwg4Z.js                         5.41 kB │ gzip:   2.01 kB
+dist/assets/DocumentViewPage-BmKWiV8S.js                     6.07 kB │ gzip:   2.45 kB
+dist/assets/AdminPlansPage-7ObpHwO3.js                       6.19 kB │ gzip:   2.00 kB
+dist/assets/index-Dh4i1-J3.js                                6.20 kB │ gzip:   2.11 kB
+dist/assets/DetectorHistoryPage-Ckzgt3Mw.js                  6.48 kB │ gzip:   2.24 kB
+dist/assets/LoginPage-BEetA2KK.js                            6.52 kB │ gzip:   2.50 kB
+dist/assets/MockCheckoutPage-vCiHr_fP.js                     6.63 kB │ gzip:   2.05 kB
+dist/assets/CollectionDetailPage-SMO2UQiC.js                 7.24 kB │ gzip:   3.04 kB
+dist/assets/UploadModal-fVUvkwIG.js                          7.28 kB │ gzip:   2.44 kB
+dist/assets/CitationIntegrityPage-CRzdBCaY.js                7.54 kB │ gzip:   2.79 kB
+dist/assets/ResetPasswordPage-DHxaOc0X.js                    7.95 kB │ gzip:   2.71 kB
+dist/assets/CollectionsPage-CExdKKHr.js                      8.52 kB │ gzip:   2.89 kB
+dist/assets/AdminUserDetailPage-BZP65Reu.js                  9.22 kB │ gzip:   2.73 kB
+dist/assets/PaperDetailsDrawer-DHqz4QNm.js                  10.97 kB │ gzip:   3.49 kB
+dist/assets/TermsPage-DjCzUYlt.js                           11.01 kB │ gzip:   4.09 kB
+dist/assets/FaqPage-DQoLOxKS.js                             11.54 kB │ gzip:   4.74 kB
+dist/assets/libraryCsvExport-B_oxcrPr.js                    12.18 kB │ gzip:   3.94 kB
+dist/assets/EvidencePackagesPage-ChQ1CmjP.js                12.40 kB │ gzip:   3.89 kB
+dist/assets/FindPapersPage-rEoxLaR9.js                      12.62 kB │ gzip:   4.08 kB
+dist/assets/HistoryPage-D6y-CwyA.js                         13.04 kB │ gzip:   3.84 kB
+dist/assets/ThesisStudioPage-CA-FC1p4.js                    13.05 kB │ gzip:   4.82 kB
+dist/assets/research-BWUzL-MJ.js                            13.19 kB │ gzip:   2.68 kB
+dist/assets/LibraryPage-Cv_tlySk.js                         13.63 kB │ gzip:   4.20 kB
+dist/assets/PrivacyPolicyPage-CKWwCjIz.js                   14.05 kB │ gzip:   4.61 kB
+dist/assets/RegisterPage-BnT3Ouh-.js                        14.64 kB │ gzip:   4.49 kB
+dist/assets/ReviewerWorkspacePage-PL86CbuO.js               14.76 kB │ gzip:   4.73 kB
+dist/assets/PricingPage-C4CtWB31.js                         14.87 kB │ gzip:   4.53 kB
+dist/assets/index-BqU88hbA.js                               15.14 kB │ gzip:   5.22 kB
+dist/assets/SystematicReviewPage-Cdvv2C6o.js                15.47 kB │ gzip:   5.00 kB
+dist/assets/CitationPage-cWJXQjw0.js                        16.71 kB │ gzip:   4.44 kB
+dist/assets/useWorkbench-C8To0xs5.js                        16.78 kB │ gzip:   5.68 kB
+dist/assets/LiteratureDiscoveryProgressPage-ubsB2NWY.js     16.84 kB │ gzip:   4.64 kB
+dist/assets/AccountPage-BvpVTmlu.js                         16.95 kB │ gzip:   4.87 kB
+dist/assets/researchStore-Dm2t9a4j.js                       18.13 kB │ gzip:   5.46 kB
+dist/assets/systematicReviewStore-C5mpY6Yr.js               18.24 kB │ gzip:   3.27 kB
+dist/assets/SummarisePage-CjJDWIHT.js                       18.24 kB │ gzip:   6.58 kB
+dist/assets/LecturePage-BvJPIfhG.js                         19.09 kB │ gzip:   5.08 kB
+dist/assets/Footer-KAdiGTY0.js                              19.27 kB │ gzip:   5.17 kB
+dist/assets/ParaphrasePage-BuiWCuiG.js                      20.32 kB │ gzip:   6.93 kB
+dist/assets/BillingPage-BROgl5Ul.js                         21.32 kB │ gzip:   6.04 kB
+dist/assets/ReviewerPage-xcik36Pe.js                        22.10 kB │ gzip:   7.05 kB
+dist/assets/DetectorPage-CKyhcGmZ.js                        22.80 kB │ gzip:   7.85 kB
+dist/assets/PlagiarismPage-C5URK6y6.js                      23.85 kB │ gzip:   7.63 kB
+dist/assets/GrammarPage-B87I8ZhK.js                         24.21 kB │ gzip:   8.16 kB
+dist/assets/ResearchDesignPage-B5B_L5Sj.js                  24.47 kB │ gzip:   7.29 kB
+dist/assets/DocumentChatPage-BPwzxYd4.js                    26.20 kB │ gzip:   7.93 kB
+dist/assets/EditorPage-Icw2ymQO.js                          35.49 kB │ gzip:  11.36 kB
+dist/assets/LandingPage-B6v0jS56.js                         38.58 kB │ gzip:  10.55 kB
+dist/assets/DeepResearchPage-BNZzqyFG.js                    40.07 kB │ gzip:  11.58 kB
+dist/assets/WorkbenchPage-BRDkoTTz.js                       43.94 kB │ gzip:  11.55 kB
+dist/assets/ProposalWorkflowPage-c7rtpbUf.js                47.07 kB │ gzip:  12.58 kB
+dist/assets/WebLibraryPage-CF67m4GY.js                      48.67 kB │ gzip:  13.09 kB
+dist/assets/FlashcardPage-CEJlNnuj.js                       49.85 kB │ gzip:  11.74 kB
+dist/assets/ProposalStudioPage-Cn7EEdpM.js                  55.54 kB │ gzip:  15.08 kB
+dist/assets/DocumentEditorPage-BglV83l8.js                  79.29 kB │ gzip:  21.98 kB
+dist/assets/ResearchDashboardPage-DILlzQNg.js               82.94 kB │ gzip:  20.68 kB
+dist/assets/LiteratureReviewPage-C8tggg5T.js                82.98 kB │ gzip:  20.38 kB
+dist/assets/types-CfOUe7Pi.js                               85.31 kB │ gzip:  23.52 kB
+dist/assets/AnalystPage-C2IZ2eZu.js                         90.81 kB │ gzip:  22.15 kB
+dist/assets/index-BO5pxwS9.js                              156.99 kB │ gzip:  47.54 kB
+dist/assets/ResearchAgentPage-D-cXduMa.js                  161.33 kB │ gzip:  41.85 kB
+dist/assets/DocumentSurface-CXrNvT76.js                    167.15 kB │ gzip:  65.72 kB
+dist/assets/SystematicReviewWorkspacePage-BUbG67Zy.js      208.53 kB │ gzip:  39.49 kB
+dist/assets/AdminOverviewPage-BWnJ1Qc9.js                  396.77 kB │ gzip: 108.51 kB
+dist/assets/AnnotationLayer-q1IOL9zO.js                    462.40 kB │ gzip: 136.69 kB
+dist/assets/index-8air1Pzh.js                              462.62 kB │ gzip: 145.81 kB
+dist/assets/index-XjW2slwo.js                              502.53 kB │ gzip: 131.17 kB
+dist/assets/index-BJ21GM3n.js                              561.92 kB │ gzip: 177.53 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 33.34s

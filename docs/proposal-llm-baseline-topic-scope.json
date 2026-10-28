@@ -1,0 +1,125 @@
+{
+    "primaryConcepts":  [
+                            "digital learning adoption",
+                            "university students",
+                            "influencing factors"
+                        ],
+    "relationship":  "predictor",
+    "population":  [
+                       "university students",
+                       "students aged 18 or older",
+                       "students at public universities"
+                   ],
+    "setting":  [
+                    "higher education",
+                    "university"
+                ],
+    "geography":  [
+                      "South Africa"
+                  ],
+    "studyType":  "empirical",
+    "methodology":  "quantitative correlational or mixed-methods survey",
+    "synonyms":  {
+                     "digital learning adoption":  [
+                                                       "e-learning adoption",
+                                                       "technology adoption",
+                                                       "digital education uptake"
+                                                   ],
+                     "university students":  [
+                                                 "higher education students",
+                                                 "undergraduate students",
+                                                 "tertiary students"
+                                             ],
+                     "influencing factors":  [
+                                                 "determinants",
+                                                 "drivers",
+                                                 "barriers and enablers"
+                                             ]
+                 },
+    "datasetTerms":  [
+
+                     ],
+    "conceptExpansions":  [
+                              {
+                                  "concept":  "digital learning adoption",
+                                  "term":  "e-learning adoption",
+                                  "relationship":  "AcademicEquivalent",
+                                  "confidence":  92,
+                                  "rationale":  "e-learning and digital learning are substantially synonymous in educational technology literature",
+                                  "primarySynonym":  true,
+                                  "role":  "PrimarySynonym"
+                              },
+                              {
+                                  "concept":  "digital learning adoption",
+                                  "term":  "technology adoption",
+                                  "relationship":  "BroaderConcept",
+                                  "confidence":  89,
+                                  "rationale":  "technology adoption encompasses digital learning but also other technologies beyond education",
+                                  "primarySynonym":  false,
+                                  "role":  "Contextual"
+                              },
+                              {
+                                  "concept":  "digital learning adoption",
+                                  "term":  "digital education uptake",
+                                  "relationship":  "AcademicEquivalent",
+                                  "confidence":  90,
+                                  "rationale":  "uptake and adoption are interchangeable terms for the same adoption concept",
+                                  "primarySynonym":  true,
+                                  "role":  "PrimarySynonym"
+                              },
+                              {
+                                  "concept":  "university students",
+                                  "term":  "higher education students",
+                                  "relationship":  "BroaderConcept",
+                                  "confidence":  85,
+                                  "rationale":  "higher education includes universities but also colleges and other tertiary institutions",
+                                  "primarySynonym":  false,
+                                  "role":  "Contextual"
+                              },
+                              {
+                                  "concept":  "university students",
+                                  "term":  "undergraduate students",
+                                  "relationship":  "NarrowerConcept",
+                                  "confidence":  87,
+                                  "rationale":  "undergraduates are a subset of university students, excluding postgraduate students",
+                                  "primarySynonym":  false,
+                                  "role":  "OptionalExpansion"
+                              },
+                              {
+                                  "concept":  "university students",
+                                  "term":  "tertiary students",
+                                  "relationship":  "AcademicEquivalent",
+                                  "confidence":  88,
+                                  "rationale":  "tertiary students and university students refer to the same population in most contexts",
+                                  "primarySynonym":  true,
+                                  "role":  "PrimarySynonym"
+                              },
+                              {
+                                  "concept":  "influencing factors",
+                                  "term":  "determinants",
+                                  "relationship":  "AcademicEquivalent",
+                                  "confidence":  91,
+                                  "rationale":  "determinants and influencing factors are synonymous in research methodology",
+                                  "primarySynonym":  true,
+                                  "role":  "PrimarySynonym"
+                              },
+                              {
+                                  "concept":  "influencing factors",
+                                  "term":  "drivers",
+                                  "relationship":  "RelatedConcept",
+                                  "confidence":  89,
+                                  "rationale":  "Demoted from AcademicEquivalent by the lexical-overlap gate: shares no content word with the concept and confidence 89 is below 90. Original rationale: drivers and influencing factors are interchangeable terms for causal or enabling factors",
+                                  "primarySynonym":  false,
+                                  "role":  "DiscoveryLane"
+                              },
+                              {
+                                  "concept":  "influencing factors",
+                                  "term":  "barriers and enablers",
+                                  "relationship":  "RelatedConcept",
+                                  "confidence":  78,
+                                  "rationale":  "barriers and enablers address influencing factors but emphasize obstacles and facilitators specifically, narrower framing than general factors",
+                                  "primarySynonym":  false,
+                                  "role":  "DiscoveryLane"
+                              }
+                          ]
+}

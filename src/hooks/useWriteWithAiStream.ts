@@ -4,12 +4,27 @@ import type { WriteWithAiRequest, WriteWithAiResponse } from '../types/workbench
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 
-export type WriteWithAiStage = 'drafting' | 'verifying' | 'revising' | 'auditing-claims' | null
+export type WriteWithAiStage = 'drafting' | 'verifying' | 'revising' | 'auditing-claims' | 'planning-evidence' | 'repairing-claims' | string | null
 
 export type WriteWithAiSseEvent =
   | { stage: string }
+  | { projectId: string }
   | { result: WriteWithAiResponse }
-  | { error: string }
+  | { error: string; recoverable?: boolean }
+
+/** The server refused a new generation because one is already running for this account (HTTP 409). */
+export class GenerationAlreadyRunningError extends Error {
+  readonly documentId: string | null
+  constructor(message: string, documentId: string | null = null) { super(message); this.name = 'GenerationAlreadyRunningError'; this.documentId = documentId }
+}
+
+/**
+ * The stream ended before a result arrived, but the server may still finish the job (the literature-review job is durable).
+ * Callers keep the pending marker and recover the finished review later instead of treating it as a failure.
+ */
+export class GenerationInterruptedError extends Error {
+  constructor(message: string) { super(message); this.name = 'GenerationInterruptedError' }
+}
 
 /**
  * Pulls complete `data: {...}\n\n` SSE frames out of whatever text has arrived so far, same
@@ -31,10 +46,11 @@ export function parseWriteWithAiSseFrames(
     if (!dataLine) continue
     try {
       const parsed = JSON.parse(dataLine.slice('data: '.length)) as
-        Partial<{ stage: string; result: WriteWithAiResponse; error: string }>
-      if (typeof parsed.stage === 'string') events.push({ stage: parsed.stage })
+        Partial<{ stage: string; projectId: string; result: WriteWithAiResponse; error: string; recoverable: boolean }>
+      if (typeof parsed.projectId === 'string') events.push({ projectId: parsed.projectId })
+      else if (typeof parsed.stage === 'string') events.push({ stage: parsed.stage })
       else if (parsed.result) events.push({ result: parsed.result })
-      else if (typeof parsed.error === 'string') events.push({ error: parsed.error })
+      else if (typeof parsed.error === 'string') events.push(parsed.recoverable === true ? { error: parsed.error, recoverable: true } : { error: parsed.error })
     } catch {
       // Malformed frame — skip it; the caller surfaces failure via the connection ending
       // without a result/error event.
@@ -45,7 +61,8 @@ export function parseWriteWithAiSseFrames(
 
 interface UseWriteWithAiStreamResult {
   stage: WriteWithAiStage
-  generate: (request: WriteWithAiRequest, signal?: AbortSignal) => Promise<WriteWithAiResponse>
+  /** `onStarted` receives the project id of a literature-review generation as soon as the server has created it. */
+  generate: (request: WriteWithAiRequest, signal?: AbortSignal, onStarted?: (projectId: string) => void, documentId?: string) => Promise<WriteWithAiResponse>
 }
 
 /**
@@ -61,7 +78,7 @@ interface UseWriteWithAiStreamResult {
 export function useWriteWithAiStream(): UseWriteWithAiStreamResult {
   const [stage, setStage] = useState<WriteWithAiStage>(null)
 
-  const generate = useCallback(async (request: WriteWithAiRequest, signal?: AbortSignal): Promise<WriteWithAiResponse> => {
+  const generate = useCallback(async (request: WriteWithAiRequest, signal?: AbortSignal, onStarted?: (projectId: string) => void, documentId?: string): Promise<WriteWithAiResponse> => {
     setStage(null)
     try {
       const token = tokenRef.current
@@ -72,7 +89,9 @@ export function useWriteWithAiStream(): UseWriteWithAiStreamResult {
       const endpoint = request.documentType === 'LiteratureReview'
         ? 'write-with-ai/literature-review/stream'
         : 'write-with-ai/stream'
-      const res = await fetch(`${API_BASE}/api/v1/workbench/${endpoint}`, {
+      // The server remembers which document a literature review was started from, so a refused second start can say where the first will appear.
+      const query = request.documentType === 'LiteratureReview' && documentId ? `?documentId=${encodeURIComponent(documentId)}` : ''
+      const res = await fetch(`${API_BASE}/api/v1/workbench/${endpoint}${query}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -91,10 +110,14 @@ export function useWriteWithAiStream(): UseWriteWithAiStreamResult {
       if (!res.ok) {
         const body = await res.text()
         let detail = body
+        let runningDocumentId: string | null = null
         try {
-          const problem = JSON.parse(body) as { title?: string; detail?: string; errors?: Record<string, string[]> }
+          const problem = JSON.parse(body) as { title?: string; detail?: string; documentId?: string; errors?: Record<string, string[]> }
+          runningDocumentId = problem.documentId ?? null
           detail = problem.detail ?? (Object.values(problem.errors ?? {}).flat().join(' ') || problem.title || body)
         } catch { /* keep the plain response body */ }
+        // 409: the same generation is already running on the server. Keep the pending marker so the editor collects it.
+        if (res.status === 409) throw new GenerationAlreadyRunningError(detail.trim() || 'A generation is already running.', runningDocumentId)
         throw new Error(detail.trim() || `AI writing request failed (${res.status})`)
       }
       if (!res.body) throw new Error('AI writing response did not include a stream')
@@ -105,9 +128,10 @@ export function useWriteWithAiStream(): UseWriteWithAiStreamResult {
 
       const consumeEvents = (events: WriteWithAiSseEvent[]): WriteWithAiResponse | undefined => {
         for (const event of events) {
-          if ('stage' in event) setStage(event.stage as WriteWithAiStage)
+          if ('projectId' in event) onStarted?.(event.projectId)
+          else if ('stage' in event) setStage(event.stage as WriteWithAiStage)
           else if ('result' in event) return event.result
-          else if ('error' in event) throw new Error(event.error)
+          else if ('error' in event) throw event.recoverable ? new GenerationInterruptedError(event.error) : new Error(event.error)
         }
         return undefined
       }
@@ -130,7 +154,7 @@ export function useWriteWithAiStream(): UseWriteWithAiStreamResult {
         const result = consumeEvents(events)
         if (result) return result
       }
-      throw new Error('Connection closed before generation finished')
+      throw new GenerationInterruptedError('Connection closed before generation finished')
     } finally {
       setStage(null)
     }

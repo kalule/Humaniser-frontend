@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
   FileText, BookOpen, Settings2, ShieldCheck, Database, BarChart2, PenLine,
@@ -11,6 +11,7 @@ import { cn } from '../../lib/utils'
 import { applyInclusionChange } from '../../lib/literatureInclusion'
 import { useResearchStore } from '../../store/researchStore'
 import { useAuthStore } from '../../store/authStore'
+import { ProposalDesignReadinessPanel } from '../../components/research-design/ProposalDesignReadinessPanel'
 import { researchApi } from '../../api/research'
 import { ToolSidebar } from '../../components/layout/ToolSidebar'
 import { Modal } from '../../components/ui/Modal'
@@ -341,7 +342,7 @@ function LegacyLiteratureTab({ projectId }: { projectId: string }) {
       <EmptyPlaceholder
         icon={BookOpen}
         title="No literature gathered yet"
-        subtitle="Sources are collected during the Literature Gathering step of the chapter editor, or drawn from your Web Library."
+        subtitle="Sources are collected during the Literature Gathering step of the chapter editor, or drawn from your Research Library."
       />
     )
   }
@@ -2055,13 +2056,19 @@ function StartProcessControl({ projectId, hasRemainingSections }: {
   }, [projectId])
 
   const handleStart = async () => {
+    const previousPhase = phase
     setPhase('Starting')
     try {
-      const status = await researchStore.generateAutonomous(projectId, RESUME_SECTION_WORD_COUNT)
+      const savedWordCount = Number(useResearchStore.getState().projects.find(p => p.id === projectId)?.sectionContent.targetSectionWordCount)
+      const targetWordCount = Number.isFinite(savedWordCount) && savedWordCount >= 150
+        ? Math.round(savedWordCount) : RESUME_SECTION_WORD_COUNT
+      const status = await researchStore.generateAutonomous(projectId, targetWordCount)
       setPhase(status.status)
+      setCurrentSection(status.currentSection)
+      setWords(status.wordsWritten)
       pollTimer.current = window.setTimeout(poll, GENERATION_POLL_MS)
     } catch (err) {
-      setPhase('NotStarted')
+      setPhase(previousPhase)
       const apiErr = err as ApiError | undefined
       if (apiErr?.code === 'VALIDATION_GATE_FAILED') {
         const fails = (apiErr.details as { fails?: { message: string }[] } | undefined)?.fails ?? []
@@ -2128,12 +2135,20 @@ function StartProcessControl({ projectId, hasRemainingSections }: {
           </button>
         </>
       ) : (
+        <>
+        {phase === 'NeedsReview' && (
+          <button onClick={() => navigate(`/app/research-agent/${projectId}?section=${encodeURIComponent(currentSection ?? '1.0')}`)}
+            className="text-[12px] font-medium text-amber-700">
+            Review section {currentSection}
+          </button>
+        )}
         <button
           onClick={handleStart}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[12px] font-semibold transition-colors shrink-0"
         >
-          <Play size={13} /> Start Process
+          <Play size={13} /> {phase === 'NeedsReview' ? 'Resume Process' : 'Start Process'}
         </button>
+        </>
       )}
     </div>
     <Modal isOpen={repairFailures.length > 0 && !showRepairCandidateReview} onClose={() => !repairing && setRepairFailures([])} title="AI validation repair" size="md">
@@ -2194,7 +2209,8 @@ export default function ResearchDashboardPage() {
   const { projectId } = useParams<{ projectId: string }>()
   const navigate      = useNavigate()
   const researchStore = useResearchStore()
-  const [activeTab, setActiveTab] = useState<TabKey>('proposal')
+  const [dashboardParams] = useSearchParams()
+  const [activeTab, setActiveTab] = useState<TabKey>(() => TABS.some(tab => tab.key === dashboardParams.get('tab')) ? dashboardParams.get('tab') as TabKey : 'proposal')
 
   const project  = researchStore.projects.find(p => p.id === projectId)
   const sections = useResearchStore(s => s.sections[projectId ?? ''])
@@ -2296,8 +2312,9 @@ export default function ResearchDashboardPage() {
 
       {/* ── 3. Main Panel ───────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="shrink-0 border-b border-slate-200 px-6 py-3 flex items-center justify-end gap-2">
+        <div className="shrink-0 border-b border-slate-200 px-6 py-3 flex flex-wrap items-center justify-end gap-2">
           <StartProcessControl projectId={projectId} hasRemainingSections={hasRemainingSections} />
+          <button className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-[12px] font-medium text-violet-700" onClick={() => navigate(`/app/research-agent/${projectId}/proposal-workflow`)}>Research & Submission Review</button>
           <button
             onClick={() => navigate(`/app/research-agent/${projectId}/document`)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-[12px] font-medium transition-colors shrink-0"
@@ -2306,6 +2323,7 @@ export default function ResearchDashboardPage() {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-6">
+          {activeTab === 'proposal' && project.documentType === 'Proposal' && <div className="mb-5"><ProposalDesignReadinessPanel projectId={projectId} /></div>}
           {activeTab === 'proposal'        && <ProposalTab projectId={projectId} isExternallySourced={!!project.isExternallySourced} onOpenWriting={openWriting} />}
           {activeTab === 'literature'      && <LiteratureTab projectId={projectId} />}
           {activeTab === 'methodology'     && <MethodologyTab projectId={projectId} methodologyType={project.methodologyType} methodologySubType={project.methodologySubType} onOpenWriting={openWriting} />}

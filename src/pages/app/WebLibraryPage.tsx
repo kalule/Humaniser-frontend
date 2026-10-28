@@ -2,11 +2,11 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ChevronLeft, ChevronRight, FolderOpen, Folder, Trash2, Tag, Plus,
-  Upload, Link, Copy, FileText, BookOpen, Bookmark, MessageCircle,
+  Upload, BookOpen,
   ChevronDown, Download, X, Sparkles, ArrowUpDown,
-  BookMarked, Check, FolderPlus, Info,
+  Check, Search, List, Table2,
 } from 'lucide-react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { cn } from '../../lib/utils'
 import { useWebLibraryStore } from '../../store/webLibraryStore'
 import { UploadModal } from '../../components/ui/UploadModal'
@@ -14,9 +14,16 @@ import { LibraryChatDrawer } from '../../components/ui/LibraryChatDrawer'
 import type { ChatContext } from '../../components/ui/LibraryChatDrawer'
 import { WebLibraryTabBar } from '../../components/webLibrary/WebLibraryTabBar'
 import { AddToCollectionModal } from '../../components/webLibrary/AddToCollectionModal'
-import { CitePopover } from '../../components/webLibrary/CitePopover'
+import { MoveToFolderModal } from '../../components/webLibrary/MoveToFolderModal'
+import { BulkActionBar } from '../../components/webLibrary/BulkActionBar'
+import { RowActionBar } from '../../components/webLibrary/RowActionBar'
+import { LibraryReferenceTable } from '../../components/webLibrary/LibraryReferenceTable'
+import { getPrimaryRowActions, getOverflowRowActions, type RowActionHandlers } from '../../components/webLibrary/libraryRowActions'
 import { PaperDetailsDrawer } from '../../components/webLibrary/PaperDetailsDrawer'
 import { ImportSourcesModal } from '../../components/webLibrary/ImportSourcesModal'
+import ConfirmActionModal from '../../components/app/ConfirmActionModal'
+import { Tooltip } from '../../components/ui/Tooltip'
+import { exportPapersToCsv } from '../../lib/libraryCsvExport'
 import type { PaperDetails } from '../../types/researchLibrary'
 import {
   COLUMN_META, ORDERED_COLUMNS,
@@ -29,13 +36,13 @@ import toast from 'react-hot-toast'
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const DOC_TYPE_COLORS: Record<ResearchDocType, string> = {
-  'Journal Article':  'bg-green-50 text-green-700 border border-green-200',
-  'Book':             'bg-blue-50 text-blue-700 border border-blue-200',
-  'Book Chapter':     'bg-blue-50 text-blue-600 border border-blue-200',
-  'Conference Paper': 'bg-purple-50 text-purple-700 border border-purple-200',
-  'Preprint':         'bg-amber-50 text-amber-700 border border-amber-200',
-  'Report':           'bg-slate-50 text-slate-600 border border-slate-200',
-  'Thesis':           'bg-rose-50 text-rose-700 border border-rose-200',
+  'Journal Article':  'bg-slate-100 text-slate-600 border border-slate-200',
+  'Book':             'bg-slate-100 text-slate-600 border border-slate-200',
+  'Book Chapter':     'bg-slate-100 text-slate-600 border border-slate-200',
+  'Conference Paper': 'bg-slate-100 text-slate-600 border border-slate-200',
+  'Preprint':         'bg-slate-100 text-slate-600 border border-slate-200',
+  'Report':           'bg-slate-100 text-slate-600 border border-slate-200',
+  'Thesis':           'bg-slate-100 text-slate-600 border border-slate-200',
 }
 
 const SORT_OPTIONS = [
@@ -44,6 +51,22 @@ const SORT_OPTIONS = [
   { label: 'Title Z–A',    value: 'title-desc'   },
   { label: 'Year',         value: 'year'         },
 ]
+
+const TRASH = '__trash__'
+
+// Strips the file extension and a trailing browser dedup suffix like " (1)" —
+// fixes raw filenames such as "research-proposal-2026-09-04 (1).docx" showing
+// up as the document title (Research Library UX audit, 2026-10-03).
+function cleanUploadTitle(fileName: string): string {
+  return fileName.replace(/\.[^.]+$/, '').replace(/\s*\(\d+\)$/, '').trim() || fileName
+}
+
+function locationHeading(activeLocation: ActiveLocation, folders: { id: string; name: string }[]): string {
+  if (activeLocation === 'all') return 'All files'
+  if (activeLocation === 'trash') return 'Trash'
+  if (activeLocation === 'publications') return 'My Publications'
+  return folders.find(f => f.id === activeLocation)?.name ?? 'All files'
+}
 
 // ── Inner Library Sidebar ──────────────────────────────────────────────────────
 
@@ -56,6 +79,9 @@ function InnerSidebar({
   onCreateFolder,
   allCount,
   trashCount,
+  allTags,
+  tagFilter,
+  onTagFilterChange,
 }: {
   collapsed:         boolean
   onCollapse:        () => void
@@ -65,10 +91,12 @@ function InnerSidebar({
   onCreateFolder:    (name: string) => void
   allCount:          number
   trashCount:        number
+  allTags:           string[]
+  tagFilter:         string
+  onTagFilterChange: (value: string) => void
 }) {
   const [addingFolder, setAddingFolder] = useState(false)
   const [folderName, setFolderName]     = useState('')
-  const [tagFilter, setTagFilter]       = useState('')
 
   const handleCreateFolder = () => {
     if (!folderName.trim()) return
@@ -100,7 +128,7 @@ function InnerSidebar({
   if (collapsed) {
     return (
       <div className="w-10 shrink-0 border-r border-slate-200 bg-white flex flex-col items-center pt-4 gap-3">
-        <button onClick={onCollapse} className="text-slate-400 hover:text-slate-700 transition-colors">
+        <button onClick={onCollapse} aria-label="Expand library sidebar" className="text-slate-400 hover:text-slate-700 transition-colors">
           <ChevronRight size={16} />
         </button>
         <button onClick={() => onSelectLocation('all')} title="All files" className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-colors', activeLocation === 'all' ? 'bg-slate-100 text-slate-700' : 'text-slate-400 hover:bg-slate-50')}>
@@ -110,7 +138,7 @@ function InnerSidebar({
           <Trash2 size={16} />
         </button>
         <div className="flex-1" />
-        <button onClick={() => { onCollapse(); setAddingFolder(true) }} title="New Folder" className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-orange-500 transition-colors mb-3">
+        <button onClick={() => { onCollapse(); setAddingFolder(true) }} title="New Folder" className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-purple-accent transition-colors mb-3">
           <Plus size={16} />
         </button>
       </div>
@@ -122,10 +150,10 @@ function InnerSidebar({
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-3 border-b border-slate-100">
         <div>
-          <p className="text-[14px] font-semibold text-slate-800">Web Library</p>
+          <p className="text-[14px] font-semibold text-slate-800">My library</p>
           <p className="text-[11px] text-slate-400">{allCount} item{allCount !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={onCollapse} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+        <button onClick={onCollapse} aria-label="Collapse library sidebar" className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
           <ChevronLeft size={15} />
         </button>
       </div>
@@ -135,15 +163,18 @@ function InnerSidebar({
 
         {/* Private Library */}
         <div>
-          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold px-2 mb-1.5">Private Library</p>
+          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold px-2 mb-1.5">Private library</p>
           <div className="space-y-0.5">
             {/* All files */}
             <div>
               <NAV_ITEM icon={FolderOpen} label="All files" loc="all" count={allCount} />
               {activeLocation === 'all' && folders.length === 0 && (
-                <p className="text-[11px] text-slate-400 px-8 py-1 leading-relaxed">
-                  No folders yet. Create one to organize your documents.
-                </p>
+                <div className="px-8 py-1">
+                  <p className="text-[11px] text-slate-400 leading-relaxed">No folders yet.</p>
+                  <button onClick={() => setAddingFolder(true)} className="text-[11px] font-medium text-purple-accent hover:text-purple-deep transition-colors">
+                    New folder
+                  </button>
+                </div>
               )}
               {/* Custom folders */}
               {folders.map(f => (
@@ -152,39 +183,36 @@ function InnerSidebar({
                 </div>
               ))}
             </div>
-            <NAV_ITEM icon={BookMarked} label="My Publications" loc="publications" />
-            <NAV_ITEM icon={Trash2}     label="Trash"           loc="trash" count={trashCount || undefined} />
+            <NAV_ITEM icon={Trash2} label="Trash" loc="trash" count={trashCount || undefined} />
           </div>
         </div>
 
-        {/* Group Library */}
+        {/* Group library — a scope label for later shared/public libraries, not yet built */}
         <div>
-          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold px-2 mb-1.5">Group Library</p>
-          <div className="px-2 py-2 space-y-1.5">
-            <p className="text-[12px] text-slate-400">No public group libraries.</p>
-            <button onClick={() => toast('Create public group library — coming soon')}
-              className="text-[12px] text-orange-500 hover:text-orange-600 transition-colors">
-              Create public group library
-            </button>
-          </div>
+          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold px-2 mb-1.5">Group library</p>
+          <p className="px-2 text-[12px] text-slate-400">Not available yet.</p>
         </div>
 
-        {/* Tags */}
-        <div>
-          <div className="flex items-center gap-1 px-2 mb-1.5">
-            <Tag size={11} className="text-slate-400" />
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Tags</p>
+        {/* Tags — only shown when there's real tag data to filter by */}
+        {allTags.length > 0 && (
+          <div>
+            <div className="flex items-center gap-1 px-2 mb-1.5">
+              <Tag size={11} className="text-slate-400" />
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Tags</p>
+            </div>
+            <div className="px-2">
+              <input
+                value={tagFilter}
+                onChange={e => onTagFilterChange(e.target.value)}
+                placeholder="Filter by tag"
+                className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-[12px] text-slate-700 placeholder-slate-400 outline-none focus:border-purple-accent transition-colors"
+              />
+            </div>
+            {tagFilter && !allTags.some(t => t.toLowerCase().includes(tagFilter.toLowerCase())) && (
+              <p className="text-[11px] text-slate-400 px-2 py-1">No matching tags.</p>
+            )}
           </div>
-          <p className="text-[11px] text-slate-400 px-2 py-1">No matching tags.</p>
-          <div className="px-2 mt-2">
-            <input
-              value={tagFilter}
-              onChange={e => setTagFilter(e.target.value)}
-              placeholder="Filter Tags"
-              className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-[12px] text-slate-700 placeholder-slate-400 outline-none focus:border-orange-300 transition-colors"
-            />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Footer: New Folder */}
@@ -197,9 +225,9 @@ function InnerSidebar({
               onChange={e => setFolderName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') setAddingFolder(false) }}
               placeholder="Folder name…"
-              className="flex-1 border border-orange-400 rounded-lg px-2.5 py-1.5 text-[12px] outline-none text-slate-700"
+              className="flex-1 border border-purple-accent rounded-lg px-2.5 py-1.5 text-[12px] outline-none text-slate-700"
             />
-            <button onClick={handleCreateFolder} className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center text-white">
+            <button onClick={handleCreateFolder} className="w-7 h-7 rounded-lg bg-purple-accent flex items-center justify-center text-white">
               <Check size={13} />
             </button>
             <button onClick={() => setAddingFolder(false)} className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400">
@@ -209,7 +237,7 @@ function InnerSidebar({
         ) : (
           <button
             onClick={() => setAddingFolder(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] text-slate-600 hover:bg-slate-50 hover:text-orange-500 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] text-slate-600 hover:bg-slate-50 hover:text-purple-accent transition-colors"
           >
             <Plus size={14} /> New Folder
           </button>
@@ -219,27 +247,19 @@ function InnerSidebar({
   )
 }
 
-// ── Cell: Papers column ────────────────────────────────────────────────────────
+// ── Cell: Papers column (Library View) ──────────────────────────────────────────
 
 function PapersCell({
-  doc, index, selected, onToggle, onSummaryClick, onChatClick, onCollectionClick, onDetails,
+  doc, selected, onToggle, handlers, inTrash,
 }: {
   doc: ResearchDocument
-  index: number
   selected: boolean
   onToggle: () => void
-  onSummaryClick: () => void
-  onChatClick: () => void
-  onCollectionClick: () => void
-  onDetails?: () => void
+  handlers: RowActionHandlers
+  inTrash: boolean
 }) {
-  const handleDownload = () => {
-    if (!doc.filePath) { toast('No file attached to this record'); return }
-    const a = document.createElement('a')
-    a.href = doc.filePath
-    a.download = `${doc.title}.pdf`
-    a.click()
-  }
+  const { open } = getPrimaryRowActions(doc, handlers)
+  const overflow = getOverflowRowActions(doc, handlers, inTrash)
 
   return (
     <td className="align-top p-0 border-b border-slate-100">
@@ -247,9 +267,10 @@ function PapersCell({
         {/* Checkbox */}
         <button
           onClick={e => { e.stopPropagation(); onToggle() }}
+          aria-label={selected ? `Deselect ${doc.title}` : `Select ${doc.title}`}
           className={cn(
             'mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-colors',
-            selected ? 'border-orange-500 bg-orange-500' : 'border-slate-300 hover:border-slate-400',
+            selected ? 'border-purple-accent bg-purple-accent' : 'border-slate-300 hover:border-slate-400',
           )}
         >
           {selected && <Check size={10} className="text-white" />}
@@ -257,19 +278,21 @@ function PapersCell({
 
         {/* Document info */}
         <div className="flex-1 min-w-0 space-y-1.5">
-          {/* Type badge + Full indicator */}
+          {/* Type badge + Full-text indicator */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={cn('inline-block text-[10px] font-medium px-1.5 py-0.5 rounded', DOC_TYPE_COLORS[doc.docType] ?? 'bg-slate-50 text-slate-600')}>
               {doc.docType}
             </span>
             {doc.isFullText && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500 text-white">Full</span>
+              <Tooltip label="Full text is available for this record">
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-tint text-purple-text">Full text</span>
+              </Tooltip>
             )}
           </div>
 
           {/* Title */}
-          <p className="text-[13px] font-semibold text-orange-500 hover:text-orange-600 cursor-pointer leading-snug line-clamp-2">
-            {index + 1}. {doc.title}
+          <p className="text-[13px] font-semibold text-slate-800 hover:underline cursor-pointer leading-snug line-clamp-2">
+            {doc.title}
           </p>
 
           {/* Author */}
@@ -277,47 +300,8 @@ function PapersCell({
             <p className="text-[12px] text-slate-500">{doc.authors.join(', ')}</p>
           )}
 
-          {/* ── 3-Icon Micro-Action Toolbar ── */}
-          <div className="flex items-center gap-1.5 mt-2">
-            {/* Icon 1: Download PDF */}
-            <button
-              onClick={handleDownload}
-              title="Download PDF"
-              className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center transition-colors shadow-sm shadow-emerald-200"
-            >
-              <Download size={13} />
-            </button>
-
-            {/* Icon 2: PDF Summary — scrolls & highlights first content column */}
-            <button
-              onClick={onSummaryClick}
-              title="View Summary"
-              className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-300 flex items-center justify-center transition-colors"
-            >
-              <FileText size={13} />
-            </button>
-
-            {/* Icon 3: Chat with document */}
-            <button
-              onClick={onChatClick}
-              title="Chat with this document"
-              className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-300 flex items-center justify-center transition-colors"
-            >
-              <MessageCircle size={13} />
-            </button>
-
-            {/* Icon 4: Add to collection */}
-            <button
-              onClick={onCollectionClick}
-              title="Add to collection"
-              className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-purple-tint hover:text-purple-accent hover:border-purple-accent flex items-center justify-center transition-colors"
-            >
-              <FolderPlus size={13} />
-            </button>
-
-            {/* Cite */}
-            <CitePopover paper={doc} />
-            {onDetails && <button onClick={onDetails} title="Paper details" className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-violet-50 hover:text-violet-700 flex items-center justify-center transition-colors"><Info size={13} /></button>}
+          <div className="mt-2">
+            <RowActionBar open={open} overflow={overflow} paper={doc} />
           </div>
         </div>
       </div>
@@ -328,34 +312,23 @@ function PapersCell({
 // ── Cell: AI-generated content column ─────────────────────────────────────────
 
 function ContentCell({
-  text, docId, colKey, expanded, onToggle, highlighted,
+  text, docId, colKey, expanded, onToggle,
 }: {
   text?: string
   docId: string
   colKey: string
   expanded: boolean
   onToggle: () => void
-  highlighted: boolean
 }) {
   const PREVIEW_LEN = 320
-  const tdRef = useRef<HTMLTableCellElement>(null)
-
-  useEffect(() => {
-    if (highlighted && tdRef.current) {
-      tdRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
-    }
-  }, [highlighted])
-
-  const baseClass = 'align-top border-b border-slate-100 border-l border-slate-100 w-[340px] max-w-[340px] transition-all duration-300'
-  const highlightClass = highlighted ? 'ring-2 ring-inset ring-orange-400 bg-orange-50/40' : ''
+  const baseClass = 'align-top border-b border-slate-100 border-l border-slate-100 w-[340px] max-w-[340px]'
 
   if (!text) {
     return (
       <td
-        ref={tdRef}
         data-doc-id={docId}
         data-col={colKey}
-        className={cn(baseClass, highlightClass)}
+        className={baseClass}
       >
         <div className="p-3 min-h-[120px] flex items-center justify-center">
           <p className="text-[12px] text-slate-300 italic">No content available</p>
@@ -368,91 +341,21 @@ function ContentCell({
 
   return (
     <td
-      ref={tdRef}
       data-doc-id={docId}
       data-col={colKey}
-      className={cn(baseClass, highlightClass)}
+      className={baseClass}
     >
       <div className="p-3 min-h-[120px] flex flex-col gap-2">
         <p className="text-[13px] text-slate-700 leading-relaxed">
           {truncated ? text.slice(0, PREVIEW_LEN) + '…' : text}
         </p>
         {text.length > PREVIEW_LEN && (
-          <button onClick={onToggle} className="text-[12px] text-sky-500 hover:text-sky-600 self-start font-medium transition-colors">
+          <button onClick={onToggle} className="text-[12px] text-purple-accent hover:text-purple-deep self-start font-medium transition-colors">
             {expanded ? 'Show less' : 'View More'}
           </button>
         )}
-        <button
-          onClick={() => toast('Saved to notebook')}
-          className="mt-auto flex items-center gap-1.5 text-[12px] text-slate-400 hover:text-slate-600 transition-colors self-start"
-        >
-          <Bookmark size={12} /> Save to Notebook
-        </button>
       </div>
     </td>
-  )
-}
-
-// ── Add Column Flyout ──────────────────────────────────────────────────────────
-
-function AddColumnFlyout({
-  visible,
-  visibleColumns,
-  onAdd,
-  onClose,
-}: {
-  visible:        boolean
-  visibleColumns: ColumnKey[]
-  onAdd:          (key: ColumnKey) => void
-  onClose:        () => void
-}) {
-  const [showAll, setShowAll] = useState(false)
-  const available = ORDERED_COLUMNS.filter(k => !visibleColumns.includes(k))
-  const preview   = showAll ? available : available.slice(0, 6)
-  const extra     = available.length - 6
-
-  if (!visible) return null
-
-  return (
-    <th className="align-top border-b border-l border-slate-200 bg-white w-[260px] min-w-[260px]">
-      <div className="sticky top-0 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[11px] text-slate-500 uppercase tracking-widest font-semibold">Add Column</p>
-          <button onClick={onClose} className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors">
-            <X size={13} />
-          </button>
-        </div>
-        <button
-          onClick={() => toast('Custom column — define key + label')}
-          className="w-full flex items-center justify-center gap-2 border-2 border-orange-400 text-orange-500 rounded-xl py-2 text-[13px] font-medium hover:bg-orange-50 transition-colors mb-3"
-        >
-          <Plus size={14} /> New Column
-        </button>
-        <div className="space-y-0.5">
-          {preview.map(key => (
-            <button
-              key={key}
-              onClick={() => onAdd(key)}
-              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-[13px] text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-            >
-              <Plus size={13} className="text-slate-400 shrink-0" />
-              {COLUMN_META[key].label}
-            </button>
-          ))}
-          {!showAll && extra > 0 && (
-            <button
-              onClick={() => setShowAll(true)}
-              className="w-full text-[12px] text-slate-400 hover:text-slate-600 py-1.5 flex items-center gap-1"
-            >
-              +{extra} more <ChevronDown size={12} />
-            </button>
-          )}
-          {available.length === 0 && (
-            <p className="text-[12px] text-slate-400 text-center py-2">All columns are visible</p>
-          )}
-        </div>
-      </div>
-    </th>
   )
 }
 
@@ -465,20 +368,22 @@ function ColHeader({
 }) {
   const { label } = COLUMN_META[colKey]
   return (
-    <th className="text-left px-3 py-2.5 border-b border-l border-slate-200 bg-slate-50/80 w-[340px] min-w-[340px]">
+    <th scope="col" className="text-left px-3 py-2.5 border-b border-l border-slate-200 bg-slate-50/80 w-[340px] min-w-[340px]">
       <div className="flex items-center gap-1">
         <button
           onClick={onPrev} disabled={!hasPrev}
+          aria-label={`Move ${label} column left`}
           className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-200 disabled:opacity-20 transition-colors"
         >
           <ChevronLeft size={13} />
         </button>
         <span className="flex-1 text-[13px] font-semibold text-slate-700">{label}</span>
-        <button onClick={onRemove} className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors">
+        <button onClick={onRemove} aria-label={`Remove ${label} column`} className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors">
           <X size={13} />
         </button>
         <button
           onClick={onNext} disabled={!hasNext}
+          aria-label={`Move ${label} column right`}
           className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-200 disabled:opacity-20 transition-colors"
         >
           <ChevronRight size={13} />
@@ -499,7 +404,7 @@ function SortDropdown({ sortBy, onSort }: { sortBy: string; onSort: (v: string) 
       <button onClick={() => setOpen(v => !v)}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-[13px] text-slate-600 hover:border-slate-300 transition-colors">
         <ArrowUpDown size={13} className="text-slate-400" />
-        <span>Sort by: <span className="font-medium text-slate-800">{label}</span></span>
+        <span>Sort: <span className="font-medium text-slate-800">{label}</span></span>
         <ChevronDown size={12} className={cn('text-slate-400 transition-transform', open && 'rotate-180')} />
       </button>
       <AnimatePresence>
@@ -512,8 +417,8 @@ function SortDropdown({ sortBy, onSort }: { sortBy: string; onSort: (v: string) 
             >
               {SORT_OPTIONS.map(o => (
                 <button key={o.value} onClick={() => { onSort(o.value); setOpen(false) }}
-                  className={cn('w-full flex items-center gap-2 px-3 py-2 text-[13px] transition-colors', sortBy === o.value ? 'text-orange-500 font-medium bg-orange-50' : 'text-slate-600 hover:bg-slate-50')}>
-                  {sortBy === o.value && <Check size={12} className="text-orange-500" />}
+                  className={cn('w-full flex items-center gap-2 px-3 py-2 text-[13px] transition-colors', sortBy === o.value ? 'text-purple-accent font-medium bg-purple-tint' : 'text-slate-600 hover:bg-slate-50')}>
+                  {sortBy === o.value && <Check size={12} className="text-purple-accent" />}
                   <span>{o.label}</span>
                 </button>
               ))}
@@ -529,35 +434,51 @@ function SortDropdown({ sortBy, onSort }: { sortBy: string; onSort: (v: string) 
 
 export default function WebLibraryPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [params, setParams] = useSearchParams()
   const {
-    documents, folders, collections, visibleColumns,
+    documents, folders, collections, visibleColumns, hasLoaded,
     loadDocuments, loadCollections,
     createFolder, addColumn, removeColumn, reorderColumns,
+    updateDocument, trashDocument, deleteDocument,
   } = useWebLibraryStore()
 
   const [activeLocation,  setActiveLocation]  = useState<ActiveLocation>('all')
   const [libCollapsed,    setLibCollapsed]    = useState(false)
   const [viewMode,        setViewMode]        = useState<'library' | 'reference'>('library')
   const [sortBy,          setSortBy]          = useState('date-added')
+  const [tagFilter,       setTagFilter]       = useState('')
   const [selectedRows,    setSelectedRows]    = useState<Set<string>>(new Set())
   const [expandedCells,   setExpandedCells]   = useState<Set<string>>(new Set())  // `${docId}-${colKey}`
-  const [addColOpen,      setAddColOpen]      = useState(false)
   const [uploadOpen,      setUploadOpen]      = useState(false)
   const [importSourcesOpen, setImportSourcesOpen] = useState(false)
   const [addColDropdown,  setAddColDropdown]  = useState(false)
-  // Chat drawer state
   const [chatOpen,        setChatOpen]        = useState(false)
   const [chatContext,     setChatContext]     = useState<ChatContext | null>(null)
-  // Summary highlight: `${docId}` — cleared after 2s
-  const [highlightedDoc,  setHighlightedDoc]  = useState<string | null>(null)
-  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [collectionModalDocId, setCollectionModalDocId] = useState<string | null>(null)
+  const [collectionModalDocIds, setCollectionModalDocIds] = useState<string[]>([])
+  const [moveFolderDoc,   setMoveFolderDoc]   = useState<ResearchDocument | null>(null)
+  const [pendingTrash,    setPendingTrash]    = useState<ResearchDocument | null>(null)
+  const [pendingDeleteForever, setPendingDeleteForever] = useState<ResearchDocument | null>(null)
+  const [pendingBulkTrash, setPendingBulkTrash] = useState(false)
+  const redirectedRef = useRef(false)
 
   useEffect(() => {
     void loadDocuments()
     void loadCollections()
   }, [loadDocuments, loadCollections])
+
+  // Landing redirect: an empty library sends a first-time/returning-cold visitor to Find
+  // Papers instead of a blank table — but never on a load error, never via "replace" that
+  // would trap Back, and never when the user explicitly clicked the My Library tab itself
+  // (WebLibraryTabBar marks that navigation so this effect can tell the difference).
+  useEffect(() => {
+    if (redirectedRef.current) return
+    if (!hasLoaded) return
+    if (documents.length > 0) return
+    if ((location.state as { fromTabBar?: boolean } | null)?.fromTabBar) return
+    redirectedRef.current = true
+    navigate('/app/web-library/find', { replace: true })
+  }, [hasLoaded, documents.length, location.state, navigate])
 
   useEffect(() => {
     const provider = params.get('integration')
@@ -574,13 +495,28 @@ export default function WebLibraryPage() {
     setParams(next, { replace: true })
   }, [params, setParams])
 
-  // Filter by location
+  // Clear selection with Esc
+  useEffect(() => {
+    if (selectedRows.size === 0) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectedRows(new Set()) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedRows.size])
+
+  const allTags = useMemo(() => [...new Set(documents.flatMap(d => d.tags))].sort(), [documents])
+
+  // Filter by location, then by tag
   const filteredDocs = useMemo(() => {
     let docs = [...documents]
-    if (activeLocation === 'all')          docs = docs.filter(d => d.folderId !== '__trash__')
-    else if (activeLocation === 'trash')   docs = docs.filter(d => d.folderId === '__trash__')
-    else if (activeLocation === 'publications') docs = docs.filter(d => d.folderId !== '__trash__')
+    if (activeLocation === 'all')          docs = docs.filter(d => d.folderId !== TRASH)
+    else if (activeLocation === 'trash')   docs = docs.filter(d => d.folderId === TRASH)
+    else if (activeLocation === 'publications') docs = docs.filter(d => d.folderId !== TRASH)
     else                                   docs = docs.filter(d => d.folderId === activeLocation)
+
+    if (tagFilter.trim()) {
+      const q = tagFilter.trim().toLowerCase()
+      docs = docs.filter(d => d.tags.some(t => t.toLowerCase().includes(q)))
+    }
 
     if (sortBy === 'title-asc')  docs.sort((a, b) => a.title.localeCompare(b.title))
     if (sortBy === 'title-desc') docs.sort((a, b) => b.title.localeCompare(a.title))
@@ -588,10 +524,20 @@ export default function WebLibraryPage() {
     if (sortBy === 'date-added') docs.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
     return docs
-  }, [documents, activeLocation, sortBy])
+  }, [documents, activeLocation, tagFilter, sortBy])
 
-  const trashCount = documents.filter(d => d.folderId === '__trash__').length
-  const allCount   = documents.filter(d => d.folderId !== '__trash__').length
+  const trashCount = documents.filter(d => d.folderId === TRASH).length
+  const allCount   = documents.filter(d => d.folderId !== TRASH).length
+  const inTrash    = activeLocation === 'trash'
+
+  // No "Generate" handler exists anywhere for these AI columns (confirmed via
+  // discovery) — rather than show a column full of "No content available",
+  // hide a column entirely until at least one visible row actually has
+  // content for it (Research Library UX audit, 2026-10-03).
+  const renderedColumns = useMemo(
+    () => visibleColumns.filter(key => filteredDocs.some(d => (d[key as keyof ResearchDocument] as string | undefined)?.trim())),
+    [visibleColumns, filteredDocs],
+  )
 
   const toggleRow = (id: string) =>
     setSelectedRows(prev => {
@@ -633,20 +579,6 @@ export default function WebLibraryPage() {
     reorderColumns(next)
   }
 
-  const handleSummaryClick = useCallback((docId: string) => {
-    if (highlightTimer.current) clearTimeout(highlightTimer.current)
-    setHighlightedDoc(docId)
-    // Scroll the first visible content column cell into view
-    requestAnimationFrame(() => {
-      const firstCol = visibleColumns[0]
-      if (firstCol) {
-        const el = document.querySelector<HTMLElement>(`[data-doc-id="${docId}"][data-col="${firstCol}"]`)
-        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
-      }
-    })
-    highlightTimer.current = setTimeout(() => setHighlightedDoc(null), 2000)
-  }, [visibleColumns])
-
   const handleChatClick = useCallback((doc: ResearchDocument) => {
     setChatContext({ docId: doc.id, title: doc.title })
     setChatOpen(true)
@@ -655,7 +587,7 @@ export default function WebLibraryPage() {
   const handleUpload = (files: File[], folderId: string | null = null) => {
     files.forEach(file => {
       void useWebLibraryStore.getState().addDocument({
-        title:    file.name.replace(/\.[^.]+$/, ''),
+        title:    cleanUploadTitle(file.name),
         docType:  'Journal Article',
         filePath: URL.createObjectURL(file),
         isFullText: true,
@@ -664,6 +596,33 @@ export default function WebLibraryPage() {
     })
     toast.success(`${files.length} file${files.length !== 1 ? 's' : ''} uploaded`)
   }
+
+  // ── Shared row-action handlers (Library View, Reference Manager View) ───────
+  const rowActionHandlers: RowActionHandlers = {
+    onOpenPdfViewer: (doc) => { if (doc.canonicalWorkId) navigate(`/app/web-library/papers/${doc.canonicalWorkId}/pdf`) },
+    onDownload: (doc) => {
+      if (!doc.filePath) { toast('No file attached to this record'); return }
+      const a = document.createElement('a')
+      a.href = doc.filePath
+      a.download = `${doc.title}.pdf`
+      a.click()
+    },
+    onChat: handleChatClick,
+    onAddToCollection: (doc) => setCollectionModalDocIds([doc.id]),
+    onDetails: (doc) => {
+      if (!doc.canonicalWorkId) return
+      const next = new URLSearchParams(params); next.set('paper', doc.canonicalWorkId); setParams(next, { replace: true })
+    },
+    onMoveToFolder: (doc) => setMoveFolderDoc(doc),
+    onTrash: (doc) => setPendingTrash(doc),
+    onRestore: inTrash ? (doc) => {
+      void updateDocument(doc.id, { folderId: null }).then(() => toast.success('Restored to All files'))
+    } : undefined,
+    onDeleteForever: inTrash ? (doc) => setPendingDeleteForever(doc) : undefined,
+  }
+
+  const heading = locationHeading(activeLocation, folders)
+  const selectedDocs = filteredDocs.filter(d => selectedRows.has(d.id))
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white">
@@ -681,229 +640,221 @@ export default function WebLibraryPage() {
         onCreateFolder={createFolder}
         allCount={allCount}
         trashCount={trashCount}
+        allTags={allTags}
+        tagFilter={tagFilter}
+        onTagFilterChange={setTagFilter}
       />
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* ── Insight strip ─────────────────────────────────────────────────── */}
-        <div className="h-9 border-b border-slate-100 flex items-center px-5 gap-2 shrink-0 bg-slate-50/60">
-          <Sparkles size={14} className="text-slate-400" />
-          <span className="text-[13px] text-slate-400 italic">Get insights for questions from your files…</span>
-        </div>
+        {/* ── Ask your library — the one entry point into library chat.
+             LibraryChatDrawer doesn't accept an external initial question, so
+             this is a styled trigger button rather than a live input; no new
+             AI call is introduced (Research Library UX audit, 2026-10-03). ── */}
+        <button
+          onClick={() => { setChatContext(null); setChatOpen(true) }}
+          className="h-9 border-b border-slate-100 flex items-center px-5 gap-2 shrink-0 bg-slate-50/60 hover:bg-purple-tint/40 transition-colors text-left"
+        >
+          <Sparkles size={14} className="text-purple-accent" />
+          <span className="text-[13px] text-slate-600">Ask your library a question…</span>
+        </button>
 
         {/* ── Top utility bar ────────────────────────────────────────────────── */}
-        <div className="h-12 border-b border-slate-100 flex items-center px-5 gap-3 shrink-0">
-          <h1 className="text-[15px] font-semibold text-slate-800 mr-1">My Library – All files</h1>
-
-          {/* System Default dropdown */}
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-[12px] text-slate-600 hover:border-slate-300 transition-colors">
-            System Default <ChevronDown size={12} />
-          </button>
-
-          {/* Quick action icons */}
-          <div className="flex items-center gap-1">
-            {[
-              { icon: Link,     title: 'Copy link' },
-              { icon: Copy,     title: 'Duplicate' },
-              { icon: Download, title: 'Export' },
-            ].map(({ icon: Icon, title }) => (
-              <button key={title} title={title}
-                onClick={() => toast(`${title} — coming soon`)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors">
-                <Icon size={15} />
-              </button>
-            ))}
-          </div>
-
+        <div className="min-h-[48px] border-b border-slate-100 flex items-center flex-wrap px-5 py-2 gap-3 shrink-0">
+          <h1 className="text-[15px] font-semibold text-slate-800 mr-1">My library – {heading}</h1>
           <div className="flex-1" />
-
-          {/* Import sources */}
           <button
             onClick={() => setImportSourcesOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium transition-colors shadow-sm shadow-orange-200"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-medium transition-colors shadow-sm"
           >
-            <Upload size={14} /> Import Sources
+            <Upload size={14} /> Import sources
           </button>
         </div>
 
-        {/* ── View toggle ────────────────────────────────────────────────────── */}
-        <div className="flex justify-center py-3 border-b border-slate-100 shrink-0">
-          <div className="flex items-center bg-slate-100 rounded-full p-0.5">
+        {/* ── Table controls (view toggle, columns, sort, export) ──────────────── */}
+        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 shrink-0 flex-wrap">
+          {/* View toggle */}
+          <div role="radiogroup" aria-label="Table view" className="flex items-center bg-slate-100 rounded-lg p-0.5">
             <button
+              role="radio"
+              aria-checked={viewMode === 'library'}
               onClick={() => setViewMode('library')}
-              className={cn(
-                'px-5 py-1.5 rounded-full text-[13px] font-medium transition-all duration-200',
-                viewMode === 'library'
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700',
-              )}
+              title="Library View — reading-oriented rows"
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors', viewMode === 'library' ? 'bg-white text-purple-accent shadow-sm' : 'text-slate-500 hover:text-slate-700')}
             >
-              Library View
+              <List size={13} /> Library View
             </button>
             <button
+              role="radio"
+              aria-checked={viewMode === 'reference'}
               onClick={() => setViewMode('reference')}
-              className={cn(
-                'px-5 py-1.5 rounded-full text-[13px] font-medium transition-all duration-200',
-                viewMode === 'reference'
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700',
-              )}
+              title="Reference Manager View — dense metadata table"
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors', viewMode === 'reference' ? 'bg-white text-purple-accent shadow-sm' : 'text-slate-500 hover:text-slate-700')}
             >
-              Reference Manager View
+              <Table2 size={13} /> Reference Manager
             </button>
           </div>
-        </div>
 
-        {/* ── Table controls ─────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 shrink-0">
-          {/* Add columns dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setAddColDropdown(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-[13px] text-slate-600 hover:border-slate-300 transition-colors"
-            >
-              Add columns ({ORDERED_COLUMNS.filter(k => !visibleColumns.includes(k)).length})
-              <ChevronDown size={12} className={cn('text-slate-400 transition-transform', addColDropdown && 'rotate-180')} />
-            </button>
-            <AnimatePresence>
-              {addColDropdown && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setAddColDropdown(false)} />
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                    className="absolute top-full mt-1 left-0 bg-white border border-slate-200 rounded-xl shadow-xl z-20 w-52 py-1 overflow-hidden"
-                  >
-                    {ORDERED_COLUMNS.filter(k => !visibleColumns.includes(k)).map(key => (
-                      <button
-                        key={key}
-                        onClick={() => { addColumn(key); setAddColDropdown(false) }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-slate-600 hover:bg-slate-50 transition-colors"
-                      >
-                        <Plus size={13} className="text-slate-400" /> {COLUMN_META[key].label}
-                      </button>
-                    ))}
-                    {ORDERED_COLUMNS.filter(k => !visibleColumns.includes(k)).length === 0 && (
-                      <p className="text-[12px] text-slate-400 px-3 py-2">All columns added</p>
-                    )}
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
+          {viewMode === 'library' && (
+            <div className="relative">
+              <button
+                onClick={() => setAddColDropdown(v => !v)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-[13px] text-slate-600 hover:border-slate-300 transition-colors"
+              >
+                Columns: {visibleColumns.length} of {ORDERED_COLUMNS.length}
+                <ChevronDown size={12} className={cn('text-slate-400 transition-transform', addColDropdown && 'rotate-180')} />
+              </button>
+              <AnimatePresence>
+                {addColDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setAddColDropdown(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      className="absolute top-full mt-1 left-0 bg-white border border-slate-200 rounded-xl shadow-xl z-20 w-56 py-1 overflow-hidden"
+                    >
+                      {ORDERED_COLUMNS.map(key => {
+                        const isVisible = visibleColumns.includes(key)
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => { isVisible ? removeColumn(key) : addColumn(key) }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-slate-600 hover:bg-slate-50 transition-colors"
+                          >
+                            <span className={cn('w-4 h-4 rounded border flex items-center justify-center shrink-0', isVisible ? 'border-purple-accent bg-purple-accent' : 'border-slate-300')}>
+                              {isVisible && <Check size={10} className="text-white" />}
+                            </span>
+                            {COLUMN_META[key].label}
+                          </button>
+                        )
+                      })}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           <div className="flex-1" />
 
           <SortDropdown sortBy={sortBy} onSort={setSortBy} />
 
-          {/* Export */}
           <button
-            onClick={() => toast('Export — coming soon')}
+            onClick={() => exportPapersToCsv(selectedRows.size > 0 ? selectedDocs : filteredDocs)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-[13px] text-slate-600 hover:border-slate-300 transition-colors"
           >
-            <Download size={13} /> Export
+            <Download size={13} /> Export {selectedRows.size > 0 ? `(${selectedRows.size})` : 'CSV'}
           </button>
         </div>
 
-        {/* ── Spreadsheet table ──────────────────────────────────────────────── */}
+        {/* ── Bulk action bar ─────────────────────────────────────────────────── */}
+        {selectedRows.size > 0 && (
+          <BulkActionBar
+            count={selectedRows.size}
+            onAddToCollection={() => setCollectionModalDocIds([...selectedRows])}
+            onExport={() => exportPapersToCsv(selectedDocs)}
+            onTrash={() => setPendingBulkTrash(true)}
+            onClear={() => setSelectedRows(new Set())}
+          />
+        )}
+
+        {/* ── Table area ────────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-auto">
-          <table className="w-full border-collapse min-w-max">
-            <thead className="sticky top-0 z-10">
-              <tr>
-                {/* Papers header */}
-                <th className="text-left px-3 py-2.5 border-b border-slate-200 bg-slate-50/90 backdrop-blur-sm w-[420px] min-w-[380px]">
+          {filteredDocs.length === 0 ? (
+            <div className="py-20 text-center">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center">
+                  <BookOpen size={24} className="text-slate-400" />
+                </div>
+                <div>
+                  <p className="text-slate-700 font-medium text-[14px]">
+                    {inTrash ? 'Trash is empty' : `No documents in ${heading}`}
+                  </p>
+                  {!inTrash && (
+                    <p className="text-slate-400 text-[13px] mt-1">Import a paper, or find one to save.</p>
+                  )}
+                </div>
+                {!inTrash && (
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={toggleAllRows}
-                      className={cn(
-                        'w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors',
-                        selectedRows.size === filteredDocs.length && filteredDocs.length > 0
-                          ? 'border-orange-500 bg-orange-500'
-                          : 'border-slate-300 hover:border-slate-400',
-                      )}
+                      onClick={() => setImportSourcesOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-medium transition-colors"
                     >
-                      {selectedRows.size === filteredDocs.length && filteredDocs.length > 0 && (
-                        <Check size={10} className="text-white" />
-                      )}
+                      <Upload size={14} /> Import sources
                     </button>
-                    <span className="text-[13px] font-semibold text-slate-700">
-                      Papers ({selectedRows.size > 0 ? `${selectedRows.size}/` : ''}{filteredDocs.length})
-                    </span>
-                  </div>
-                </th>
-
-                {/* Dynamic column headers */}
-                {visibleColumns.map((key, idx) => (
-                  <ColHeader
-                    key={key}
-                    colKey={key}
-                    onRemove={() => removeColumn(key)}
-                    hasPrev={idx > 0}
-                    onPrev={() => moveColumnLeft(key)}
-                    hasNext={idx < visibleColumns.length - 1}
-                    onNext={() => moveColumnRight(key)}
-                  />
-                ))}
-
-                {/* Add column flyout toggle */}
-                <AddColumnFlyout
-                  visible={addColOpen}
-                  visibleColumns={visibleColumns}
-                  onAdd={k => { addColumn(k); setAddColOpen(false) }}
-                  onClose={() => setAddColOpen(false)}
-                />
-
-                {!addColOpen && (
-                  <th className="border-b border-l border-slate-200 bg-slate-50/90">
                     <button
-                      onClick={() => setAddColOpen(true)}
-                      className="w-full h-full px-4 py-2.5 text-[12px] text-orange-500 hover:bg-orange-50 transition-colors font-medium flex items-center gap-1 whitespace-nowrap"
+                      onClick={() => navigate('/app/web-library/find')}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:border-slate-300 text-[13px] font-medium transition-colors"
                     >
-                      <Plus size={13} /> Add column
+                      <Search size={14} /> Find papers
                     </button>
-                  </th>
+                  </div>
                 )}
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredDocs.length === 0 ? (
+              </div>
+            </div>
+          ) : viewMode === 'reference' ? (
+            <LibraryReferenceTable
+              docs={filteredDocs}
+              selectedRows={selectedRows}
+              onToggleRow={toggleRow}
+              onToggleAll={toggleAllRows}
+              onOpenDoc={(doc) => doc.canonicalWorkId && rowActionHandlers.onDetails(doc)}
+              sortBy={sortBy}
+              onSort={setSortBy}
+              inTrash={inTrash}
+              handlers={rowActionHandlers}
+            />
+          ) : (
+            <table className="w-full border-collapse min-w-max">
+              <thead className="sticky top-0 z-10">
                 <tr>
-                  <td colSpan={visibleColumns.length + 2} className="py-20 text-center">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center">
-                        <BookOpen size={24} className="text-slate-400" />
-                      </div>
-                      <div>
-                        <p className="text-slate-700 font-medium text-[14px]">No documents in this location</p>
-                        <p className="text-slate-400 text-[13px] mt-1">Upload PDFs to start building your research library</p>
-                      </div>
+                  <th scope="col" className="text-left px-3 py-2.5 border-b border-slate-200 bg-slate-50/90 backdrop-blur-sm w-[420px] min-w-[380px]">
+                    <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setUploadOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-medium transition-colors"
+                        onClick={toggleAllRows}
+                        aria-label={selectedRows.size === filteredDocs.length && filteredDocs.length > 0 ? 'Deselect all' : 'Select all'}
+                        className={cn(
+                          'w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors',
+                          selectedRows.size === filteredDocs.length && filteredDocs.length > 0
+                            ? 'border-purple-accent bg-purple-accent'
+                            : 'border-slate-300 hover:border-slate-400',
+                        )}
                       >
-                        <Upload size={14} /> Upload PDFs
+                        {selectedRows.size === filteredDocs.length && filteredDocs.length > 0 && (
+                          <Check size={10} className="text-white" />
+                        )}
                       </button>
+                      <span className="text-[13px] font-semibold text-slate-700">
+                        Papers ({selectedRows.size > 0 ? `${selectedRows.size}/` : ''}{filteredDocs.length})
+                      </span>
                     </div>
-                  </td>
+                  </th>
+
+                  {renderedColumns.map((key, idx) => (
+                    <ColHeader
+                      key={key}
+                      colKey={key}
+                      onRemove={() => removeColumn(key)}
+                      hasPrev={idx > 0}
+                      onPrev={() => moveColumnLeft(key)}
+                      hasNext={idx < renderedColumns.length - 1}
+                      onNext={() => moveColumnRight(key)}
+                    />
+                  ))}
                 </tr>
-              ) : (
-                filteredDocs.map((doc, i) => (
-                  <tr key={doc.id} className={cn('group hover:bg-slate-50/60 transition-colors', selectedRows.has(doc.id) && 'bg-orange-50/20')}>
-                    {/* Papers cell */}
+              </thead>
+
+              <tbody>
+                {filteredDocs.map(doc => (
+                  <tr key={doc.id} className={cn('group hover:bg-slate-50/60 transition-colors', selectedRows.has(doc.id) && 'bg-purple-tint/20')}>
                     <PapersCell
                       doc={doc}
-                      index={i}
                       selected={selectedRows.has(doc.id)}
                       onToggle={() => toggleRow(doc.id)}
-                      onSummaryClick={() => handleSummaryClick(doc.id)}
-                      onChatClick={() => handleChatClick(doc)}
-                      onCollectionClick={() => setCollectionModalDocId(doc.id)}
-                      onDetails={doc.canonicalWorkId ? () => { const next = new URLSearchParams(params); next.set('paper', doc.canonicalWorkId!); setParams(next, { replace: true }) } : undefined}
+                      handlers={rowActionHandlers}
+                      inTrash={inTrash}
                     />
-
-                    {/* Dynamic column cells */}
-                    {visibleColumns.map(key => (
+                    {renderedColumns.map(key => (
                       <ContentCell
                         key={key}
                         text={doc[key as keyof ResearchDocument] as string | undefined}
@@ -911,22 +862,18 @@ export default function WebLibraryPage() {
                         colKey={key}
                         expanded={expandedCells.has(`${doc.id}-${key}`)}
                         onToggle={() => toggleCell(doc.id, key)}
-                        highlighted={highlightedDoc === doc.id}
                       />
                     ))}
-
-                    {/* Spacer for add-column area */}
-                    {addColOpen ? null : <td className="border-b border-l border-slate-100 bg-slate-50/20" />}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
       </div>
 
-      {/* ── Upload Modal ─────────────────────────────────────────────────────── */}
+      {/* ── Import / Upload ───────────────────────────────────────────────── */}
       <ImportSourcesModal
         open={importSourcesOpen}
         collections={collections}
@@ -937,27 +884,11 @@ export default function WebLibraryPage() {
       <UploadModal
         open={uploadOpen}
         folders={folders}
+        initialFolderId={activeLocation === 'all' || activeLocation === 'trash' || activeLocation === 'publications' ? null : activeLocation}
         onClose={() => setUploadOpen(false)}
         onUpload={handleUpload}
         onCreateFolder={createFolder}
       />
-
-      {/* ── Chat FAB (shown when drawer is closed) ────────────────────────── */}
-      <AnimatePresence>
-        {!chatOpen && (
-          <motion.button
-            key="chat-fab"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            onClick={() => { setChatContext(null); setChatOpen(true) }}
-            className="fixed bottom-6 right-6 w-12 h-12 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white shadow-xl shadow-sky-200 flex items-center justify-center transition-colors z-40"
-            title="Chat with your library"
-          >
-            <MessageCircle size={20} />
-          </motion.button>
-        )}
-      </AnimatePresence>
 
       {/* ── Library Chat Drawer ───────────────────────────────────────────── */}
       <AnimatePresence>
@@ -971,12 +902,69 @@ export default function WebLibraryPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Add to Collection ─────────────────────────────────────────────── */}
+      {/* ── Add to Collection (single row or bulk) ──────────────────────────── */}
       <AddToCollectionModal
-        open={collectionModalDocId !== null}
-        documentId={collectionModalDocId}
-        onClose={() => setCollectionModalDocId(null)}
+        open={collectionModalDocIds.length > 0}
+        documentIds={collectionModalDocIds}
+        onClose={() => setCollectionModalDocIds([])}
       />
+
+      {/* ── Move to folder ───────────────────────────────────────────────────── */}
+      <MoveToFolderModal
+        open={moveFolderDoc !== null}
+        folders={folders}
+        currentFolderId={moveFolderDoc?.folderId}
+        onClose={() => setMoveFolderDoc(null)}
+        onMove={(folderId) => {
+          if (!moveFolderDoc) return
+          void updateDocument(moveFolderDoc.id, { folderId }).then(() => toast.success('Moved'))
+          setMoveFolderDoc(null)
+        }}
+      />
+
+      {/* ── Trash / delete confirmations — copy matches real behaviour: folderId
+           sentinel, not a separate trash API; only "Delete permanently" is a
+           real irreversible hard delete (Research Library UX audit). ───────── */}
+      <AnimatePresence>
+        {pendingTrash && (
+          <ConfirmActionModal
+            title={`Move "${pendingTrash.title}" to Trash?`}
+            message="It will be hidden from your library but not deleted — restore it from Trash at any time."
+            confirmLabel="Move to Trash"
+            tone="reversible"
+            onClose={() => setPendingTrash(null)}
+            onConfirm={async () => { await trashDocument(pendingTrash.id); setPendingTrash(null) }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {pendingDeleteForever && (
+          <ConfirmActionModal
+            title={`Delete "${pendingDeleteForever.title}" permanently?`}
+            message="This cannot be undone."
+            confirmLabel="Delete permanently"
+            onClose={() => setPendingDeleteForever(null)}
+            onConfirm={async () => { await deleteDocument(pendingDeleteForever.id); setPendingDeleteForever(null) }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {pendingBulkTrash && (
+          <ConfirmActionModal
+            title={`Move ${selectedRows.size} paper${selectedRows.size === 1 ? '' : 's'} to Trash?`}
+            message="They'll be hidden from your library but not deleted — restore them from Trash at any time."
+            confirmLabel="Move to Trash"
+            tone="reversible"
+            onClose={() => setPendingBulkTrash(false)}
+            onConfirm={async () => {
+              await Promise.all(selectedDocs.map(d => trashDocument(d.id)))
+              setPendingBulkTrash(false)
+              setSelectedRows(new Set())
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       <PaperDetailsDrawer workId={params.get('paper')} onClose={() => { const next = new URLSearchParams(params); next.delete('paper'); setParams(next, { replace: true }) }} onOpenPdf={(paper: PaperDetails) => navigate(`/app/web-library/papers/${paper.id}/pdf`)} />
     </div>
   )

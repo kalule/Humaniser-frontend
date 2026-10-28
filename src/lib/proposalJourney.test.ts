@@ -1,0 +1,19 @@
+import { describe, expect, it, vi, afterEach } from 'vitest'
+import { matchesProposalFilter, proposalError, proposalStageLabel, proposalNextLabel, workspaceTab, proposalCommandKey, forgetProposalCommand } from './proposalJourney'
+import type { ProposalJourneySummary } from '../types/proposalJourney'
+const view = (stage: string): ProposalJourneySummary => ({ projectId: 'p', stage, nextAction: 'CompleteDesign', allowedActions: ['Open'], designRequired: true, acceptedRevisionId: null, writingMode: null, affectedSections: 0, hasContent: false })
+afterEach(() => vi.unstubAllGlobals())
+describe('proposal journey presentation and retry protection', () => {
+  it.each([502, 503, 504])('explains server unavailability for %s', status => { expect(proposalError({ response: { status } })).toContain('Check that the API is running') })
+  it('explains a network failure without claiming the proposal was saved', () => { expect(proposalError({ code: 'ERR_NETWORK' })).toBe('The server is unavailable. Check that the API is running, then try again.') })
+  it.each(['SettingUp', 'Designing', 'NeedsInput', 'CheckingEvidence', 'DesignReady', 'ReadyToWrite', 'Writing', 'NeedsAttention', 'ReadyForReview', 'CompletedVersionAvailable'])('presents %s without granting an action', stage => { expect(proposalStageLabel(stage)).not.toBe(stage); expect(view(stage).allowedActions).toEqual(['Open']) })
+  it('unknown status remains unknown and is never called complete', () => { expect(proposalStageLabel('future')).toBe('Open proposal to check status'); expect(matchesProposalFilter(undefined, 'all')).toBe(true); expect(matchesProposalFilter(undefined, 'reviewed')).toBe(false) })
+  it('filters needs input and attention separately from reviewed versions', () => { expect(matchesProposalFilter(view('NeedsInput'), 'attention')).toBe(true); expect(matchesProposalFilter(view('Writing'), 'attention')).toBe(false); expect(matchesProposalFilter(view('CompletedVersionAvailable'), 'reviewed')).toBe(true); expect(matchesProposalFilter(view('ReadyForReview'), 'reviewed')).toBe(false) })
+  it('routes design and review into the same workspace', () => { expect(workspaceTab('CompleteDesign')).toBe('design'); expect(workspaceTab('ReviewProposal')).toBe('review'); expect(workspaceTab('ContinueWriting')).toBe('sections'); expect(proposalNextLabel('ContinueLegacy')).toBe('Open proposal') })
+  it.each([401, 403, 404, 409, 402, 400, 422, 500])('sanitizes %s and suppresses raw provider/research details', status => { const text = proposalError({ response: { status, data: { message: 'SQL secret Claude private research', code: 'raw' } } }); expect(text).not.toMatch(/SQL|secret|Claude|private|raw/); expect(text.length).toBeGreaterThan(15) })
+  it('retains an ambiguous command across reload without storing topic text', async () => {
+    const data = new Map<string,string>(); vi.stubGlobal('sessionStorage', { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => data.set(k,v), removeItem: (k: string) => data.delete(k) })
+    const a = await proposalCommandKey(['setup', 'Private research topic']); const b = await proposalCommandKey(['setup', 'Private research topic']); const c = await proposalCommandKey(['setup','Changed topic']); expect(a.key).toBe(b.key); expect(c.key).not.toBe(a.key); expect(JSON.stringify([...data])).not.toContain('Private'); forgetProposalCommand(a.storageKey); expect((await proposalCommandKey(['setup', 'Private research topic'])).key).not.toBe(a.key)
+  })
+  it('works with unavailable browser storage', async () => { vi.stubGlobal('sessionStorage', { getItem() { throw Error() }, setItem() { throw Error() }, removeItem() { throw Error() } }); expect((await proposalCommandKey('x')).key).toMatch(/^[a-f0-9-]{36}$/); expect(() => forgetProposalCommand('x')).not.toThrow() })
+})

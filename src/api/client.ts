@@ -36,6 +36,14 @@ function drainQueue(token: string | null, error: unknown = null) {
   failedQueue = []
 }
 
+/** Requests a signed-out user makes: their 401 is the answer to the request itself and must reach the page that asked, never trigger a session refresh. */
+const CREDENTIAL_PATHS = ['/auth/login', '/auth/register', '/auth/google', '/auth/forgot-password', '/auth/reset-password', '/auth/send-otp', '/auth/verify-otp', '/auth/register-otp']
+export function isCredentialRequest(url: string | undefined): boolean {
+  if (!url) return false
+  const path = url.split('?')[0].replace(/\/+$/, '')
+  return CREDENTIAL_PATHS.some(p => path.endsWith(p))
+}
+
 // ─── Response interceptor: unwrap wrapper, handle 401 / 402 / 429 ───────────
 
 client.interceptors.response.use(
@@ -67,7 +75,9 @@ client.interceptors.response.use(
     // Skip retry if the failing request IS the refresh endpoint — retrying
     // would loop: refresh→401→refresh→401→...
     const isRefreshRequest = originalRequest.url?.endsWith('/auth/refresh')
-    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
+    // A 401 from a sign-in style request means "wrong credentials", not "expired session". Refreshing and then redirecting to /login here
+    // reloaded the login page and erased the "Invalid email or password" message before it could be seen.
+    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest && !isCredentialRequest(originalRequest.url)) {
       if (isRefreshing) {
         // Queue this request until the refresh completes
         return new Promise((resolve, reject) => {
@@ -169,7 +179,7 @@ client.interceptors.response.use(
           upgradeRequired,
         })
         toast.error(message, { duration: 5000 })
-      } else {
+      } else if (!isCredentialRequest(originalRequest.url)) {   // the sign-in form shows its own message with the wait; a second toast repeats it
         toast.error(`Too many requests. Try again in ${retryAfterSeconds}s.`, {
           duration: 4000,
           id: 'rate-limit',

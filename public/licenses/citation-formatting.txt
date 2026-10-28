@@ -1,0 +1,30 @@
+Citation formatting components
+
+Processor: citeproc-js (npm package citeproc 2.4.63).
+Copyright (c) 2009-2019 Frank Bennett.
+Upstream: https://github.com/Juris-M/citeproc-js
+Unmodified processor source: /licenses/citeproc-2.4.63.js
+Original package notice: /licenses/citeproc-NOTICE.txt
+License texts supplied with this application:
+  /licenses/CPAL-1.0.txt
+  /licenses/AGPL-3.0-or-later.txt
+The upstream source notice offers CPAL or AGPL version 3 or later. See the
+original notice and license texts for the full terms.
+
+CSL styles and English locale:
+  https://github.com/citation-style-language/styles
+  https://github.com/citation-style-language/locales
+Each unmodified XML file contains its authors, contributors, style ID,
+documentation links, and Creative Commons Attribution-ShareAlike license.
+Copies are available under /licenses/csl/:
+  apa.csl -- APA Style 7th edition
+  harvard-cite-them-right.csl -- Cite Them Right 12th edition (Harvard)
+  ieee.csl -- IEEE Reference Guide version 11.29.2023
+  modern-language-association.csl -- Modern Language Association
+  chicago-author-date.csl -- Chicago Manual of Style 18th edition, author-date
+  nlm-citation-sequence.csl -- NLM/Vancouver Citing Medicine 2nd edition
+  locales-en-US.xml -- English (United States)
+
+These are bundled snapshots; no citation metadata or document content is sent
+to these upstream projects during rendering. The repository asset manifest
+records the source URLs and SHA-256 hashes of the bundled XML files.

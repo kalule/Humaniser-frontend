@@ -1,0 +1,90 @@
+{
+  "topic": "Evaluate sleep loss and working memory in university students from a cognitive perspective. Use only the supplied SYNTHETIC fixtures, preserve conflicting findings, and label the analysis as synthetic rather than real research.",
+  "targetWordCount": 1000,
+  "sourceMode": "MyFiles",
+  "documentType": "Essay",
+  "essaySubType": "CriticalEvaluation",
+  "academicLevel": "Undergraduate",
+  "discipline": "Psychology",
+  "citationStyle": "Harvard",
+  "approvedPlan": {
+    "subType": "CriticalEvaluation",
+    "academicLevel": "Undergraduate",
+    "discipline": "Psychology",
+    "citationStyle": "Harvard",
+    "assignmentAnalysis": {
+      "commandVerb": "Evaluate",
+      "assignmentType": "Critical evaluation",
+      "expectedArgumentStyle": "Evidence-bounded comparison",
+      "expectedEvidence": "Supplied synthetic extracts only"
+    },
+    "academicTitle": "Sleep Deprivation's Impact on University Students' Working Memory: A Cognitive Perspective",
+    "interpretedQuestion": "What do the supplied synthetic extracts establish about working memory in university students?",
+    "thesis": "PROVISIONAL FRAMING TO TEST: Sleep loss impairs every component of university students working memory and lowers grades.",
+    "introductionPlan": "Preserve the requested student population and cognitive perspective; revise the provisional thesis after evidence planning.",
+    "counterargumentStrategy": "Retain and analyse the synthetic null finding; distinguish exposure and task differences.",
+    "subClaims": [
+      {
+        "claim": "Evaluate evidence measuring university students working-memory tasks",
+        "connectionToThesis": "Assess the direct empirical premise",
+        "evidenceNeeds": [
+          "University students acute total deprivation spatial span"
+        ],
+        "role": "direct evidence"
+      },
+      {
+        "claim": "Assess transfer from other populations and tasks without component attribution",
+        "connectionToThesis": "Test scope and mechanism limits",
+        "evidenceNeeds": [
+          "Soldiers N-back rats reversal learning vigilance"
+        ],
+        "role": "limitations"
+      },
+      {
+        "claim": "Compare exposure conditions and conflicting findings; delimit academic implications",
+        "connectionToThesis": "Bound the conclusion",
+        "evidenceNeeds": [
+          "Partial restriction null N-back result academic outcomes"
+        ],
+        "role": "critical evaluation"
+      }
+    ],
+    "reflectiveStages": [],
+    "conclusionPurpose": "Answer within supplied evidence, acknowledge unmeasured components and grades.",
+    "wordAllocation": {
+      "introductionWords": 100,
+      "bodyWords": 800,
+      "conclusionWords": 100
+    },
+    "requiredAcademicVoice": "Formal, precise and qualified where needed.",
+    "requiredCriticalDepth": "Separate observation, explanation and implication."
+  },
+  "libraryDocuments": [
+    {
+      "documentId": "00000000-0000-4000-8000-000000000001",
+      "title": "Direct student task evidence",
+      "content": "SYNTHETIC FIXTURE, NOT A REAL PAPER. An experiment compared university students after acute total sleep deprivation and a normal-sleep condition. Spatial-span task performance was lower in the deprivation condition. No phonological-loop component, grades or downstream academic outcomes were measured. Sample size, effect size and statistical details are unknown in this excerpt."
+    },
+    {
+      "documentId": "00000000-0000-4000-8000-000000000002",
+      "title": "Soldiers and N-back",
+      "content": "SYNTHETIC FIXTURE, NOT A REAL PAPER. Soldiers completed an N-back task after acute total sleep deprivation. Task responses were slower. The excerpt does not establish a phonological-loop mechanism or university-student effects."
+    },
+    {
+      "documentId": "00000000-0000-4000-8000-000000000003",
+      "title": "Animal reversal learning",
+      "content": "SYNTHETIC FIXTURE, NOT A REAL PAPER. Rats completed reversal-learning tasks after disrupted sleep. Reversal-learning performance was worse. Human visuospatial working memory was not measured."
+    },
+    {
+      "documentId": "00000000-0000-4000-8000-000000000004",
+      "title": "Conflicting student task finding",
+      "content": "SYNTHETIC FIXTURE, NOT A REAL PAPER. A university-student study under repeated partial sleep restriction reported no detectable change on its N-back outcome. This null task result is relevant to the argument, but it does not prove absence of every possible effect. The excerpt supplies no power calculation or effect size."
+    },
+    {
+      "documentId": "00000000-0000-4000-8000-000000000005",
+      "title": "Vigilance proxy",
+      "content": "SYNTHETIC FIXTURE, NOT A REAL PAPER. Esports players reporting poor sleep quality had lower vigilance-task performance in an observational comparison. Working memory and grades were not measured. The exposure differs from acute total deprivation and repeated partial restriction."
+    }
+  ],
+  "allowAdditionalEvidenceRetrieval": false
+}

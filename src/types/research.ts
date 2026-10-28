@@ -8,9 +8,14 @@ export type GatherMode     = 'documents' | 'web' | 'hybrid'
 // Server-driven — persisted on the project row and polled, so progress survives
 // a closed tab/refresh. Mirrors HumaniseAI.Application.DTOs.Research.GenerationStatusDto.
 
-export type GenerationPhase = 'NotStarted' | 'Starting' | 'Generating' | 'Completed' | 'Cancelled' | 'Error'
+export type GenerationPhase = 'NotStarted' | 'Starting' | 'Generating' | 'Completed' | 'Cancelled' | 'Error' | 'NeedsReview'
 
 export interface GenerationStatus {
+  runStartedAt?: string | null
+  phaseStartedAt?: string | null
+  runPhase?: string | null
+  lastActivity?: string | null
+  heartbeatAt?: string | null
   status:         GenerationPhase
   completedCount: number
   totalCount:     number
@@ -46,6 +51,7 @@ export interface ResearchProject {
   documentMode:    DocumentMode
   generatorMode:   GeneratorMode
   citationStyle:   CitationStyle
+  generation?:    GenerationStatus
   progressPct:     number
   createdAt:       string
   updatedAt:       string
@@ -388,6 +394,7 @@ export interface AlignmentIssue {
 }
 
 export interface AlignmentValidationResult {
+  assessmentStatus?: 'Completed' | 'Unknown'
   isValid:             boolean
   message:             string
   issues:              AlignmentIssue[]
@@ -536,6 +543,9 @@ export type CitationMismatchType =
   // but a reference-list line with no prose around it (see ResearchService.ExtractAndResolveCitations'
   // harvard/apa7 branch; 2026-08 remediation of the "3.1 Problem Statement" defect).
   | 'MalformedCitationShape'
+  // Several project papers share this citation's first author and year and the section's reference list
+  // did not name one by DOI, so list order chose. Advisory only; answered with chooseCitationSource.
+  | 'AmbiguousCitation'
 
 export type CitationFlagStatus = 'Open' | 'AutoCorrected' | 'Dismissed' | 'Removed' | 'Superseded'
 export type CitationFixAction = 'RewriteClaim' | 'ReplaceCitation' | 'MarkResearcherProposed'
@@ -545,6 +555,20 @@ export type CitationFixAction = 'RewriteClaim' | 'ReplaceCitation' | 'MarkResear
 // 'RelevantFullText'; 'MetadataOnly'/'Abstract' means the verdict was only checked against the
 // abstract, which the backend also enforces (DismissCitationFlagAsync rejects it either way).
 export type EvidenceCoverage = 'MetadataOnly' | 'Abstract' | 'RelevantFullText'
+
+/**
+ * An advisory review note raised by a section-quality check. It never blocks approval or export and
+ * never changes the text; `message` already names the passage it is about.
+ */
+export interface QualityFlag {
+  id:          string
+  sectionCode: string
+  code:        string
+  severity:    'warning'
+  message:     string
+  dismissed:   boolean
+  createdAt:   string
+}
 
 export interface CitationFlag {
   id:                    string
@@ -1041,4 +1065,83 @@ export interface ConfirmMethodologyClassificationPayload {
   involvesVulnerablePopulation: boolean
   participantsIdentifiable: boolean
   involvesSensitiveTopics: boolean
+}
+
+// ── Fix issues and download (pre-export repair) ───────────────────────────────
+
+export type ProposalIssueSeverity = 'Blocking' | 'Warning'
+export type ProposalRepairKind = 'Deterministic' | 'ConstrainedLlm' | 'HumanRequired'
+
+export interface ProposalIssue {
+  type: string
+  severity: ProposalIssueSeverity
+  sectionKey: string
+  evidence: string
+  repairKind: ProposalRepairKind
+  message: string
+  start?: number | null
+  length?: number | null
+  /** Set when the issue is about one specific project source (a citation that matches a source stored without a year). */
+  literatureId?: string | null
+}
+
+export interface ProposalIssues {
+  issues: ProposalIssue[]
+  blockingCount: number
+  repairsAvailable: boolean
+  repairsUnavailableReason: string | null
+}
+
+export interface RepairedItem {
+  repairId: string
+  issueType: string
+  sectionKey: string
+  description: string
+  before: string
+  after: string
+  undone: boolean
+}
+
+export interface RepairReport {
+  runId: string
+  createdAt: string
+  fixed: RepairedItem[]
+  needsUser: Array<{ issue: ProposalIssue; reason: string }>
+  unchangedSections: string[]
+  passes: number
+  blockingRemaining: number
+  skipped: boolean
+  skippedReason: string | null
+}
+
+// ── Structured bibliography (GET /research/projects/{id}/bibliography) ─────────
+// Numbering is presentation, not contract: entries carry the source they came from and the
+// formatted text, and the client never infers anything from a "1." prefix.
+export type BibliographyStatus = 'no_sections' | 'no_citations' | 'needs_review' | 'ready'
+
+export interface BibliographyEntry {
+  sourceId:      string
+  formattedText: string
+}
+
+export interface BibliographyUnresolvedCitation {
+  sectionCode:  string
+  citationText: string
+  reason:       'no_match' | 'ambiguous' | 'malformed'
+}
+
+export interface BibliographyDiagnostics {
+  draftedSections:     number
+  eligibleSources:     number
+  citationOccurrences: number
+  resolvedOccurrences: number
+  distinctEntries:     number
+}
+
+export interface BibliographyResult {
+  status:              BibliographyStatus
+  entries:             BibliographyEntry[]
+  unresolvedCitations: BibliographyUnresolvedCitation[]
+  diagnostics:         BibliographyDiagnostics
+  revision:            string
 }

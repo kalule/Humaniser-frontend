@@ -7,7 +7,7 @@ export type DocViewMode  = 'grid' | 'list'
 // New-document creation card's "Document type" choice (prompt #3). Purely descriptive today —
 // nothing server-side keys off it — captured so the editor/future prompts can use it, e.g. to
 // pre-fill "Create with draft"'s hand-off into WriteWithAiModal's own WriteWithAiDocumentType.
-export type DocumentGenre = 'Essay' | 'LiteratureReview' | 'ResearchPaper' | 'Other'
+export type DocumentGenre = 'Essay' | 'LiteratureReview' | 'ResearchPaper' | 'ThesisChapter' | 'Other'
 
 export interface WorkspaceFolder {
   id:        string

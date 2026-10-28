@@ -12,6 +12,10 @@ interface ToolWorkspaceCardProps {
   toggleBar?: ReactNode
   leftPanel: WorkspacePanel
   rightPanel: WorkspacePanel
+  /** Small-screen tab strip (e.g. Original / Result) shown above the grid below `lg`. Pair with `mobilePanel`. */
+  mobileTabs?: ReactNode
+  /** Below `lg`, show only this panel (the grid is always two-up from `lg`). Omit to stack both, as before. */
+  mobilePanel?: 'left' | 'right'
   /** Full-width row below the grid, inside the same outer border — not per-column. */
   bottomActionBar?: ReactNode
   /** Rendered outside/after the card, e.g. <ToolSidebarShell />. Its own responsive/animation wrapper is page-owned. */
@@ -34,6 +38,8 @@ export function ToolWorkspaceCard({
   toggleBar,
   leftPanel,
   rightPanel,
+  mobileTabs,
+  mobilePanel,
   bottomActionBar,
   sidebar,
   className,
@@ -49,13 +55,17 @@ export function ToolWorkspaceCard({
             </div>
           )}
 
+          {mobileTabs && (
+            <div className="lg:hidden px-5 py-2 border-b border-[#e0e0da] shrink-0">{mobileTabs}</div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#e0e0da] flex-1 min-h-0">
-            <div className="flex flex-col min-h-0">
+            <div className={cn('flex-col min-h-0 lg:flex', mobilePanel === 'right' ? 'hidden' : 'flex')}>
               {leftPanel.header}
               {leftPanel.body}
               {leftPanel.footer}
             </div>
-            <div className="flex flex-col min-h-0">
+            <div className={cn('flex-col min-h-0 lg:flex', mobilePanel === 'left' ? 'hidden' : 'flex')}>
               {rightPanel.header}
               {rightPanel.body}
               {rightPanel.footer}

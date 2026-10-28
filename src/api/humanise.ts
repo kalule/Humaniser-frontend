@@ -12,7 +12,16 @@ export interface GetHistoryParams {
 
 export const humaniseApi = {
   humanise: (dto: HumaniseRequest) =>
-    client.post<HumaniseResponse>('/api/v1/humanise', dto),
+    client.post<HumaniseResponse>('/api/v1/humanise', dto).then(response => {
+      const job = response.data.job
+      if (job && !['changed', 'unchanged'].includes(job.outcome)) {
+        sessionStorage.setItem('humanise-review-job', job.jobId)
+        throw new Error(job.outcome === 'partially_changed'
+          ? 'Some regions could not be rewritten safely. Open Humaniser to review the accepted suggestions.'
+          : 'No changes were applied. Open Humaniser to review the result.')
+      }
+      return response
+    }),
 
   getHistory: (params: GetHistoryParams = {}) =>
     client.get<PagedResult<HistoryItem>>('/api/v1/humanise/history', { params }),

@@ -145,7 +145,8 @@ export interface ValidateLiteratureResponse {
 // ── Write with AI ────────────────────────────────────────────────────────────
 
 export type WriteWithAiSourceMode = 'Web' | 'MyFiles' | 'Hybrid'
-export type WriteWithAiDocumentType = 'General' | 'Essay' | 'CaseStudy' | 'ResearchPaper' | 'LiteratureReview'
+export type WriteWithAiDocumentType = 'General' | 'Essay' | 'CaseStudy' | 'ResearchPaper' | 'LiteratureReview' | 'ThesisChapter'
+export type ThesisChapterKind = 'Introduction' | 'LiteratureReview' | 'Methodology' | 'Results' | 'Discussion' | 'Conclusion'
 export type LiteratureReviewArchetype = 'Thematic' | 'Chronological' | 'Methodological' | 'Theoretical'
 export type ResearchPaperDisciplineProfile = 'GeneralImrad' | 'Stem' | 'SocialScience' | 'HumanitiesEmpirical'
 export type ResearchState = 'Proposal' | 'StudyDesigned' | 'DataCollection' | 'DataAvailable' | 'AnalysisCompleted' | 'CompletedResearch' | 'LiteratureOnly'
@@ -157,9 +158,9 @@ export type EssayDiscipline = 'General' | 'Engineering' | 'ComputerScience' | 'L
 export type EssayCitationStyle = 'Harvard' | 'Apa7' | 'Ieee' | 'Chicago' | 'Vancouver'
 export interface EssayAssignmentAnalysis { commandVerb: string; assignmentType: string; expectedArgumentStyle: string; expectedEvidence: string }
 export interface EssayWordAllocation { introductionWords: number; bodyWords: number; conclusionWords: number }
-export interface EssayPlanPoint { claim: string; connectionToThesis: string; evidenceNeeds: string[]; role: string }
+export interface EssayPlanPoint { claim: string; connectionToThesis: string; evidenceNeeds: string[]; role: string; whatItDoesNotEstablish?: string }
 export interface ReflectivePlanStage { stage: string; purpose: string; evidenceNeeds: string[] }
-export interface EssayPlan { subType: EssaySubType; academicLevel: EssayAcademicLevel; discipline: EssayDiscipline; citationStyle: EssayCitationStyle; assignmentAnalysis: EssayAssignmentAnalysis; academicTitle: string; interpretedQuestion: string; thesis: string; introductionPlan: string; counterargumentStrategy: string; subClaims: EssayPlanPoint[]; reflectiveStages: ReflectivePlanStage[]; conclusionPurpose: string; wordAllocation: EssayWordAllocation; requiredAcademicVoice: string; requiredCriticalDepth: string }
+export interface EssayPlan { subType: EssaySubType; academicLevel: EssayAcademicLevel; discipline: EssayDiscipline; citationStyle: EssayCitationStyle; assignmentAnalysis: EssayAssignmentAnalysis; academicTitle: string; interpretedQuestion: string; thesis: string; introductionPlan: string; counterargumentStrategy: string; exactScope?: string; strongestObjection?: string; planRisks?: string; subClaims: EssayPlanPoint[]; reflectiveStages: ReflectivePlanStage[]; conclusionPurpose: string; wordAllocation: EssayWordAllocation; requiredAcademicVoice: string; requiredCriticalDepth: string }
 export interface PlanEssayRequest { topic: string; targetWordCount: number; subType: EssaySubType; academicLevel: EssayAcademicLevel; discipline: EssayDiscipline; citationStyle: EssayCitationStyle }
 
 export interface WriteWithAiLibraryDocument {
@@ -169,6 +170,9 @@ export interface WriteWithAiLibraryDocument {
 }
 
 export interface WriteWithAiRequest {
+  allowAdditionalEvidenceRetrieval?: boolean
+  /** Research and plan the essay, then return a section list to write one section at a time instead of drafting it. */
+  coWrite?: boolean
   topic:             string
   targetWordCount?:  number
   sourceMode:        WriteWithAiSourceMode
@@ -181,6 +185,8 @@ export interface WriteWithAiRequest {
   approvedCasePlan?: CaseStudyPlan
   researchPaperProfile?: ResearchPaperDisciplineProfile
   includeSeparateLiteratureReview?: boolean
+  // Set only when documentType === 'ThesisChapter'; selects the chapter written.
+  thesisChapter?: ThesisChapterKind
   targetJournal?: string
   researchState?: ResearchState
   researchEvidence?: ResearchEvidenceContext
@@ -191,6 +197,7 @@ export interface WriteWithAiRequest {
 }
 
 export interface WriteWithAiReference {
+  authorDetails?: { family?: string | null; given?: string | null; name?: string | null }[]
   sourceId: string
   canonicalId?: string | null
   openAlexWorkId?: string | null
@@ -210,6 +217,7 @@ export interface WriteWithAiReference {
   volume?: string | null
   issue?: string | null
   pages?: string | null
+  publisher?: string | null
 }
 
 export interface EssaySections {
@@ -224,7 +232,75 @@ export interface WriteWithAiLiteratureReviewSection {
   content:     string
 }
 
+export interface CoWriteSection {
+  id: string
+  kind: 'intro' | 'body' | 'conclusion'
+  heading: string
+  claim: string
+  reasoning: string
+  qualification: string
+  evidenceIds: string[]
+  words: number
+  status: 'ready' | 'limited' | 'no_evidence'
+}
+export interface CoWritePassage { id: string; sourceId: string; text: string; claim: string; role: string }
+export interface CoWriteSession {
+  sessionId: string
+  title: string
+  question: string
+  thesis: string
+  citationStyle: EssayCitationStyle
+  sections: CoWriteSection[]
+  passages: CoWritePassage[]
+  references: WriteWithAiReference[]
+}
+export interface CoWriteSectionRequest {
+  sessionId: string
+  sectionId: string
+  excludeSourceIds?: string[]
+  instruction?: string
+  acceptedText?: string
+}
+export interface CoWriteSectionResponse {
+  sectionId: string
+  text: string
+  sourceIds: string[]
+  evidenceIds: string[]
+  warnings: string[]
+  wordCount: number
+  /** The text passed the citation checks but not the academic review (or the review could not run): the student should read it before relying on it. */
+  needsReview?: boolean
+}
+
 export interface WriteWithAiResponse {
+  completionStatus?: 'Complete' | 'Incomplete' | 'CoWriteReady'
+  coWrite?: CoWriteSession | null
+  completionReason?: string | null
+  questionCoverage?: {
+    version: string
+    gapReport?: { componentId: string; subQuestion: string; period: string; directSourceCount: number; sourceIds: string[]; sourcePeriods: string[]; status: string }[]
+    plan: { components: { id: string; issue: string; essential: boolean; evidenceNeed: string; searchIntents: string[]; argumentRole: string; period?: string; startYear?: number | null; endYear?: number | null; backgroundSearchIntents?: string[] }[] }
+    assessment: {
+      passages: { id: string; sourceId: string; text: string; claim: string; role: string; componentIds: string[]; justification: string; limitations: string[]; access: string; locator: string }[]
+      coverage: { componentId: string; state: 'supported' | 'partial' | 'unsupported' | 'conflicting'; reason: string; evidenceIds: string[]; followUpQuery: string }[]
+    }
+    outline: { arguments: { componentId: string; claim: string; reasoning: string; qualification: string; evidenceIds: string[]; words: number }[] }
+    stopReason: string
+    diagnostics: string[]
+  } | null
+  evidencePlan?: {
+    version: string
+    available: boolean
+    scope: { question: string; articleType: string; academicLevel: string; wordBudget: number; populationOrContext?: string | null; phenomenon?: string | null; outcomesOrConstructs?: string | null; requiredPerspective?: string | null; explicitRequirements: string[]; proposedFraming: string[] }
+    sources: { sourceId: string; canonicalId: string; access: string; population?: string | null; setting?: string | null; design?: string | null; conditions?: string | null; constructs?: string | null; tasks?: string | null; outcomes?: string | null; findings: string[]; limitations: string[]; supportingExcerpt?: string | null; locator?: string | null }[]
+    claims: { text: string; sourceIds: string[]; supportStatus: 'direct' | 'indirect' | 'conflicting' | 'insufficient' | 'unsupported'; limitations: string[]; action: string; wording: string }[]
+    boundedThesis: string
+    gaps: string[]
+    latencyMs: number
+    sourceCacheHits: number
+    failureReason?: string | null
+  } | null
+  evidenceIssues?: { passageId: string; claim: string; sourceIds: string[]; category: string; severity: string; explanation: string; correctiveAction: string }[]
   isEssay:    boolean
   title:      string
   content:    string

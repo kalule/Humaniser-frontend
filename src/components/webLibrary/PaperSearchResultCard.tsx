@@ -6,15 +6,20 @@ import { CitePopover } from './CitePopover'
 
 interface PaperSearchResultCardProps {
   result: PaperSearchResult
+  /** Best-effort client-side duplicate match (DOI, else normalised title) against
+   *  the currently loaded library — the server's own isSaved only reflects an
+   *  exact canonical-id match. */
+  alreadyInLibrary?: boolean
   /** Unsaved: opens the collection-picker + confirm ("Add to Library") flow.
    *  Already saved: reopens the same picker, pre-checked, to edit collection membership. */
   onSave: () => void
   onDetails: () => void
 }
 
-export function PaperSearchResultCard({ result, onSave, onDetails }: PaperSearchResultCardProps) {
+export function PaperSearchResultCard({ result, alreadyInLibrary = false, onSave, onDetails }: PaperSearchResultCardProps) {
   const [expanded, setExpanded] = useState(false)
   const authorLine = result.authors.slice(0, 6).join(', ') + (result.authors.length > 6 ? ', et al.' : '')
+  const isSaved = result.isSaved || alreadyInLibrary
 
   return (
     <div className="rounded-xl border border-slate-200 p-4">
@@ -42,7 +47,7 @@ export function PaperSearchResultCard({ result, onSave, onDetails }: PaperSearch
           </p>
           <button
             onClick={() => setExpanded(v => !v)}
-            className="text-[12px] font-medium text-[#7c3aed] hover:text-[#4c1d95] transition-colors mt-1"
+            className="text-[12px] font-medium text-purple-accent hover:text-purple-deep transition-colors mt-1"
           >
             {expanded ? 'Show less' : 'Show more'}
           </button>
@@ -63,11 +68,11 @@ export function PaperSearchResultCard({ result, onSave, onDetails }: PaperSearch
           </a>
         )}
         <CitePopover paper={result} />
-        {result.isSaved ? (
+        {isSaved ? (
           <button
             onClick={onSave}
-            title="Saved to your library — click to manage collections"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+            title={result.isSaved ? 'Saved to your library — click to manage collections' : 'Looks like it\'s already in your library'}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-green-tint text-green-text border border-transparent hover:opacity-80 transition-opacity"
           >
             <BookMarked size={12} /> Library Source
           </button>

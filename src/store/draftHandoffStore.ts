@@ -1,12 +1,14 @@
 import { create } from 'zustand'
 import type { DocumentGenre } from '../types/library'
 import type { FormatStyle } from '../types/citation'
+import type { ThesisChapterKind } from '../types/workbench'
 
 export interface PendingDraft {
   documentId:    string
   topic:         string
   documentType:  DocumentGenre
   citationStyle: FormatStyle
+  thesisChapter?: ThesisChapterKind
 }
 
 interface DraftHandoffStore {

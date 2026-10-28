@@ -9,6 +9,7 @@ import { WordLimitModal } from '../ui/WordLimitModal'
 import { CreditLimitModal } from '../ui/CreditLimitModal'
 import { DetectorCapModal } from '../ui/DetectorCapModal'
 import { TopUpModal } from '../ui/TopUpModal'
+import { DeepResearchWatcher } from '../app/DeepResearchWatcher'
 
 const BOTTOM_TABS = [
   { to: '/app/humaniser', label: 'Rewrite', icon: Wand2 },
@@ -35,6 +36,7 @@ export function AppShell() {
         <AppNavbar onMobileMenuClick={openMobile} />
         <main id="main-content" className="flex-1 min-h-0 pb-16 md:pb-0 overflow-auto" tabIndex={-1}>
           <Outlet />
+          <DeepResearchWatcher />
         </main>
       </div>
 

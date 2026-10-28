@@ -81,7 +81,8 @@ export function useCitation() {
     if (store.citations.length === 0) { toast.error('Your library is empty.'); return }
     store.setExporting(true)
     try {
-      await citationApi.exportDocx(format)
+      const { downloadCitationDocx } = await import('../lib/csl/citationDocx')
+      await downloadCitationDocx(store.citations, format)
     } catch (err) {
       toast.error(toErrorMessage(err))
     } finally {

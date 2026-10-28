@@ -3,14 +3,17 @@ import { motion } from 'framer-motion'
 import { AlertTriangle, BookMarked, ChevronRight, Loader2, Plus, RefreshCw, X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import type { ParsedReference } from '../../lib/citationFormat'
+import { describeBibliography, type BibliographyState } from '../../lib/bibliographyState'
 import type { CitationFixAction, CitationFlag, CitationMismatchType, CitationStyle, FetchedLiterature } from '../../types/research'
 import { getReplacementCandidates, MIN_REPLACEMENT_QUERY_LENGTH } from './replacementCandidates'
 import { citationFixBlockedReason } from './citationFixOptions'
+import { AmbiguousSourceChooser } from './AmbiguousSourceChooser'
+import { candidatesForAmbiguousFlag } from '../../lib/citationMatch'
 
 interface ReferencesDrawerProps {
   open:          boolean
   onClose:       () => void
-  loading:       boolean
+  bibliography:  BibliographyState
   entries:       ParsedReference[]
   citationStyle: CitationStyle
   onInsert:      (ref: ParsedReference, index: number) => void
@@ -22,6 +25,7 @@ interface ReferencesDrawerProps {
   onRepairFlag?: (flagId: string, action: CitationFixAction, replacementLiteratureId?: string) => void
   onRemoveClaim?: (flagId: string) => void
   onDismissFlag?: (flagId: string, reason?: string) => void
+  onChooseSource?: (flagId: string, literatureId: string) => void
 }
 
 const CITATION_LABELS: Record<CitationStyle, string> = {
@@ -29,6 +33,12 @@ const CITATION_LABELS: Record<CitationStyle, string> = {
   harvard: 'Harvard',
   mla:     'MLA',
   ieee:    'IEEE',
+}
+
+const UNRESOLVED_REASON_LABELS: Record<string, string> = {
+  no_match:  'no matching source in this project',
+  ambiguous: 'several sources share this author and year',
+  malformed: 'not a citation inside a sentence',
 }
 
 const FLAG_LABELS: Record<CitationMismatchType, string> = {
@@ -49,6 +59,7 @@ const FLAG_LABELS: Record<CitationMismatchType, string> = {
   GeographicMismatch: 'The source evidence does not cover the country or region claimed',
   GeneralizationBeyondSample: 'The claim generalises beyond the verified sample',
   PopulationScopeViolation: 'The source population or institutional scope does not match the claim',
+  AmbiguousCitation: 'Several papers share this author and year; confirm which one you cited',
 }
 
 export const getActiveCitationFlags = (flags: CitationFlag[]) =>
@@ -62,8 +73,8 @@ export function getFlaggedSourceLabel(flag: CitationFlag): string | null {
 }
 
 export function ReferencesDrawer({
-  open, onClose, loading, entries, citationStyle, onInsert, onRefresh, onManageFull,
-  flags = [], literature = [], busyFlagId, onRepairFlag, onRemoveClaim, onDismissFlag,
+  open, onClose, bibliography, entries, citationStyle, onInsert, onRefresh, onManageFull,
+  flags = [], literature = [], busyFlagId, onRepairFlag, onRemoveClaim, onDismissFlag, onChooseSource,
 }: ReferencesDrawerProps) {
   const [replaceFlagId, setReplaceFlagId] = useState<string | null>(null)
   const [dismissFlagId, setDismissFlagId] = useState<string | null>(null)
@@ -73,6 +84,9 @@ export function ReferencesDrawer({
   // The backend endpoint is active-only; retain this presentation-boundary guard so an older or
   // stale deployment cannot turn resolved audit history back into student-facing issue cards.
   const openFlags = getActiveCitationFlags(flags)
+  const loading = bibliography.status === 'loading' || bibliography.status === 'idle'
+  const described = describeBibliography(bibliography)
+  const unresolved = bibliography.status === 'ready' ? bibliography.data.unresolvedCitations : []
 
   return (
     <motion.div
@@ -92,7 +106,7 @@ export function ReferencesDrawer({
           <p className="text-[11px] text-slate-400 mt-0.5 truncate">
             {loading
               ? 'Compiling…'
-              : `${openFlags.length} section issue${openFlags.length === 1 ? '' : 's'} · ${entries.length} project reference${entries.length === 1 ? '' : 's'} · ${CITATION_LABELS[citationStyle]}`}
+              : `${openFlags.length} section issue${openFlags.length === 1 ? '' : 's'} · ${described.summary} · ${CITATION_LABELS[citationStyle]}`}
           </p>
         </div>
         <button
@@ -127,6 +141,7 @@ export function ReferencesDrawer({
                 const rewriteBlocked = citationFixBlockedReason(flag, 'RewriteClaim')
                 const replaceBlocked = citationFixBlockedReason(flag, 'ReplaceCitation')
                 const markBlocked = citationFixBlockedReason(flag, 'MarkResearcherProposed')
+                const ambiguous = flag.mismatchTypes.includes('AmbiguousCitation')
                 return (
                 <li key={flag.id} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <p className="text-[11.5px] font-semibold leading-snug text-amber-800">
@@ -153,10 +168,17 @@ export function ReferencesDrawer({
                   {flag.llmReasoning && (
                     <p className="mt-1 text-[10.5px] italic leading-relaxed text-amber-700">{flag.llmReasoning}</p>
                   )}
+                  {ambiguous && onChooseSource && (
+                    <AmbiguousSourceChooser
+                      candidates={candidatesForAmbiguousFlag(flag.literatureId, literature)}
+                      busy={busyFlagId === flag.id}
+                      onChoose={id => onChooseSource(flag.id, id)}
+                    />
+                  )}
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {onRepairFlag && <button disabled={busyFlagId === flag.id || !!rewriteBlocked} title={rewriteBlocked} type="button" onClick={() => onRepairFlag(flag.id, 'RewriteClaim')} className="rounded-md bg-white px-2 py-1 text-[10.5px] font-semibold text-violet-700 border border-violet-200 disabled:opacity-50">Rewrite claim</button>}
-                    {onRepairFlag && <button disabled={busyFlagId === flag.id || !!replaceBlocked} title={replaceBlocked} type="button" onClick={() => { setReplaceFlagId(replaceFlagId === flag.id ? null : flag.id); setReplacementQuery('') }} className="rounded-md bg-white px-2 py-1 text-[10.5px] font-semibold text-violet-700 border border-violet-200 disabled:opacity-50">Replace citation</button>}
-                    {onRepairFlag && <button disabled={busyFlagId === flag.id || !!markBlocked} title={markBlocked} type="button" onClick={() => onRepairFlag(flag.id, 'MarkResearcherProposed')} className="rounded-md bg-white px-2 py-1 text-[10.5px] font-semibold text-slate-600 border border-slate-200 disabled:opacity-50">Researcher-proposed</button>}
+                    {onRepairFlag && !ambiguous && <button disabled={busyFlagId === flag.id || !!rewriteBlocked} title={rewriteBlocked} type="button" onClick={() => onRepairFlag(flag.id, 'RewriteClaim')} className="rounded-md bg-white px-2 py-1 text-[10.5px] font-semibold text-violet-700 border border-violet-200 disabled:opacity-50">Rewrite claim</button>}
+                    {onRepairFlag && !ambiguous && <button disabled={busyFlagId === flag.id || !!replaceBlocked} title={replaceBlocked} type="button" onClick={() => { setReplaceFlagId(replaceFlagId === flag.id ? null : flag.id); setReplacementQuery('') }} className="rounded-md bg-white px-2 py-1 text-[10.5px] font-semibold text-violet-700 border border-violet-200 disabled:opacity-50">Replace citation</button>}
+                    {onRepairFlag && !ambiguous && <button disabled={busyFlagId === flag.id || !!markBlocked} title={markBlocked} type="button" onClick={() => onRepairFlag(flag.id, 'MarkResearcherProposed')} className="rounded-md bg-white px-2 py-1 text-[10.5px] font-semibold text-slate-600 border border-slate-200 disabled:opacity-50">Researcher-proposed</button>}
                     {onRemoveClaim && <button disabled={busyFlagId === flag.id} type="button" onClick={() => onRemoveClaim(flag.id)} className="rounded-md bg-white px-2 py-1 text-[10.5px] font-semibold text-red-600 border border-red-200 disabled:opacity-50">Remove claim</button>}
                     {onDismissFlag && (() => {
                       // Dismiss only ever confirms a genuine false positive — that requires having
@@ -248,9 +270,26 @@ export function ReferencesDrawer({
             </ul>
           </section>
         )}
+        {!loading && unresolved.length > 0 && (
+          <section className="mb-4" aria-label="Citations to review">
+            <h3 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+              Citations to review ({unresolved.length})
+            </h3>
+            <ul className="space-y-1.5">
+              {unresolved.map((u, i) => (
+                <li key={`${u.sectionCode}:${u.citationText}:${i}`} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                  <p className="text-[12px] font-medium text-slate-700">{u.citationText}</p>
+                  <p className="mt-0.5 text-[10.5px] text-amber-800">
+                    Section {u.sectionCode} · {UNRESOLVED_REASON_LABELS[u.reason] ?? u.reason}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {!loading && entries.length > 0 && (
           <h3 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-            Project bibliography ({entries.length})
+            Cited references ({entries.length})
           </h3>
         )}
         {loading ? (
@@ -259,12 +298,22 @@ export function ReferencesDrawer({
             <p className="text-[12px] text-slate-400">Compiling bibliography…</p>
           </div>
         ) : entries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-4">
-            <BookMarked size={22} className="text-slate-300" />
-            <p className="text-[12px] text-slate-500 font-medium">No references yet</p>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              Generate at least one section first, then refresh this panel.
+          <div className="flex flex-col items-center justify-center gap-2 text-center px-4 py-10">
+            {described.tone === 'error'
+              ? <AlertTriangle size={22} className="text-red-400" />
+              : <BookMarked size={22} className="text-slate-300" />}
+            <p className={cn('text-[12px] font-medium', described.tone === 'error' ? 'text-red-600' : 'text-slate-500')}>
+              {described.message}
             </p>
+            {described.canRetry && (
+              <button
+                type="button"
+                onClick={onRefresh}
+                className="rounded-md border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-violet-700 hover:bg-violet-50"
+              >
+                Retry
+              </button>
+            )}
           </div>
         ) : (
           <ul className="space-y-1.5">

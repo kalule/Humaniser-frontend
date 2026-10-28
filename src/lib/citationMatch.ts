@@ -1,6 +1,6 @@
 import type { CitationFlag, CitationStyle, FetchedLiterature } from '../types/research'
 import type { ParsedReference } from './citationFormat'
-import { extractSurnamesFromAuthors } from './citationFormat'
+import { extractSurnamesFromAuthors, foldNamePunctuation } from './citationFormat'
 
 // ── In-editor citation detection ────────────────────────────────────────────
 // Scans plain prose for citation-shaped substrings so DocumentSurface can decorate
@@ -19,8 +19,8 @@ export interface CitationHit {
 
 const YEAR_STYLE_RE = /\(([^()]{3,100})\)/g
 const YEAR_SUFFIX_RE = /,?\s*(\d{4}[a-z]?)\s*$/
-const NARRATIVE_AUTHOR_TAIL_RE = /((?:[A-Z][\p{L}'\p{Pd}-]*)(?:(?:\s+(?:de|van|von|der|den|el|al|bin|ibn|da|dos|das|la|le|du|di)\s+[A-Z][\p{L}'\p{Pd}-]*)|(?:\s+(?:and|&)\s+[A-Z][\p{L}'\p{Pd}-]*)|(?:\s+et\s+al\.?))?)\s*$/u
-const MLA_RE  = /\(([A-Z][\p{L}'-]+)\)/gu
+const NARRATIVE_AUTHOR_TAIL_RE = /((?:[A-Z][\p{L}'’\p{Pd}-]*)(?:(?:\s+(?:de|van|von|der|den|el|al|bin|ibn|da|dos|das|la|le|du|di)\s+[A-Z][\p{L}'’\p{Pd}-]*)|(?:\s+(?:and|&)\s+[A-Z][\p{L}'’\p{Pd}-]*)|(?:\s+et\s+al\.?))?)\s*$/u
+const MLA_RE  = /\(([A-Z][\p{L}'’-]+)\)/gu
 const IEEE_RE = /\[(\d{1,3})\]/g
 
 // Runs the style-appropriate regex over a single text run (a ProseMirror text node's
@@ -41,7 +41,7 @@ export function scanTextForCitations(
 
   if (style === 'mla') {
     for (const m of text.matchAll(MLA_RE)) {
-      if (knownMlaSurnames.has(m[1])) {
+      if (knownMlaSurnames.has(foldNamePunctuation(m[1]))) {
         hits.push({ from: m.index!, to: m.index! + m[0].length, inner: m[1] })
       }
     }
@@ -67,7 +67,41 @@ export function scanTextForCitations(
 
 // ── Resolving a hit to a real source ────────────────────────────────────────
 
+/**
+ * Every project paper that shares the first author and year of the paper an ambiguous-citation flag
+ * recorded as its pick, with that pick first. Mirrors the server (ChooseCitationSourceAsync derives
+ * the same set from the flag's recorded pick, not from the saved text, because the saved reference
+ * list already names the pick). Empty when the pick is unknown or nothing else shares its key.
+ */
+export function candidatesForAmbiguousFlag(literatureId: string | undefined, literature: FetchedLiterature[]): CitationCandidate[] {
+  const current = literature.find(l => l.id === literatureId)
+  if (!current) return []
+  const surname = firstSurname(current.authors)
+  if (!surname) return []
+  const sameKey = literature.filter(l => String(l.year) === String(current.year) && firstSurname(l.authors) === surname)
+  if (sameKey.length < 2) return []
+  const ordered = [current, ...sameKey.filter(l => l.id !== current.id)]
+  return ordered.map(l => ({
+    id: l.id, title: l.title, authors: l.authors, year: l.year, doi: l.doi,
+    viewUrl: l.doi ? `https://doi.org/${l.doi}` : l.url,
+  }))
+}
+
+/** A source that fits a citation's author and year, shown when more than one does. */
+export interface CitationCandidate {
+  id:      string
+  title:   string
+  authors: string
+  year:    number | string
+  doi?:    string
+  viewUrl?: string
+}
+
 export interface ResolvedCitation {
+  /** Set only when two or more sources share the cited author and year. The first is still the one
+   *  shown (and the one the server resolves unless the reference list names a DOI), so the popover
+   *  must tell the reader the choice is not certain rather than present it as the source. */
+  candidates?:    CitationCandidate[]
   displayTitle:   string           // bold heading — literature title, or the raw matched text as fallback
   authors?:       string
   year?:          number | string
@@ -93,14 +127,16 @@ function parseYearStyleInner(inner: string): { surname: string; year: string } |
 
 function resolveOne(clauseText: string, style: CitationStyle, literature: FetchedLiterature[]): ResolvedCitation | null {
   let match: FetchedLiterature | undefined
+  let sameKey: FetchedLiterature[] = []
 
   if (style === 'mla') {
-    match = literature.find(l => firstSurname(l.authors) === clauseText)
+    match = literature.find(l => firstSurname(l.authors) === foldNamePunctuation(clauseText))
   } else {
     const parsed = parseYearStyleInner(clauseText)
     if (!parsed) return null
-    match = literature.find(l =>
+    sameKey = literature.filter(l =>
       firstSurname(l.authors) === parsed.surname && String(l.year) === parsed.year)
+    match = sameKey[0]
   }
 
   if (!match) {
@@ -118,6 +154,12 @@ function resolveOne(clauseText: string, style: CitationStyle, literature: Fetche
     viewUrl:       match.doi ? `https://doi.org/${match.doi}` : match.url,
     doi:           match.doi,
     matchedSource: true,
+    candidates:    sameKey.length > 1
+      ? sameKey.map(l => ({
+        id: l.id, title: l.title, authors: l.authors, year: l.year, doi: l.doi,
+        viewUrl: l.doi ? `https://doi.org/${l.doi}` : l.url,
+      }))
+      : undefined,
   }
 }
 

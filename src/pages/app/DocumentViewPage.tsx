@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { X, Download, Loader2, Copy, CheckCircle2, AlertCircle } from 'lucide-react'
+import { X, Download, Loader2, Copy, CheckCircle2, AlertCircle, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { ApiError } from '../../types'
 import { useResearchStore } from '../../store/researchStore'
 import { researchApi } from '../../api/research'
 import type { ProjectSection } from '../../types/research'
 import '../../styles/research-agent-editor.css'
+import { ProposalMarkdown } from '../../components/research-agent/ProposalMarkdown'
 
 const CITATION_LABELS: Record<string, string> = {
   apa7: 'APA 7th', harvard: 'Harvard', mla: 'MLA', ieee: 'IEEE',
@@ -16,32 +17,6 @@ const CITATION_LABELS: Record<string, string> = {
 // reference avoids handing the Zustand selector a fresh `[]` on every render
 // (see ResearchAgentPage's EMPTY_SECTIONS for the getSnapshot loop this avoids).
 const EMPTY_SECTIONS: ProjectSection[] = []
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
-
-// Wraps parenthetical in-text citations, e.g. "(Smith et al., 2023)", in a pill
-// span purely for readability — a loose heuristic (any "(...)" ending in a
-// 19xx/20xx year) rather than a real citation parser, so it can occasionally
-// tag a non-citation parenthetical; that's an acceptable trade-off here since
-// this view is read-only and never feeds back into stored content.
-const CITATION_RE = /\(([^()]{2,100}?\b(?:19|20)\d{2}[a-z]?)\)/g
-
-function wrapCitations(escapedText: string): string {
-  return escapedText.replace(CITATION_RE, (match) => `<span class="doc-citation-pill">${match}</span>`)
-}
-
-function paragraphsToHtml(content: string): string {
-  return content
-    .split(/\n\n+/)
-    .filter(p => p.trim())
-    .map(p => `<p>${wrapCitations(escapeHtml(p)).replace(/\n/g, '<br>')}</p>`)
-    .join('')
-}
 
 export default function DocumentViewPage() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -84,19 +59,6 @@ export default function DocumentViewPage() {
     () => [...dbSections].filter(s => s.content.trim()).sort((a, b) => a.order - b.order),
     [dbSections],
   )
-
-  const documentHtml = useMemo(() => {
-    const parts: string[] = []
-    for (const section of sortedSections) {
-      parts.push(`<h2>${escapeHtml(section.code)} ${escapeHtml(section.title)}</h2>`)
-      parts.push(paragraphsToHtml(section.content))
-    }
-    if (bibliography.length > 0) {
-      parts.push('<h2>References</h2>')
-      parts.push(`<ol class="doc-reference-list">${bibliography.map(e => `<li>${escapeHtml(e)}</li>`).join('')}</ol>`)
-    }
-    return parts.join('')
-  }, [sortedSections, bibliography])
 
   const isThesisOrDissertation = project?.documentType === 'Thesis' || project?.documentType === 'Dissertation'
   const handleClose = () => navigate(isThesisOrDissertation ? '/app/thesis-studio' : '/app/proposal-studio')
@@ -176,6 +138,12 @@ export default function DocumentViewPage() {
               {CITATION_LABELS[project.citationStyle] ?? project.citationStyle.toUpperCase()}
             </span>
             <button
+              onClick={() => navigate(`/app/research-agent/${project.id}?section=1.0`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 text-[12px] font-medium text-slate-200 hover:bg-slate-700 transition-colors"
+            >
+              <Pencil size={13} /> Edit
+            </button>
+            <button
               onClick={handleCopy}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 text-[12px] font-medium text-slate-200 hover:bg-slate-700 transition-colors"
             >
@@ -214,7 +182,15 @@ export default function DocumentViewPage() {
               </div>
             ) : (
               <div className="tiptap-doc-editor">
-                <div className="ProseMirror" dangerouslySetInnerHTML={{ __html: documentHtml }} />
+                <div className="ProseMirror">
+                  {sortedSections.map(section => <section key={section.code}>
+                    <h2>{section.code} {section.title}</h2>
+                    <ProposalMarkdown content={section.content} />
+                  </section>)}
+                  {bibliography.length > 0 && <><h2>References</h2><ol className="doc-reference-list">
+                    {bibliography.map((entry, index) => <li key={index}>{entry}</li>)}
+                  </ol></>}
+                </div>
               </div>
             )}
             {loadingBib && sortedSections.length > 0 && (

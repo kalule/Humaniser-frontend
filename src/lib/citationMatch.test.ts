@@ -128,3 +128,69 @@ describe('narrative Harvard/APA citations', () => {
       .toEqual([{ from: 27, to: 33, inner: '2015' }])
   })
 })
+
+// Live regression (2026-10-10, project 2ec585bc): "(Al-Qora'n, 2025)" showed "Unmatched" although the
+// pool held "Lamis F. Al-Qora’n" with a typographic apostrophe (U+2019). The backend resolver was fixed
+// first, but this popover resolver is an independent TypeScript copy and needed the same fold.
+describe('resolveHitAgainstLiterature — apostrophe and hyphen variants', () => {
+  const stored = lit({
+    title: 'Modular Monolith Architecture in Cloud Environments',
+    authors: 'Lamis F. Al-Qora’n, Amro Al-Said Ahmad', year: 2025, doi: '10.3390/fi17110496',
+  })
+  const hit = (inner: string): CitationHit => ({ from: 0, to: inner.length + 2, inner })
+
+  it.each([
+    ["Al-Qora'n, 2025"],       // straight apostrophe, as drafted
+    ['Al-Qora’n, 2025'],       // curly apostrophe, as stored
+    ['Al‑Qora’n, 2025'],       // non-breaking hyphen
+    ['Al-Qora’n et al., 2025'],
+  ])('resolves %s to the stored source', inner => {
+    const resolved = resolveHitAgainstLiterature(hit(inner), 'harvard', [stored])
+    expect(resolved![0]).toMatchObject({ matchedSource: true, doi: '10.3390/fi17110496' })
+  })
+
+  it('also resolves when the source is stored with a straight apostrophe and cited with a curly one', () => {
+    const straight = lit({ title: 'T', authors: "Sean O'Neill", year: 2023, doi: '10.1/o' })
+    expect(resolveHitAgainstLiterature(hit('O’Neill, 2023'), 'harvard', [straight])![0].matchedSource).toBe(true)
+  })
+
+  it('does not match a different year', () => {
+    expect(resolveHitAgainstLiterature(hit("Al-Qora'n, 2024"), 'harvard', [stored])![0].matchedSource).toBe(false)
+  })
+
+  it('finds a curly-apostrophe MLA surname the editor would otherwise skip', () => {
+    const known = new Set(['Al-Qora\'n'])
+    expect(scanTextForCitations('as shown (Al-Qora’n) here', 'mla', known)).toHaveLength(1)
+  })
+})
+
+// Read-time ambiguity: two sources share author and year, so the popover must not present the first
+// as "the" source. The pick itself is unchanged (it mirrors the server's first-candidate fallback).
+describe('resolveHitAgainstLiterature — same author and year', () => {
+  const a = lit({ id: 'a', title: 'Paper A', authors: 'Smith, J.', year: 2024, doi: '10.1/a' })
+  const b = lit({ id: 'b', title: 'Paper B', authors: 'Smith, K.', year: 2024, doi: '10.1/b' })
+  const hit = (inner: string): CitationHit => ({ from: 0, to: inner.length + 2, inner })
+
+  it('keeps the first source but lists every candidate', () => {
+    const r = resolveHitAgainstLiterature(hit('Smith, 2024'), 'harvard', [a, b])![0]
+    expect(r).toMatchObject({ matchedSource: true, displayTitle: 'Paper A', doi: '10.1/a' })
+    expect(r.candidates?.map(c => c.id)).toEqual(['a', 'b'])
+    expect(r.candidates?.[1].viewUrl).toBe('https://doi.org/10.1/b')
+  })
+
+  it('has no candidates when the match is unique', () => {
+    expect(resolveHitAgainstLiterature(hit('Smith, 2024'), 'harvard', [a])![0].candidates).toBeUndefined()
+  })
+
+  it('does not count a different year as a candidate', () => {
+    const other = lit({ id: 'c', title: 'Paper C', authors: 'Smith, L.', year: 2023 })
+    expect(resolveHitAgainstLiterature(hit('Smith, 2024'), 'harvard', [a, other])![0].candidates).toBeUndefined()
+  })
+
+  it('resolves each clause of a grouped citation on its own', () => {
+    const jones = lit({ id: 'j', title: 'Jones paper', authors: 'Jones, M.', year: 2022 })
+    const [first, second] = resolveHitAgainstLiterature(hit('Smith, 2024; Jones, 2022'), 'harvard', [a, b, jones])!
+    expect(first.candidates).toHaveLength(2)
+    expect(second.candidates).toBeUndefined()
+  })
+})

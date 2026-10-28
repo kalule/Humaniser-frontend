@@ -1,0 +1,44 @@
+[
+    {
+        "id":  "df31de67-bb78-45b4-a358-c574d0238fcd",
+        "name":  "Core concepts",
+        "keywords":  "digital learning, e-learning adoption, online learning, technology-enhanced learning, learning management systems",
+        "enabled":  true
+    },
+    {
+        "id":  "3c6cfbd2-ed9a-4cc0-ad51-65e0e220f647",
+        "name":  "Student factors and characteristics",
+        "keywords":  "student attitudes, digital literacy, self-efficacy, motivation, learning preferences, generational differences",
+        "enabled":  true
+    },
+    {
+        "id":  "9d2ec94d-8a73-40c0-90c9-d819d93a34cc",
+        "name":  "Institutional and infrastructure",
+        "keywords":  "institutional support, technical infrastructure, internet access, broadband connectivity, device availability",
+        "enabled":  true
+    },
+    {
+        "id":  "0aa2474d-1ddb-405d-a292-e9e9d9da37b0",
+        "name":  "Pedagogical and instructional design",
+        "keywords":  "course design, teaching methods, interactive content, instructional quality, assessment strategies",
+        "enabled":  true
+    },
+    {
+        "id":  "3fce69b2-bf07-473e-8e67-02f3d31d82fc",
+        "name":  "Socioeconomic and contextual barriers",
+        "keywords":  "digital divide, socioeconomic status, rural urban disparities, gender equity, language barriers",
+        "enabled":  true
+    },
+    {
+        "id":  "27491fbf-ba79-434c-b714-1ad3f772db8b",
+        "name":  "African and South African context",
+        "keywords":  "Sub-Saharan Africa, South African higher education, developing countries, resource-constrained settings",
+        "enabled":  true
+    },
+    {
+        "id":  "7b274851-baaa-43f6-b10f-875c6f9daa85",
+        "name":  "Technology acceptance models",
+        "keywords":  "Technology Acceptance Model, UTAUT, perceived usefulness, perceived ease of use, adoption intention",
+        "enabled":  true
+    }
+]

@@ -1,5 +1,5 @@
 import {
-  extractSurnamesFromAuthors,
+  essayAuthorSurnames,
   formatEssayInTextCitation,
   type EssayCitationStyleName,
   type EssayReferenceMeta,
@@ -39,7 +39,7 @@ export function orderEssayReferences<T extends OrderableReference>(
   }
 
   const sortKey = (r: T) => {
-    const surname = r.authors ? extractSurnamesFromAuthors(r.authors)[0] : undefined
+    const surname = essayAuthorSurnames(r)[0]
     return (surname ?? r.title).toLocaleLowerCase()
   }
   const ordered = [...references].sort((a, b) =>

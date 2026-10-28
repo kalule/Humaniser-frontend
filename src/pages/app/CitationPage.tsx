@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, Loader2, Check, Copy } from 'lucide-react'
 import { useCitation } from '../../hooks/useCitation'
 import { TwoColumnModulePage } from '../../components/shared/TwoColumnModulePage'
 import type { CitationAuthor, CitationDto, FormatStyle, ResolvedCitation, SaveCitationRequest } from '../../types/citation'
 import { FORMAT_LABELS, FORMAT_STYLES as FORMATS } from '../../types/citation'
+import { citationRecordReference, cslCitationSaveRequest } from '../../lib/csl/citationRecord'
 
 // ── Format config ──────────────────────────────────────────────────────────────
 
@@ -25,36 +26,11 @@ function formatAuthorsShort(authors: CitationAuthor[]): string {
   return `${authors[0].lastName} et al.`
 }
 
-function getCitationText(citation: CitationDto, format: FormatStyle): string {
-  return (
-    format === 'apa7'      ? citation.cachedApa7 :
-    format === 'harvard'   ? citation.cachedHarvard :
-    format === 'ieee'      ? citation.cachedIeee :
-    format === 'chicago'   ? citation.cachedChicago :
-    format === 'vancouver' ? citation.cachedVancouver :
-    citation.cachedMla
-  ) ?? ''
-}
-
-function getResolvedText(resolved: ResolvedCitation, format: FormatStyle): string {
-  return (
-    format === 'apa7'      ? resolved.apa7 :
-    format === 'harvard'   ? resolved.harvard :
-    format === 'ieee'      ? resolved.ieee :
-    format === 'chicago'   ? resolved.chicago :
-    format === 'vancouver' ? resolved.vancouver :
-    resolved.mla
-  ) ?? ''
-}
-
-// Renders *italic* markers from the API citation string
+// CSL plain-text output is text, including literal asterisks in source titles.
 function CitationText({ text }: { text: string }) {
-  const parts = text.split('*')
   return (
     <p style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text-primary)', fontFamily: 'Georgia, serif' }}>
-      {parts.map((part, i) =>
-        i % 2 === 1 ? <em key={i}>{part}</em> : <span key={i}>{part}</span>
-      )}
+      {text || 'Citation needs review: check the reference details.'}
     </p>
   )
 }
@@ -71,6 +47,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={copy}
+      disabled={!text}
       style={{
         height: 28, padding: '0 10px', borderRadius: 6, fontSize: 11,
         cursor: 'pointer', border: '0.5px solid var(--border-strong)',
@@ -383,6 +360,8 @@ function CitationsMainArea({
 
   const tab = INPUT_TABS.find((t) => t.id === inputTab)!
   const selectedCitation = citations.find((c) => c.id === selectedId) ?? null
+  const resolvedText = useMemo(() => resolved ? citationRecordReference(resolved, formatStyle) ?? '' : '', [resolved, formatStyle])
+  const selectedText = useMemo(() => selectedCitation ? citationRecordReference(selectedCitation, formatStyle) ?? '' : '', [selectedCitation, formatStyle])
 
   const handleResolve = () => {
     if (!inputValue.trim() || isResolving) return
@@ -391,25 +370,9 @@ function CitationsMainArea({
 
   const handleSave = () => {
     if (!resolved) return
-    onSave({
-      itemType:        resolved.itemType,
-      authors:         resolved.authors,
-      title:           resolved.title,
-      publicationYear: resolved.publicationYear,
-      journalName:     resolved.journalName,
-      volume:          resolved.volume,
-      issue:           resolved.issue,
-      pages:           resolved.pages,
-      doi:             resolved.doi,
-      url:             resolved.url,
-      publisher:       resolved.publisher,
-      cachedApa7:      resolved.apa7,
-      cachedHarvard:   resolved.harvard,
-      cachedIeee:      resolved.ieee,
-      cachedMla:       resolved.mla,
-      cachedChicago:   resolved.chicago,
-      cachedVancouver: resolved.vancouver,
-    })
+    const request = cslCitationSaveRequest(resolved)
+    if (!request) return
+    onSave(request)
     setInputValue('')
   }
 
@@ -577,15 +540,15 @@ function CitationsMainArea({
                 padding: '10px 12px', borderLeft: '3px solid var(--color-purple)',
                 minHeight: 56,
               }}>
-                <CitationText text={getResolvedText(resolved, formatStyle)} />
+                <CitationText text={resolvedText} />
               </div>
 
               {/* Actions */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-                <CopyButton text={getResolvedText(resolved, formatStyle)} />
+                <CopyButton text={resolvedText} />
                 <button
                   onClick={handleSave}
-                  disabled={isSaving}
+                  disabled={isSaving || !resolvedText}
                   style={{
                     height: 30, padding: '0 14px',
                     background: isSaving ? '#c4b5fd' : 'var(--color-purple)',
@@ -651,16 +614,11 @@ function CitationsMainArea({
                 padding: '10px 12px', borderLeft: '3px solid var(--color-purple)',
                 minHeight: 56,
               }}>
-                {getCitationText(selectedCitation, formatStyle)
-                  ? <CitationText text={getCitationText(selectedCitation, formatStyle)} />
-                  : <span style={{ fontSize: 12, color: 'var(--text-disabled)', fontStyle: 'italic' }}>
-                      No cached format — re-save to generate.
-                    </span>
-                }
+                <CitationText text={selectedText} />
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-                <CopyButton text={getCitationText(selectedCitation, formatStyle)} />
+                <CopyButton text={selectedText} />
               </div>
             </div>
 

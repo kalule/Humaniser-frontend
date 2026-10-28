@@ -1,0 +1,134 @@
+{
+  "cases": [
+    {
+      "id": "relationship",
+      "workflow": "DeepResearch",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 12
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "judged": 0,
+        "total": 1
+      },
+      "verifiedSourceRate": {
+        "value": 1.0,
+        "judged": 1,
+        "total": 1
+      },
+      "duplicateRate": 0.6,
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 1
+      },
+      "claimSupportAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "contradictoryEvidenceFound": 0,
+      "nullEvidenceFound": 0,
+      "falseResearchGapRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "searchesPerSession": 1,
+      "llmTokensPerSession": 7337,
+      "estimatedLlmCostPerSessionUsd": 0.016473,
+      "timePerSessionSeconds": 41.1974147,
+      "completionReason": "BudgetSources"
+    },
+    {
+      "id": "south-africa",
+      "workflow": "DeepResearch",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 12
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "judged": 0,
+        "total": 6
+      },
+      "verifiedSourceRate": {
+        "value": 1.0,
+        "judged": 6,
+        "total": 6
+      },
+      "duplicateRate": 0.6363636363636364,
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 6
+      },
+      "claimSupportAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 2
+      },
+      "contradictoryEvidenceFound": 0,
+      "nullEvidenceFound": 0,
+      "falseResearchGapRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "searchesPerSession": 1,
+      "llmTokensPerSession": 8517,
+      "estimatedLlmCostPerSessionUsd": 0.020213,
+      "timePerSessionSeconds": 43.192466,
+      "completionReason": "BudgetSources"
+    },
+    {
+      "id": "methodology",
+      "workflow": "DeepResearch",
+      "searchPrecision": {
+        "value": null,
+        "judged": 0,
+        "total": 12
+      },
+      "relevantSourceRate": {
+        "value": null,
+        "judged": 0,
+        "total": 10
+      },
+      "verifiedSourceRate": {
+        "value": 1.0,
+        "judged": 10,
+        "total": 10
+      },
+      "duplicateRate": 0.625,
+      "geographyAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 10
+      },
+      "claimSupportAccuracy": {
+        "value": null,
+        "judged": 0,
+        "total": 2
+      },
+      "contradictoryEvidenceFound": 0,
+      "nullEvidenceFound": 0,
+      "falseResearchGapRate": {
+        "value": null,
+        "judged": 0,
+        "total": 0
+      },
+      "searchesPerSession": 1,
+      "llmTokensPerSession": 9413,
+      "estimatedLlmCostPerSessionUsd": 0.021093,
+      "timePerSessionSeconds": 43.4571518,
+      "completionReason": "BudgetSources"
+    }
+  ],
+  "integrationGate": "Not evaluated: paired baseline and independent quality judgments required.",
+  "averageSearchesPerSession": 1.0,
+  "estimatedLlmCostTotalUsd": 0.057779,
+  "costScope": "LLM estimate only; not a provider billing statement."
+}

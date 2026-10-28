@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-17",
+  "backend": {
+    "passed": 293,
+    "failed": 0,
+    "skipped": 0,
+    "selection": "Essay, DynamicEvidenceCorpusTests, ResearchPaperClaimSupportEnforcementTests"
+  },
+  "frontendTargeted": {
+    "passed": 59,
+    "failed": 0,
+    "files": 5
+  },
+  "frontendFull": {
+    "passed": 445,
+    "failed": 1,
+    "files": 57,
+    "failure": "FixIssuesPanel.test.tsx:85: Reference diversity expected, Source concentration received; untouched by this task"
+  },
+  "productionBuild": "passed",
+  "finalTypecheck": "passed",
+  "repeatScriptSyntax": "passed",
+  "diffWhitespaceCheck": "passed",
+  "liveGenerationRun": false,
+  "originalEssayScore": null,
+  "actualProviderCost": null,
+  "incrementalProviderLatencyMs": null,
+  "planningBounds": {
+    "additionalLogicalCallsPerEssay": 1,
+    "timeoutSeconds": 60,
+    "maxSources": 20,
+    "maxCharactersPerSource": 3200,
+    "maxOutputTokens": 6000
+  },
+  "extractionCache": {
+    "version": "evidence-scope-v1",
+    "maxEntries": 256,
+    "ttlHours": 6,
+    "suppliedDocumentsShared": false
+  },
+  "originalComparisonLimitation": "Original request, settings, article and verified evidence were unavailable; the provided request is explicitly synthetic."
+}

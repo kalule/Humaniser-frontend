@@ -1,0 +1,905 @@
+﻿{
+    "accepted":  {
+                     "id":  "7b51ebbd-2c5c-44a1-833d-534f5a38bb90",
+                     "version":  1,
+                     "hash":  "dc07890f6a6bc509e922938f3b41ff5adf1322f6a8f7ccd2c255f851675306ac",
+                     "schemaVersion":  1,
+                     "reason":  "AcceptedSpecification",
+                     "createdAt":  "2026-10-04T12:18:12.771361Z",
+                     "specification":  {
+                                           "title":  "Factors influencing adoption of digital learning among university students in South Africa",
+                                           "problem":  "The proposed study will estimate digital learning adoption and examine student-level associations with perceived usefulness and access. The literature search must establish the specific contextual gap before claims of novelty or unmet need are accepted.",
+                                           "field":  "Educational technology and digital learning adoption",
+                                           "academicLevel":  "MASTERS",
+                                           "geography":  "South Africa; participating public universities will be selected after access and ethics approval",
+                                           "population":  "Students aged 18 or older enrolled at participating South African public universities during 2027",
+                                           "unitOfAnalysis":  "Individual enrolled student",
+                                           "temporalScope":  "One survey wave in the 2027 academic year",
+                                           "framework":  "Technology acceptance as a provisional conceptual lens linking perceived usefulness and facilitating access to adoption; definitions and theoretical claims require verified literature",
+                                           "contribution":  "A bounded empirical estimate and exploratory association analysis in participating universities, conditional on a verified contextual research gap",
+                                           "limitations":  "Cross-sectional self-report cannot establish causality; institutional participation and nonresponse limit generalisability; precision-based sampling does not guarantee power for every association",
+                                           "scopeLimits":  "Adults enrolled at participating public universities; academic digital learning use only; no claim to cover all South African students",
+                                           "citationStyle":  "harvard",
+                                           "institutionRequirements":  "No institutional template has been supplied; institutional compliance is not certified",
+                                           "universityTemplateId":  null,
+                                           "methodologyVersion":  1,
+                                           "mixedMethodIntegration":  "",
+                                           "totalWords":  6000,
+                                           "questions":  [
+                                                             {
+                                                                 "id":  "10000000-0000-0000-0000-000000000001",
+                                                                 "text":  "What proportion of eligible students report at least weekly use of digital learning tools for academic study?"
+                                                             },
+                                                             {
+                                                                 "id":  "10000000-0000-0000-0000-000000000002",
+                                                                 "text":  "How are perceived usefulness and reliable access associated with at least weekly digital learning use?"
+                                                             }
+                                                         ],
+                                           "objectives":  [
+                                                              {
+                                                                  "id":  "20000000-0000-0000-0000-000000000001",
+                                                                  "text":  "Estimate the proportion of eligible students reporting at least weekly academic digital learning use, with uncertainty intervals.",
+                                                                  "questionIds":  [
+                                                                                      "10000000-0000-0000-0000-000000000001"
+                                                                                  ],
+                                                                  "constructIds":  [
+                                                                                       "30000000-0000-0000-0000-000000000001"
+                                                                                   ],
+                                                                  "dataSourceIds":  [
+                                                                                        "40000000-0000-0000-0000-000000000001"
+                                                                                    ],
+                                                                  "analysisIds":  [
+                                                                                      "50000000-0000-0000-0000-000000000001"
+                                                                                  ],
+                                                                  "type":  "Specific"
+                                                              },
+                                                              {
+                                                                  "id":  "20000000-0000-0000-0000-000000000002",
+                                                                  "text":  "Explore associations of perceived usefulness and reliable access with at least weekly academic digital learning use.",
+                                                                  "questionIds":  [
+                                                                                      "10000000-0000-0000-0000-000000000002"
+                                                                                  ],
+                                                                  "constructIds":  [
+                                                                                       "30000000-0000-0000-0000-000000000001",
+                                                                                       "30000000-0000-0000-0000-000000000002",
+                                                                                       "30000000-0000-0000-0000-000000000003"
+                                                                                   ],
+                                                                  "dataSourceIds":  [
+                                                                                        "40000000-0000-0000-0000-000000000001"
+                                                                                    ],
+                                                                  "analysisIds":  [
+                                                                                      "50000000-0000-0000-0000-000000000002"
+                                                                                  ],
+                                                                  "type":  "Specific"
+                                                              }
+                                                          ],
+                                           "constructs":  [
+                                                              {
+                                                                  "id":  "30000000-0000-0000-0000-000000000001",
+                                                                  "name":  "Digital learning adoption",
+                                                                  "definition":  "Self-reported academic use of digital learning tools at least once per week in the preceding four weeks",
+                                                                  "role":  "Dependent",
+                                                                  "scale":  "Binary: at least weekly versus less frequent",
+                                                                  "unit":  "Individual student"
+                                                              },
+                                                              {
+                                                                  "id":  "30000000-0000-0000-0000-000000000002",
+                                                                  "name":  "Perceived usefulness",
+                                                                  "definition":  "Agreement that digital learning supports the respondent\u0027s academic study; final item wording will be sourced and piloted",
+                                                                  "role":  "Independent",
+                                                                  "scale":  "Five ordered response categories from strongly disagree to strongly agree",
+                                                                  "unit":  "Individual student"
+                                                              },
+                                                              {
+                                                                  "id":  "30000000-0000-0000-0000-000000000003",
+                                                                  "name":  "Reliable access",
+                                                                  "definition":  "Self-reported availability of a suitable device and internet connection when needed for academic study",
+                                                                  "role":  "Independent",
+                                                                  "scale":  "Binary: reliable access versus access constraints",
+                                                                  "unit":  "Individual student"
+                                                              }
+                                                          ],
+                                           "dataSources":  [
+                                                               {
+                                                                   "id":  "40000000-0000-0000-0000-000000000001",
+                                                                   "name":  "Proposed anonymous student survey",
+                                                                   "collectionMethod":  "An online questionnaire distributed through consenting participating universities; no data have yet been collected",
+                                                                   "literatureId":  null
+                                                               }
+                                                           ],
+                                           "analyses":  [
+                                                            {
+                                                                "id":  "50000000-0000-0000-0000-000000000001",
+                                                                "method":  "Frequencies, adoption proportion and 95% confidence interval",
+                                                                "assumptions":  [
+                                                                                    "A documented probability sampling frame is available before recruitment",
+                                                                                    "Responses represent distinct eligible students",
+                                                                                    "Response and coverage bias are examined"
+                                                                                ],
+                                                                "missingDataHandling":  "Report missingness and item-specific denominators; do not classify missing adoption responses as non-adoption",
+                                                                "strand":  "Quantitative"
+                                                            },
+                                                            {
+                                                                "id":  "50000000-0000-0000-0000-000000000002",
+                                                                "method":  "Exploratory binary logistic regression with usefulness coded as ordered-category indicators and reliable access as a binary predictor",
+                                                                "assumptions":  [
+                                                                                    "Independent observations or a justified adjustment for institutional clustering",
+                                                                                    "Adequate outcome events for the proposed parameters",
+                                                                                    "No complete separation or problematic collinearity"
+                                                                                ],
+                                                                "missingDataHandling":  "Report complete-case counts and compare included and excluded cases; do not claim imputation without a documented plan",
+                                                                "strand":  "Quantitative"
+                                                            }
+                                                        ],
+                                           "hypothesisApplicability":  "Applicable",
+                                           "hypothesisRationale":  "Exploratory association hypotheses correspond to the second objective; results will not be interpreted as causal effects or guaranteed adequately powered tests.",
+                                           "hypotheses":  [
+                                                              {
+                                                                  "id":  "60000000-0000-0000-0000-000000000001",
+                                                                  "nullHypothesis":  "Perceived usefulness and reliable access have no association with at least weekly digital learning use in the specified model.",
+                                                                  "alternativeHypothesis":  "At least one proposed explanatory variable is associated with at least weekly digital learning use in the specified model.",
+                                                                  "objectiveIds":  [
+                                                                                       "20000000-0000-0000-0000-000000000002"
+                                                                                   ],
+                                                                  "constructIds":  [
+                                                                                       "30000000-0000-0000-0000-000000000001",
+                                                                                       "30000000-0000-0000-0000-000000000002",
+                                                                                       "30000000-0000-0000-0000-000000000003"
+                                                                                   ],
+                                                                  "plannedTest":  "Likelihood-ratio comparison of the proposed exploratory logistic model with an intercept-only model",
+                                                                  "significanceLevel":  0.05
+                                                              }
+                                                          ],
+                                           "sampling":  {
+                                                            "design":  "ProportionPrecision",
+                                                            "confidence":  0.95,
+                                                            "margin":  0.05,
+                                                            "proportion":  0.5,
+                                                            "populationSize":  null,
+                                                            "effectSize":  null,
+                                                            "power":  null,
+                                                            "designEffect":  1,
+                                                            "responseRate":  0.8,
+                                                            "frame":  "Proposed institution-maintained enrolment lists at participating universities, subject to access and ethics approval; no accessible frame is asserted yet",
+                                                            "rationale":  "Planning assumption: conservative proportion 0.5 and 5 percentage-point precision at 95% confidence under independent probability sampling, with 80% response assumed for invitation planning. No finite population correction without an authenticated denominator. The design effect of 1 applies only to independent sampling; clustered recruitment requires revision before implementation. This calculation supports prevalence precision, not guaranteed power for the exploratory regression."
+                                                        }
+                                       }
+                 },
+    "importedDraft":  {
+                          "title":  "Factors influencing adoption of digital learning among university students in South Africa",
+                          "problem":  "",
+                          "field":  "Educational technology and digital learning adoption",
+                          "academicLevel":  "MASTERS",
+                          "geography":  "South Africa; participating public universities will be selected after access and ethics approval",
+                          "population":  "Students aged 18 or older enrolled at participating South African public universities during 2027",
+                          "unitOfAnalysis":  "",
+                          "temporalScope":  "",
+                          "framework":  "",
+                          "contribution":  "",
+                          "limitations":  "",
+                          "scopeLimits":  "",
+                          "citationStyle":  "harvard",
+                          "institutionRequirements":  "",
+                          "universityTemplateId":  null,
+                          "methodologyVersion":  1,
+                          "mixedMethodIntegration":  "",
+                          "totalWords":  6000,
+                          "questions":  [
+                                            {
+                                                "id":  "10000000-0000-0000-0000-000000000001",
+                                                "text":  "What proportion of eligible students report at least weekly use of digital learning tools for academic study?"
+                                            },
+                                            {
+                                                "id":  "10000000-0000-0000-0000-000000000002",
+                                                "text":  "How are perceived usefulness and reliable access associated with at least weekly digital learning use?"
+                                            }
+                                        ],
+                          "objectives":  [
+                                             {
+                                                 "id":  "20000000-0000-0000-0000-000000000001",
+                                                 "text":  "Estimate the proportion of eligible students reporting at least weekly academic digital learning use, with uncertainty intervals.",
+                                                 "questionIds":  [
+
+                                                                 ],
+                                                 "constructIds":  [
+
+                                                                  ],
+                                                 "dataSourceIds":  [
+
+                                                                   ],
+                                                 "analysisIds":  [
+
+                                                                 ],
+                                                 "type":  "Specific"
+                                             },
+                                             {
+                                                 "id":  "20000000-0000-0000-0000-000000000002",
+                                                 "text":  "Explore associations of perceived usefulness and reliable access with at least weekly academic digital learning use.",
+                                                 "questionIds":  [
+
+                                                                 ],
+                                                 "constructIds":  [
+
+                                                                  ],
+                                                 "dataSourceIds":  [
+
+                                                                   ],
+                                                 "analysisIds":  [
+
+                                                                 ],
+                                                 "type":  "Specific"
+                                             }
+                                         ],
+                          "constructs":  [
+
+                                         ],
+                          "dataSources":  [
+
+                                          ],
+                          "analyses":  [
+
+                                       ],
+                          "hypothesisApplicability":  "Applicable",
+                          "hypothesisRationale":  "",
+                          "hypotheses":  [
+                                             {
+                                                 "id":  "60000000-0000-0000-0000-000000000001",
+                                                 "nullHypothesis":  "Perceived usefulness and reliable access have no association with at least weekly digital learning use in the specified model.",
+                                                 "alternativeHypothesis":  "At least one proposed explanatory variable is associated with at least weekly digital learning use in the specified model.",
+                                                 "objectiveIds":  [
+
+                                                                  ],
+                                                 "constructIds":  [
+
+                                                                  ],
+                                                 "plannedTest":  "Likelihood-ratio comparison of the proposed exploratory logistic model with an intercept-only model",
+                                                 "significanceLevel":  0.05
+                                             }
+                                         ],
+                          "sampling":  {
+                                           "design":  "",
+                                           "confidence":  0.95,
+                                           "margin":  null,
+                                           "proportion":  null,
+                                           "populationSize":  null,
+                                           "effectSize":  null,
+                                           "power":  null,
+                                           "designEffect":  1,
+                                           "responseRate":  1,
+                                           "frame":  "",
+                                           "rationale":  ""
+                                       }
+                      },
+    "policyVersion":  "proposal-policy.v1",
+    "enforcementMode":  "Enforced",
+    "fingerprint":  "47e33b4f6f7c633f8486c3650c78be6b1da1328ee44675af5f2c4b3edb117728",
+    "contracts":  [
+                      {
+                          "code":  "1.0",
+                          "title":  "Introduction",
+                          "order":  0,
+                          "targetWords":  410,
+                          "minWords":  307,
+                          "maxWords":  513,
+                          "required":  true,
+                          "dependencies":  [
+
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "1.2",
+                          "title":  "Background",
+                          "order":  1,
+                          "targetWords":  308,
+                          "minWords":  231,
+                          "maxWords":  385,
+                          "required":  true,
+                          "dependencies":  [
+                                               "1.0"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "2.0",
+                          "title":  "Literature Review",
+                          "order":  2,
+                          "targetWords":  1231,
+                          "minWords":  923,
+                          "maxWords":  1539,
+                          "required":  true,
+                          "dependencies":  [
+                                               "1.2"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "3.1",
+                          "title":  "Problem Statement",
+                          "order":  3,
+                          "targetWords":  308,
+                          "minWords":  231,
+                          "maxWords":  385,
+                          "required":  true,
+                          "dependencies":  [
+                                               "2.0"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "3.2",
+                          "title":  "Justification",
+                          "order":  4,
+                          "targetWords":  205,
+                          "minWords":  153,
+                          "maxWords":  257,
+                          "required":  true,
+                          "dependencies":  [
+                                               "2.0"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "3.3",
+                          "title":  "Conceptual Framework",
+                          "order":  5,
+                          "targetWords":  256,
+                          "minWords":  192,
+                          "maxWords":  320,
+                          "required":  true,
+                          "dependencies":  [
+                                               "2.0"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "4.1",
+                          "title":  "Research Questions",
+                          "order":  6,
+                          "targetWords":  103,
+                          "minWords":  77,
+                          "maxWords":  129,
+                          "required":  true,
+                          "dependencies":  [
+                                               "3.1"
+                                           ],
+                          "requiresEvidence":  false
+                      },
+                      {
+                          "code":  "4.2",
+                          "title":  "General Objective",
+                          "order":  7,
+                          "targetWords":  51,
+                          "minWords":  38,
+                          "maxWords":  64,
+                          "required":  true,
+                          "dependencies":  [
+                                               "3.1"
+                                           ],
+                          "requiresEvidence":  false
+                      },
+                      {
+                          "code":  "4.3",
+                          "title":  "Specific Objectives",
+                          "order":  8,
+                          "targetWords":  103,
+                          "minWords":  77,
+                          "maxWords":  129,
+                          "required":  true,
+                          "dependencies":  [
+                                               "3.1"
+                                           ],
+                          "requiresEvidence":  false
+                      },
+                      {
+                          "code":  "4.4",
+                          "title":  "Hypotheses",
+                          "order":  9,
+                          "targetWords":  103,
+                          "minWords":  77,
+                          "maxWords":  129,
+                          "required":  true,
+                          "dependencies":  [
+                                               "3.1"
+                                           ],
+                          "requiresEvidence":  false
+                      },
+                      {
+                          "code":  "5.1",
+                          "title":  "Study Area",
+                          "order":  10,
+                          "targetWords":  154,
+                          "minWords":  115,
+                          "maxWords":  193,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.2",
+                          "title":  "Study Design",
+                          "order":  11,
+                          "targetWords":  205,
+                          "minWords":  153,
+                          "maxWords":  257,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.3",
+                          "title":  "Study Population",
+                          "order":  12,
+                          "targetWords":  154,
+                          "minWords":  115,
+                          "maxWords":  193,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.4",
+                          "title":  "Inclusion/Exclusion",
+                          "order":  13,
+                          "targetWords":  154,
+                          "minWords":  115,
+                          "maxWords":  193,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.5",
+                          "title":  "Sample Size",
+                          "order":  14,
+                          "targetWords":  205,
+                          "minWords":  153,
+                          "maxWords":  257,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.6",
+                          "title":  "Sampling Procedure",
+                          "order":  15,
+                          "targetWords":  256,
+                          "minWords":  192,
+                          "maxWords":  320,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.7",
+                          "title":  "Study Variables",
+                          "order":  16,
+                          "targetWords":  205,
+                          "minWords":  153,
+                          "maxWords":  257,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.7a",
+                          "title":  "Data Analysis Plan",
+                          "order":  17,
+                          "targetWords":  256,
+                          "minWords":  192,
+                          "maxWords":  320,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.8",
+                          "title":  "Data Collection",
+                          "order":  18,
+                          "targetWords":  256,
+                          "minWords":  192,
+                          "maxWords":  320,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.9",
+                          "title":  "Quality Assurance",
+                          "order":  19,
+                          "targetWords":  154,
+                          "minWords":  115,
+                          "maxWords":  193,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.10",
+                          "title":  "Data Management",
+                          "order":  20,
+                          "targetWords":  103,
+                          "minWords":  77,
+                          "maxWords":  129,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.11",
+                          "title":  "Ethical Considerations",
+                          "order":  21,
+                          "targetWords":  154,
+                          "minWords":  115,
+                          "maxWords":  193,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  true
+                      },
+                      {
+                          "code":  "5.12",
+                          "title":  "Limitations",
+                          "order":  22,
+                          "targetWords":  154,
+                          "minWords":  115,
+                          "maxWords":  193,
+                          "required":  true,
+                          "dependencies":  [
+                                               "4.1",
+                                               "4.3"
+                                           ],
+                          "requiresEvidence":  false
+                      },
+                      {
+                          "code":  "6.1",
+                          "title":  "Timeline",
+                          "order":  23,
+                          "targetWords":  102,
+                          "minWords":  76,
+                          "maxWords":  128,
+                          "required":  true,
+                          "dependencies":  [
+                                               "5.7a",
+                                               "5.8"
+                                           ],
+                          "requiresEvidence":  false
+                      },
+                      {
+                          "code":  "6.2",
+                          "title":  "Budget",
+                          "order":  24,
+                          "targetWords":  102,
+                          "minWords":  76,
+                          "maxWords":  128,
+                          "required":  true,
+                          "dependencies":  [
+                                               "5.7a",
+                                               "5.8"
+                                           ],
+                          "requiresEvidence":  false
+                      },
+                      {
+                          "code":  "6.3",
+                          "title":  "Dissemination",
+                          "order":  25,
+                          "targetWords":  154,
+                          "minWords":  115,
+                          "maxWords":  193,
+                          "required":  true,
+                          "dependencies":  [
+                                               "5.7a",
+                                               "5.8"
+                                           ],
+                          "requiresEvidence":  false
+                      },
+                      {
+                          "code":  "0.0",
+                          "title":  "Abstract",
+                          "order":  26,
+                          "targetWords":  154,
+                          "minWords":  115,
+                          "maxWords":  193,
+                          "required":  true,
+                          "dependencies":  [
+                                               "1.0",
+                                               "1.2",
+                                               "2.0",
+                                               "3.1",
+                                               "3.2",
+                                               "3.3",
+                                               "4.1",
+                                               "4.2",
+                                               "4.3",
+                                               "4.4",
+                                               "5.1",
+                                               "5.2",
+                                               "5.3",
+                                               "5.4",
+                                               "5.5",
+                                               "5.6",
+                                               "5.7",
+                                               "5.7a",
+                                               "5.8",
+                                               "5.9",
+                                               "5.10",
+                                               "5.11",
+                                               "5.12",
+                                               "6.1",
+                                               "6.2",
+                                               "6.3"
+                                           ],
+                          "requiresEvidence":  false
+                      }
+                  ],
+    "findings":  [
+                     {
+                         "key":  "gap",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "A current reviewed gap dossier is required before accepting dependent questions and writing research design.",
+                         "sectionCode":  null
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "1.0"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "1.2"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "2.0"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "3.1"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "3.2"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "3.3"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "4.1"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "4.2"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "4.3"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "4.4"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.1"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.2"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.3"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.4"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.5"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.6"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.7"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.7a"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.8"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.9"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.10"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.11"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "5.12"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "6.1"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "6.2"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "6.3"
+                     },
+                     {
+                         "key":  "section",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "Required section is missing.",
+                         "sectionCode":  "0.0"
+                     },
+                     {
+                         "key":  "SemanticReview",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "A current successful SemanticReview is required for finalization.",
+                         "sectionCode":  null
+                     },
+                     {
+                         "key":  "ExaminerReview",
+                         "status":  "Pending",
+                         "severity":  "Blocker",
+                         "message":  "A current successful ExaminerReview is required for finalization.",
+                         "sectionCode":  null
+                     }
+                 ],
+    "evidence":  [
+                     {
+                         "id":  "d73d6095-092d-4457-adae-fe7b4a4de97a",
+                         "sectionCode":  "1.0",
+                         "claim":  "A study of undergraduate students at a rural South African university found that their LMS experiences were shaped by infrastructural limitations, digital literacy gaps and variation in faculty engagement.",
+                         "literatureId":  "0a234898-2c53-4aba-851c-48c9545c821a",
+                         "coverage":  "Abstract",
+                         "start":  856,
+                         "length":  270,
+                         "quote":  "The findings revealed that while students identified the opportunity for learning flexibility and access through the LMS, their experience was primarily shaped by infrastructural limitations, gaps in digital literacy, and variation in the level of engagement by faculty.",
+                         "sourceHash":  "a2ee6e401db2b8ecdf5b4cde360bd94b3a0e01a4074fa6949bc2831daa0ed1d1",
+                         "corpusHash":  "0960c1da836b9f803afedc197362274a28f3d9b4577cd6b4afaf7d371be7931f",
+                         "purpose":  "Support",
+                         "status":  "Unknown",
+                         "message":  "Review was not valid JSON."
+                     }
+                 ],
+    "gaps":  [
+
+             ],
+    "reviews":  [
+
+                ]
+}

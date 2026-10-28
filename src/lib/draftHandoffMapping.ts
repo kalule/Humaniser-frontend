@@ -30,6 +30,7 @@ export function documentGenreToWriteWithAiDocumentType(genre: DocumentGenre): Wr
     case 'Essay':            return 'Essay'
     case 'LiteratureReview': return 'LiteratureReview'
     case 'ResearchPaper':    return 'ResearchPaper'
+    case 'ThesisChapter':    return 'ThesisChapter'
     case 'Other':
     default:
       return 'General'

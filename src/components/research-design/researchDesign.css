@@ -1,0 +1,21 @@
+/* Adapt existing legacy utility classes to the current app tokens in this workspace only. */
+.research-design { color: var(--text-primary); }
+.research-design .bg-card,
+.research-design .bg-surface-card,
+.research-design.bg-surface-card { background: var(--surface-card); }
+.research-design .bg-primary { background: var(--color-purple); }
+.research-design .text-text-main,
+.research-design .text-text-pri { color: var(--text-primary); }
+.research-design .text-text-secondary,
+.research-design .text-text-mut,
+.research-design .text-muted { color: var(--text-secondary); }
+.research-design .border-border,
+.research-design .border-border-h,
+.research-design .divide-border > :not([hidden]) ~ :not([hidden]) { border-color: var(--border-hairline); }
+.research-design .text-red-400 { color: var(--color-red-text); }
+.research-design summary { min-height: 44px; padding-block: 10px; }
+.research-design button { min-height: 44px; }
+.research-design :is(button, input, select, textarea, summary, a):focus-visible { outline: 2px solid var(--color-purple); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .research-design *, .research-design *::before, .research-design *::after { animation: none !important; transition: none !important; transform: none !important; }
+}

@@ -1,0 +1,2221 @@
+{
+  "spendingCapUsd": 1,
+  "estimatedLlmCostUsd": 0.134318,
+  "providerFees": "Unpriced subscription providers ConsensusApi, GoogleScholar and Scopus were excluded before dispatch.",
+  "cases": [
+    {
+      "id": "relationship",
+      "question": "Does retrieval practice improve long-term retention among university students?",
+      "workflow": "DeepResearch",
+      "package": {
+        "SchemaVersion": "verified-evidence.v1",
+        "SessionId": "f9f21307-7112-4628-a6fb-17895a7afbd7",
+        "ProjectId": "5a207572-1fce-4b8c-9c71-f20a88aedf00",
+        "ContentHash": "7E741E23BCFA7C8388D724F8A68287F86FEAC08CBECC3C8857C5BBA66453454B",
+        "ResearchQuestion": "Does retrieval practice improve long-term retention among university students?",
+        "Scope": {
+          "Topic": "Does retrieval practice improve long-term retention among university students?",
+          "Relationship": "causal",
+          "Concepts": [
+            "retrieval practice",
+            "long-term retention",
+            "university students"
+          ],
+          "Population": [
+            "university students",
+            "higher education students",
+            "higher education",
+            "university"
+          ],
+          "Geography": [],
+          "TimePeriod": null,
+          "AcademicField": "Education",
+          "MinYear": null,
+          "MaxYear": null
+        },
+        "EvidenceQuestions": [
+          {
+            "Id": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+            "Type": "Definition",
+            "Question": "How is \u0027retrieval practice\u0027 defined and operationalized in educational research?",
+            "Status": "Exhausted",
+            "Sufficiency": "PartiallySufficient",
+            "Reasons": [
+              "Needs 2 accepted source(s); has 1.",
+              "Needs 1 strong or moderate source(s); has 0."
+            ]
+          },
+          {
+            "Id": "ac478dde-ed67-4fcb-87be-53b5e1fa9a02",
+            "Type": "Definition",
+            "Question": "How is \u0027long-term retention\u0027 defined in terms of time interval and measurement approach?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "3e178396-ba94-4864-913f-88ad351b3239",
+            "Type": "Effect",
+            "Question": "What is the causal relationship between retrieval practice and long-term retention in empirical studies?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "8802a98b-da0a-443c-b2bc-4b304143eba1",
+            "Type": "Measurement",
+            "Question": "What methodologies are used to measure the effects of retrieval practice on retention?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "e523b0b6-b895-472c-8e7c-0bbce0650219",
+            "Type": "Contradiction",
+            "Question": "Are there conflicting findings regarding retrieval practice\u0027s effectiveness for long-term retention?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "04747aad-5239-4154-b094-ed965ea90924",
+            "Type": "Context",
+            "Question": "Do effects of retrieval practice on long-term retention vary by student characteristics or academic disciplines?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "c20bf8f9-3b7a-4b89-b7eb-8af07ea6401d",
+            "Type": "Theory",
+            "Question": "What theoretical mechanisms explain how retrieval practice enhances long-term retention?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          }
+        ],
+        "KeyFindings": [],
+        "AcceptedEvidence": [
+          {
+            "Id": "7ca95a7f-12ca-4a05-831d-f218ea08eefe",
+            "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+            "Title": "Using commonly-available technologies to create online multimedia lessons through the application of the Cognitive Theory of Multimedia Learning",
+            "Authors": [
+              "Thomas M. Cavanagh",
+              "Christa Kiersch"
+            ],
+            "Year": 2022,
+            "Journal": "Educational Technology Research and Development",
+            "Doi": "10.1007/s11423-022-10181-1",
+            "Polarity": "Background",
+            "Strength": "Weak",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "the importance of retrieval as a learning process",
+            "Verification": "Verified",
+            "FoundVia": [
+              "OpenAlex"
+            ]
+          }
+        ],
+        "PotentialResearchGaps": [],
+        "InsufficientEvidence": [
+          {
+            "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+            "Question": "How is \u0027retrieval practice\u0027 defined and operationalized in educational research?",
+            "Sufficiency": "PartiallySufficient",
+            "Reasons": [
+              "Needs 2 accepted source(s); has 1.",
+              "Needs 1 strong or moderate source(s); has 0."
+            ]
+          },
+          {
+            "QuestionId": "ac478dde-ed67-4fcb-87be-53b5e1fa9a02",
+            "Question": "How is \u0027long-term retention\u0027 defined in terms of time interval and measurement approach?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "3e178396-ba94-4864-913f-88ad351b3239",
+            "Question": "What is the causal relationship between retrieval practice and long-term retention in empirical studies?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "8802a98b-da0a-443c-b2bc-4b304143eba1",
+            "Question": "What methodologies are used to measure the effects of retrieval practice on retention?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "e523b0b6-b895-472c-8e7c-0bbce0650219",
+            "Question": "Are there conflicting findings regarding retrieval practice\u0027s effectiveness for long-term retention?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "04747aad-5239-4154-b094-ed965ea90924",
+            "Question": "Do effects of retrieval practice on long-term retention vary by student characteristics or academic disciplines?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "c20bf8f9-3b7a-4b89-b7eb-8af07ea6401d",
+            "Question": "What theoretical mechanisms explain how retrieval practice enhances long-term retention?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          }
+        ],
+        "Contradictions": [],
+        "Limitations": [
+          "The source limit was reached; further results were not tracked.",
+          "Coverage is limited to the recorded searches. An empty or failed search does not establish absence of research."
+        ],
+        "SearchCoverage": [
+          {
+            "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+            "Query": "\u0022retrieval practice\u0022 definition",
+            "Intent": "How is \u0027retrieval practice\u0027 defined and operationalized in educational research?",
+            "ContradictionSearch": false,
+            "NewCandidates": 12,
+            "Duplicates": 18,
+            "Providers": [
+              {
+                "Provider": "ConsensusApi",
+                "Outcome": "Skipped",
+                "Results": 0,
+                "Detail": "excluded by research request"
+              },
+              {
+                "Provider": "CORE",
+                "Outcome": "EmptyUnconfirmed",
+                "Results": 0,
+                "Detail": null
+              },
+              {
+                "Provider": "DOAJ",
+                "Outcome": "Results",
+                "Results": 37,
+                "Detail": null
+              },
+              {
+                "Provider": "OpenAlex",
+                "Outcome": "Results",
+                "Results": 100,
+                "Detail": null
+              },
+              {
+                "Provider": "Scopus",
+                "Outcome": "Skipped",
+                "Results": 0,
+                "Detail": "excluded by research request"
+              },
+              {
+                "Provider": "SemanticScholar",
+                "Outcome": "EmptyUnconfirmed",
+                "Results": 0,
+                "Detail": null
+              }
+            ]
+          }
+        ],
+        "ProviderCoverage": [
+          {
+            "Provider": "ConsensusApi",
+            "Searches": 1,
+            "WithResults": 0,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "CORE",
+            "Searches": 1,
+            "WithResults": 0,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 1
+          },
+          {
+            "Provider": "DOAJ",
+            "Searches": 1,
+            "WithResults": 1,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "OpenAlex",
+            "Searches": 1,
+            "WithResults": 1,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "Scopus",
+            "Searches": 1,
+            "WithResults": 0,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "SemanticScholar",
+            "Searches": 1,
+            "WithResults": 0,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 1
+          }
+        ],
+        "CompletionReason": "BudgetSources",
+        "Usage": {
+          "Searches": 1,
+          "ProviderCalls": 4,
+          "LlmCalls": 4,
+          "InputTokens": 5053,
+          "OutputTokens": 2284,
+          "EstimatedLlmCostUsd": 0.016473,
+          "ElapsedSeconds": 41.1974147
+        },
+        "EvidenceSufficient": false
+      },
+      "retrievedSources": [
+        {
+          "Id": "ed96087a-f484-477d-9907-728db11e21bb",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "The International Glossary on Infertility and Fertility Care, 2017",
+          "Authors": [
+            "Fernando Zegers-Hochschild",
+            "Silke Dyer",
+            "G. David Adamson",
+            "Valerie Baker",
+            "Kurt Barnhart",
+            "Siladitya Bhattacharya",
+            "Clare Boothroyd",
+            "Georgina Chambers",
+            "Jacques de Mouzon",
+            "Eman Elgindy",
+            "Bart Fauser",
+            "Karin Hammarberg",
+            "Marcos Horton",
+            "Osamu Ishihara",
+            "Seung Chik Jwa",
+            "Mohamed Khrouf",
+            "Markus Kupka",
+            "Dolores J. Lamb",
+            "Martha Luna",
+            "A. Gustavo Martinez",
+            "Brent Monseur",
+            "Peter Nagy",
+            "Anja Pinborg",
+            "Catherine Racowsky",
+            "Laura Francesca Rienzi",
+            "Peter Schlegel",
+            "Lone Schmidt",
+            "Lan Ngoc Vuong",
+            "Tari Turner",
+            "M\u00F3nica Hebe V\u00E1zquez-Levin",
+            "Ibrahim Wada",
+            "Dagan Wells",
+            "Christine Wyns"
+          ],
+          "Year": 2017,
+          "Journal": "Fertility and Sterility",
+          "Doi": "10.1016/j.fertnstert.2017.06.005",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "1db5d266-94d6-42fb-92b3-7d634ea0b327",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "A Survey on Retrieval-Augmented Text Generation for Large Language Models",
+          "Authors": [
+            "Yizheng Huang",
+            "Jimmy Xiangji Huang"
+          ],
+          "Year": 2026,
+          "Journal": "ACM Computing Surveys",
+          "Doi": "10.1145/3805774",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "studies a different population",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "a095182c-ad72-4ba1-8f9a-fdabd06b60ef",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "Fundamental processes in sensorimotor learning: Reasoning, refinement, and retrieval",
+          "Authors": [
+            "Jonathan Sanching Tsay",
+            "Hyosub E. Kim",
+            "Samuel D. McDougle",
+            "Jordan A. Taylor",
+            "Adrian M. Haith",
+            "Guy Avraham",
+            "John W. Krakauer",
+            "Anne Gabrielle Eva Collins",
+            "Richard B. Ivry"
+          ],
+          "Year": 2024,
+          "Journal": "eLife",
+          "Doi": "10.7554/elife.91839",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "studies a different population",
+          "Quote": "retrieval, the process of inferring the context and recalling a control policy",
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "14e5da3f-274d-40c1-8f6d-f19a0f1fe6c2",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "Child Maltreatment, Abuse, and Neglect: An Umbrella Review of Their Prevalence and Definitions.",
+          "Authors": [
+            "Chiara Massullo",
+            "Elena De Rossi",
+            "Giuseppe Alessio Carbone",
+            "Claudio Imperatori",
+            "Rita Bianca Ardito",
+            "Mauro Adenzato",
+            "Benedetto Farina"
+          ],
+          "Year": 2023,
+          "Journal": "PubMed",
+          "Doi": "10.36131/cnfioritieditore20230201",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "7ca95a7f-12ca-4a05-831d-f218ea08eefe",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "Using commonly-available technologies to create online multimedia lessons through the application of the Cognitive Theory of Multimedia Learning",
+          "Authors": [
+            "Thomas M. Cavanagh",
+            "Christa Kiersch"
+          ],
+          "Year": 2022,
+          "Journal": "Educational Technology Research and Development",
+          "Doi": "10.1007/s11423-022-10181-1",
+          "Polarity": "Background",
+          "Strength": "Weak",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "the importance of retrieval as a learning process",
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "485c4642-eb9b-4b17-8df9-fe7d74385ca4",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "English language version of the S3-consensus guidelines on chronic pancreatitis: Definition, aetiology, diagnostic examinations, medical, endoscopic and surgical management of chronic pancreatitis",
+          "Authors": [
+            "Albrecht Hoffmeister",
+            "Julia V. Mayerle",
+            "Christoph Beglinger",
+            "M.W. B\u00FCchler",
+            "Philip Bufler",
+            "Katarina Dathe",
+            "Ulrich R. F\u00F6lsch",
+            "Helmut Frie\u00DF",
+            "Jakob Robert Izbicki",
+            "Stefan Kahl",
+            "E. Klar",
+            "Jutta Keller",
+            "Wolfram Trudo Knoefel",
+            "Peter Layer",
+            "Matthias Loehr",
+            "Remy F. Meier",
+            "J\uFFFDrgen F. Riemann",
+            "Michael R\u00FCnzi",
+            "Roland M. Schmid",
+            "Andreas Georg Schreyer",
+            "Barbara Tribl",
+            "Jens Werner",
+            "Heiko Witt",
+            "Joachim M\u00F6ssner",
+            "Markus M. Lerch",
+            "and members of the guideline committee in the appendix"
+          ],
+          "Year": 2015,
+          "Journal": "Zeitschrift f\u00FCr Gastroenterologie",
+          "Doi": "10.1055/s-0041-107379",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "c88b0b56-0942-4f4a-922a-60baddd9e103",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "Research progress and debates on gaming disorder",
+          "Authors": [
+            "Qianjin Wang",
+            "Honghong Ren",
+            "Jiang Long",
+            "Yueheng Liu",
+            "Tieqiao Liu"
+          ],
+          "Year": 2019,
+          "Journal": "General Psychiatry",
+          "Doi": "10.1136/gpsych-2019-100071",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "70a3a86b-803f-4f96-8cc2-5bd5c2f0a37f",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "Dual Distribution Alignment Network for Generalizable Person Re-Identification",
+          "Authors": [
+            "Peixian Chen",
+            "Pingyang Dai",
+            "Jianzhuang Liu",
+            "Feng Zheng",
+            "Mingliang Xu",
+            "Qi Chuan Tian",
+            "Rongrong Ji"
+          ],
+          "Year": 2021,
+          "Journal": "Proceedings of the AAAI Conference on Artificial Intelligence",
+          "Doi": "10.1609/aaai.v35i2.16190",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "studies a different population",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "c21db63d-55a4-44d6-b1e8-e8b43b802d60",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "NIST Big Data Interoperability Framework: Volume 1, Definitions",
+          "Authors": [
+            "NIST Big Data Public Working Group Definitions and Taxonomies Subgroup"
+          ],
+          "Year": 2015,
+          "Journal": null,
+          "Doi": "10.6028/nist.sp.1500-1",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "f928016e-954f-4b82-a232-d10d2796a342",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "Critical Information Literacy: Definitions and Challenges",
+          "Authors": [
+            "James K. Elmborg"
+          ],
+          "Year": 2012,
+          "Journal": "Iowa Research Online (University of Iowa)",
+          "Doi": null,
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "not assessed by the reviewer",
+          "Quote": null,
+          "Verification": "Unverifiable",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "cd2a3076-164c-46eb-afa0-cd6b9f0c0d4b",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "Linear Transformers Are Secretly Fast Weight Programmers",
+          "Authors": [
+            "Imanol Schlag",
+            "Kazuki Irie",
+            "J\u00FCrgen Schmidhuber"
+          ],
+          "Year": 2021,
+          "Journal": "arXiv (Cornell University)",
+          "Doi": "10.48550/arxiv.2102.11174",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "7b902ea2-f353-49da-a361-e3ff28dddf82",
+          "QuestionId": "6034c1db-dd89-4f9d-bf6f-f81ccc9c51d2",
+          "Title": "High Intrinsic Dimensionality Facilitates Adversarial Attack: Theoretical Evidence",
+          "Authors": [
+            "Laurent Amsaleg",
+            "James A Bailey",
+            "Am\u00E9lie Barbe",
+            "Sarah Erfani",
+            "Teddy Furon",
+            "Michael E. Houle",
+            "Milo\u0161 Radovanovi\u0107",
+            "Xuan Vinh Nguyen"
+          ],
+          "Year": 2020,
+          "Journal": "IEEE Transactions on Information Forensics and Security",
+          "Doi": "10.1109/tifs.2020.3023274",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        }
+      ],
+      "judgementStatus": "Independent review required; no evidence-quality superiority claimed."
+    },
+    {
+      "id": "south-africa",
+      "question": "What factors influence digital learning adoption among university students in South Africa?",
+      "workflow": "DeepResearch",
+      "package": {
+        "SchemaVersion": "verified-evidence.v1",
+        "SessionId": "fad96f51-a5f0-41f5-9a0b-1db01e52ba4a",
+        "ProjectId": "cd18f950-a485-4b50-8304-a63229713821",
+        "ContentHash": "FA15818111B663BC74DF2948CE2A95438ADD887B4E5C2C3CC6D0E52D556CD2F7",
+        "ResearchQuestion": "What factors influence digital learning adoption among university students in South Africa?",
+        "Scope": {
+          "Topic": "What factors influence digital learning adoption among university students in South Africa?",
+          "Relationship": "predictor",
+          "Concepts": [
+            "digital learning adoption",
+            "university students",
+            "influencing factors"
+          ],
+          "Population": [
+            "university students",
+            "higher education"
+          ],
+          "Geography": [
+            "South Africa"
+          ],
+          "TimePeriod": null,
+          "AcademicField": "Education",
+          "MinYear": null,
+          "MaxYear": null
+        },
+        "EvidenceQuestions": [
+          {
+            "Id": "6fa59232-5463-4066-9383-9db1f542d211",
+            "Type": "Definition",
+            "Question": "How is \u0027digital learning adoption\u0027 defined and operationalized in educational research?",
+            "Status": "Resolved",
+            "Sufficiency": "Sufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "79e33477-f4c6-4766-8ba5-d023d16c92ca",
+            "Type": "Relationship",
+            "Question": "What categories of factors (technological, individual, institutional, socioeconomic) predict or influence digital learning adoption in university settings?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "b6b89d3c-76e9-48c3-acc4-80467a103b44",
+            "Type": "Measurement",
+            "Question": "What instruments or metrics are used to measure digital learning adoption among university students?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "c4260a7b-fed8-4cd1-b705-3ffb6a00e7f6",
+            "Type": "Geography",
+            "Question": "What are the documented patterns of digital learning adoption and barriers specific to South African universities?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "3a9a83d3-d072-46c7-86f6-da0a53ecddb4",
+            "Type": "Theory",
+            "Question": "What theoretical frameworks (TAM, UTAUT, social capital theory) explain technology adoption among students in developing or middle-income contexts?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "6afd3148-9c0f-4f5b-a6a4-583dd8da297b",
+            "Type": "Context",
+            "Question": "How do institutional characteristics (university type, resources, infrastructure) in South African higher education affect digital learning adoption?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "d648949d-8c95-4e3c-bb7f-561e5efa4046",
+            "Type": "Gap",
+            "Question": "What evidence gaps exist regarding which factors most strongly influence digital learning adoption among South African university students?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          }
+        ],
+        "KeyFindings": [
+          {
+            "Statement": "Digital learning adoption involves the integration of technological, task, and social characteristics, with adoption measured through satisfaction and educational achievement outcomes.",
+            "EvidenceQuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+            "SupportingSourceIds": [
+              "bda6bd4c-22fa-4e74-89d4-c046b737d5b5"
+            ],
+            "ContradictingSourceIds": [],
+            "Strength": "Weak",
+            "Scope": "What factors influence digital learning adoption among university students in South Africa?; population: university students, higher education; geography: South Africa",
+            "Caveats": [
+              "Evidence is from international research, not specific to South African context",
+              "Operationalization focuses on digital media adoption rather than broader digital learning systems"
+            ]
+          },
+          {
+            "Statement": "Digital learning adoption can be operationalized through measuring uptake of social media platforms and digital tools by educational users.",
+            "EvidenceQuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+            "SupportingSourceIds": [
+              "2ae0d239-a7a7-487b-9ab1-a3e7bf1fa7a4"
+            ],
+            "ContradictingSourceIds": [],
+            "Strength": "Weak",
+            "Scope": "What factors influence digital learning adoption among university students in South Africa?; population: university students, higher education; geography: South Africa",
+            "Caveats": [
+              "Evidence comes from prospective teachers (not current university students) at Copperbelt University (Zambia, not South Africa)"
+            ]
+          }
+        ],
+        "AcceptedEvidence": [
+          {
+            "Id": "6be77081-3eb6-480f-b481-77cacd4e5b79",
+            "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+            "Title": "Exploring AI-mediated informal digital learning of English (AI-IDLE): a mixed-method investigation of Chinese EFL learners\u2019 AI adoption and experiences",
+            "Authors": [
+              "G. Liu",
+              "R. Darvin",
+              "Chaojun Ma"
+            ],
+            "Year": 2024,
+            "Journal": "Computer Assisted Language Learning",
+            "Doi": "10.1080/09588221.2024.2310288",
+            "Polarity": "Supports",
+            "Strength": "Moderate",
+            "Geography": "International",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": null,
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "36203c1e-31b6-4f38-90ac-84551404fe34",
+            "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+            "Title": "AI in teacher education: Unlocking new dimensions in teaching support, inclusive learning, and digital literacy",
+            "Authors": [
+              "Jia Zhang",
+              "Zhuo Zhang"
+            ],
+            "Year": 2024,
+            "Journal": "Journal of Computer Assisted Learning",
+            "Doi": "10.1111/jcal.12988",
+            "Polarity": "Supports",
+            "Strength": "Weak",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": null,
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "2ae0d239-a7a7-487b-9ab1-a3e7bf1fa7a4",
+            "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+            "Title": "Is COVID-19 the Gateway for Digital Learning in Mathematics Education?",
+            "Authors": [
+              "E. M. Mulenga",
+              "J. Marb\u00E1n"
+            ],
+            "Year": 2020,
+            "Journal": "Contemporary Educational Technology",
+            "Doi": "10.30935/cedtech/7949",
+            "Polarity": "Supports",
+            "Strength": "Moderate",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "This study explores some uptakes of social media platforms by prospective secondary school teachers. Data was collected from 102 prospective mathematics teachers from the Copperbelt University (CBU). Cluster analysis approach was used.",
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "f10df103-0763-4f9b-bab7-7492f1d4778b",
+            "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+            "Title": "Transdisciplinarity in STEM education: a critical review",
+            "Authors": [
+              "Miwa Aoki Takeuchi",
+              "Pratim Sengupta",
+              "Marie\u2010Claire Shanahan",
+              "Jennifer D. Adams",
+              "Maryam Hachem"
+            ],
+            "Year": 2020,
+            "Journal": "Studies in Science Education",
+            "Doi": "10.1080/03057267.2020.1755802",
+            "Polarity": "Background",
+            "Strength": "Weak",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "The goal of this article is to offer a critical review of how STEM education and its transdisciplinarity were defined and/or positioned in empirical studies published during the early formulation of the field.",
+            "Verification": "Verified",
+            "FoundVia": [
+              "OpenAlex"
+            ]
+          },
+          {
+            "Id": "a292221c-abf9-43ae-b44e-5e3f53eba1b5",
+            "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+            "Title": "A bibliometric analysis and visualization of e-learning adoption using VOSviewer",
+            "Authors": [
+              "Jos\u00E9 Martins",
+              "Ramiro Gon\u00E7alves",
+              "F. Branco"
+            ],
+            "Year": 2022,
+            "Journal": "Universal Access in the Information Society",
+            "Doi": "10.1007/s10209-022-00953-0",
+            "Polarity": "Background",
+            "Strength": "Moderate",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": null,
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "bda6bd4c-22fa-4e74-89d4-c046b737d5b5",
+            "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+            "Title": "Integrating Communication and Task\u2013Technology Fit Theories: The Adoption of Digital Media in Learning",
+            "Authors": [
+              "Waleed Mugahed Al-Rahmi",
+              "Ahmad Samed Al\u2010Adwan",
+              "Qusay Al-Maatouk",
+              "Mohd Shahizan Othman",
+              "Anas Ratib Alsaud",
+              "Abeer S. Almogren",
+              "Ali Mugahed Al-Rahmi"
+            ],
+            "Year": 2023,
+            "Journal": "Sustainability",
+            "Doi": "10.3390/su15108144",
+            "Polarity": "Supports",
+            "Strength": "Moderate",
+            "Geography": "International",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "Technological, task, and social characteristics were found to have a substantial association with TTF for using digital media sites for academic purposes, which had a favorable impact on satisfaction and educational achievement.",
+            "Verification": "Verified",
+            "FoundVia": [
+              "OpenAlex"
+            ]
+          }
+        ],
+        "PotentialResearchGaps": [],
+        "InsufficientEvidence": [
+          {
+            "QuestionId": "79e33477-f4c6-4766-8ba5-d023d16c92ca",
+            "Question": "What categories of factors (technological, individual, institutional, socioeconomic) predict or influence digital learning adoption in university settings?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "b6b89d3c-76e9-48c3-acc4-80467a103b44",
+            "Question": "What instruments or metrics are used to measure digital learning adoption among university students?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "c4260a7b-fed8-4cd1-b705-3ffb6a00e7f6",
+            "Question": "What are the documented patterns of digital learning adoption and barriers specific to South African universities?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "3a9a83d3-d072-46c7-86f6-da0a53ecddb4",
+            "Question": "What theoretical frameworks (TAM, UTAUT, social capital theory) explain technology adoption among students in developing or middle-income contexts?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "6afd3148-9c0f-4f5b-a6a4-583dd8da297b",
+            "Question": "How do institutional characteristics (university type, resources, infrastructure) in South African higher education affect digital learning adoption?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "d648949d-8c95-4e3c-bb7f-561e5efa4046",
+            "Question": "What evidence gaps exist regarding which factors most strongly influence digital learning adoption among South African university students?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          }
+        ],
+        "Contradictions": [],
+        "Limitations": [
+          "The source limit was reached; further results were not tracked.",
+          "Coverage is limited to the recorded searches. An empty or failed search does not establish absence of research."
+        ],
+        "SearchCoverage": [
+          {
+            "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+            "Query": "\u0022digital learning adoption\u0022 definition",
+            "Intent": "How is \u0027digital learning adoption\u0027 defined and operationalized in educational research?",
+            "ContradictionSearch": false,
+            "NewCandidates": 12,
+            "Duplicates": 21,
+            "Providers": [
+              {
+                "Provider": "ConsensusApi",
+                "Outcome": "Skipped",
+                "Results": 0,
+                "Detail": "excluded by research request"
+              },
+              {
+                "Provider": "CORE",
+                "Outcome": "EmptyUnconfirmed",
+                "Results": 0,
+                "Detail": null
+              },
+              {
+                "Provider": "DOAJ",
+                "Outcome": "Results",
+                "Results": 24,
+                "Detail": null
+              },
+              {
+                "Provider": "OpenAlex",
+                "Outcome": "Results",
+                "Results": 100,
+                "Detail": null
+              },
+              {
+                "Provider": "Scopus",
+                "Outcome": "Skipped",
+                "Results": 0,
+                "Detail": "excluded by research request"
+              },
+              {
+                "Provider": "SemanticScholar",
+                "Outcome": "Results",
+                "Results": 100,
+                "Detail": null
+              }
+            ]
+          }
+        ],
+        "ProviderCoverage": [
+          {
+            "Provider": "ConsensusApi",
+            "Searches": 1,
+            "WithResults": 0,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "CORE",
+            "Searches": 1,
+            "WithResults": 0,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 1
+          },
+          {
+            "Provider": "DOAJ",
+            "Searches": 1,
+            "WithResults": 1,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "OpenAlex",
+            "Searches": 1,
+            "WithResults": 1,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "Scopus",
+            "Searches": 1,
+            "WithResults": 0,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "SemanticScholar",
+            "Searches": 1,
+            "WithResults": 1,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          }
+        ],
+        "CompletionReason": "BudgetSources",
+        "Usage": {
+          "Searches": 1,
+          "ProviderCalls": 4,
+          "LlmCalls": 4,
+          "InputTokens": 5593,
+          "OutputTokens": 2924,
+          "EstimatedLlmCostUsd": 0.020213,
+          "ElapsedSeconds": 43.192466
+        },
+        "EvidenceSufficient": false
+      },
+      "retrievedSources": [
+        {
+          "Id": "6be77081-3eb6-480f-b481-77cacd4e5b79",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "Exploring AI-mediated informal digital learning of English (AI-IDLE): a mixed-method investigation of Chinese EFL learners\u2019 AI adoption and experiences",
+          "Authors": [
+            "G. Liu",
+            "R. Darvin",
+            "Chaojun Ma"
+          ],
+          "Year": 2024,
+          "Journal": "Computer Assisted Language Learning",
+          "Doi": "10.1080/09588221.2024.2310288",
+          "Polarity": "Supports",
+          "Strength": "Moderate",
+          "Geography": "International",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "36203c1e-31b6-4f38-90ac-84551404fe34",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "AI in teacher education: Unlocking new dimensions in teaching support, inclusive learning, and digital literacy",
+          "Authors": [
+            "Jia Zhang",
+            "Zhuo Zhang"
+          ],
+          "Year": 2024,
+          "Journal": "Journal of Computer Assisted Learning",
+          "Doi": "10.1111/jcal.12988",
+          "Polarity": "Supports",
+          "Strength": "Weak",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "903400a6-f600-43d9-926a-f2b85d7b83bc",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "Computational design in architecture: Defining parametric, generative, and algorithmic design",
+          "Authors": [
+            "In\u00EAs Caetano",
+            "Lu\u00EDs Santos",
+            "Ant\u00F3nio Leit\u00E3o"
+          ],
+          "Year": 2020,
+          "Journal": "Frontiers of Architectural Research",
+          "Doi": "10.1016/j.foar.2019.12.008",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": "This paper discusses computational design (CD) and proposes an improved and sound taxonomy for a set of key CD terms, namely, parametric, generative, and algorithmic design",
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "f49d06c8-fd7a-4a49-9737-80899f353721",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "The adoption of urban digital twins",
+          "Authors": [
+            "Jaume Ferr\u00E9-Bigorra",
+            "Miquel Casals",
+            "Marta Gangolells"
+          ],
+          "Year": 2022,
+          "Journal": "Cities",
+          "Doi": "10.1016/j.cities.2022.103905",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": "the main objective of this paper was to contribute to the conceptualization of the digital twin in urban management",
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "2ae0d239-a7a7-487b-9ab1-a3e7bf1fa7a4",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "Is COVID-19 the Gateway for Digital Learning in Mathematics Education?",
+          "Authors": [
+            "E. M. Mulenga",
+            "J. Marb\u00E1n"
+          ],
+          "Year": 2020,
+          "Journal": "Contemporary Educational Technology",
+          "Doi": "10.30935/cedtech/7949",
+          "Polarity": "Supports",
+          "Strength": "Moderate",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "This study explores some uptakes of social media platforms by prospective secondary school teachers. Data was collected from 102 prospective mathematics teachers from the Copperbelt University (CBU). Cluster analysis approach was used.",
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "b3814a29-ac33-4cea-86df-0e912603cc85",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "Digital Technology Entrepreneurship: A Definition and Research Agenda",
+          "Authors": [
+            "Ferran Giones",
+            "Alexander Brem"
+          ],
+          "Year": 2017,
+          "Journal": "Technology Innovation Management Review",
+          "Doi": "10.22215/timreview/1076",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "not assessed by the reviewer",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "f10df103-0763-4f9b-bab7-7492f1d4778b",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "Transdisciplinarity in STEM education: a critical review",
+          "Authors": [
+            "Miwa Aoki Takeuchi",
+            "Pratim Sengupta",
+            "Marie\u2010Claire Shanahan",
+            "Jennifer D. Adams",
+            "Maryam Hachem"
+          ],
+          "Year": 2020,
+          "Journal": "Studies in Science Education",
+          "Doi": "10.1080/03057267.2020.1755802",
+          "Polarity": "Background",
+          "Strength": "Weak",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "The goal of this article is to offer a critical review of how STEM education and its transdisciplinarity were defined and/or positioned in empirical studies published during the early formulation of the field.",
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "3df28d3e-a4dc-4673-b9ae-8855af9b61c8",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "Living and Learning with New Media: Summary of Findings from the Digital Youth Project",
+          "Authors": [
+            "Mizuko Ito",
+            "Heather A. Horst",
+            "Matteo Bittanti",
+            "danah boyd",
+            "Becky Herr Stephenson",
+            "Patricia G. Lange",
+            "C. J. Pascoe",
+            "Laura Robinson"
+          ],
+          "Year": 2009,
+          "Journal": "OAPEN (The OAPEN Foundation)",
+          "Doi": null,
+          "Polarity": "Background",
+          "Strength": "Weak",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": null,
+          "Verification": "Unverifiable",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "a292221c-abf9-43ae-b44e-5e3f53eba1b5",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "A bibliometric analysis and visualization of e-learning adoption using VOSviewer",
+          "Authors": [
+            "Jos\u00E9 Martins",
+            "Ramiro Gon\u00E7alves",
+            "F. Branco"
+          ],
+          "Year": 2022,
+          "Journal": "Universal Access in the Information Society",
+          "Doi": "10.1007/s10209-022-00953-0",
+          "Polarity": "Background",
+          "Strength": "Moderate",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "6f8376e9-3038-44dc-ad06-a2314ce433e6",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "Organizational scaling, scalability, and scale-up: Definitional harmonization and a research agenda",
+          "Authors": [
+            "Nicole E. Coviello",
+            "Erkko Autio",
+            "Satish Nambisan",
+            "Holger Patzelt",
+            "Llewellyn D W Thomas"
+          ],
+          "Year": 2024,
+          "Journal": "Journal of Business Venturing",
+          "Doi": "10.1016/j.jbusvent.2024.106419",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "bda6bd4c-22fa-4e74-89d4-c046b737d5b5",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "Integrating Communication and Task\u2013Technology Fit Theories: The Adoption of Digital Media in Learning",
+          "Authors": [
+            "Waleed Mugahed Al-Rahmi",
+            "Ahmad Samed Al\u2010Adwan",
+            "Qusay Al-Maatouk",
+            "Mohd Shahizan Othman",
+            "Anas Ratib Alsaud",
+            "Abeer S. Almogren",
+            "Ali Mugahed Al-Rahmi"
+          ],
+          "Year": 2023,
+          "Journal": "Sustainability",
+          "Doi": "10.3390/su15108144",
+          "Polarity": "Supports",
+          "Strength": "Moderate",
+          "Geography": "International",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "Technological, task, and social characteristics were found to have a substantial association with TTF for using digital media sites for academic purposes, which had a favorable impact on satisfaction and educational achievement.",
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        },
+        {
+          "Id": "01282f61-6e7b-4ef4-a657-1a5ad8918646",
+          "QuestionId": "6fa59232-5463-4066-9383-9db1f542d211",
+          "Title": "The relationship between knowledge management and leadership: mapping the field and providing future research avenues",
+          "Authors": [
+            "Massimiliano Matteo Pellegrini",
+            "Francesco Ciampi",
+            "Giacomo Marzi",
+            "Beatrice Orlando"
+          ],
+          "Year": 2020,
+          "Journal": "Journal of Knowledge Management",
+          "Doi": "10.1108/jkm-01-2020-0034",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "OpenAlex"
+          ]
+        }
+      ],
+      "judgementStatus": "Independent review required; no evidence-quality superiority claimed."
+    },
+    {
+      "id": "methodology",
+      "question": "When is purposive maximum-variation sampling appropriate for qualitative interview studies?",
+      "workflow": "DeepResearch",
+      "package": {
+        "SchemaVersion": "verified-evidence.v1",
+        "SessionId": "274df64b-8736-47a0-b404-192b5f28bce7",
+        "ProjectId": "e9436740-8086-4344-9f92-052fe1a39b5e",
+        "ContentHash": "B596E3F8FCB721820EB41AC6798A930387F2A1BA9B744E80EE7EE745922D5634",
+        "ResearchQuestion": "When is purposive maximum-variation sampling appropriate for qualitative interview studies?",
+        "Scope": {
+          "Topic": "When is purposive maximum-variation sampling appropriate for qualitative interview studies?",
+          "Relationship": "applicability",
+          "Concepts": [
+            "purposive maximum-variation sampling",
+            "qualitative interview studies",
+            "sampling appropriateness"
+          ],
+          "Population": [],
+          "Geography": [],
+          "TimePeriod": null,
+          "AcademicField": "Research methodology",
+          "MinYear": null,
+          "MaxYear": null
+        },
+        "EvidenceQuestions": [
+          {
+            "Id": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Type": "Definition",
+            "Question": "What are the defining characteristics and procedural steps of purposive maximum-variation sampling?",
+            "Status": "Resolved",
+            "Sufficiency": "Sufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "52743167-68e5-4322-8a7a-ed0e71d00c96",
+            "Type": "Methodology",
+            "Question": "What are the theoretical foundations and epistemological assumptions underlying purposive maximum-variation sampling?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "7f1be8b4-78d5-4651-b0cb-f6aeddcb7c99",
+            "Type": "Relationship",
+            "Question": "In what types of qualitative research questions and study designs is maximum-variation sampling most appropriate?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "07f0f4a5-de1b-49ec-9341-0430f6fddd88",
+            "Type": "Context",
+            "Question": "What characteristics of interview-based qualitative studies determine suitability for maximum-variation sampling?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "8b476324-30a0-4ee3-923a-7617a3ada578",
+            "Type": "Effect",
+            "Question": "What are the methodological consequences and trade-offs of using maximum-variation sampling versus alternative purposive sampling approaches?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "9541f8fb-9d22-4099-8f6f-f5ccf1796a1f",
+            "Type": "Contradiction",
+            "Question": "What limitations, critiques, or conditions where maximum-variation sampling is inappropriate exist in the literature?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "Id": "9cfedc69-1426-435c-bf0e-7d780d434ebb",
+            "Type": "Measurement",
+            "Question": "How is \u0027variation\u0027 operationalized and assessed when implementing maximum-variation sampling in interview studies?",
+            "Status": "Exhausted",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          }
+        ],
+        "KeyFindings": [
+          {
+            "Statement": "Maximum-variation sampling is a purposive sampling technique used to deliberately select participants who represent diverse characteristics, experiences, or perspectives within a studied population.",
+            "EvidenceQuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "SupportingSourceIds": [
+              "296d7798-8d95-47f5-908a-71c5bf8f1409",
+              "384c1771-5cea-4ce5-86f7-1279bd82b3a4"
+            ],
+            "ContradictingSourceIds": [],
+            "Strength": "Weak",
+            "Scope": "When is purposive maximum-variation sampling appropriate for qualitative interview studies?",
+            "Caveats": [
+              "The exact procedural steps for implementation are not detailed in the accepted sources; sources demonstrate applied use rather than comprehensive procedural guidance."
+            ]
+          },
+          {
+            "Statement": "In qualitative interview studies, maximum-variation sampling involves recruiting participants across different levels, backgrounds, or geographic locations to capture variation in the phenomenon of interest.",
+            "EvidenceQuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "SupportingSourceIds": [
+              "90f01ae8-d786-4253-87e1-69c99536a94b",
+              "80729020-d3c0-4c95-b65d-51dcf51c0347",
+              "276f50c5-dd53-426b-a8e2-2fdc678bdfbf"
+            ],
+            "ContradictingSourceIds": [],
+            "Strength": "Moderate",
+            "Scope": "When is purposive maximum-variation sampling appropriate for qualitative interview studies?",
+            "Caveats": [
+              "Evidence is limited to specific health and education contexts; generalization to other research domains is unclear."
+            ]
+          }
+        ],
+        "AcceptedEvidence": [
+          {
+            "Id": "296d7798-8d95-47f5-908a-71c5bf8f1409",
+            "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Title": "Types of Purposive Sampling Techniques with Their Examples and Application in Qualitative Research Studies",
+            "Authors": [
+              "Friday Nyimbili",
+              "Leah Nyimbili"
+            ],
+            "Year": 2024,
+            "Journal": "British journal of multidisciplinary and advanced studies",
+            "Doi": "10.37745/bjmas.2022.0419",
+            "Polarity": "Supports",
+            "Strength": "Moderate",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": null,
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "8b637d15-ddb0-4ace-adb2-462299a64698",
+            "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Title": "Acceptability of Breast Milk Donor Banking: A qualitative study among Health Workers in Greater Accra Regional Hospital, Ghana",
+            "Authors": [
+              "Fred Kafui Tende",
+              "A. Nwameme",
+              "P. Tabong"
+            ],
+            "Year": 2023,
+            "Journal": "medRxiv",
+            "Doi": "10.1101/2023.04.11.23288411",
+            "Polarity": "Supports",
+            "Strength": "Weak",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "18 healthcare professionals were chosen using maximum variation purposive sampling procedures.",
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "b8a7f376-b03f-4b7a-8cbf-c8f68ac5a0fa",
+            "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Title": "PURPOSIVE SAMPLING: A REVIEW AND GUIDELINES FOR QUANTITATIVE RESEARCH",
+            "Authors": [
+              "M. Memon",
+              "R. Thurasamy",
+              "H. Ting",
+              "J. Cheah"
+            ],
+            "Year": 2024,
+            "Journal": "Journal of Applied Structural Equation Modeling",
+            "Doi": "10.47263/jasem.9(1)01",
+            "Polarity": "Supports",
+            "Strength": "Moderate",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "The editorial discusses different types of purposive sampling, including criterion sampling, maximum variation sampling, and theoretical sampling, and illustrates their applications in quantitative contexts.",
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "90f01ae8-d786-4253-87e1-69c99536a94b",
+            "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Title": "Factors influencing the development of nursing professionalism: a descriptive qualitative study",
+            "Authors": [
+              "Xingyue He",
+              "Ya Mao",
+              "Huili Cao",
+              "Lin-Bo Li",
+              "Yan-Ming Wu",
+              "Hui Yang"
+            ],
+            "Year": 2024,
+            "Journal": "BMC Nursing",
+            "Doi": "10.1186/s12912-024-01945-6",
+            "Polarity": "Supports",
+            "Strength": "Weak",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "Using maximum variation and purposive sampling, 14 southern and northern China participants were recruited.",
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "384c1771-5cea-4ce5-86f7-1279bd82b3a4",
+            "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Title": "How project-based learning improves college EFL learners\u2019 critical thinking skills and reading comprehension ability: A case study",
+            "Authors": [
+              "Xin-Ke Song",
+              "Abu Bakar Razali",
+              "J. J. Jeyaraj"
+            ],
+            "Year": 2025,
+            "Journal": "Language Teaching Research",
+            "Doi": "10.1177/13621688251352275",
+            "Polarity": "Supports",
+            "Strength": "Weak",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "Purposive sampling with maximum variation was employed, and three cases from high, medium, and low levels of CTS and RCA were selected as participants of the study.",
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "5e57161d-6ceb-4810-9f92-82596c09e75e",
+            "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Title": "Psychological distress and cultural role conflict among dementia family caregivers in China: a phenomenological study",
+            "Authors": [
+              "Gui Yu",
+              "Tingting Yuan",
+              "Siyuan Bu",
+              "Yanli Zeng"
+            ],
+            "Year": 2025,
+            "Journal": "BMC Nursing",
+            "Doi": "10.1186/s12912-025-03996-9",
+            "Polarity": "Supports",
+            "Strength": "Weak",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "Fourteen caregivers were recruited in Chengdu, China, in late 2023 through purposive maximum variation sampling.",
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "cb45f484-64a4-4684-b704-18d8829a65f1",
+            "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Title": "Adolescents\u2019 health literacy perspectives and implications",
+            "Authors": [
+              "A. A. Asari",
+              "Z. Birhanu",
+              "Ameyu Godesso"
+            ],
+            "Year": 2025,
+            "Journal": "BMC Public Health",
+            "Doi": "10.1186/s12889-025-22341-y",
+            "Polarity": "Supports",
+            "Strength": "Weak",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": null,
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "8625e33f-3900-4082-a692-8afd67482b26",
+            "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Title": "Understanding burnout among operating room nurses: a qualitative study",
+            "Authors": [
+              "Yu-Fang Li",
+              "Dan Xiang",
+              "Yun Jiang",
+              "Su Gu"
+            ],
+            "Year": 2025,
+            "Journal": "Frontiers in Public Health",
+            "Doi": "10.3389/fpubh.2025.1604631",
+            "Polarity": "Supports",
+            "Strength": "Moderate",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "A purposive sampling method, guided by the principle of maximum variation, was employed to recruit 14 operating room nurses from a tertiary Grade A hospital in Anhui Province in January 2025.",
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "80729020-d3c0-4c95-b65d-51dcf51c0347",
+            "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Title": "Factors Influencing Adherence to Home-Based Exercise Rehabilitation in Stroke Patients from a Temporal Perspective: An Explanatory Sequential Mixed-Methods Study",
+            "Authors": [
+              "Jianing Shao",
+              "Sunling Cong",
+              "Yuxin Han",
+              "Wenjing Xu",
+              "Qing Wang",
+              "Jiachen Zhang",
+              "Xiao-Xiao Wei",
+              "Rui Ren"
+            ],
+            "Year": 2026,
+            "Journal": "Patient Preference and Adherence",
+            "Doi": "10.2147/ppa.s582280",
+            "Polarity": "Supports",
+            "Strength": "Moderate",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "16 stroke patients were selected from the quantitative sample through purposive and maximum variation sampling to explain and supplement the quantitative findings using semi-structured interviews.",
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          },
+          {
+            "Id": "276f50c5-dd53-426b-a8e2-2fdc678bdfbf",
+            "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Title": "Explaining the multifaceted experiences of family caregivers of stroke survivors: a qualitative study in Iran",
+            "Authors": [
+              "Kosar Pourhasan",
+              "Parvaneh Vasli"
+            ],
+            "Year": 2025,
+            "Journal": "BMJ Open",
+            "Doi": "10.1136/bmjopen-2024-097463",
+            "Polarity": "Supports",
+            "Strength": "Moderate",
+            "Geography": "Unknown",
+            "Decision": "Accepted",
+            "DecidedBy": "Humaniser",
+            "ExclusionReason": null,
+            "Quote": "a total of 17 family caregivers of stroke survivors were recruited using the purposive sampling technique with maximum variation.",
+            "Verification": "Verified",
+            "FoundVia": [
+              "SemanticScholar"
+            ]
+          }
+        ],
+        "PotentialResearchGaps": [],
+        "InsufficientEvidence": [
+          {
+            "QuestionId": "52743167-68e5-4322-8a7a-ed0e71d00c96",
+            "Question": "What are the theoretical foundations and epistemological assumptions underlying purposive maximum-variation sampling?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "7f1be8b4-78d5-4651-b0cb-f6aeddcb7c99",
+            "Question": "In what types of qualitative research questions and study designs is maximum-variation sampling most appropriate?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "07f0f4a5-de1b-49ec-9341-0430f6fddd88",
+            "Question": "What characteristics of interview-based qualitative studies determine suitability for maximum-variation sampling?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "8b476324-30a0-4ee3-923a-7617a3ada578",
+            "Question": "What are the methodological consequences and trade-offs of using maximum-variation sampling versus alternative purposive sampling approaches?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "9541f8fb-9d22-4099-8f6f-f5ccf1796a1f",
+            "Question": "What limitations, critiques, or conditions where maximum-variation sampling is inappropriate exist in the literature?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          },
+          {
+            "QuestionId": "9cfedc69-1426-435c-bf0e-7d780d434ebb",
+            "Question": "How is \u0027variation\u0027 operationalized and assessed when implementing maximum-variation sampling in interview studies?",
+            "Sufficiency": "Insufficient",
+            "Reasons": []
+          }
+        ],
+        "Contradictions": [],
+        "Limitations": [
+          "The source limit was reached; further results were not tracked.",
+          "Reduced provider coverage for \u201CWhat are the defining characteristics and procedural steps o\u2026\u201D: OpenAlex (ProviderUnavailable).",
+          "Coverage is limited to the recorded searches. An empty or failed search does not establish absence of research."
+        ],
+        "SearchCoverage": [
+          {
+            "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+            "Query": "\u0022purposive maximum-variation sampling\u0022 definition",
+            "Intent": "What are the defining characteristics and procedural steps of purposive maximum-variation sampling?",
+            "ContradictionSearch": false,
+            "NewCandidates": 12,
+            "Duplicates": 20,
+            "Providers": [
+              {
+                "Provider": "ConsensusApi",
+                "Outcome": "Skipped",
+                "Results": 0,
+                "Detail": "excluded by research request"
+              },
+              {
+                "Provider": "CORE",
+                "Outcome": "Results",
+                "Results": 36,
+                "Detail": null
+              },
+              {
+                "Provider": "DOAJ",
+                "Outcome": "Results",
+                "Results": 7,
+                "Detail": null
+              },
+              {
+                "Provider": "OpenAlex",
+                "Outcome": "ProviderUnavailable",
+                "Results": 0,
+                "Detail": "JsonException"
+              },
+              {
+                "Provider": "Scopus",
+                "Outcome": "Skipped",
+                "Results": 0,
+                "Detail": "excluded by research request"
+              },
+              {
+                "Provider": "SemanticScholar",
+                "Outcome": "Results",
+                "Results": 100,
+                "Detail": null
+              }
+            ]
+          }
+        ],
+        "ProviderCoverage": [
+          {
+            "Provider": "ConsensusApi",
+            "Searches": 1,
+            "WithResults": 0,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "CORE",
+            "Searches": 1,
+            "WithResults": 1,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "DOAJ",
+            "Searches": 1,
+            "WithResults": 1,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "OpenAlex",
+            "Searches": 1,
+            "WithResults": 0,
+            "Empty": 0,
+            "Unavailable": 1,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "Scopus",
+            "Searches": 1,
+            "WithResults": 0,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          },
+          {
+            "Provider": "SemanticScholar",
+            "Searches": 1,
+            "WithResults": 1,
+            "Empty": 0,
+            "Unavailable": 0,
+            "RateLimited": 0,
+            "Unconfirmed": 0
+          }
+        ],
+        "CompletionReason": "BudgetSources",
+        "Usage": {
+          "Searches": 1,
+          "ProviderCalls": 4,
+          "LlmCalls": 4,
+          "InputTokens": 6493,
+          "OutputTokens": 2920,
+          "EstimatedLlmCostUsd": 0.021093,
+          "ElapsedSeconds": 43.4571518
+        },
+        "EvidenceSufficient": false
+      },
+      "retrievedSources": [
+        {
+          "Id": "296d7798-8d95-47f5-908a-71c5bf8f1409",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "Types of Purposive Sampling Techniques with Their Examples and Application in Qualitative Research Studies",
+          "Authors": [
+            "Friday Nyimbili",
+            "Leah Nyimbili"
+          ],
+          "Year": 2024,
+          "Journal": "British journal of multidisciplinary and advanced studies",
+          "Doi": "10.37745/bjmas.2022.0419",
+          "Polarity": "Supports",
+          "Strength": "Moderate",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "8b637d15-ddb0-4ace-adb2-462299a64698",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "Acceptability of Breast Milk Donor Banking: A qualitative study among Health Workers in Greater Accra Regional Hospital, Ghana",
+          "Authors": [
+            "Fred Kafui Tende",
+            "A. Nwameme",
+            "P. Tabong"
+          ],
+          "Year": 2023,
+          "Journal": "medRxiv",
+          "Doi": "10.1101/2023.04.11.23288411",
+          "Polarity": "Supports",
+          "Strength": "Weak",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "18 healthcare professionals were chosen using maximum variation purposive sampling procedures.",
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "b8a7f376-b03f-4b7a-8cbf-c8f68ac5a0fa",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "PURPOSIVE SAMPLING: A REVIEW AND GUIDELINES FOR QUANTITATIVE RESEARCH",
+          "Authors": [
+            "M. Memon",
+            "R. Thurasamy",
+            "H. Ting",
+            "J. Cheah"
+          ],
+          "Year": 2024,
+          "Journal": "Journal of Applied Structural Equation Modeling",
+          "Doi": "10.47263/jasem.9(1)01",
+          "Polarity": "Supports",
+          "Strength": "Moderate",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "The editorial discusses different types of purposive sampling, including criterion sampling, maximum variation sampling, and theoretical sampling, and illustrates their applications in quantitative contexts.",
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "90f01ae8-d786-4253-87e1-69c99536a94b",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "Factors influencing the development of nursing professionalism: a descriptive qualitative study",
+          "Authors": [
+            "Xingyue He",
+            "Ya Mao",
+            "Huili Cao",
+            "Lin-Bo Li",
+            "Yan-Ming Wu",
+            "Hui Yang"
+          ],
+          "Year": 2024,
+          "Journal": "BMC Nursing",
+          "Doi": "10.1186/s12912-024-01945-6",
+          "Polarity": "Supports",
+          "Strength": "Weak",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "Using maximum variation and purposive sampling, 14 southern and northern China participants were recruited.",
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "384c1771-5cea-4ce5-86f7-1279bd82b3a4",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "How project-based learning improves college EFL learners\u2019 critical thinking skills and reading comprehension ability: A case study",
+          "Authors": [
+            "Xin-Ke Song",
+            "Abu Bakar Razali",
+            "J. J. Jeyaraj"
+          ],
+          "Year": 2025,
+          "Journal": "Language Teaching Research",
+          "Doi": "10.1177/13621688251352275",
+          "Polarity": "Supports",
+          "Strength": "Weak",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "Purposive sampling with maximum variation was employed, and three cases from high, medium, and low levels of CTS and RCA were selected as participants of the study.",
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "5e57161d-6ceb-4810-9f92-82596c09e75e",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "Psychological distress and cultural role conflict among dementia family caregivers in China: a phenomenological study",
+          "Authors": [
+            "Gui Yu",
+            "Tingting Yuan",
+            "Siyuan Bu",
+            "Yanli Zeng"
+          ],
+          "Year": 2025,
+          "Journal": "BMC Nursing",
+          "Doi": "10.1186/s12912-025-03996-9",
+          "Polarity": "Supports",
+          "Strength": "Weak",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "Fourteen caregivers were recruited in Chengdu, China, in late 2023 through purposive maximum variation sampling.",
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "5c81f580-6c91-431b-ad54-81e6ca0e43b5",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "Reasons doctors provide futile treatment at the end of life: a qualitative study",
+          "Authors": [
+            "L. Willmott",
+            "Ben P. White",
+            "C. Gallois",
+            "M. Parker",
+            "N. Graves",
+            "S. Winch",
+            "L. Callaway",
+            "Nicole Shepherd",
+            "Eliana Close"
+          ],
+          "Year": 2016,
+          "Journal": "Journal of Medical Ethics",
+          "Doi": "10.1136/medethics-2016-103370",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "not assessed by the reviewer",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "CORE",
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "cb45f484-64a4-4684-b704-18d8829a65f1",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "Adolescents\u2019 health literacy perspectives and implications",
+          "Authors": [
+            "A. A. Asari",
+            "Z. Birhanu",
+            "Ameyu Godesso"
+          ],
+          "Year": 2025,
+          "Journal": "BMC Public Health",
+          "Doi": "10.1186/s12889-025-22341-y",
+          "Polarity": "Supports",
+          "Strength": "Weak",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "8625e33f-3900-4082-a692-8afd67482b26",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "Understanding burnout among operating room nurses: a qualitative study",
+          "Authors": [
+            "Yu-Fang Li",
+            "Dan Xiang",
+            "Yun Jiang",
+            "Su Gu"
+          ],
+          "Year": 2025,
+          "Journal": "Frontiers in Public Health",
+          "Doi": "10.3389/fpubh.2025.1604631",
+          "Polarity": "Supports",
+          "Strength": "Moderate",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "A purposive sampling method, guided by the principle of maximum variation, was employed to recruit 14 operating room nurses from a tertiary Grade A hospital in Anhui Province in January 2025.",
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "80729020-d3c0-4c95-b65d-51dcf51c0347",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "Factors Influencing Adherence to Home-Based Exercise Rehabilitation in Stroke Patients from a Temporal Perspective: An Explanatory Sequential Mixed-Methods Study",
+          "Authors": [
+            "Jianing Shao",
+            "Sunling Cong",
+            "Yuxin Han",
+            "Wenjing Xu",
+            "Qing Wang",
+            "Jiachen Zhang",
+            "Xiao-Xiao Wei",
+            "Rui Ren"
+          ],
+          "Year": 2026,
+          "Journal": "Patient Preference and Adherence",
+          "Doi": "10.2147/ppa.s582280",
+          "Polarity": "Supports",
+          "Strength": "Moderate",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "16 stroke patients were selected from the quantitative sample through purposive and maximum variation sampling to explain and supplement the quantitative findings using semi-structured interviews.",
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "a66f74e3-6186-4743-87db-e010e3d67497",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "A New Definition of the Term \u201CHigh-Phenolic Olive Oil\u201D Based on Large Scale Statistical Data of Greek Olive Oils Analyzed by qNMR",
+          "Authors": [
+            "P. Diamantakos",
+            "Kostas Ioannidis",
+            "C. Papanikolaou",
+            "Annia Tsolakou",
+            "A. Rigakou",
+            "E. Melliou",
+            "P. Magiatis"
+          ],
+          "Year": 2021,
+          "Journal": "Molecules",
+          "Doi": "10.3390/molecules26041115",
+          "Polarity": "Supports",
+          "Strength": "Insufficient",
+          "Geography": "Unknown",
+          "Decision": "Rejected",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": "off topic",
+          "Quote": null,
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        },
+        {
+          "Id": "276f50c5-dd53-426b-a8e2-2fdc678bdfbf",
+          "QuestionId": "8f67fc79-d26d-4e25-b6dd-0b718983dbfc",
+          "Title": "Explaining the multifaceted experiences of family caregivers of stroke survivors: a qualitative study in Iran",
+          "Authors": [
+            "Kosar Pourhasan",
+            "Parvaneh Vasli"
+          ],
+          "Year": 2025,
+          "Journal": "BMJ Open",
+          "Doi": "10.1136/bmjopen-2024-097463",
+          "Polarity": "Supports",
+          "Strength": "Moderate",
+          "Geography": "Unknown",
+          "Decision": "Accepted",
+          "DecidedBy": "Humaniser",
+          "ExclusionReason": null,
+          "Quote": "a total of 17 family caregivers of stroke survivors were recruited using the purposive sampling technique with maximum variation.",
+          "Verification": "Verified",
+          "FoundVia": [
+            "SemanticScholar"
+          ]
+        }
+      ],
+      "judgementStatus": "Independent review required; no evidence-quality superiority claimed."
+    }
+  ]
+}

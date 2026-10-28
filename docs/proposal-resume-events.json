@@ -1,0 +1,322 @@
+[
+    {
+        "Timestamp":  "2026-10-04T15:02:04.3178065Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Hangfire.Server.ServerHeartbeatProcess"
+                           },
+                           {
+                               "Name":  "State",
+                               "Value":  "Server verification-server:40476:02eef808 heartbeat successfully sent"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "PropertyName":  "State",
+                                          "RawText":  "{State:l}",
+                                          "FormattedValue":  "Server verification-server:40476:02eef808 heartbeat successfully sent"
+                                      }
+                                  ],
+        "EventType":  "$41D88E58",
+        "Level":  "Debug",
+        "SpanKind":  "Internal",
+        "Id":  "event-73967c51222808dfdec11b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-73967c51222808dfdec11b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T15:02:04.0850060Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Hangfire.Server.ServerHeartbeatProcess"
+                           },
+                           {
+                               "Name":  "State",
+                               "Value":  "Server generation-server:40476:19fb00a1 heartbeat successfully sent"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "PropertyName":  "State",
+                                          "RawText":  "{State:l}",
+                                          "FormattedValue":  "Server generation-server:40476:19fb00a1 heartbeat successfully sent"
+                                      }
+                                  ],
+        "EventType":  "$41D88E58",
+        "Level":  "Debug",
+        "SpanKind":  "Internal",
+        "Id":  "event-7372f68c222808dfddc11b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-7372f68c222808dfddc11b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T15:02:04.0609014Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Hangfire.Server.ServerHeartbeatProcess"
+                           },
+                           {
+                               "Name":  "State",
+                               "Value":  "Server default-server:40476:13e49061 heartbeat successfully sent"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "PropertyName":  "State",
+                                          "RawText":  "{State:l}",
+                                          "FormattedValue":  "Server default-server:40476:13e49061 heartbeat successfully sent"
+                                      }
+                                  ],
+        "EventType":  "$41D88E58",
+        "Level":  "Debug",
+        "SpanKind":  "Internal",
+        "Id":  "event-736f48f6222808dfdcc11b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-736f48f6222808dfdcc11b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T15:01:34.3065091Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Hangfire.Server.ServerHeartbeatProcess"
+                           },
+                           {
+                               "Name":  "State",
+                               "Value":  "Server verification-server:40476:02eef808 heartbeat successfully sent"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "PropertyName":  "State",
+                                          "RawText":  "{State:l}",
+                                          "FormattedValue":  "Server verification-server:40476:02eef808 heartbeat successfully sent"
+                                      }
+                                  ],
+        "EventType":  "$41D88E58",
+        "Level":  "Debug",
+        "SpanKind":  "Internal",
+        "Id":  "event-61b32003222808dfdbc11b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-61b32003222808dfdbc11b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T15:01:34.0767374Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Hangfire.Server.ServerHeartbeatProcess"
+                           },
+                           {
+                               "Name":  "State",
+                               "Value":  "Server generation-server:40476:19fb00a1 heartbeat successfully sent"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "PropertyName":  "State",
+                                          "RawText":  "{State:l}",
+                                          "FormattedValue":  "Server generation-server:40476:19fb00a1 heartbeat successfully sent"
+                                      }
+                                  ],
+        "EventType":  "$41D88E58",
+        "Level":  "Debug",
+        "SpanKind":  "Internal",
+        "Id":  "event-6190108e222808dfdac11b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-6190108e222808dfdac11b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T15:01:34.0453460Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Hangfire.Server.ServerHeartbeatProcess"
+                           },
+                           {
+                               "Name":  "State",
+                               "Value":  "Server default-server:40476:13e49061 heartbeat successfully sent"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "PropertyName":  "State",
+                                          "RawText":  "{State:l}",
+                                          "FormattedValue":  "Server default-server:40476:13e49061 heartbeat successfully sent"
+                                      }
+                                  ],
+        "EventType":  "$41D88E58",
+        "Level":  "Debug",
+        "SpanKind":  "Internal",
+        "Id":  "event-618b4654222808dfd9c11b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-618b4654222808dfd9c11b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T15:01:04.2894035Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Hangfire.Server.ServerHeartbeatProcess"
+                           },
+                           {
+                               "Name":  "State",
+                               "Value":  "Server verification-server:40476:02eef808 heartbeat successfully sent"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "PropertyName":  "State",
+                                          "RawText":  "{State:l}",
+                                          "FormattedValue":  "Server verification-server:40476:02eef808 heartbeat successfully sent"
+                                      }
+                                  ],
+        "EventType":  "$41D88E58",
+        "Level":  "Debug",
+        "SpanKind":  "Internal",
+        "Id":  "event-4fcee0d3222808dfd8c11b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-4fcee0d3222808dfd8c11b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T15:01:04.2139980Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Hangfire.PostgreSql.CountersAggregator"
+                           },
+                           {
+                               "Name":  "State",
+                               "Value":  "Aggregating records in \u0027Counter\u0027 table..."
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "PropertyName":  "State",
+                                          "RawText":  "{State:l}",
+                                          "FormattedValue":  "Aggregating records in \u0027Counter\u0027 table..."
+                                      }
+                                  ],
+        "EventType":  "$41D88E58",
+        "Level":  "Debug",
+        "SpanKind":  "Internal",
+        "Id":  "event-4fc35f4c222808dfd7c11b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-4fc35f4c222808dfd7c11b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T15:01:04.0601942Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Hangfire.Server.ServerHeartbeatProcess"
+                           },
+                           {
+                               "Name":  "State",
+                               "Value":  "Server generation-server:40476:19fb00a1 heartbeat successfully sent"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "PropertyName":  "State",
+                                          "RawText":  "{State:l}",
+                                          "FormattedValue":  "Server generation-server:40476:19fb00a1 heartbeat successfully sent"
+                                      }
+                                  ],
+        "EventType":  "$41D88E58",
+        "Level":  "Debug",
+        "SpanKind":  "Internal",
+        "Id":  "event-4fabe756222808dfd6c11b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-4fabe756222808dfd6c11b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T15:01:04.0292072Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Hangfire.Server.ServerHeartbeatProcess"
+                           },
+                           {
+                               "Name":  "State",
+                               "Value":  "Server default-server:40476:13e49061 heartbeat successfully sent"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "PropertyName":  "State",
+                                          "RawText":  "{State:l}",
+                                          "FormattedValue":  "Server default-server:40476:13e49061 heartbeat successfully sent"
+                                      }
+                                  ],
+        "EventType":  "$41D88E58",
+        "Level":  "Debug",
+        "SpanKind":  "Internal",
+        "Id":  "event-4fa72ce8222808dfd5c11b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-4fa72ce8222808dfd5c11b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    }
+]

@@ -6,35 +6,11 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Eye, EyeOff, Loader2, ArrowLeft, AlertCircle } from 'lucide-react'
-import axios from 'axios'
 import toast from 'react-hot-toast'
 import { authApi } from '../../api/auth'
 import { useAuthStore } from '../../store/authStore'
 import { cn } from '../../lib/utils'
-
-function getLoginErrorMessage(err: unknown): string {
-  if (axios.isAxiosError(err)) {
-    const status = err.response?.status
-
-    if (status === 401 || status === 400) {
-      const data = err.response?.data
-      const serverMsg = data?.message || data?.error || data?.title
-      if (serverMsg && typeof serverMsg === 'string' && serverMsg.length < 120) {
-        return serverMsg
-      }
-      return 'Invalid email or password.'
-    }
-
-    if (status === 429) {
-      return 'Too many login attempts. Please wait a moment and try again.'
-    }
-
-    if (!err.response || (status && status >= 500)) {
-      return 'Something went wrong on our end. Please try again in a moment.'
-    }
-  }
-  return 'Unable to sign in. Please try again.'
-}
+import { getLoginErrorMessage } from './loginErrors'
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email address'),

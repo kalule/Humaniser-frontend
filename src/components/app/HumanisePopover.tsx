@@ -3,6 +3,8 @@ import { motion } from 'framer-motion'
 import { RefreshCw, Check, X, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { paraphraseApi } from '../../api/paraphrase'
+import { humaniseApi } from '../../api/humanise'
+import { useAuthStore } from '../../store/authStore'
 import { PARAPHRASE_MODE_INDEX } from '../../types/paraphrase'
 
 interface HumanisePopoverProps {
@@ -17,16 +19,32 @@ export function HumanisePopover({ sentence, onAccept, onClose, onOpenInEditor }:
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Full is the Humaniser's thorough rewrite level and gives the best results. It is gated server-side to
+  // paid plans (mirrors EditorPage's canUseFullMode), so other plans keep the Fluency paraphrase.
+  const canUseFull = useAuthStore(s => s.user?.plan === 'Pro' || s.user?.plan === 'Unlimited')
+
   const generate = async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const result = await paraphraseApi.paraphrase({
-        text: sentence,
-        mode: PARAPHRASE_MODE_INDEX.Fluency,
-        strength: 'medium',
-      })
-      setRewritten(result.paraphrasedText)
+      if (canUseFull) {
+        // 'professional' is the neutral register; preserveLength keeps the sentence close to its original
+        // size, since the result is spliced back into the surrounding text.
+        const response = await humaniseApi.humanise({
+          text: sentence,
+          tone: 'professional',
+          strength: 'maximum',
+          preserveLength: true,
+        })
+        setRewritten(response.data.humanisedText)
+      } else {
+        const result = await paraphraseApi.paraphrase({
+          text: sentence,
+          mode: PARAPHRASE_MODE_INDEX.Fluency,
+          strength: 'medium',
+        })
+        setRewritten(result.paraphrasedText)
+      }
     } catch (err: unknown) {
       const apiErr = err as { message?: string; upgradeRequired?: boolean }
       if (apiErr?.upgradeRequired) {

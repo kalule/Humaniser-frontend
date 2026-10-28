@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   X, Upload, FolderOpen, Plus, ChevronDown,
@@ -14,6 +14,10 @@ interface CreatedFolder { id: string; name: string }
 interface Props {
   open:     boolean
   folders:  WorkspaceFolder[]
+  /** Defaults the folder picker to whatever folder the caller currently has open —
+   *  without this, uploading while inside a folder silently landed in "All files"
+   *  since the picker always started at null regardless of context. */
+  initialFolderId?: string | null
   onClose:  () => void
   onUpload: (files: File[], folderId: string | null) => void
   onCreateFolder: (name: string) => CreatedFolder | Promise<CreatedFolder>
@@ -31,18 +35,26 @@ function fileIcon(name: string) {
   return <span className="text-slate-400">TXT</span>
 }
 
-export function UploadModal({ open, folders, onClose, onUpload, onCreateFolder }: Props) {
+export function UploadModal({ open, folders, initialFolderId = null, onClose, onUpload, onCreateFolder }: Props) {
   const [files, setFiles]             = useState<File[]>([])
   const [dragging, setDragging]       = useState(false)
-  const [folderId, setFolderId]       = useState<string | null>(null)
+  const [folderId, setFolderId]       = useState<string | null>(initialFolderId)
   const [folderOpen, setFolderOpen]   = useState(false)
   const [newFolderMode, setNewFolderMode] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [errors, setErrors]           = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Re-sync to the caller's current folder context each time the modal opens —
+  // it stays open across the whole picker interaction, so this only runs on
+  // the open transition, not on every render.
+  useEffect(() => {
+    if (open) setFolderId(initialFolderId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   const reset = () => {
-    setFiles([]); setDragging(false); setFolderId(null)
+    setFiles([]); setDragging(false)
     setFolderOpen(false); setNewFolderMode(false)
     setNewFolderName(''); setErrors([])
   }

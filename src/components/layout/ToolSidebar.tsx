@@ -9,7 +9,7 @@ import { useAuthStore } from '../../store/authStore'
 
 export const TOOL_NAV: { label: string; icon: React.ElementType; link: string }[] = [
   { label: 'My Library',     icon: Library,       link: '/app/library' },
-  { label: 'Web Library',    icon: Globe,         link: '/app/web-library' },
+  { label: 'Research Library', icon: Globe,       link: '/app/web-library' },
   { label: 'Doc Writer',     icon: FileText,      link: '/app/editor/new' },
   { label: 'Research Agent', icon: GraduationCap, link: '/app/research-agent/new' },
   { label: 'Rewrite',     icon: Sparkles,      link: '/app/humaniser' },

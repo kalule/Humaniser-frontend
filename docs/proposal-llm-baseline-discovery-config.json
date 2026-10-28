@@ -1,0 +1,316 @@
+﻿{
+    "strategy":  "Balanced - adaptive",
+    "candidateCap":  500,
+    "databases":  [
+                      {
+                          "id":  "consensus",
+                          "name":  "Consensus",
+                          "recommended":  true,
+                          "enabled":  true,
+                          "available":  true,
+                          "description":  "AI-curated search over Consensus.app\u0027s literature index — the primary source for this run."
+                      },
+                      {
+                          "id":  "semanticscholar",
+                          "name":  "Semantic Scholar",
+                          "recommended":  true,
+                          "enabled":  true,
+                          "available":  true,
+                          "description":  "Strong relevance ranking and citation metadata across research domains."
+                      },
+                      {
+                          "id":  "openalex",
+                          "name":  "OpenAlex",
+                          "recommended":  true,
+                          "enabled":  true,
+                          "available":  true,
+                          "description":  "Broad open scholarly index covering most disciplines."
+                      },
+                      {
+                          "id":  "arxiv",
+                          "name":  "arXiv",
+                          "recommended":  true,
+                          "enabled":  true,
+                          "available":  true,
+                          "description":  "Useful for computing, engineering, mathematics, and recent preprints."
+                      },
+                      {
+                          "id":  "pubmed",
+                          "name":  "PubMed",
+                          "recommended":  true,
+                          "enabled":  true,
+                          "available":  true,
+                          "description":  "Biomedical and life-sciences literature."
+                      },
+                      {
+                          "id":  "clinicaltrials",
+                          "name":  "ClinicalTrials.gov",
+                          "recommended":  false,
+                          "enabled":  false,
+                          "available":  true,
+                          "description":  "Trial registry — only relevant for clinical/health topics."
+                      },
+                      {
+                          "id":  "scopus",
+                          "name":  "Scopus",
+                          "recommended":  false,
+                          "enabled":  false,
+                          "available":  true,
+                          "description":  "Broad publisher metadata coverage. Requires a configured Elsevier API key."
+                      }
+                  ],
+    "topicScope":  {
+                       "primaryConcepts":  [
+                                               "digital learning adoption",
+                                               "university students",
+                                               "influencing factors"
+                                           ],
+                       "relationship":  "predictor",
+                       "population":  [
+                                          "university students",
+                                          "students aged 18 or older",
+                                          "students at public universities"
+                                      ],
+                       "setting":  [
+                                       "higher education",
+                                       "university"
+                                   ],
+                       "geography":  [
+                                         "South Africa"
+                                     ],
+                       "studyType":  "empirical",
+                       "methodology":  "quantitative correlational or mixed-methods survey",
+                       "synonyms":  {
+                                        "digital learning adoption":  [
+                                                                          "e-learning adoption",
+                                                                          "technology adoption",
+                                                                          "digital education uptake"
+                                                                      ],
+                                        "university students":  [
+                                                                    "higher education students",
+                                                                    "undergraduate students",
+                                                                    "tertiary students"
+                                                                ],
+                                        "influencing factors":  [
+                                                                    "determinants",
+                                                                    "drivers",
+                                                                    "barriers and enablers"
+                                                                ]
+                                    },
+                       "datasetTerms":  [
+
+                                        ],
+                       "conceptExpansions":  [
+                                                 {
+                                                     "concept":  "digital learning adoption",
+                                                     "term":  "e-learning adoption",
+                                                     "relationship":  "AcademicEquivalent",
+                                                     "confidence":  92,
+                                                     "rationale":  "e-learning and digital learning are substantially synonymous in educational technology literature",
+                                                     "primarySynonym":  true,
+                                                     "role":  "PrimarySynonym"
+                                                 },
+                                                 {
+                                                     "concept":  "digital learning adoption",
+                                                     "term":  "technology adoption",
+                                                     "relationship":  "BroaderConcept",
+                                                     "confidence":  89,
+                                                     "rationale":  "technology adoption encompasses digital learning but also other technologies beyond education",
+                                                     "primarySynonym":  false,
+                                                     "role":  "Contextual"
+                                                 },
+                                                 {
+                                                     "concept":  "digital learning adoption",
+                                                     "term":  "digital education uptake",
+                                                     "relationship":  "AcademicEquivalent",
+                                                     "confidence":  90,
+                                                     "rationale":  "uptake and adoption are interchangeable terms for the same adoption concept",
+                                                     "primarySynonym":  true,
+                                                     "role":  "PrimarySynonym"
+                                                 },
+                                                 {
+                                                     "concept":  "university students",
+                                                     "term":  "higher education students",
+                                                     "relationship":  "BroaderConcept",
+                                                     "confidence":  85,
+                                                     "rationale":  "higher education includes universities but also colleges and other tertiary institutions",
+                                                     "primarySynonym":  false,
+                                                     "role":  "Contextual"
+                                                 },
+                                                 {
+                                                     "concept":  "university students",
+                                                     "term":  "undergraduate students",
+                                                     "relationship":  "NarrowerConcept",
+                                                     "confidence":  87,
+                                                     "rationale":  "undergraduates are a subset of university students, excluding postgraduate students",
+                                                     "primarySynonym":  false,
+                                                     "role":  "OptionalExpansion"
+                                                 },
+                                                 {
+                                                     "concept":  "university students",
+                                                     "term":  "tertiary students",
+                                                     "relationship":  "AcademicEquivalent",
+                                                     "confidence":  88,
+                                                     "rationale":  "tertiary students and university students refer to the same population in most contexts",
+                                                     "primarySynonym":  true,
+                                                     "role":  "PrimarySynonym"
+                                                 },
+                                                 {
+                                                     "concept":  "influencing factors",
+                                                     "term":  "determinants",
+                                                     "relationship":  "AcademicEquivalent",
+                                                     "confidence":  91,
+                                                     "rationale":  "determinants and influencing factors are synonymous in research methodology",
+                                                     "primarySynonym":  true,
+                                                     "role":  "PrimarySynonym"
+                                                 },
+                                                 {
+                                                     "concept":  "influencing factors",
+                                                     "term":  "drivers",
+                                                     "relationship":  "RelatedConcept",
+                                                     "confidence":  89,
+                                                     "rationale":  "Demoted from AcademicEquivalent by the lexical-overlap gate: shares no content word with the concept and confidence 89 is below 90. Original rationale: drivers and influencing factors are interchangeable terms for causal or enabling factors",
+                                                     "primarySynonym":  false,
+                                                     "role":  "DiscoveryLane"
+                                                 },
+                                                 {
+                                                     "concept":  "influencing factors",
+                                                     "term":  "barriers and enablers",
+                                                     "relationship":  "RelatedConcept",
+                                                     "confidence":  78,
+                                                     "rationale":  "barriers and enablers address influencing factors but emphasize obstacles and facilitators specifically, narrower framing than general factors",
+                                                     "primarySynonym":  false,
+                                                     "role":  "DiscoveryLane"
+                                                 }
+                                             ]
+                   },
+    "dimensions":  [
+                       {
+                           "id":  "df31de67-bb78-45b4-a358-c574d0238fcd",
+                           "name":  "Core concepts",
+                           "keywords":  "digital learning, e-learning adoption, online learning, technology-enhanced learning, learning management systems",
+                           "enabled":  true
+                       },
+                       {
+                           "id":  "3c6cfbd2-ed9a-4cc0-ad51-65e0e220f647",
+                           "name":  "Student factors and characteristics",
+                           "keywords":  "student attitudes, digital literacy, self-efficacy, motivation, learning preferences, generational differences",
+                           "enabled":  true
+                       },
+                       {
+                           "id":  "9d2ec94d-8a73-40c0-90c9-d819d93a34cc",
+                           "name":  "Institutional and infrastructure",
+                           "keywords":  "institutional support, technical infrastructure, internet access, broadband connectivity, device availability",
+                           "enabled":  true
+                       },
+                       {
+                           "id":  "0aa2474d-1ddb-405d-a292-e9e9d9da37b0",
+                           "name":  "Pedagogical and instructional design",
+                           "keywords":  "course design, teaching methods, interactive content, instructional quality, assessment strategies",
+                           "enabled":  true
+                       },
+                       {
+                           "id":  "3fce69b2-bf07-473e-8e67-02f3d31d82fc",
+                           "name":  "Socioeconomic and contextual barriers",
+                           "keywords":  "digital divide, socioeconomic status, rural urban disparities, gender equity, language barriers",
+                           "enabled":  true
+                       },
+                       {
+                           "id":  "27491fbf-ba79-434c-b714-1ad3f772db8b",
+                           "name":  "African and South African context",
+                           "keywords":  "Sub-Saharan Africa, South African higher education, developing countries, resource-constrained settings",
+                           "enabled":  true
+                       },
+                       {
+                           "id":  "7b274851-baaa-43f6-b10f-875c6f9daa85",
+                           "name":  "Technology acceptance models",
+                           "keywords":  "Technology Acceptance Model, UTAUT, perceived usefulness, perceived ease of use, adoption intention",
+                           "enabled":  true
+                       }
+                   ],
+    "queries":  [
+                    {
+                        "id":  "182d9723-0a33-41f6-b7ba-489e86cfdfe3",
+                        "title":  "Core concepts + Student factors and characteristics",
+                        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (student attitudes OR digital literacy OR self-efficacy OR motivation OR learning preferences OR generational differences)",
+                        "description":  "Find literature covering how student characteristics, attitudes, and digital competencies influence digital learning adoption and outcomes.",
+                        "targets":  [
+                                        "Core concepts",
+                                        "Student factors and characteristics"
+                                    ],
+                        "enabled":  true,
+                        "sortOrder":  0,
+                        "createdAt":  "2026-10-04T12:15:33.9007280Z",
+                        "updatedAt":  "2026-10-04T12:15:33.9007280Z"
+                    },
+                    {
+                        "id":  "a9704fe4-d200-461e-8545-58832911dbe0",
+                        "title":  "Core concepts + Institutional and infrastructure",
+                        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (institutional support OR technical infrastructure OR internet access OR broadband connectivity OR device availability)",
+                        "description":  "Find literature on the institutional, infrastructure, and access requirements that enable or constrain digital learning implementation.",
+                        "targets":  [
+                                        "Core concepts",
+                                        "Institutional and infrastructure"
+                                    ],
+                        "enabled":  true,
+                        "sortOrder":  1,
+                        "createdAt":  "2026-10-04T12:15:33.9007280Z",
+                        "updatedAt":  "2026-10-04T12:15:33.9007280Z"
+                    },
+                    {
+                        "id":  "fc44e522-eee1-49d3-8411-4efe9effe164",
+                        "title":  "Core concepts + Pedagogical and instructional design",
+                        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (course design OR teaching methods OR interactive content OR instructional quality OR assessment strategies)",
+                        "description":  "Find literature covering instructional design, teaching approaches, and assessment methods in digital learning environments.",
+                        "targets":  [
+                                        "Core concepts",
+                                        "Pedagogical and instructional design"
+                                    ],
+                        "enabled":  true,
+                        "sortOrder":  2,
+                        "createdAt":  "2026-10-04T12:15:33.9007280Z",
+                        "updatedAt":  "2026-10-04T12:15:33.9007280Z"
+                    },
+                    {
+                        "id":  "bed38e74-ba01-43dd-9c12-31a2b6c9393d",
+                        "title":  "Core concepts + Socioeconomic and contextual barriers",
+                        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (digital divide OR socioeconomic status OR rural urban disparities OR gender equity OR language barriers)",
+                        "description":  "Find literature examining equity challenges, socioeconomic disparities, and contextual barriers affecting digital learning access and success.",
+                        "targets":  [
+                                        "Core concepts",
+                                        "Socioeconomic and contextual barriers"
+                                    ],
+                        "enabled":  true,
+                        "sortOrder":  3,
+                        "createdAt":  "2026-10-04T12:15:33.9007280Z",
+                        "updatedAt":  "2026-10-04T12:15:33.9007280Z"
+                    },
+                    {
+                        "id":  "b7373444-d5bd-49ff-bd71-ed24f41a2428",
+                        "title":  "Core concepts + Technology acceptance models",
+                        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (Technology Acceptance Model OR UTAUT OR perceived usefulness OR perceived ease of use OR adoption intention)",
+                        "description":  "Find literature applying technology acceptance and adoption frameworks to understand student and institutional digital learning uptake.",
+                        "targets":  [
+                                        "Core concepts",
+                                        "Technology acceptance models"
+                                    ],
+                        "enabled":  true,
+                        "sortOrder":  4,
+                        "createdAt":  "2026-10-04T12:15:33.9007280Z",
+                        "updatedAt":  "2026-10-04T12:15:33.9007280Z"
+                    },
+                    {
+                        "id":  "970ca919-f0d8-4c80-925a-33a7f021af06",
+                        "title":  "Local context",
+                        "queryText":  "(digital learning OR e-learning adoption OR online learning OR technology-enhanced learning OR learning management systems) AND (South Africa OR South African higher education OR Sub-Saharan Africa OR developing countries OR resource-constrained settings) AND (university students OR public universit*)",
+                        "description":  "Find literature specifically examining digital learning adoption among university students in South Africa and similar developing-country contexts.",
+                        "targets":  [
+                                        "Local context"
+                                    ],
+                        "enabled":  true,
+                        "sortOrder":  5,
+                        "createdAt":  "2026-10-04T12:15:33.9007280Z",
+                        "updatedAt":  "2026-10-04T12:15:33.9007280Z"
+                    }
+                ]
+}

@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { FileText, Upload } from 'lucide-react'
@@ -6,10 +7,12 @@ import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
 import { useLibraryStore } from '../../store/libraryStore'
 import { useDraftHandoffStore } from '../../store/draftHandoffStore'
-import { extractTextFromFile } from '../../lib/fileExtract'
+import { importDocumentFromFile } from '../../lib/importWordDocument'
 import { FORMAT_LABELS, FORMAT_STYLES } from '../../types/citation'
 import type { FormatStyle } from '../../types/citation'
 import type { DocumentGenre } from '../../types/library'
+import type { ThesisChapterKind } from '../../types/workbench'
+import { THESIS_CHAPTERS } from '../../lib/thesisChapters'
 
 // New-document flow prompt #3 — replaces the old "Name your document" modal. Captures document
 // type + citation style up front (previously chosen inside the editor after the fact, or never
@@ -28,6 +31,7 @@ const DOCUMENT_TYPES: { value: DocumentGenre; label: string }[] = [
   { value: 'Essay', label: 'Essay' },
   { value: 'LiteratureReview', label: 'Literature review' },
   { value: 'ResearchPaper', label: 'Research paper' },
+  { value: 'ThesisChapter', label: 'Thesis chapter' },
   { value: 'Other', label: 'Other' },
 ]
 
@@ -41,13 +45,23 @@ function lastUsedCitationStyle(): FormatStyle {
   return 'apa7'
 }
 
+// Longest title we keep whole. Research questions and essay prompts routinely run past 60
+// characters, and clipping there made different documents on the same topic indistinguishable in
+// the library (every title ended "…the quali…").
+export const MAX_DERIVED_TITLE_LENGTH = 120
+
 // Exported for testing. Title is derived from the prompt rather than asked for separately — the
-// first line (or first ~60 chars of a one-line prompt), falling back to "Untitled document" for
-// an empty/whitespace-only prompt.
+// first line, kept whole up to MAX_DERIVED_TITLE_LENGTH and otherwise cut at a word boundary
+// (never mid-word), falling back to "Untitled document" for an empty/whitespace-only prompt.
 export function deriveTitleFromPrompt(prompt: string): string {
-  const firstLine = prompt.trim().split('\n')[0].trim()
+  const firstLine = prompt.trim().split('\n')[0].replace(/\s+/g, ' ').trim()
   if (!firstLine) return 'Untitled document'
-  return firstLine.length > 60 ? `${firstLine.slice(0, 60).trim()}…` : firstLine
+  if (firstLine.length <= MAX_DERIVED_TITLE_LENGTH) return firstLine
+  const window = firstLine.slice(0, MAX_DERIVED_TITLE_LENGTH + 1)
+  const lastSpace = window.lastIndexOf(' ')
+  // Only back up to a space when that doesn't throw away most of the title (one very long token).
+  const cut = lastSpace > MAX_DERIVED_TITLE_LENGTH * 0.6 ? window.slice(0, lastSpace) : window.slice(0, MAX_DERIVED_TITLE_LENGTH)
+  return `${cut.replace(/[\s,;:.\-–—]+$/, '')}…`
 }
 
 interface CreationCardProps {
@@ -60,12 +74,15 @@ export function CreationCard({ onClose }: CreationCardProps) {
   const setPendingDraft = useDraftHandoffStore(s => s.setPending)
 
   const [documentType, setDocumentType] = useState<DocumentGenre>('Essay')
+  const [thesisChapter, setThesisChapter] = useState<ThesisChapterKind>('Introduction')
   const [citationStyle, setCitationStyle] = useState<FormatStyle>(lastUsedCitationStyle)
   const [topic, setTopic] = useState('')
   const [busy, setBusy] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const hasPrompt = topic.trim().length > 0
+  // Nudge short prompts: drafts improve with a topic plus level/scope. Hidden when empty (prompt is optional).
+  const weakPrompt = hasPrompt && topic.trim().split(/\s+/).length < 6
 
   const rememberCitationStyle = (style: FormatStyle) => {
     setCitationStyle(style)
@@ -85,7 +102,7 @@ export function CreationCard({ onClose }: CreationCardProps) {
         citationStyle,
       })
       if (withDraft && hasPrompt) {
-        setPendingDraft({ documentId: doc.id, topic: topic.trim(), documentType, citationStyle })
+        setPendingDraft({ documentId: doc.id, topic: topic.trim(), documentType, citationStyle, thesisChapter: documentType === 'ThesisChapter' ? thesisChapter : undefined })
       }
       onClose()
       navigate(`/app/editor/${doc.id}`)
@@ -102,13 +119,7 @@ export function CreationCard({ onClose }: CreationCardProps) {
     if (!file || busy) return
     setBusy(true)
     try {
-      const content = await extractTextFromFile(file)
-      const doc = await createDocument({
-        title: file.name.replace(/\.[^.]+$/, '') || 'Untitled document',
-        content,
-        documentType,
-        citationStyle,
-      })
+      const doc = await importDocumentFromFile(file, createDocument, { documentType, citationStyle })
       onClose()
       navigate(`/app/editor/${doc.id}`)
     } catch (err) {
@@ -120,10 +131,22 @@ export function CreationCard({ onClose }: CreationCardProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && !busy) { onClose(); return }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void handleCreate(true) }
+    // Mirrors the primary button: draft when there's a prompt, otherwise a blank document.
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy) { e.preventDefault(); void handleCreate(hasPrompt) }
   }
 
-  return (
+  // Rendered into document.body (see createPortal below) rather than wherever the caller happens
+  // to sit in the tree: AppShell's layout nests this component under an ancestor that creates a
+  // CSS containing block (any ancestor with transform/filter/will-change, including framer-motion
+  // elements), which scopes `fixed inset-0` to that ancestor's box instead of the real viewport —
+  // the reported bug (modal's top edge clipped against the header, header never dims) was exactly
+  // that. Same technique Modal.tsx already uses for this reason.
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onKeyDown={handleKeyDown}
@@ -134,15 +157,16 @@ export function CreationCard({ onClose }: CreationCardProps) {
         aria-modal="true"
         aria-labelledby="creation-card-title"
         initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="relative bg-white border border-[#e0e0da] rounded-2xl p-6 w-full max-w-md shadow-2xl"
+        className="relative bg-white border border-[#e0e0da] rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[calc(100vh-2rem)]"
       >
-        <h3 id="creation-card-title" className="text-[#1a1a18] font-semibold text-lg mb-1">
-          What are you writing?
-        </h3>
-        <p className="text-[13px] text-neutral-500 mb-5">
-          Tell us the basics. You can rename the document later, right in the editor.
-        </p>
+        <div className="px-6 pt-5 pb-3">
+          <h3 id="creation-card-title" className="text-[#1a1a18] font-semibold text-lg">
+            What are you writing?
+          </h3>
+          <p className="text-[13px] text-neutral-500 mt-0.5">You can rename the document later, in the editor.</p>
+        </div>
 
+        <div className="flex-1 overflow-y-auto px-6 pb-2">
         {/* Document type */}
         <div className="mb-4">
           <label className="block text-[13px] font-medium text-[#1a1a18] mb-2">Document type</label>
@@ -169,27 +193,41 @@ export function CreationCard({ onClose }: CreationCardProps) {
           </div>
         </div>
 
-        {/* Citation style */}
-        <div className="mb-4">
-          <label htmlFor="creation-card-citation-style" className="block text-[13px] font-medium text-[#1a1a18] mb-2">
-            Citation style
-          </label>
-          <select
-            id="creation-card-citation-style"
-            value={citationStyle}
-            disabled={busy}
-            onChange={e => rememberCitationStyle(e.target.value as FormatStyle)}
-            className="w-full bg-neutral-100 border-0 rounded-lg px-3.5 py-2.5 text-[#1a1a18] text-sm outline-none focus:ring-2 focus:ring-[#7c3aed]/20 disabled:opacity-50"
-          >
-            {FORMAT_STYLES.map(style => (
-              <option key={style} value={style}>{FORMAT_LABELS[style]}</option>
-            ))}
-          </select>
-          <p className="text-[11px] text-neutral-400 mt-1">Used for in-text citations and your reference list.</p>
+        {/* Chapter (thesis only) + citation style share one row */}
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          {documentType === 'ThesisChapter' && (
+            <div>
+              <label htmlFor="creation-card-thesis-chapter" className="block text-[13px] font-medium text-[#1a1a18] mb-2">Chapter</label>
+              <select
+                id="creation-card-thesis-chapter"
+                value={thesisChapter}
+                disabled={busy}
+                title={THESIS_CHAPTERS.find(ch => ch.value === thesisChapter)?.description}
+                onChange={e => setThesisChapter(e.target.value as ThesisChapterKind)}
+                className="w-full bg-neutral-100 border-0 rounded-lg px-3.5 py-2.5 text-[#1a1a18] text-sm outline-none focus:ring-2 focus:ring-[#7c3aed]/20 disabled:opacity-50"
+              >
+                {THESIS_CHAPTERS.map(ch => <option key={ch.value} value={ch.value}>{ch.label}</option>)}
+              </select>
+            </div>
+          )}
+          <div className={documentType === 'ThesisChapter' ? '' : 'col-span-2'}>
+            <label htmlFor="creation-card-citation-style" className="block text-[13px] font-medium text-[#1a1a18] mb-2">Citation style</label>
+            <select
+              id="creation-card-citation-style"
+              value={citationStyle}
+              disabled={busy}
+              onChange={e => rememberCitationStyle(e.target.value as FormatStyle)}
+              className="w-full bg-neutral-100 border-0 rounded-lg px-3.5 py-2.5 text-[#1a1a18] text-sm outline-none focus:ring-2 focus:ring-[#7c3aed]/20 disabled:opacity-50"
+            >
+              {FORMAT_STYLES.map(style => (
+                <option key={style} value={style}>{FORMAT_LABELS[style]}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Topic / prompt */}
-        <div className="mb-5">
+        <div className="mb-2">
           <label htmlFor="creation-card-topic" className="block text-[13px] font-medium text-[#1a1a18] mb-2">
             Topic or prompt <span className="text-neutral-400 font-normal">(optional)</span>
           </label>
@@ -202,39 +240,44 @@ export function CreationCard({ onClose }: CreationCardProps) {
             onChange={e => setTopic(e.target.value)}
             placeholder="e.g. &ldquo;A literature review on social media use and anxiety in adolescents aged 13 to 18&rdquo;"
             className="w-full bg-neutral-100 border-0 rounded-lg px-3.5 py-2.5 text-[#1a1a18] text-sm outline-none focus:ring-2 focus:ring-[#7c3aed]/20 resize-none disabled:opacity-50"
+            aria-describedby="creation-card-topic-hint"
           />
+          <p id="creation-card-topic-hint" className="text-[11px] mt-1 min-h-[1rem] text-neutral-400" aria-live="polite">
+            {weakPrompt ? 'Weak prompt: add the topic, level or word count for a stronger draft.' : ''}
+          </p>
         </div>
 
-        {/* Secondary actions */}
-        <div className="flex gap-2 mb-5">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void handleCreate(false)}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-[13px] font-medium transition-colors disabled:opacity-50"
-          >
-            <FileText size={14} /> Start with a blank page
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={handleImportClick}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-[13px] font-medium transition-colors disabled:opacity-50"
-          >
-            <Upload size={14} /> Import from Word (.docx)
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".txt,.docx"
-            onChange={e => void handleFileSelected(e)}
-            className="hidden"
-            aria-hidden="true"
-          />
         </div>
 
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-neutral-400">Ctrl + Enter to create</span>
+        <div className="flex items-center justify-between gap-3 border-t border-neutral-100 px-6 py-4">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleCreate(false)}
+              title="Create an empty document"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-neutral-600 hover:bg-neutral-100 transition-colors disabled:opacity-50"
+            >
+              <FileText size={14} /> Blank page
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleImportClick}
+              title="Import a Word (.docx) or text file"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-neutral-600 hover:bg-neutral-100 transition-colors disabled:opacity-50"
+            >
+              <Upload size={14} /> Import
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.docx"
+              onChange={e => void handleFileSelected(e)}
+              className="hidden"
+              aria-hidden="true"
+            />
+          </div>
           <div className="flex gap-2">
             <button
               type="button"
@@ -246,15 +289,17 @@ export function CreationCard({ onClose }: CreationCardProps) {
             </button>
             <button
               type="button"
-              onClick={() => void handleCreate(true)}
+              onClick={() => void handleCreate(hasPrompt)}
               disabled={busy}
-              className="px-5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#4c1d95] text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+              title="Ctrl + Enter"
+              className="px-5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#4c1d95] text-white text-[13px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {busy ? 'Creating…' : hasPrompt ? 'Create with draft' : 'Create'}
+              {busy ? 'Creating…' : hasPrompt ? 'Write with AI' : 'Create blank document'}
             </button>
           </div>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   )
 }

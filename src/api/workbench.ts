@@ -13,6 +13,8 @@ import type {
   ValidateLiteratureRequest,
   ValidateLiteratureResponse,
   WriteWithAiRequest,
+  CoWriteSectionRequest,
+  CoWriteSectionResponse,
   WriteWithAiResponse,
   ContinueWritingRequest,
   ContinueWritingResponse,
@@ -71,6 +73,12 @@ export const workbenchApi = {
   writeWithAi: async (data: WriteWithAiRequest): Promise<WriteWithAiResponse> =>
     unwrap(await client.post<Wrapped<WriteWithAiResponse>>(
       '/api/v1/workbench/write-with-ai', data, { timeout: 900_000 },
+    )),
+
+  /** Drafts one section of a co-written essay from that section's own passages. */
+  draftCoWriteSection: async (data: CoWriteSectionRequest): Promise<CoWriteSectionResponse> =>
+    unwrap(await client.post<Wrapped<CoWriteSectionResponse>>(
+      '/api/v1/workbench/essay-cowrite/section', data, { timeout: 180_000 },
     )),
 
   continueWriting: async (data: ContinueWritingRequest): Promise<ContinueWritingResponse> =>

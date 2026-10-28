@@ -1,0 +1,287 @@
+[
+    {
+        "Timestamp":  "2026-10-04T15:06:13.1970430Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "Text":  "Application terminated unexpectedly."
+                                      }
+                                  ],
+        "EventType":  "$02F74D94",
+        "Level":  "Fatal",
+        "Exception":  "System.IO.IOException: Failed to bind to address https://127.0.0.1:7108: address already in use.\r\n ---\u003e Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n ---\u003e System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)\r\n   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)\r\n   at System.Net.Sockets.Socket.Bind(EndPoint localEP)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.\u003c\u003ec__DisplayClass28_0`1.\u003c\u003cStartAsync\u003eg__OnBind|0\u003ed.MoveNext()\r\n--- End of stack trace from previous location ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.\u003cStartAsync\u003eb__15_1(IHostedService service, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Program.\u003cMain\u003e$(String[] args) in C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.API\\Program.cs:line 437",
+        "SpanKind":  "Internal",
+        "Id":  "event-07ee717e222908df66c21b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-07ee717e222908df66c21b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T15:06:12.9014068Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "EventId",
+                               "Value":  {
+                                             "Id":  11,
+                                             "Name":  "HostedServiceStartupFaulted"
+                                         }
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Microsoft.Extensions.Hosting.Internal.Host"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "Text":  "Hosting failed to start"
+                                      }
+                                  ],
+        "EventType":  "$1EA9AF27",
+        "Level":  "Error",
+        "Exception":  "System.IO.IOException: Failed to bind to address https://127.0.0.1:7108: address already in use.\r\n ---\u003e Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n ---\u003e System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)\r\n   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)\r\n   at System.Net.Sockets.Socket.Bind(EndPoint localEP)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.\u003c\u003ec__DisplayClass28_0`1.\u003c\u003cStartAsync\u003eg__OnBind|0\u003ed.MoveNext()\r\n--- End of stack trace from previous location ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.\u003cStartAsync\u003eb__15_1(IHostedService service, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Program.\u003cMain\u003e$(String[] args) in C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.API\\Program.cs:line 437",
+        "SpanKind":  "Internal",
+        "Id":  "event-07c15534222908df65c21b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-07c15534222908df65c21b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T13:52:08.8329938Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "Text":  "Application terminated unexpectedly."
+                                      }
+                                  ],
+        "EventType":  "$02F74D94",
+        "Level":  "Fatal",
+        "Exception":  "System.IO.IOException: Failed to bind to address http://127.0.0.1:5062: address already in use.\r\n ---\u003e Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n ---\u003e System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)\r\n   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)\r\n   at System.Net.Sockets.Socket.Bind(EndPoint localEP)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.\u003c\u003ec__DisplayClass28_0`1.\u003c\u003cStartAsync\u003eg__OnBind|0\u003ed.MoveNext()\r\n--- End of stack trace from previous location ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.\u003cStartAsync\u003eb__15_1(IHostedService service, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Program.\u003cMain\u003e$(String[] args) in C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.API\\Program.cs:line 437",
+        "SpanKind":  "Internal",
+        "Id":  "event-aee24ed2221e08df919d1b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-aee24ed2221e08df919d1b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T13:52:08.6878277Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "EventId",
+                               "Value":  {
+                                             "Id":  11,
+                                             "Name":  "HostedServiceStartupFaulted"
+                                         }
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Microsoft.Extensions.Hosting.Internal.Host"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "Text":  "Hosting failed to start"
+                                      }
+                                  ],
+        "EventType":  "$1EA9AF27",
+        "Level":  "Error",
+        "Exception":  "System.IO.IOException: Failed to bind to address http://127.0.0.1:5062: address already in use.\r\n ---\u003e Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n ---\u003e System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)\r\n   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)\r\n   at System.Net.Sockets.Socket.Bind(EndPoint localEP)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.\u003c\u003ec__DisplayClass28_0`1.\u003c\u003cStartAsync\u003eg__OnBind|0\u003ed.MoveNext()\r\n--- End of stack trace from previous location ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.\u003cStartAsync\u003eb__15_1(IHostedService service, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Program.\u003cMain\u003e$(String[] args) in C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.API\\Program.cs:line 437",
+        "SpanKind":  "Internal",
+        "Id":  "event-aecc2845221e08df909d1b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-aecc2845221e08df909d1b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T13:51:48.9434436Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "Text":  "Application terminated unexpectedly."
+                                      }
+                                  ],
+        "EventType":  "$02F74D94",
+        "Level":  "Fatal",
+        "Exception":  "System.IO.IOException: Failed to bind to address http://127.0.0.1:5062: address already in use.\r\n ---\u003e Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n ---\u003e System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)\r\n   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)\r\n   at System.Net.Sockets.Socket.Bind(EndPoint localEP)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.\u003c\u003ec__DisplayClass28_0`1.\u003c\u003cStartAsync\u003eg__OnBind|0\u003ed.MoveNext()\r\n--- End of stack trace from previous location ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.\u003cStartAsync\u003eb__15_1(IHostedService service, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Program.\u003cMain\u003e$(String[] args) in C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.API\\Program.cs:line 437",
+        "SpanKind":  "Internal",
+        "Id":  "event-a3076744221e08df889d1b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-a3076744221e08df889d1b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-04T13:51:48.6327178Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "EventId",
+                               "Value":  {
+                                             "Id":  11,
+                                             "Name":  "HostedServiceStartupFaulted"
+                                         }
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Microsoft.Extensions.Hosting.Internal.Host"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "Text":  "Hosting failed to start"
+                                      }
+                                  ],
+        "EventType":  "$1EA9AF27",
+        "Level":  "Error",
+        "Exception":  "System.IO.IOException: Failed to bind to address http://127.0.0.1:5062: address already in use.\r\n ---\u003e Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n ---\u003e System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)\r\n   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)\r\n   at System.Net.Sockets.Socket.Bind(EndPoint localEP)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.\u003c\u003ec__DisplayClass28_0`1.\u003c\u003cStartAsync\u003eg__OnBind|0\u003ed.MoveNext()\r\n--- End of stack trace from previous location ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.\u003cStartAsync\u003eb__15_1(IHostedService service, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Program.\u003cMain\u003e$(String[] args) in C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.API\\Program.cs:line 437",
+        "SpanKind":  "Internal",
+        "Id":  "event-a2d7fd8a221e08df879d1b0000000000",
+        "Links":  {
+                      "Self":  "api/events/event-a2d7fd8a221e08df879d1b0000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-02T12:40:29.9820779Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "Text":  "Application terminated unexpectedly."
+                                      }
+                                  ],
+        "EventType":  "$02F74D94",
+        "Level":  "Fatal",
+        "Exception":  "System.IO.IOException: Failed to bind to address https://127.0.0.1:7108: address already in use.\r\n ---\u003e Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n ---\u003e System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)\r\n   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)\r\n   at System.Net.Sockets.Socket.Bind(EndPoint localEP)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.\u003c\u003ec__DisplayClass28_0`1.\u003c\u003cStartAsync\u003eg__OnBind|0\u003ed.MoveNext()\r\n--- End of stack trace from previous location ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.\u003cStartAsync\u003eb__15_1(IHostedService service, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Program.\u003cMain\u003e$(String[] args) in C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.API\\Program.cs:line 434",
+        "SpanKind":  "Internal",
+        "Id":  "event-57be36eb208208df00a0180000000000",
+        "Links":  {
+                      "Self":  "api/events/event-57be36eb208208df00a0180000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-02T12:40:29.9820779Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "Text":  "Application terminated unexpectedly."
+                                      }
+                                  ],
+        "EventType":  "$02F74D94",
+        "Level":  "Fatal",
+        "Exception":  "System.IO.IOException: Failed to bind to address https://127.0.0.1:7108: address already in use.\r\n ---\u003e Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n ---\u003e System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)\r\n   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)\r\n   at System.Net.Sockets.Socket.Bind(EndPoint localEP)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.\u003c\u003ec__DisplayClass28_0`1.\u003c\u003cStartAsync\u003eg__OnBind|0\u003ed.MoveNext()\r\n--- End of stack trace from previous location ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.\u003cStartAsync\u003eb__15_1(IHostedService service, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Program.\u003cMain\u003e$(String[] args) in C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.API\\Program.cs:line 434",
+        "SpanKind":  "Internal",
+        "Id":  "event-57be36eb208208dff89f180000000000",
+        "Links":  {
+                      "Self":  "api/events/event-57be36eb208208dff89f180000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-02T12:40:29.9502338Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "EventId",
+                               "Value":  {
+                                             "Id":  11,
+                                             "Name":  "HostedServiceStartupFaulted"
+                                         }
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Microsoft.Extensions.Hosting.Internal.Host"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "Text":  "Hosting failed to start"
+                                      }
+                                  ],
+        "EventType":  "$1EA9AF27",
+        "Level":  "Error",
+        "Exception":  "System.IO.IOException: Failed to bind to address https://127.0.0.1:7108: address already in use.\r\n ---\u003e Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n ---\u003e System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)\r\n   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)\r\n   at System.Net.Sockets.Socket.Bind(EndPoint localEP)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.\u003c\u003ec__DisplayClass28_0`1.\u003c\u003cStartAsync\u003eg__OnBind|0\u003ed.MoveNext()\r\n--- End of stack trace from previous location ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.\u003cStartAsync\u003eb__15_1(IHostedService service, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Program.\u003cMain\u003e$(String[] args) in C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.API\\Program.cs:line 434",
+        "SpanKind":  "Internal",
+        "Id":  "event-57b95b02208208dfff9f180000000000",
+        "Links":  {
+                      "Self":  "api/events/event-57b95b02208208dfff9f180000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    },
+    {
+        "Timestamp":  "2026-10-02T12:40:29.9502338Z",
+        "Properties":  [
+                           {
+                               "Name":  "Application",
+                               "Value":  "HumaniseAI"
+                           },
+                           {
+                               "Name":  "EventId",
+                               "Value":  {
+                                             "Id":  11,
+                                             "Name":  "HostedServiceStartupFaulted"
+                                         }
+                           },
+                           {
+                               "Name":  "SourceContext",
+                               "Value":  "Microsoft.Extensions.Hosting.Internal.Host"
+                           }
+                       ],
+        "MessageTemplateTokens":  [
+                                      {
+                                          "Text":  "Hosting failed to start"
+                                      }
+                                  ],
+        "EventType":  "$1EA9AF27",
+        "Level":  "Error",
+        "Exception":  "System.IO.IOException: Failed to bind to address https://127.0.0.1:7108: address already in use.\r\n ---\u003e Microsoft.AspNetCore.Connections.AddressInUseException: Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n ---\u003e System.Net.Sockets.SocketException (10048): Only one usage of each socket address (protocol/network address/port) is normally permitted.\r\n   at System.Net.Sockets.Socket.UpdateStatusAfterSocketErrorAndThrowException(SocketError error, Boolean disconnectOnFailure, String callerName)\r\n   at System.Net.Sockets.Socket.DoBind(EndPoint endPointSnapshot, SocketAddress socketAddress)\r\n   at System.Net.Sockets.Socket.Bind(EndPoint localEP)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportOptions.CreateDefaultBoundListenSocket(EndPoint endpoint)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionListener.Bind()\r\n   at Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketTransportFactory.BindAsync(EndPoint endpoint, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure.TransportManager.BindAsync(EndPoint endPoint, ConnectionDelegate connectionDelegate, EndpointConfig endpointConfig, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.\u003c\u003ec__DisplayClass28_0`1.\u003c\u003cStartAsync\u003eg__OnBind|0\u003ed.MoveNext()\r\n--- End of stack trace from previous location ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   --- End of inner exception stack trace ---\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindEndpointAsync(ListenOptions endpoint, AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.LocalhostListenOptions.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.AddressesStrategy.BindAsync(AddressBindContext context, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.AddressBinder.BindAsync(ListenOptions[] listenOptions, AddressBindContext context, Func`2 useHttps, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.BindAsync(CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerImpl.StartAsync[TContext](IHttpApplication`1 application, CancellationToken cancellationToken)\r\n   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.\u003cStartAsync\u003eb__15_1(IHostedService service, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)\r\n   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)\r\n   at Program.\u003cMain\u003e$(String[] args) in C:\\Users\\42153\\OneDrive\\Desktop\\IT Projects\\Humaniser\\HumaniseAI.API\\Program.cs:line 434",
+        "SpanKind":  "Internal",
+        "Id":  "event-57b95b02208208dff79f180000000000",
+        "Links":  {
+                      "Self":  "api/events/event-57b95b02208208dff79f180000000000{?download,render,clef}",
+                      "Group":  "api/events/resources"
+                  }
+    }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "da2ee56e-c55a-4e95-aaa0-84564bc2d0f9",
+    "previous": "None",
+    "createdAt": "2026-10-06 18:15:07.525482+00:00",
+    "prompt": "research-design.reasoning.v3",
+    "status": "Superseded",
+    "problemPresent": false,
+    "population": "",
+    "unitOfAnalysis": "",
+    "studyPresent": false,
+    "failure": "StaleInput"
+  },
+  {
+    "id": "86c8d298-df44-4b9f-ba13-a6f455897f9d",
+    "previous": "da2ee56e-c55a-4e95-aaa0-84564bc2d0f9",
+    "createdAt": "2026-10-06 18:15:57.146878+00:00",
+    "prompt": "research-design.reasoning.v3",
+    "status": "Superseded",
+    "problemPresent": false,
+    "population": "The study will examine containerized distributed task execution workers (e.g., Hangfire/RabbitMQ background jobs), asynchronous LLM generation pipelines, monotonic fencing token protocols, network partition logs, and API token usage records during simulated worker timeouts and redelivery events.",
+    "unitOfAnalysis": "",
+    "studyPresent": false,
+    "failure": "StaleInput"
+  },
+  {
+    "id": "cd855533-27f6-4033-879a-9a9d921dc73e",
+    "previous": "86c8d298-df44-4b9f-ba13-a6f455897f9d",
+    "createdAt": "2026-10-06 18:16:34.263177+00:00",
+    "prompt": "research-design.reasoning.v3",
+    "status": "Failed",
+    "problemPresent": true,
+    "population": "The study will examine containerized distributed task execution workers (e.g., Hangfire/RabbitMQ background jobs), asynchronous LLM generation pipelines, monotonic fencing token protocols, network partition logs, and API token usage records during simulated worker timeouts and redelivery events.",
+    "unitOfAnalysis": "",
+    "studyPresent": false,
+    "failure": "ProviderUnavailable"
+  },
+  {
+    "id": "647389a9-6cd1-4991-b9a4-91a24d990b0a",
+    "previous": "cd855533-27f6-4033-879a-9a9d921dc73e",
+    "createdAt": "2026-10-06 18:27:53.405416+00:00",
+    "prompt": "research-design.reasoning.v4",
+    "status": "Failed",
+    "problemPresent": true,
+    "population": "The study will examine containerized distributed task execution workers (e.g., Hangfire/RabbitMQ background jobs), asynchronous LLM generation pipelines, monotonic fencing token protocols, network partition logs, and API token usage records during simulated worker timeouts and redelivery events.",
+    "unitOfAnalysis": "",
+    "studyPresent": false,
+    "failure": "InvalidModelOutput"
+  },
+  {
+    "id": "97ec7dd6-5eef-44c7-afbf-f68a4c019941",
+    "previous": "647389a9-6cd1-4991-b9a4-91a24d990b0a",
+    "createdAt": "2026-10-06 18:41:42.053876+00:00",
+    "prompt": "research-design.reasoning.v5",
+    "status": "Failed",
+    "problemPresent": true,
+    "population": "The study will examine containerized distributed task execution workers (e.g., Hangfire/RabbitMQ background jobs), asynchronous LLM generation pipelines, monotonic fencing token protocols, network partition logs, and API token usage records during simulated worker timeouts and redelivery events.",
+    "unitOfAnalysis": "",
+    "studyPresent": false,
+    "failure": "InvalidModelOutput"
+  }
+]
