@@ -9,6 +9,8 @@ import { cn, formatShortDate } from '../../lib/utils'
 import { useSystematicReviewStore } from '../../store/systematicReviewStore'
 import { DocumentList, type DocumentListEntry } from '../../components/app/DocumentList'
 import type { ReviewCreationPath, SystematicReview, SystematicReviewStatus } from '../../types/systematicReview'
+import { screeningLedgerApi } from '../../api/screeningLedger'
+import type { SharedReview } from '../../types/screeningLedger'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -373,6 +375,12 @@ export default function SystematicReviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch])
 
+  // Reviews other people own that this user was added to as a screener.
+  const [shared, setShared] = useState<SharedReview[]>([])
+  useEffect(() => {
+    screeningLedgerApi.listShared().then(setShared).catch(() => setShared([]))
+  }, [])
+
   const reviews = store.reviews
   const hasAnyReviews = loaded && reviews.length > 0
   const showListArea = hasAnyReviews || debouncedSearch !== ''
@@ -493,6 +501,23 @@ export default function SystematicReviewPage() {
             </AnimatePresence>
           </div>
         </div>
+
+        {shared.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-[13px] font-bold text-slate-800 mb-2">Shared with me for screening</h2>
+            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100">
+              {shared.map(r => (
+                <button key={r.reviewId} onClick={() => navigate(`/app/systematic-review/${r.reviewId}/screen`)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50/60">
+                  <span className="flex-1 text-[13px] font-semibold text-slate-800 truncate">{r.researchQuestion || 'Untitled review'}</span>
+                  <span className="text-[11px] text-slate-500">{r.ownerEmail} · {r.role === 'Adjudicator' ? 'screen and adjudicate' : 'screen'}</span>
+                  <ArrowRight size={14} className="text-slate-400" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
 
         {/* ── What can you do here? ────────────────────────────────────────── */}
         {hasAnyReviews && (
