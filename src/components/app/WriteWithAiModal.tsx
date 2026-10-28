@@ -381,6 +381,7 @@ export function WriteWithAiModal({
       result.researchPaperFlags?.forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!' }))
       result.caseStudyFlags?.forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!' }))
       result.essayFlags?.forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!' }))
+      result.literatureReviewFlags?.forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!', duration: 8000 }))
       result.argumentativeQuality?.findings.forEach(finding =>
         toast(`Argument: ${finding.message}`, { icon: '✎', duration: 8000 }))
       if (result.argumentativeQuality && !result.argumentativeQuality.available) {

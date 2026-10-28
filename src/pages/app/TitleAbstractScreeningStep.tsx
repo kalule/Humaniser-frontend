@@ -9,6 +9,7 @@ import type {
   ScreeningAgreementRunStatus, ScreeningAgreementSummary, ScreeningRecord, ScreeningRunStatus,
   ScreeningSummary, ScreeningVerdict, SystematicReviewDetail,
 } from '../../types/systematicReview'
+import LedgerScreeningSection from '../../components/app/screening/LedgerScreeningSection'
 
 interface TitleAbstractScreeningStepProps {
   reviewId: string
@@ -371,7 +372,7 @@ export default function TitleAbstractScreeningStep({ reviewId, detail, onSaved }
             <p className="text-[13px] text-slate-400">Go back to Eligibility Criteria to add at least one before screening.</p>
           </div>
         ) : (
-          <>
+          <LedgerScreeningSection reviewId={reviewId} stage="TitleAbstract" onChanged={onSaved}>
             {/* Filter/search bar */}
             <div className="flex flex-wrap items-center gap-4 mb-4">
               <div className="relative w-72">
@@ -578,7 +579,7 @@ export default function TitleAbstractScreeningStep({ reviewId, detail, onSaved }
                 )}
               </div>
             )}
-          </>
+          </LedgerScreeningSection>
         )}
       </div>
     </div>

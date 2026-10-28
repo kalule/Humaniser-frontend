@@ -336,6 +336,9 @@ export interface WriteWithAiResponse {
   // Synthesis, etc.) produce a variable number of instances.
   isLiteratureReview?: boolean
   literatureReviewSections?: WriteWithAiLiteratureReviewSection[]
+  // What the review could not resolve (unsupported evidence needs, unscoped claims about the literature, failed searches).
+  // Empty does not mean verified.
+  literatureReviewFlags?: WorkbenchReviewFlag[]
   // PR19 — correlation ID into the WorkbenchGenerationAudit table/log line, when a generation
   // audit record was created (requires an authenticated user). Not currently surfaced in the UI;
   // kept on the response so a future support/debug view can look up "what happened when this
