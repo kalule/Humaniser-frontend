@@ -51,6 +51,7 @@ describe('issueLabel', () => {
     expect(issueLabel('budget_total_mismatch')).toBe('Budget total')
     expect(issueLabel('contradiction_human_participants_study_claims_no_human_subjects')).toBe('Contradiction')
     expect(issueLabel('some_new_type')).toBe('some new type')
+    expect(issueLabel('quality_pi01')).toBe('Completed work in a proposal')
   })
 })
 

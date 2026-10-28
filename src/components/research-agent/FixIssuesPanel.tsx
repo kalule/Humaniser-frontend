@@ -59,6 +59,8 @@ const QUALITY_LABELS: Record<string, string> = {
   br59: 'Presentation',
   br60: 'Repeated claims',
   br61: 'Coded counts as scale',
+  // Not a business-rule number: the proposal-integrity check (planned study reported as done).
+  pi01: 'Completed work in a proposal',
 }
 
 export function issueLabel(type: string): string {
