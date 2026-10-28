@@ -11,6 +11,7 @@ import type {
   FullTextScreeningFilter, FullTextScreeningRecord, FullTextScreeningRunStatus,
   FullTextScreeningSummary, OverallScreeningDecision, ScreeningVerdict, SystematicReviewDetail,
 } from '../../types/systematicReview'
+import LedgerScreeningSection from '../../components/app/screening/LedgerScreeningSection'
 
 interface FullTextScreeningStepProps {
   reviewId: string
@@ -294,7 +295,7 @@ export default function FullTextScreeningStep({ reviewId, detail, onSaved }: Ful
             <p className="text-[13px] text-slate-400">Go back to Eligibility Criteria to add at least one before screening.</p>
           </div>
         ) : (
-          <>
+          <LedgerScreeningSection reviewId={reviewId} stage="FullText" onChanged={onSaved}>
             {/* Filter chips */}
             <div className="flex flex-wrap items-center gap-2 mb-4">
               {FILTER_CHIPS.map(chip => (
@@ -644,7 +645,7 @@ export default function FullTextScreeningStep({ reviewId, detail, onSaved }: Ful
                 )}
               </div>
             )}
-          </>
+          </LedgerScreeningSection>
         )}
       </div>
 
