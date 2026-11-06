@@ -21,7 +21,9 @@ import {
   Clipboard,
   Check,
   RotateCcw,
+  Pencil,
 } from 'lucide-react'
+import { SentenceEditor } from '../../components/app/SentenceEditor'
 import { cn, countWords, formatNumber } from '../../lib/utils'
 import { renderInlineMarkdown, consumeBoldMarker } from '../../lib/inlineMarkdown'
 import { useAuthStore } from '../../store/authStore'
@@ -390,6 +392,8 @@ export function EditorPage() {
     const saved = sessionStorage.getItem('humanise_show_diff')
     return saved === null ? true : saved === '1'
   })
+  // Sentence-by-sentence review of the result: pick a sentence, get alternatives, accept it or restore your own wording.
+  const [editSentences, setEditSentences] = useState(false)
   const [diffOps, setDiffOps] = useState<DiffOp[]>([])
   const changedWordPct = useMemo(() => {
     if (diffOps.length === 0) return 0
@@ -1118,7 +1122,8 @@ export function EditorPage() {
                   </motion.div>
                 ) : outputText ? (
                   <motion.div
-                    key={outputText}
+                    // The sentence editor owns its state across edits, so it must not remount every time the text changes.
+                    key={editSentences && !showSentenceHighlights ? 'sentence-editor' : outputText}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.2 }}
@@ -1126,6 +1131,14 @@ export function EditorPage() {
                   >
                     {showSentenceHighlights ? (
                       <HighlightedText sentenceScores={detectionResult!.sentenceScores} />
+                    ) : editSentences ? (
+                      <SentenceEditor
+                        originalText={inputText}
+                        outputText={outputText}
+                        tone={effectiveTone}
+                        englishVariant={englishVariant}
+                        onChange={setOutputText}
+                      />
                     ) : showDiff && diffOps.length > 0 ? (
                       <DiffText ops={diffOps} />
                     ) : (
@@ -1141,7 +1154,7 @@ export function EditorPage() {
                         AI-sounding
                       </p>
                     )}
-                    {!showSentenceHighlights && showDiff && diffOps.length > 0 && (
+                    {!showSentenceHighlights && !editSentences && showDiff && diffOps.length > 0 && (
                       <p className="text-[11px] text-text-mut pt-1">
                         <span className="inline-block w-2 h-2 rounded-sm bg-emerald-100 mr-1" />
                         Added &nbsp;
@@ -1215,9 +1228,19 @@ export function EditorPage() {
                   actions={
                     <>
                       <OutputActionButton
+                        icon={<Pencil size={14} />}
+                        onClick={() => setEditSentences((v) => !v)}
+                        disabled={showSentenceHighlights}
+                        aria-pressed={editSentences}
+                        className={cn(OUTPUT_BTN_SIZE, editSentences && 'bg-purple-50 border-purple-300 text-purple-700')}
+                        title={showSentenceHighlights ? 'Sentence editing is unavailable while AI detection highlights are shown' : 'Review the result one sentence at a time: alternatives, accept, or restore your wording'}
+                      >
+                        {editSentences ? 'Done editing' : 'Edit sentences'}
+                      </OutputActionButton>
+                      <OutputActionButton
                         icon={showDiff ? <EyeOff size={14} /> : <Eye size={14} />}
                         onClick={() => setShowDiff((v) => !v)}
-                        disabled={showSentenceHighlights}
+                        disabled={showSentenceHighlights || editSentences}
                         aria-pressed={showDiff}
                         className={cn(OUTPUT_BTN_SIZE, showDiff && 'bg-emerald-50 border-emerald-300 text-emerald-700')}
                         title={showSentenceHighlights ? 'Change highlighting unavailable while AI detection highlights are shown' : 'Highlights what changed — additions in green, removed AI jargon in red'}
