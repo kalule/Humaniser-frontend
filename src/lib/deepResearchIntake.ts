@@ -44,22 +44,56 @@ export function startLabel(id: DepthId): string {
 
 // ── intent ──────────────────────────────────────────────────────────────────────────────────
 
-const RULES: { mode: DeepResearchMode; test: RegExp }[] = [
+/** Rules that point to ONE kind of research when they match. */
+const SPECIFIC: { mode: DeepResearchMode; test: RegExp }[] = [
   { mode: 'ContradictoryEvidence', test: /\b(conflict\w*|contradict\w*|disagree\w*|counter[- ]?evidence|opposing|fail(s|ed)? to replicate|evidence against|criticis\w+)\b/i },
   { mode: 'ResearchGapInvestigation', test: /\b(research gap|gaps? in|under-?studied|under-?researched|unexplored|little research|lack of research|understudied)\b/i },
   { mode: 'MeasurementInstrument', test: /\b(scales?|instruments?|questionnaires?|inventory|validated (measure|tool)s?|how (do|can|to) (you |we |i )?measure)\b/i },
   { mode: 'TheoreticalFramework', test: /\b(theor(y|ies|etical)|conceptual framework|framework for|framework to)\b/i },
-  { mode: 'MethodologyEvidence', test: /\b(methodolog\w*|sampling|sample size|research design|mixed[- ]methods?|regression|interviews? (vs|versus)|appropriate method)\b/i },
+  { mode: 'MethodologyEvidence', test: /\b(methodolog\w*|sampling|sample size|research design|mixed[- ]methods?|regression|appropriate method)\b/i },
   { mode: 'RelationshipInvestigation', test: /\b(influenc\w*|affect\w*|impact\w*|effects? (of|on)|relationship|correlat\w*|associat\w*|predict\w*|lead(s|ing)? to|cause[sd]?)\b/i },
-  { mode: 'EvidenceForClaim', test: /\b(evidence (for|that|supports?)|is there (any )?(evidence|support)|prove[sd]?|justif\w+|is it true)\b|^\s*(should|ought)\b/i },
-  { mode: 'TopicExploration', test: /^\s*(what|which|how|why)\b/i },
+  { mode: 'EvidenceForClaim', test: /\b(evidence (for|that|supports?)|is there (any )?(evidence|support)|is it true)\b/i },
+  { mode: 'TopicExploration', test: /\b(what (do we know|does the (literature|research|evidence) say)|overview of|state of (the )?(research|literature)|literature (on|about))\b/i },
 ]
 
-/** The kind of research a question looks like, or null when it is too short or does not clearly look like any. */
-export function detectIntent(question: string): DeepResearchMode | null {
+const ENGLISH_WORDS = /\b(the|of|in|on|and|does|do|is|are|what|which|how|why|between|for|to|that|among|with|there|can|has|have)\b/i
+
+export interface IntentGuess {
+  /** Shown to the student as "Auto: …". Null unless the question clearly points to exactly one kind of research. */
+  label: DeepResearchMode | null
+  /** What a run uses when the student leaves it on Auto. A guess; never displayed as if it were sure. */
+  mode: DeepResearchMode
+}
+
+/** Looks like English prose of enough length for the rules to mean anything. */
+function looksEnglish(q: string): boolean {
+  const letters = q.replace(/[^\p{L}]/gu, '')
+  if (letters.length === 0) return false
+  const ascii = letters.replace(/[^A-Za-z]/g, '').length
+  return ascii / letters.length >= 0.85 && ENGLISH_WORDS.test(q)
+}
+
+/**
+ * What the question looks like. The label is shown only when ONE specific kind matches; zero matches, several
+ * different matches (ambiguous), a very short question or text that does not look English give no label, rather
+ * than a guess presented as fact. The fallback mode is still chosen so a run can start.
+ */
+export function guessIntent(question: string): IntentGuess {
   const q = question.trim()
-  if (q.length < 12) return null
-  return RULES.find(r => r.test.test(q))?.mode ?? null
+  const fallback: DeepResearchMode = /^\s*(should|ought|must)\b/i.test(q) ? 'EvidenceForClaim' : 'TopicExploration'
+  // Under five words it is a phrase, not yet a question: too little to say what kind of research it is.
+  if (q.length < 12 || q.split(/\s+/).length < 5 || !looksEnglish(q)) return { label: null, mode: 'TopicExploration' }
+  let hits = SPECIFIC.filter(r => r.test.test(q)).map(r => r.mode)
+  // "evidence supports ..." and "what do we know about ..." are generic frames: they only decide when nothing more specific matched.
+  const specific = hits.filter(m => m !== 'EvidenceForClaim' && m !== 'TopicExploration')
+  if (specific.length > 0) hits = specific
+  if (hits.length === 1) return { label: hits[0], mode: hits[0] }
+  return { label: null, mode: hits[0] ?? fallback }
+}
+
+/** The kind of research to show as detected, or null when it is not clear enough to say. */
+export function detectIntent(question: string): DeepResearchMode | null {
+  return guessIntent(question).label
 }
 
 /** A question still holding an unfilled `___` slot from a template is not ready to run. */
@@ -74,19 +108,20 @@ export function isNormativeQuestion(question: string): boolean {
   return NORMATIVE.test(question)
 }
 
-/** An evidence-answerable version of a normative question. The student edits it; it is a suggestion, not a rule. */
+/**
+ * An evidence-answerable version of a normative question. It keeps the student's own words (topic, population, region)
+ * and only changes the verdict-seeking frame. When the sentence does not fit a known frame it is quoted whole rather
+ * than reshaped. The student edits it; it is a suggestion, not a rule.
+ */
 export function rewriteNormative(question: string): string {
   const q = question.trim().replace(/\?+\s*$/, '')
-  const lead = q.match(/^\s*is it (?:right|wrong|fair|unfair|ethical|unethical|moral|immoral|acceptable|justified|good|bad|better|appropriate|okay) to\s+/i)
-    ?? q.match(/^\s*(?:should|ought|must)\s+/i)
-  if (!lead) return `What does the evidence say about ${lowerFirst(q)}?`
-  const rest = q.slice(lead[0].length).trim()
-  return /^is it/i.test(lead[0])
-    ? `What does the evidence say about whether to ${rest}?`
-    : `What does the evidence say about whether ${rest}?`
+  const isTo = q.match(/^\s*is it (?:right|wrong|fair|unfair|ethical|unethical|moral|immoral|acceptable|justified|good|bad|better|appropriate|okay) to\s+/i)
+  if (isTo) return `What does the evidence say about whether to ${q.slice(isTo[0].length).trim()}?`
+  const should = q.match(/^\s*(?:should|ought|must)\s+/i)
+  if (should) return `What does the evidence say about whether ${q.slice(should[0].length).trim()}?`
+  return `What does the evidence say about this question: ${q}?`
 }
 
-const lowerFirst = (s: string) => (s ? s[0].toLowerCase() + s.slice(1) : s)
 
 // ── suggested questions ─────────────────────────────────────────────────────────────────────
 

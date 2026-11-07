@@ -22,7 +22,8 @@ describe('DeepResearchPrompt', () => {
   it('defaults to Auto, and shows the detected kind of research', () => {
     const html = render({ detected: 'RelationshipInvestigation' })
     expect(html).toContain('Auto: Investigate a relationship')
-    expect(html).toContain('Choose a mode')
+    expect(html).toContain('Change')          // the label itself is the control that opens the modes
+    expect(html).toContain('aria-expanded="false"')
     // the eight modes stay behind the control until it is opened
     expect(html).not.toContain('role="radiogroup" aria-label="Kind of research"')
   })

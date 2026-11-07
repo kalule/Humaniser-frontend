@@ -34,9 +34,8 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
   const [followUp, setFollowUp] = useState('')
 
   // A plain function, not a component: a component defined here would remount on every selection and drop keyboard focus.
-  const renderClaim = (claim: DeepResearchReportClaim, key: number) => (
-    <p key={key} className="text-[14px] leading-relaxed text-slate-800">
-      {claim.text}{' '}
+  const markers = (claim: DeepResearchReportClaim) => (
+    <>
       {claimMarkers(claim, numbers).map(m => (
         <button key={m.id} type="button" onClick={() => onOpenSource(m.id)} aria-pressed={selectedId === m.id}
           aria-label={`Source ${m.n}: ${titleOf.get(m.id) ?? ''}. Open its checks and supporting quote`}
@@ -45,7 +44,14 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
           [{m.n}]
         </button>
       ))}
-    </p>
+    </>
+  )
+  const renderClaim = (claim: DeepResearchReportClaim, key: number) => (
+    <div key={key} className="space-y-1">
+      <p className="text-[14px] leading-relaxed text-slate-800">{claim.text} {markers(claim)}</p>
+      {/* A caveat is a sentence too, so it carries its claim's markers. */}
+      {(claim.caveats ?? []).map((c, i) => <p key={i} className="text-[12px] text-amber-800">{c} {markers(claim)}</p>)}
+    </div>
   )
 
   const bottom = citedOnly(report.bottomLine, numbers)
@@ -79,7 +85,6 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
           <section key={s.questionId} aria-label={s.heading}>
             <h3 className="font-serif text-[18px] font-semibold text-slate-900">{s.heading}</h3>
             <div className="mt-2 space-y-2">{claims.map(renderClaim)}</div>
-            {s.caveats.map((c, i) => <p key={i} className="text-[12px] text-amber-800 mt-1.5">{c}</p>)}
           </section>
         )
       })}

@@ -8,13 +8,13 @@ const report: DeepResearchReport = {
   bottomLine: [{ text: 'Higher usability went with higher satisfaction.', sourceIds: ['a'] }],
   bottomLineNote: null,
   sections: [
-    { questionId: 'q1', heading: 'How is usability defined?', sufficiency: 'Sufficient', caveats: ['Evidence is from outside the target region.'],
+    { questionId: 'q1', heading: 'How is usability defined?', sufficiency: 'Sufficient',
       claims: [
-        { text: 'Usability is the ease with which a system is used.', sourceIds: ['a', 'b'] },
+        { text: 'Usability is the ease with which a system is used.', sourceIds: ['a', 'b'], caveats: ['Evidence is from outside the target region.'] },
         { text: 'An uncited sentence that must never appear.', sourceIds: [] },
         { text: 'A sentence citing a source nobody listed.', sourceIds: ['ghost'] },
       ] },
-    { questionId: 'q2', heading: 'Only uncited claims here', sufficiency: 'Insufficient', caveats: [], claims: [{ text: 'Hidden.', sourceIds: [] }] },
+    { questionId: 'q2', heading: 'Only uncited claims here', sufficiency: 'Insufficient', claims: [{ text: 'Hidden.', sourceIds: [] }] },
   ],
   conflicts: [{ text: 'Found no effect: “No significant relationship was found.”', sourceIds: ['b'] }],
   gaps: [{ questionId: 'q3', question: 'Is there South African evidence?', reason: 'Not reached before the research stopped.' }],
@@ -41,6 +41,12 @@ describe('DeepResearchReportView', () => {
   it('puts a citation marker on every claim, each opening the source panel', () => {
     expect(html).toContain('aria-label="Source 1: Usability and satisfaction. Open its checks and supporting quote"')
     expect(html).toContain('[2]')
+  })
+
+  it('shows a caveat only together with its claim’s markers', () => {
+    const i = html.indexOf('Evidence is from outside the target region.')
+    expect(i).toBeGreaterThan(-1)
+    expect(html.slice(i, i + 900)).toContain('[1]')
   })
 
   it('never renders a sentence without a resolvable citation', () => {

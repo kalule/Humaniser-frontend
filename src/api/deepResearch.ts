@@ -99,13 +99,17 @@ export interface DeepResearchSession {
 }
 
 /** One sentence of the report. `sourceIds` is never empty: the server drops a claim that has no verified source. */
-export interface DeepResearchReportClaim { text: string; sourceIds: string[] }
+export interface DeepResearchReportClaim {
+  text: string
+  sourceIds: string[]
+  /** Qualifications of this claim. They rest on the same sources, so they are shown with the same markers. */
+  caveats?: string[] | null
+}
 export interface DeepResearchReportSection {
   questionId: string
   heading: string
   sufficiency: 'Sufficient' | 'PartiallySufficient' | 'Insufficient' | string
   claims: DeepResearchReportClaim[]
-  caveats: string[]
 }
 export interface DeepResearchReportGap { questionId: string; question: string; reason: string }
 export interface DeepResearchReportReference {

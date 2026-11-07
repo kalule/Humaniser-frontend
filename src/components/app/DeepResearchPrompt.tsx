@@ -147,14 +147,15 @@ export function DeepResearchPrompt({
 
         {/* Kind of research: Auto by default, the eight modes one click away */}
         <div className="mt-4 flex flex-wrap items-center gap-2" aria-live="polite">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-accent bg-purple-tint px-3.5 py-1.5 text-[12px] font-medium text-purple-accent">
+          {/* The label is itself the way to change it: one click opens the modes. It shows a kind only when the question is clear. */}
+          <button type="button" aria-expanded={showModes} aria-controls="deep-research-modes" onClick={() => setShowModes(v => !v)}
+            title="Change the kind of research"
+            className="inline-flex items-center gap-1.5 rounded-full border border-purple-accent bg-purple-tint px-3.5 py-1.5 text-[12px] font-medium text-purple-accent hover:bg-purple-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40">
             <Sparkles size={12} aria-hidden="true" />
             {mode === 'Auto' ? (detected ? `Auto: ${modeLabel(detected)}` : 'Auto') : modeLabel(mode)}
-          </span>
-          <button type="button" aria-expanded={showModes} aria-controls="deep-research-modes" onClick={() => setShowModes(v => !v)}
-            className="text-[12px] font-medium text-slate-600 underline underline-offset-2 hover:text-slate-900 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40">
-            {showModes ? 'Hide modes' : 'Choose a mode'}
+            <span className="font-normal text-slate-600">· Change</span>
           </button>
+          {showModes && <span className="text-[12px] text-slate-500">Pick one below, or Auto to let it follow your question.</span>}
           {effective && trimmed === 0 && (
             <button type="button" onClick={useTemplate}
               className="text-[12px] font-medium text-purple-accent hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40">

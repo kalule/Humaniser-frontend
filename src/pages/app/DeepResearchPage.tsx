@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
 import { BindEvidenceModal } from '../../components/app/BindEvidenceModal'
 import { DeepResearchPrompt, type ModeChoice } from '../../components/app/DeepResearchPrompt'
-import { DEFAULT_DEPTH, detectIntent, suggestQuestions, type DepthId } from '../../lib/deepResearchIntake'
+import { DEFAULT_DEPTH, guessIntent, suggestQuestions, type DepthId } from '../../lib/deepResearchIntake'
 import { DeepResearchResults } from '../../components/app/DeepResearchResults'
 import { statusBanner, type Prefill, type SourceGroup } from '../../lib/deepResearchView'
 import { unwatchSession, watchSession } from '../../lib/deepResearchWatch'
@@ -47,8 +47,10 @@ function StartForm({ projects, initialProjectId, prefill, sessions, onStarted, o
   // Look at the question once the student pauses typing, not on every keystroke.
   useEffect(() => { const t = setTimeout(() => setSettled(question), 400); return () => clearTimeout(t) }, [question])
 
-  const detected = detectIntent(settled)
-  const resolvedMode: DeepResearchMode = mode === 'Auto' ? (detected ?? 'TopicExploration') : mode
+  // `detected` is only set when the question clearly points to one kind of research; a run on Auto still needs a mode.
+  const guess = guessIntent(settled)
+  const detected = guess.label
+  const resolvedMode: DeepResearchMode = mode === 'Auto' ? guess.mode : mode
   const project = projects.find(p => p.id === projectId)
   const suggestions = project ? suggestQuestions(project.title ?? '') : []
 
