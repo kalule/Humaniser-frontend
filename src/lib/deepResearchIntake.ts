@@ -32,13 +32,17 @@ export const DEPTH_TIERS: Record<DepthId, DepthTier> = {
 export const DEPTH_ORDER: DepthId[] = ['summary', 'standard', 'deep']
 export const DEFAULT_DEPTH: DepthId = 'standard'
 
-export function depthCost(id: DepthId): { credits: number; minCharged: number; minutes: number } {
+/** The student's own typical run time per depth, from the server. Missing or without data means the configured time stands. */
+export type DepthEstimates = { depth: string; minutes: number | null }[] | null | undefined
+
+export function depthCost(id: DepthId, estimates?: DepthEstimates): { credits: number; minCharged: number; minutes: number } {
   const t = DEPTH_TIERS[id] ?? DEPTH_TIERS[DEFAULT_DEPTH]
-  return { credits: t.credits, minCharged: t.minCharged, minutes: t.minutes }
+  const learned = estimates?.find(e => e.depth === t.id)?.minutes
+  return { credits: t.credits, minCharged: t.minCharged, minutes: learned && learned > 0 ? learned : t.minutes }
 }
 
-export function startLabel(id: DepthId): string {
-  const { credits, minutes } = depthCost(id)
+export function startLabel(id: DepthId, estimates?: DepthEstimates): string {
+  const { credits, minutes } = depthCost(id, estimates)
   return `Start research · ${credits} credits · ~${minutes} min`
 }
 

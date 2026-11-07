@@ -22,7 +22,23 @@ export interface StartDeepResearchPayload {
   requirePeerReviewed?: boolean
   /** summary | standard | deep. Sets the credits held and the search/read budget; the server ignores unknown values. */
   depth?: 'summary' | 'standard' | 'deep'
+  /** Continue an earlier finished or stopped session of this project: its answered questions and verified sources are kept and only the unanswered ones are researched. */
+  continueFromSessionId?: string
 }
+
+/** What continuing a session would research and cost, against starting again. */
+export interface FollowUpQuote {
+  canContinue: boolean
+  reason: string | null
+  answeredQuestions: number
+  unansweredQuestions: number
+  freshCredits: number
+  followUpCredits: number
+  depth: string
+}
+
+/** How long a depth usually takes for this student; `minutes` is null until there are enough finished runs. */
+export interface DepthEstimate { depth: string; minutes: number | null; samples: number }
 
 export interface DeepResearchProgress {
   phase: string
@@ -189,6 +205,8 @@ export const deepResearchApi = {
   list: async (projectId?: string, take = 15): Promise<DeepResearchSessionSummary[]> =>
     data(await client.get(base, { params: { projectId, take } })),
   get: async (id: string): Promise<DeepResearchSession> => data(await client.get(`${base}/${id}`)),
+  followUpQuote: async (id: string, depth?: string): Promise<FollowUpQuote> => data(await client.get(`${base}/${id}/follow-up`, { params: { depth } })),
+  estimates: async (): Promise<DepthEstimate[]> => data(await client.get(`${base}/estimates`)),
   report: async (id: string): Promise<DeepResearchReport> => data(await client.get(`${base}/${id}/report`)),
   /** Downloads the report as a Word document. */
   exportReportDocx: async (id: string): Promise<void> => {

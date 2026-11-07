@@ -6,7 +6,7 @@ import {
   DEEP_RESEARCH_EXAMPLES, DEEP_RESEARCH_MODES, MAX_QUESTION_CHARS, MIN_QUESTION_CHARS,
 } from '../../lib/deepResearch'
 import {
-  DEPTH_ORDER, DEPTH_TIERS, depthCost, isNormativeQuestion, rewriteNormative, startLabel, type DepthId,
+  DEPTH_ORDER, DEPTH_TIERS, depthCost, isNormativeQuestion, rewriteNormative, startLabel, type DepthEstimates, type DepthId,
 } from '../../lib/deepResearchIntake'
 
 export type ModeChoice = DeepResearchMode | 'Auto'
@@ -21,6 +21,8 @@ interface DeepResearchPromptProps {
   detected?: DeepResearchMode | null
   depth: DepthId
   onDepth: (depth: DepthId) => void
+  /** The student's typical run times, when the server has enough of their runs to say. */
+  estimates?: DepthEstimates
   onExample: (question: string, mode: DeepResearchMode) => void
   /** Questions built from the selected project's title; clicking one fills the box. */
   suggestions?: string[]
@@ -39,7 +41,7 @@ const modeLabel = (m: DeepResearchMode) => DEEP_RESEARCH_MODES.find(x => x.value
  * only; the page owns the state and the start call.
  */
 export function DeepResearchPrompt({
-  question, onQuestion, mode, onMode, detected = null, depth, onDepth, onExample, suggestions = [],
+  question, onQuestion, mode, onMode, detected = null, depth, onDepth, estimates, onExample, suggestions = [],
   canStart, busy, onStart, autoFocus, options,
 }: DeepResearchPromptProps) {
   const [showModes, setShowModes] = useState(false)
@@ -51,7 +53,7 @@ export function DeepResearchPrompt({
 
   const effective: DeepResearchMode | null = mode === 'Auto' ? detected : mode
   const info = DEEP_RESEARCH_MODES.find(m => m.value === (effective ?? 'RelationshipInvestigation'))
-  const cost = depthCost(depth)
+  const cost = depthCost(depth, estimates)
 
   const useTemplate = () => {
     const t = DEEP_RESEARCH_MODES.find(m => m.value === effective)?.template
@@ -188,7 +190,7 @@ export function DeepResearchPrompt({
                   className={cn('rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40',
                     selected ? 'border-purple-accent bg-purple-tint' : 'border-slate-200 bg-white hover:border-purple-200')}>
                   <span className={cn('block text-[13px] font-semibold', selected ? 'text-purple-deep' : 'text-slate-800')}>{t.label}</span>
-                  <span className="block text-[11px] text-slate-600 tabular-nums">{t.credits} credits · ~{t.minutes} min</span>
+                  <span className="block text-[11px] text-slate-600 tabular-nums">{t.credits} credits · ~{depthCost(id, estimates).minutes} min</span>
                 </button>
               )
             })}
@@ -211,7 +213,7 @@ export function DeepResearchPrompt({
             )}
           >
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Telescope size={14} />}
-            {busy ? 'Starting…' : startLabel(depth)}
+            {busy ? 'Starting…' : startLabel(depth, estimates)}
           </button>
           <p className="text-[11px] text-slate-500 text-right">Up to {cost.credits} credits held · at least {cost.minCharged} charged · the rest is returned.</p>
         </div>

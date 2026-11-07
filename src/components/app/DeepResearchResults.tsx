@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Check, ExternalLink, Loader2, Minus, Undo2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
-import { deepResearchApi, type DeepResearchReport, type DeepResearchSession, type EvidenceQuestion, type EvidenceSource, type VerifiedEvidencePackage } from '../../api/deepResearch'
+import { deepResearchApi, type DeepResearchReport, type FollowUpQuote, type DeepResearchSession, type EvidenceQuestion, type EvidenceSource, type VerifiedEvidencePackage } from '../../api/deepResearch'
 import { DeepResearchReportView } from './DeepResearchReportView'
 import { dedupeQuotes, funnelRows } from '../../lib/deepResearchReport'
 import { authorLine, strengthLabel } from '../../lib/deepResearch'
@@ -100,7 +100,7 @@ interface DetailProps {
   onRestore: () => void
 }
 
-function SourceDetail({ source, questions, busy, added, onAdd, onUse, onExclude, onRestore }: DetailProps) {
+export function SourceDetail({ source, questions, busy, added, onAdd, onUse, onExclude, onRestore }: DetailProps) {
   const used = source.bucket === 'used'
   const links = source.links.filter(l => used ? l.decision === 'Accepted' : true)
   const passages = dedupeQuotes(links.map(l => l.quote))
@@ -290,9 +290,13 @@ export interface DeepResearchResultsProps {
   reportFailed?: boolean
   onExportReport?: () => void
   exportingReport?: boolean
+  /** What continuing this session would cost against starting again. Present only when the server says it can be continued. */
+  followUpQuote?: FollowUpQuote | null
+  onContinue?: () => void
+  continuing?: boolean
 }
 
-export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide, onAdd, onUse, onExport, exporting, onFollowUp, onNew, report = null, reportFailed = false, onExportReport, exportingReport = false }: DeepResearchResultsProps) {
+export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide, onAdd, onUse, onExport, exporting, onFollowUp, onNew, report = null, reportFailed = false, onExportReport, exportingReport = false, followUpQuote = null, onContinue, continuing = false }: DeepResearchResultsProps) {
   const result = session.result
   const questions = result?.questions ?? []
   const groups = useMemo(() => mergeSourceRows(rows), [rows])
@@ -305,6 +309,7 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
   const banner = statusBanner(session, answered, questions.length)
   const statusChip = sessionStatusChip(session.status)
   const followUp = needsFollowUp(session.status)
+  const canContinue = followUp && !!followUpQuote?.canContinue && !!onContinue
   const failed = session.status === 'Failed'
 
   // The report is the first thing a student sees once it has loaded; until then (or without one) the evidence tabs lead.
@@ -393,8 +398,13 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2 mt-4">
+            {canContinue && (
+              <button type="button" className={primary} onClick={onContinue} disabled={continuing}>
+                {continuing && <Loader2 size={14} className="animate-spin" />} Continue with the {followUpQuote!.unansweredQuestions} unanswered question{followUpQuote!.unansweredQuestions === 1 ? '' : 's'}
+              </button>
+            )}
             {followUp
-              ? <button type="button" className={primary} onClick={() => onFollowUp(prefillFrom(session))}>Start new research from this</button>
+              ? <button type="button" className={canContinue ? secondary : primary} onClick={() => onFollowUp(prefillFrom(session))}>Start new research from this</button>
               : <button type="button" className={primary} onClick={onExport} disabled={exporting}>{exporting && <Loader2 size={14} className="animate-spin" />} Download evidence package</button>}
             {followUp && (
               <button type="button" className={secondary} onClick={onExport} disabled={exporting}
@@ -405,6 +415,12 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
             <button type="button" className={ghost} onClick={() => onFollowUp({ ...prefillFrom(session), unanswered: [] })}>Edit question</button>
             <button type="button" className={ghost} onClick={onNew}>{followUp ? 'Blank new research' : 'New research'}</button>
           </div>
+          {canContinue && (
+            <p className="text-[12px] text-slate-700 mt-2" data-testid="follow-up-price">
+              Keeps your {followUpQuote!.answeredQuestions} answered question{followUpQuote!.answeredQuestions === 1 ? '' : 's'} and their sources, and researches only the rest.
+              It holds <strong>{followUpQuote!.followUpCredits} credits</strong> instead of the {followUpQuote!.freshCredits} a fresh run holds; unused credits are returned.
+            </p>
+          )}
           {followUp && <p className="text-[11px] text-slate-500 mt-2">Starting from this opens the form with your question filled in, so you can edit it first. It runs as a new session.</p>}
         </section>
 

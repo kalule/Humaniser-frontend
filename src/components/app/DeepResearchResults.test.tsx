@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { DeepResearchSession, EvidenceSource } from '../../api/deepResearch'
-import { DeepResearchResults } from './DeepResearchResults'
+import { DeepResearchResults, SourceDetail } from './DeepResearchResults'
+import { mergeSourceRows } from '../../lib/deepResearchView'
 
 const row = (over: Partial<EvidenceSource>): EvidenceSource => ({
   id: 's', questionId: 'q1', title: 'A paper', authors: ['A'], year: 2024, journal: 'J', doi: '10.1/x',
@@ -100,5 +101,50 @@ describe('DeepResearchResults (other states)', () => {
     expect(done).not.toContain('Start new research from this')
     expect(done).toContain('Download evidence package')
     expect(render('Failed')).toContain('role="alert"')
+  })
+})
+
+describe('DeepResearchResults (funnel, source panel, follow-up)', () => {
+  const html = render('Stopped')
+
+  it('draws "disagree with you" as a subset of "accepted", not a third pool', () => {
+    expect(html).toContain('of which disagree with you')
+    expect(html).toContain('Accepted as evidence')
+    expect(html).not.toMatch(/>Disagree with you</)
+  })
+
+  const detail = (quotes: (string | null)[]) => {
+    const [source] = mergeSourceRows(quotes.map(q => row({ id: 'z', title: 'A very particular paper title', quote: q })))
+    return renderToStaticMarkup(<SourceDetail source={source} questions={[]} busy={false} added={false} onAdd={() => {}} onUse={() => {}} onExclude={() => {}} onRestore={() => {}} />)
+  }
+
+  it('keeps the selected source title pinned at the top of the panel', () => {
+    const out = detail(['A passage.'])
+    expect(out).toMatch(/class="[^"]*\bsticky\b[^"]*"[^>]*>\s*<h3[^>]*>A very particular paper title/)
+  })
+
+  it('shows overlapping supporting quotes once, keeping the longer one', () => {
+    const long = 'Usability was positively associated with satisfaction among first-year students.'
+    const out = detail(['Usability was positively associated with satisfaction', long, long])
+    expect(out.match(/<blockquote/g)).toHaveLength(1)
+    expect(out).toContain(long)
+    expect(out).toContain('Supporting quote<')
+  })
+
+  it('offers "Continue" with the price against a fresh run only when the server says it can be continued', () => {
+    const quote = { canContinue: true, reason: null, answeredQuestions: 1, unansweredQuestions: 2, freshCredits: 14, followUpCredits: 7, depth: 'standard' }
+    const withQuote = renderToStaticMarkup(
+      <DeepResearchResults session={session('Stopped')} rows={rows} busyId={null} addedIds={new Set()} onDecide={noop} onAdd={noop} onUse={() => {}}
+        onExport={() => {}} exporting={false} onFollowUp={() => {}} onNew={() => {}} followUpQuote={quote} onContinue={() => {}} />,
+    )
+    expect(withQuote).toContain('Continue with the 2 unanswered questions')
+    expect(withQuote).toContain('7 credits')
+    expect(withQuote).toContain('instead of the 14 a fresh run holds')
+    expect(withQuote.match(/bg-purple-accent hover:bg-purple-deep text-white text-\[13px\] font-semibold shadow/g)).toHaveLength(1)   // still one primary: Continue
+    expect(html).not.toContain('Continue with the')
+    expect(renderToStaticMarkup(
+      <DeepResearchResults session={session('Stopped')} rows={rows} busyId={null} addedIds={new Set()} onDecide={noop} onAdd={noop} onUse={() => {}}
+        onExport={() => {}} exporting={false} onFollowUp={() => {}} onNew={() => {}} followUpQuote={{ ...quote, canContinue: false }} onContinue={() => {}} />,
+    )).not.toContain('Continue with the')
   })
 })

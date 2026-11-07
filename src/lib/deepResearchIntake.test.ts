@@ -143,3 +143,18 @@ describe('suggestQuestions', () => {
     for (const q of suggestQuestions('Impact of Mobile Banking on Financial Inclusion in Uganda')) expect(isQuestionValid(q)).toBe(true)
   })
 })
+
+describe('learned time estimates', () => {
+  it('uses the student\u2019s own median when the server has one, and the configured time when it has not', () => {
+    const learned = [{ depth: 'summary', minutes: 2 }, { depth: 'standard', minutes: null }, { depth: 'deep', minutes: 13 }]
+    expect(depthCost('summary', learned).minutes).toBe(2)
+    expect(depthCost('deep', learned).minutes).toBe(13)
+    expect(depthCost('standard', learned).minutes).toBe(DEPTH_TIERS.standard.minutes)     // no data: configured value
+    expect(depthCost('standard', null).minutes).toBe(DEPTH_TIERS.standard.minutes)
+    expect(depthCost('standard', undefined).minutes).toBe(DEPTH_TIERS.standard.minutes)
+    expect(depthCost('deep', [{ depth: 'deep', minutes: 0 }]).minutes).toBe(DEPTH_TIERS.deep.minutes)   // nonsense is ignored
+  })
+  it('puts the learned time on the button but leaves the credits alone', () => {
+    expect(startLabel('deep', [{ depth: 'deep', minutes: 13 }])).toBe(`Start research \u00b7 ${DEPTH_TIERS.deep.credits} credits \u00b7 ~13 min`)
+  })
+})

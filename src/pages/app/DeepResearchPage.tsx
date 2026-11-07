@@ -13,7 +13,7 @@ import { researchApi } from '../../api/research'
 import type { ResearchProject } from '../../types/research'
 import {
   deepResearchApi,
-  type DeepResearchMode, type DeepResearchReport, type DeepResearchSession, type DeepResearchSessionSummary, type EvidenceSource,
+  type DeepResearchMode, type DepthEstimate, type DeepResearchReport, type FollowUpQuote, type DeepResearchSession, type DeepResearchSessionSummary, type EvidenceSource,
 } from '../../api/deepResearch'
 import { RUN_STEPS, currentStep, elapsedLabel, stepState, timeLeftLabel } from '../../lib/deepResearchReport'
 import {
@@ -42,6 +42,9 @@ function StartForm({ projects, initialProjectId, prefill, sessions, onStarted, o
   const [peerReviewed, setPeerReviewed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [settled, setSettled] = useState(question)
+  // The student's own typical run times, once they have enough finished runs; until then the configured ones show.
+  const [estimates, setEstimates] = useState<DepthEstimate[] | null>(null)
+  useEffect(() => { deepResearchApi.estimates().then(setEstimates).catch(() => {}) }, [])
 
   useEffect(() => { if (!projectId && projects[0]) setProjectId(projects[0].id) }, [projects, projectId])
   // Look at the question once the student pauses typing, not on every keystroke.
@@ -113,6 +116,7 @@ function StartForm({ projects, initialProjectId, prefill, sessions, onStarted, o
         detected={detected}
         depth={depth}
         onDepth={setDepth}
+        estimates={estimates}
         suggestions={suggestions}
         onExample={(q, m) => { setQuestion(q); setMode(m) }}
         canStart={canStart}
@@ -314,6 +318,8 @@ export default function DeepResearchPage() {
   const [report, setReport] = useState<DeepResearchReport | null>(null)
   const [reportFailed, setReportFailed] = useState(false)
   const [exportingReport, setExportingReport] = useState(false)
+  const [followUpQuote, setFollowUpQuote] = useState<FollowUpQuote | null>(null)
+  const [continuing, setContinuing] = useState(false)
   const alive = useRef(true)
 
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
@@ -340,7 +346,7 @@ export default function DeepResearchPage() {
 
   // Load, then poll only while the research is still running.
   useEffect(() => {
-    if (!sessionId) { setSession(null); setSources([]); setReport(null); setReportFailed(false); setLoading(false); return }
+    if (!sessionId) { setSession(null); setSources([]); setReport(null); setReportFailed(false); setFollowUpQuote(null); setLoading(false); return }
     let timer: ReturnType<typeof setTimeout> | undefined
     let cancelled = false
     const tick = async () => {
@@ -350,7 +356,11 @@ export default function DeepResearchPage() {
         setSession(s)
         setLoading(false)
         if (shouldPoll(s)) { watchSession(sessionId); timer = setTimeout(() => void tick(), POLL_INTERVAL_MS) }
-        else { unwatchSession(sessionId); void loadSources(sessionId); void loadReport(sessionId) }
+        else {
+          unwatchSession(sessionId); void loadSources(sessionId); void loadReport(sessionId)
+          // Only a stopped or cut-short session can be continued; the server says whether and what it would cost.
+          if (s.status !== 'Completed') deepResearchApi.followUpQuote(sessionId).then(q => { if (alive.current) setFollowUpQuote(q) }).catch(() => {})
+        }
       } catch (err) {
         if (cancelled) return
         setLoading(false)
@@ -454,6 +464,18 @@ export default function DeepResearchPage() {
     finally { setExporting(false) }
   }
 
+  const continueSession = async () => {
+    if (!session || continuing) return
+    setContinuing(true)
+    try {
+      onStarted(await deepResearchApi.start({
+        projectId: session.projectId, researchQuestion: session.researchQuestion, mode: session.mode as DeepResearchMode,
+        depth: (session.depth as DepthId | null | undefined) ?? undefined, continueFromSessionId: session.id,
+      }))
+    } catch (err) { toast.error(apiErrorMessage(err, 'Could not continue the research.')) }
+    finally { setContinuing(false) }
+  }
+
   const exportReport = async () => {
     if (!session || exportingReport) return
     setExportingReport(true)
@@ -502,6 +524,7 @@ export default function DeepResearchPage() {
             onExport={() => void exportPackage()} exporting={exporting}
             onFollowUp={followUp} onNew={newBlank}
             report={report} reportFailed={reportFailed} onExportReport={() => void exportReport()} exportingReport={exportingReport}
+            followUpQuote={followUpQuote?.canContinue ? followUpQuote : null} onContinue={() => void continueSession()} continuing={continuing}
           />
         )}
       </div>
