@@ -28,9 +28,10 @@ interface Props {
   quoteFor?: (sourceId: string) => string | null
   /**
    * `answer` is the bottom line and the findings (shown above the tabs); `rest` is conflicts, gaps, references and the
-   * follow-up box (the Report tab). `all` is the whole report in one piece. Each sentence appears in exactly one place.
+   * follow-up box. `document` is the answer, conflicts and gaps (the centre column); `followup` is only the question box.
+   * `all` is the whole report in one piece. Each sentence appears in exactly one place.
    */
-  part?: 'all' | 'answer' | 'rest'
+  part?: 'all' | 'answer' | 'document' | 'followup' | 'rest'
 }
 
 /**
@@ -64,15 +65,18 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
   const bottom = citedOnly(report.bottomLine, numbers)
   const conflicts = citedOnly(report.conflicts, numbers)
   const askOk = followUp.trim().length >= MIN_QUESTION_CHARS
-  const showAnswer = part !== 'rest'
-  const showRest = part !== 'answer'
+  const showAnswer = part === 'all' || part === 'answer' || part === 'document'
+  const showConflicts = part === 'all' || part === 'rest' || part === 'document'
+  const showGaps = showConflicts
+  const showRefs = part === 'all' || part === 'rest'
+  const showFollowUp = part === 'all' || part === 'rest' || part === 'followup'
 
   return (
     <div className="space-y-6">
       {showAnswer && (<>
       <section aria-labelledby="report-bottom" className="rounded-2xl border border-purple-200 bg-white p-5">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <h3 id="report-bottom" className="text-[12px] uppercase tracking-wider font-semibold text-slate-600">Bottom line</h3>
+          <h3 id="report-bottom" tabIndex={-1} className="scroll-mt-20 text-[12px] uppercase tracking-wider font-semibold text-slate-600 outline-none">Bottom line</h3>
           <span className={cn('px-2.5 py-0.5 rounded-full border text-[12px] font-medium', STRENGTH_TONE[report.evidenceStrength] ?? STRENGTH_TONE.Insufficient)}>
             Evidence strength: {strengthLabel(report.evidenceStrength)}
           </span>
@@ -90,13 +94,13 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
 
       {report.sections.some(s => citedOnly(s.claims, numbers).length > 0) && (
         <section aria-labelledby="report-findings" className="space-y-5">
-          <h3 id="report-findings" className="text-[12px] uppercase tracking-wider font-semibold text-slate-600">Key findings</h3>
+          <h3 id="report-findings" tabIndex={-1} className="scroll-mt-20 text-[12px] uppercase tracking-wider font-semibold text-slate-600 outline-none">Key findings</h3>
           {report.sections.map(s => {
             const claims = citedOnly(s.claims, numbers)
             if (claims.length === 0) return null
             return (
               <section key={s.questionId} aria-label={s.heading}>
-                <h4 className="font-serif text-[17px] font-semibold text-slate-900">{s.heading}</h4>
+                <h4 id={`report-section-${s.questionId}`} tabIndex={-1} className="scroll-mt-20 font-serif text-[17px] font-semibold text-slate-900 outline-none">{s.heading}</h4>
                 <div className="mt-2 space-y-2">{claims.map((c, i) => renderClaim(c, i))}</div>
               </section>
             )
@@ -105,17 +109,17 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
       )}
       </>)}
 
-      {showRest && conflicts.length > 0 && (
+      {showConflicts && conflicts.length > 0 && (
         <section aria-labelledby="report-conflicts" className="rounded-2xl border border-orange-200 bg-orange-50/50 p-5">
-          <h3 id="report-conflicts" className="font-serif text-[18px] font-semibold text-slate-900">Conflicting evidence</h3>
+          <h3 id="report-conflicts" tabIndex={-1} className="scroll-mt-20 outline-none font-serif text-[18px] font-semibold text-slate-900">Conflicting evidence</h3>
           <p className="text-[13px] text-slate-700 mt-0.5 mb-2">Sources that disagree with the question, or found no effect.</p>
           <div className="space-y-2">{conflicts.map((c, i) => renderClaim(c, i, true))}</div>
         </section>
       )}
 
-      {showRest && report.gaps.length > 0 && (
+      {showGaps && report.gaps.length > 0 && (
         <section aria-labelledby="report-gaps" className="rounded-2xl border border-dashed border-purple-200 bg-purple-tint/40 p-5">
-          <h3 id="report-gaps" className="font-serif text-[18px] font-semibold text-slate-900">Gaps</h3>
+          <h3 id="report-gaps" tabIndex={-1} className="scroll-mt-20 outline-none font-serif text-[18px] font-semibold text-slate-900">Gaps</h3>
           <p className="text-[13px] text-slate-700 mt-0.5 mb-2">What the evidence did not answer. Nothing here is a finding.</p>
           <ul className="space-y-2">
             {report.gaps.map((g, i) => (
@@ -128,7 +132,7 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
         </section>
       )}
 
-      {showRest && report.references.length > 0 && (
+      {showRefs && report.references.length > 0 && (
         <section aria-labelledby="report-refs">
           <h3 id="report-refs" className="font-serif text-[18px] font-semibold text-slate-900 mb-2">References</h3>
           <ol className="space-y-1.5">
@@ -147,7 +151,7 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
         </section>
       )}
 
-      {showRest && <section aria-labelledby="report-followup" className="rounded-2xl border border-slate-200 bg-white p-4">
+      {showFollowUp && <section aria-labelledby="report-followup" className="rounded-2xl border border-slate-200 bg-white p-4">
         <h3 id="report-followup" className="text-[14px] font-semibold text-slate-900">Ask a follow-up</h3>
         <p className="text-[13px] text-slate-700 mt-0.5">It runs as a new research session, with your question filled in so you can edit it first.</p>
         <form className="mt-2 flex gap-2" onSubmit={e => { e.preventDefault(); if (askOk) onAsk(followUp.trim()) }}>

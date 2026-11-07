@@ -33,6 +33,8 @@ export interface SourceGroup {
   links: SourceLink[]
   bucket: SourceBucket
   exclusionReason: string | null
+  /** Ids of other records of the same paper that were merged into this one. */
+  aliases?: string[]
 }
 
 /**
@@ -498,3 +500,82 @@ export function sourceStrength(g: Pick<SourceGroup, 'links'>, questionId?: strin
 export function previewQuote(g: Pick<SourceGroup, 'links'> | undefined): string | null {
   return g?.links.find(l => l.decision === 'Accepted' && l.quote)?.quote ?? g?.links.find(l => l.quote)?.quote ?? null
 }
+
+// ── the research panel: de-duplicated sources, filters, outline ─────────────────────────────
+
+const normDoi = (doi: string | null | undefined): string => (doi ?? '').trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, '')
+const normTitle = (t: string): string => t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+
+/** The key two records share when they are the same paper: its DOI, else its title and year. */
+export function sourceKey(g: Pick<SourceGroup, 'doi' | 'title' | 'year'>): string {
+  const doi = normDoi(g.doi)
+  return doi ? `doi:${doi}` : `title:${normTitle(g.title)}:${g.year ?? ''}`
+}
+
+const BUCKET_RANK: Record<SourceBucket, number> = { used: 2, excluded: 1, unassessed: 0 }
+
+/**
+ * One entry per paper. The same paper found twice (two candidate ids, one DOI) used to be listed twice. The merged entry
+ * keeps every link, is "used" if any copy was, prefers a Verified record, and remembers the other ids as aliases so a
+ * citation or decision that names either one still finds it.
+ */
+export function dedupeByDoi(groups: SourceGroup[]): SourceGroup[] {
+  const byKey = new Map<string, SourceGroup>()
+  for (const g of groups) {
+    const key = sourceKey(g)
+    const have = byKey.get(key)
+    if (!have) { byKey.set(key, { ...g, links: [...g.links], aliases: [...(g.aliases ?? [])] }); continue }
+    have.aliases = [...(have.aliases ?? []), g.id, ...(g.aliases ?? [])]
+    have.links.push(...g.links)
+    if (BUCKET_RANK[g.bucket] > BUCKET_RANK[have.bucket]) { have.bucket = g.bucket; have.exclusionReason = g.exclusionReason }
+    if (g.verification === 'Verified') have.verification = 'Verified'
+    if (g.coverage === 'FullText') { have.coverage = 'FullText'; have.studyDesign ??= g.studyDesign }
+    if (g.decidedBy === 'You') have.decidedBy = 'You'
+    if (have.geography === 'Unknown' && g.geography !== 'Unknown') have.geography = g.geography
+  }
+  return [...byKey.values()]
+}
+
+/** Every id a merged source answers to: its own and its aliases. */
+export const idsOf = (g: Pick<SourceGroup, 'id' | 'aliases'>): string[] => [g.id, ...(g.aliases ?? [])]
+
+/** The source an id refers to, whether it is the entry's own id or one folded into it. */
+export const findGroup = (groups: SourceGroup[], id: string | null | undefined): SourceGroup | undefined =>
+  id ? groups.find(g => g.id === id || g.aliases?.includes(id)) : undefined
+
+export type SourceFilterId = 'cited' | 'all' | 'disagree'
+
+/** The sources for one filter chip: cited in the report, everything found, or those that disagree. */
+export function filterSources(groups: SourceGroup[], filter: SourceFilterId, citedIds: Set<string>): SourceGroup[] {
+  if (filter === 'cited') return groups.filter(g => idsOf(g).some(id => citedIds.has(id)))
+  if (filter === 'disagree') return evidenceAgainst(groups)
+  return groups
+}
+
+export interface OutlineItem { id: string; label: string; level: 1 | 2 }
+
+/** The report's headings, in reading order, as a jump list. Ids match the headings the report renders. */
+export function outlineItems(report: {
+  sections: { questionId: string; heading: string; claims: unknown[] }[]; conflicts: unknown[]; gaps: unknown[]; bottomLine?: unknown[]
+}): OutlineItem[] {
+  const items: OutlineItem[] = [{ id: 'report-bottom', label: 'Bottom line', level: 1 }]
+  const withClaims = report.sections.filter(s => s.claims.length > 0)
+  if (withClaims.length > 0) {
+    items.push({ id: 'report-findings', label: 'Key findings', level: 1 })
+    for (const s of withClaims) items.push({ id: `report-section-${s.questionId}`, label: s.heading, level: 2 })
+  }
+  if (report.conflicts.length > 0) items.push({ id: 'report-conflicts', label: 'Conflicting evidence', level: 1 })
+  if (report.gaps.length > 0) items.push({ id: 'report-gaps', label: 'Gaps', level: 1 })
+  return items
+}
+
+/** The section a scroll position is in: the last heading that has reached the reading line, else the first. */
+export function currentSection(tops: { id: string; top: number }[], line: number): string | null {
+  if (tops.length === 0) return null
+  const passed = tops.filter(t => t.top <= line)
+  return (passed.length > 0 ? passed[passed.length - 1] : tops[0]).id
+}
+
+/** Sources the student can save to their references: accepted, verified, not saved yet. */
+export const savableSources = (groups: SourceGroup[], saved: Set<string>): SourceGroup[] =>
+  groups.filter(g => g.bucket === 'used' && g.verification === 'Verified' && !idsOf(g).some(id => saved.has(id)))
