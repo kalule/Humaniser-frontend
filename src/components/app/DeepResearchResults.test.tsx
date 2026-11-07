@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { DeepResearchSession, EvidenceSource } from '../../api/deepResearch'
 import { DeepResearchResults, SourceDetail } from './DeepResearchResults'
 import { mergeSourceRows } from '../../lib/deepResearchView'
+import { SourcesSummary } from './deepResearchParts'
 
 const row = (over: Partial<EvidenceSource>): EvidenceSource => ({
   id: 's', questionId: 'q1', title: 'A paper', authors: ['A'], year: 2024, journal: 'J', doi: '10.1/x',
@@ -62,8 +63,7 @@ describe('DeepResearchResults (stopped session)', () => {
   })
 
   it('counts a source linked to two questions once', () => {
-    expect(html).toContain('Where the 3 sources went')
-    expect(html).toContain('Accepted as evidence')
+    expect(html).toContain('3 found · 2 accepted · 1 disagree')        // one line; it opens into the funnel
     expect(html).toContain('Evidence against (1)')
     expect(html).toContain('Left out (1)')
   })
@@ -82,8 +82,13 @@ describe('DeepResearchResults (stopped session)', () => {
     expect(html).not.toContain('Chosen by Humaniser')
     expect(html).not.toContain('Region unclear')
     expect(html).not.toMatch(/>Verified</)
-    expect(html).toContain('DOI matched')
-    expect(html).toContain('Abstract only')
+    // the checks moved out of the rows: one strength indicator per row, details in the panel
+    expect(html).not.toContain('DOI matched')
+    expect(html).toContain('Moderate evidence')
+    const [src] = mergeSourceRows([row({ id: 'z' })])
+    const panel = renderToStaticMarkup(<SourceDetail source={src} questions={[]} busy={false} added={false} onAdd={() => {}} onUse={() => {}} onExclude={() => {}} onRestore={() => {}} />)
+    expect(panel).toContain('DOI resolves')
+    expect(panel).toContain('Abstract only')
   })
 
   it('makes sources selectable and starts with nothing selected', () => {
@@ -111,9 +116,10 @@ describe('DeepResearchResults (funnel, source panel, follow-up)', () => {
   const html = render('Stopped')
 
   it('draws "disagree with you" as a subset of "accepted", not a third pool', () => {
-    expect(html).toContain('of which disagree with you')
-    expect(html).toContain('Accepted as evidence')
-    expect(html).not.toMatch(/>Disagree with you</)
+    const open = renderToStaticMarkup(<SourcesSummary counts={{ found: 40, used: 10 }} against={3} defaultOpen />)
+    expect(open).toContain('of which disagree with you')
+    expect(open).toContain('Accepted as evidence')
+    expect(open).not.toMatch(/>Disagree with you</)
   })
 
   const detail = (quotes: (string | null)[]) => {
@@ -140,7 +146,7 @@ describe('DeepResearchResults (funnel, source panel, follow-up)', () => {
       <DeepResearchResults session={session('Stopped')} rows={rows} busyId={null} addedIds={new Set()} onDecide={noop} onAdd={noop} onUse={() => {}}
         onExport={() => {}} exporting={false} onFollowUp={() => {}} onNew={() => {}} followUpQuote={quote} onContinue={() => {}} />,
     )
-    expect(withQuote).toContain('Continue with the 2 unanswered questions')
+    expect(withQuote).toContain('Research the remaining 2 questions · 7 credits')
     expect(withQuote).toContain('7 credits')
     expect(withQuote).toContain('instead of the 14 a fresh run holds')
     expect(withQuote.match(/bg-purple-accent hover:bg-purple-deep text-white text-\[13px\] font-semibold shadow/g)).toHaveLength(1)   // still one primary: Continue
@@ -201,7 +207,7 @@ describe('DeepResearchResults (honest status, hierarchy, no duplicate findings)'
     const primary = /bg-purple-accent hover:bg-purple-deep text-white text-\[13px\] font-semibold shadow/g
     expect(html.match(primary)).toHaveLength(1)
     expect(html).toMatch(/shadow-purple-400\/20[^>]*>\s*Export report \(Word\)/)
-    expect(html).toMatch(/border border-slate-200 bg-white text-slate-700[^>]*title="A JSON file[^>]*>\s*Download evidence package/)
+    expect(html).toMatch(/border border-slate-300 bg-white text-slate-800[^>]*title="A JSON file[^>]*>\s*Download evidence package/)
   })
 
   it('6. shows the findings once: the report replaces the findings block, which stays only as a fallback', () => {
