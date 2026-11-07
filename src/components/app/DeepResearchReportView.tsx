@@ -4,6 +4,7 @@ import { cn } from '../../lib/utils'
 import type { DeepResearchReport, DeepResearchReportClaim } from '../../api/deepResearch'
 import { MIN_QUESTION_CHARS, strengthLabel } from '../../lib/deepResearch'
 import { citationNumbers, citedOnly, claimMarkers } from '../../lib/deepResearchReport'
+import { CaveatLine } from './CaveatLine'
 
 const STRENGTH_TONE: Record<string, string> = {
   Strong: 'bg-emerald-50 text-emerald-800 border-emerald-200',
@@ -50,7 +51,7 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
     <div key={key} className="space-y-1">
       <p className="text-[14px] leading-relaxed text-slate-800">{claim.text} {markers(claim)}</p>
       {/* A caveat is a sentence too, so it carries its claim's markers. */}
-      {(claim.caveats ?? []).map((c, i) => <p key={i} className="text-[12px] text-amber-800">{c} {markers(claim)}</p>)}
+      {(claim.caveats ?? []).map((c, i) => <CaveatLine key={i} text={c}>{markers(claim)}</CaveatLine>)}
     </div>
   )
 

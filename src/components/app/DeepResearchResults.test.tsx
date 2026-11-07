@@ -43,14 +43,15 @@ describe('DeepResearchResults (stopped session)', () => {
   const html = render('Stopped')
 
   it('leads with how many questions were answered and explains the stop', () => {
-    expect(html).toContain('1 of 3 questions answered')
+    // the one accepted source is abstract-only, so nothing counts as answered yet
+    expect(html).toContain('0 of 3 questions answered')
     expect(html).toContain('The research reached its limit before every question was answered.')
     expect(html).toContain('Stopped at limit')
     expect(html).toContain('role="status"')
   })
 
   it('describes the progress bar to assistive tech, question by question', () => {
-    expect(html).toContain('Question 1: answered')
+    expect(html).toContain('Question 1: started, not enough evidence yet')
     expect(html).toContain('Question 2: started, not enough evidence yet')
     expect(html).toContain('Question 3: not reached')
   })
@@ -69,7 +70,9 @@ describe('DeepResearchResults (stopped session)', () => {
 
   it('shows each question with its type, status and accepted sources, and says which were never searched', () => {
     expect(html).toContain('QUESTION 1 · DEFINITION')
-    expect(html).toContain('Well supported')
+    expect(html).toContain('Some support')                // one abstract-only source can never be "Well supported"
+    expect(html).not.toContain('>Well supported<')
+    expect(html).toContain('Abstract-only sources')       // and the reason is visible, not only in the tooltip
     expect(html).toContain('1 question still to research')
     expect(html).toContain('Planned, not yet researched')
     expect(html).toContain('QUESTION 2 · GAP')
@@ -146,5 +149,68 @@ describe('DeepResearchResults (funnel, source panel, follow-up)', () => {
       <DeepResearchResults session={session('Stopped')} rows={rows} busyId={null} addedIds={new Set()} onDecide={noop} onAdd={noop} onUse={() => {}}
         onExport={() => {}} exporting={false} onFollowUp={() => {}} onNew={() => {}} followUpQuote={{ ...quote, canContinue: false }} onContinue={() => {}} />,
     )).not.toContain('Continue with the')
+  })
+})
+
+describe('DeepResearchResults (honest status, hierarchy, no duplicate findings)', () => {
+  const doneSession = (): DeepResearchSession => ({ ...session('Completed'), completionNote: 'Every key question has enough evidence.' })
+  const report = {
+    sessionId: 'sess', researchQuestion: 'q', evidenceStrength: 'Moderate', bottomLine: [], bottomLineNote: 'No verified source supports a direct answer to this question yet.',
+    sections: [], conflicts: [], gaps: [], references: [], status: 'Completed',
+  }
+  const withFindings = (s: DeepResearchSession): DeepResearchSession => ({
+    ...s, result: { ...s.result!, keyFindings: [{ statement: ' \u00b7 Usability tracks satisfaction.', evidenceQuestionId: 'q1', supportingSourceIds: ['a'], contradictingSourceIds: [], strength: 'Moderate', scope: '', caveats: ['Evidence is from outside the target region.', 'Published in 2024.'] }] },
+  })
+  const view = (s: DeepResearchSession, extra: Partial<React.ComponentProps<typeof DeepResearchResults>> = {}) => renderToStaticMarkup(
+    <DeepResearchResults session={s} rows={rows} busyId={null} addedIds={new Set()} onDecide={noop} onAdd={noop} onUse={() => {}}
+      onExport={() => {}} exporting={false} onFollowUp={() => {}} onNew={() => {}} {...extra} />,
+  )
+
+  it('1. never says every key question has enough evidence while questions are unanswered', () => {
+    const html = view(doneSession())
+    expect(html).not.toContain('Every key question has enough evidence')
+    expect(html).toContain('Completed with gaps')
+    expect(html).toContain('0 of 3 answered, 3 have gaps')
+    expect(html).not.toMatch(/>Complete</)
+  })
+
+  it('2. shows why a label is capped, in the tooltip and in a short visible note', () => {
+    const html = view(doneSession())
+    expect(html).toContain('Abstract-only sources')
+    expect(html).toContain('Some support')
+  })
+
+  it('3. lists "Based on" one link per line, tags findings Q<number>, and has no stray separators', () => {
+    const html = view(withFindings(doneSession()))
+    expect(html).toContain('Q1 \u00b7 Definition')
+    expect(html).not.toContain('How is usability defined?</span>')              // the tag, not the whole question
+    expect(html).toMatch(/Based on<\/p><ul[^>]*><li><button[^>]*>Shared source<\/button><\/li><\/ul>/)
+    expect(html).toContain('>Usability tracks satisfaction.<')                  // the leading " · " is gone
+    expect(html).not.toMatch(/Limited evidence · <|· <\/p>/)
+  })
+
+  it('4. colours a caveat only when it gives a reason, and writes the reason next to it', () => {
+    const html = view(withFindings(doneSession()))
+    expect(html).toContain('Region mismatch')
+    const plain = html.slice(html.indexOf('Published in 2024.') - 120, html.indexOf('Published in 2024.') + 30)
+    expect(plain).not.toContain('amber')                                         // no reason, so no colour
+  })
+
+  it('5. makes Export report (Word) the primary action and the evidence package secondary', () => {
+    const html = view(doneSession(), { onExportReport: () => {} })
+    const primary = /bg-purple-accent hover:bg-purple-deep text-white text-\[13px\] font-semibold shadow/g
+    expect(html.match(primary)).toHaveLength(1)
+    expect(html).toMatch(/shadow-purple-400\/20[^>]*>\s*Export report \(Word\)/)
+    expect(html).toMatch(/border border-slate-200 bg-white text-slate-700[^>]*title="A JSON file[^>]*>\s*Download evidence package/)
+  })
+
+  it('6. shows the findings once: the report replaces the findings block, which stays only as a fallback', () => {
+    const s = withFindings(doneSession())
+    const without = view(s)
+    const withReport = view(s, { report, onExportReport: () => {} })
+    expect(without).toContain('Key findings')
+    expect(withReport).not.toContain('Key findings')
+    expect(withReport).not.toContain('Usability tracks satisfaction.')            // lives in the Report tab, with citations
+    expect(withReport).toContain('Bottom line')
   })
 })

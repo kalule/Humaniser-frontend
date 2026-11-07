@@ -318,3 +318,136 @@ export function verificationChecks(verification: string, hasQuote: boolean, cove
     : { state: 'none', label: 'No supporting sentence kept', detail: 'No sentence from the source was kept for this question.' })
   return checks
 }
+
+// ── honest labels: how well a question is supported, and whether the run is really "complete" ──────────────────
+
+export type RatingTone = 'success' | 'warning' | 'neutral'
+export interface QuestionRating {
+  label: string
+  tone: RatingTone
+  /** 0 = nothing usable, 1 = Limited, 2 = Some support, 3 = Well supported. */
+  rank: 0 | 1 | 2 | 3
+  /** A short visible note on what holds the label back; null when nothing does. */
+  cap: string | null
+  /** The full reason, for the tooltip. */
+  reason: string
+}
+
+const isStrongEnough = (s: string) => s === 'Strong' || s === 'Moderate'
+
+/**
+ * The label for one question, from what was actually accepted for it: how many sources, how good each is rated, and
+ * whether any was read in full. The research rules decide when to STOP searching (a question can be "sufficient" with
+ * two abstract-only sources); this decides how much to CLAIM. Well supported needs at least three accepted sources, two
+ * of them rated Moderate or better, one read in full text, and the research rules' own agreement. Anything abstract-only
+ * or rated Limited can never reach it.
+ */
+export function rateQuestion(row: QuestionRow): QuestionRating {
+  const n = row.used.length
+  if (n === 0) {
+    const why: Record<QuestionRow['state'], string> = {
+      'not-searched': 'This question was planned but the research stopped before it was reached.',
+      'no-sources': 'Searches for this question returned nothing usable.',
+      'none-relevant': 'Sources were found, but none was accepted as evidence for this question.',
+      'needs-more': 'No source has been accepted yet.',
+      partly: 'No source has been accepted yet.',
+      supported: 'No source has been accepted yet.',
+    }
+    const label: Record<QuestionRow['state'], string> = {
+      'not-searched': 'Not searched yet', 'no-sources': 'No sources found', 'none-relevant': 'Found, none relevant',
+      'needs-more': 'No accepted sources', partly: 'No accepted sources', supported: 'No accepted sources',
+    }
+    return { label: label[row.state], tone: 'neutral', rank: 0, cap: null, reason: why[row.state] }
+  }
+  const accepted = row.used.map(g => ({ g, link: g.links.find(l => l.questionId === row.question.id && l.decision === 'Accepted') }))
+  const strong = accepted.filter(x => x.link && isStrongEnough(x.link.strength)).length
+  const full = accepted.filter(x => x.g.coverage === 'FullText').length
+
+  let rank: 1 | 2 | 3 = n >= 3 && strong >= 2 && full >= 1 ? 3 : strong >= 1 ? 2 : 1
+  const server = row.question.sufficiency === 'Sufficient'
+  if (rank === 3 && !server) rank = 2
+
+  const causes: string[] = []
+  if (n < 3) causes.push(`only ${n} accepted source${n === 1 ? '' : 's'} (3 needed)`)
+  if (strong < 2) causes.push(strong === 0 ? 'none rated better than Limited evidence' : 'only one rated Moderate or better (2 needed)')
+  if (full === 0) causes.push('all abstract-only, so study design and sample were not seen')
+  if (!server) causes.push('the research rules still list it as needing more evidence')
+  const label = rank === 3 ? 'Well supported' : rank === 2 ? 'Some support' : 'Limited'
+  const cap = rank === 3 ? null : full === 0 ? 'Abstract-only sources' : strong === 0 ? 'Sources rated Limited' : n < 3 ? `Only ${n} source${n === 1 ? '' : 's'}` : 'Needs more evidence'
+  const reason = rank === 3
+    ? `${n} accepted sources, ${strong} rated Moderate or better, ${full} read in full text.`
+    : `Not "Well supported" because ${causes.join('; ')}.`
+  return { label, tone: rank === 3 ? 'success' : rank === 2 ? 'warning' : 'neutral', rank, cap, reason }
+}
+
+/** "Answered" means well supported, so the headline count and the labels can never disagree. */
+export const answeredFromRatings = (ratings: QuestionRating[]): number => ratings.filter(r => r.rank === 3).length
+
+export function segmentsFromRatings(ratings: QuestionRating[], questions: Pick<EvidenceQuestion, 'status'>[]): ('done' | 'partial' | 'pending')[] {
+  return ratings.map((r, i) => r.rank === 3 ? 'done' : r.rank > 0 || questions[i]?.status === 'Researching' || questions[i]?.status === 'Exhausted' ? 'partial' : 'pending')
+}
+
+export interface CompletionSummary {
+  chip: { label: string; tone: 'success' | 'warning' | 'neutral' | 'danger' }
+  headline: string
+  /** Null when there is nothing honest to add. Never claims every question has enough evidence unless all do. */
+  note: string | null
+}
+
+export function completionSummary(
+  session: Pick<DeepResearchSession, 'status' | 'completionNote' | 'isFinished'>, answered: number, total: number,
+): CompletionSummary {
+  const gaps = Math.max(0, total - answered)
+  const chip = sessionStatusChip(session.status)
+  const claimsAllAnswered = (session.completionNote ?? '').toLowerCase().includes('every key question has enough evidence')
+  if (session.status === 'Completed' && total > 0) {
+    if (gaps > 0) {
+      return {
+        chip: { label: 'Completed with gaps', tone: 'warning' },
+        headline: `${answered} of ${total} answered, ${gaps} ${gaps === 1 ? 'has a gap' : 'have gaps'}`,
+        note: 'The research finished, but the questions without strong support are listed under Gaps in the report.',
+      }
+    }
+    return { chip, headline: `All ${total} questions answered`, note: session.completionNote }
+  }
+  return {
+    chip,
+    headline: total > 0 ? `${answered} of ${total} questions answered` : statusBanner(session, answered, total).title,
+    note: claimsAllAnswered && gaps > 0 ? null : session.completionNote,
+  }
+}
+
+// ── findings: tidy text, Q-tags, and a visible reason for every flag ───────────────────────────────────────────
+
+/** Removes separators left at either end of a piece of text ("· Target", "Limited evidence ·"). */
+export const stripSeparators = (s: string | null | undefined): string => (s ?? '').replace(/^[\s·•|:;,–—-]+|[\s·•|:;,–—-]+$/g, '').trim()
+
+/** "Moderate evidence · Your study region", with nothing dangling when a part is empty. */
+export const joinMeta = (...parts: (string | null | undefined)[]): string => parts.map(stripSeparators).filter(Boolean).join(' · ')
+
+const typeWord = (t: string) => t.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().replace(/^./, c => c.toUpperCase())
+
+/** "Q3 · Relationship": which question, without repeating its whole text. The full question is the hint. */
+export function questionTag(questionId: string, questions: Pick<EvidenceQuestion, 'id' | 'type' | 'question'>[]): { label: string; hint: string } | null {
+  const i = questions.findIndex(q => q.id === questionId)
+  if (i < 0) return null
+  return { label: `Q${i + 1} · ${typeWord(questions[i].type)}`, hint: questions[i].question }
+}
+
+/** How a source relates to a question, by number and kind rather than by repeating the question. */
+export function relationshipTag(link: Pick<SourceLink, 'polarity' | 'questionId'>, questions: Pick<EvidenceQuestion, 'id' | 'type' | 'question'>[]): { label: string; hint: string } {
+  const verb = link.polarity === 'Supports' ? 'Supports' : link.polarity === 'Contradicts' ? 'Disagrees on' : link.polarity === 'Null' ? 'No effect found for' : 'Background for'
+  const tag = questionTag(link.questionId, questions)
+  return { label: tag ? `${verb} ${tag.label}` : verb, hint: tag?.hint ?? '' }
+}
+
+/**
+ * Why a caveat is flagged, in two or three words, or null when the text gives no recognisable reason. A caveat with no
+ * reason is shown plain: colour is only used where it can be explained.
+ */
+export function caveatReason(text: string): { tag: string } | null {
+  if (/\b(region|geograph\w*|outside|other countr\w*|international|not from|target (region|area|population))\b/i.test(text)) return { tag: 'Region mismatch' }
+  if (/\b(conflict\w*|disagree\w*|contradict\w*|mixed (results|findings))\b/i.test(text)) return { tag: 'Conflicting' }
+  if (/\b(single|one study|only one|few |small|limited|weak|abstract|preliminary|low[- ]quality)\b/i.test(text)) return { tag: 'Weak support' }
+  return null
+}

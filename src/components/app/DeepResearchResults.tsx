@@ -4,11 +4,12 @@ import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
 import { deepResearchApi, type DeepResearchReport, type FollowUpQuote, type DeepResearchSession, type EvidenceQuestion, type EvidenceSource, type VerifiedEvidencePackage } from '../../api/deepResearch'
 import { DeepResearchReportView } from './DeepResearchReportView'
+import { CaveatLine } from './CaveatLine'
 import { dedupeQuotes, funnelRows } from '../../lib/deepResearchReport'
 import { authorLine, strengthLabel } from '../../lib/deepResearch'
 import {
-  answeredCount, bySourceYearDesc, citationCheckChip, countSources, coverageChip, evidenceAgainst, mergeSourceRows, needsFollowUp,
-  prefillFrom, questionRows, questionSegments, regionLabel, relationshipLabel, sessionStatusChip, shortQuestion, statusBanner,
+  answeredFromRatings, bySourceYearDesc, citationCheckChip, completionSummary, countSources, coverageChip, evidenceAgainst, joinMeta, mergeSourceRows, needsFollowUp,
+  prefillFrom, questionRows, questionTag, rateQuestion, regionLabel, relationshipTag, segmentsFromRatings, shortQuestion, statusBanner, stripSeparators,
   verificationChecks, type Chip, type Prefill, type QuestionRow, type SourceGroup,
 } from '../../lib/deepResearchView'
 
@@ -138,10 +139,10 @@ export function SourceDetail({ source, questions, busy, added, onAdd, onUse, onE
           <p className="text-[12px] font-semibold text-slate-800 mb-1.5">Why it is here</p>
           <ul className="space-y-1">
             {links.map((l, i) => {
-              const rel = relationshipLabel(l, questions)
+              const rel = relationshipTag(l, questions)
               return (
-                <li key={i} className="text-[12px] text-slate-600">
-                  {rel.label}{l.strength ? ` · ${strengthLabel(l.strength)}` : ''}
+                <li key={i} className="text-[12px] text-slate-600" title={rel.hint || undefined}>
+                  {joinMeta(rel.label, l.strength ? strengthLabel(l.strength) : '')}
                 </li>
               )
             })}
@@ -304,10 +305,13 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
   const qRows = useMemo(() => questionRows(questions, groups), [questions, groups])
   const against = useMemo(() => evidenceAgainst(groups), [groups])
   const leftOut = useMemo(() => groups.filter(g => g.bucket !== 'used').sort(bySourceYearDesc), [groups])
-  const segments = questionSegments(questions)
-  const answered = answeredCount(questions)
+  // "Answered" is decided by how well each question is supported, so the count, the bar and the labels always agree.
+  const ratings = useMemo(() => qRows.map(rateQuestion), [qRows])
+  const segments = segmentsFromRatings(ratings, questions)
+  const answered = answeredFromRatings(ratings)
   const banner = statusBanner(session, answered, questions.length)
-  const statusChip = sessionStatusChip(session.status)
+  const summary = completionSummary(session, answered, questions.length)
+  const statusChip = summary.chip
   const followUp = needsFollowUp(session.status)
   const canContinue = followUp && !!followUpQuote?.canContinue && !!onContinue
   const failed = session.status === 'Failed'
@@ -380,17 +384,19 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
             <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Your question</p>
             <span className={cn('px-2.5 py-0.5 rounded-full border text-[11px] font-medium', CHIP_TONES[statusChip.tone])}>{statusChip.label}</span>
           </div>
-          <h2 className="font-serif text-[28px] leading-tight font-semibold text-slate-900">{session.researchQuestion}</h2>
+          <h2 className="text-left font-serif text-[24px] leading-snug font-semibold text-slate-900 break-words">{session.researchQuestion}</h2>
         </div>
 
         {/* Progress and what to do next */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h3 className="text-[20px] font-semibold text-slate-900">
-            {questions.length > 0 ? `${answered} of ${questions.length} questions answered` : banner.title}
+            {summary.headline}
           </h3>
-          <p role={banner.role} className={cn('text-[13px] mt-1', failed ? 'text-red-700' : 'text-slate-600')}>
-            {session.completionNote ?? banner.title}
-          </p>
+          {(summary.note ?? (questions.length === 0 ? banner.title : null)) && (
+            <p role={banner.role} className={cn('text-[13px] mt-1', failed ? 'text-red-700' : 'text-slate-600')}>
+              {summary.note ?? banner.title}
+            </p>
+          )}
           {questions.length > 0 && (
             <div className="mt-3 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${questions.length}, minmax(0, 1fr))` }} role="img"
               aria-label={`${answered} of ${questions.length} questions answered. ${segments.map((s, i) => `Question ${i + 1}: ${SEGMENT_WORDS[s]}`).join('; ')}.`}>
@@ -398,20 +404,23 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2 mt-4">
+            {onExportReport && (
+              <button type="button" className={primary} onClick={onExportReport} disabled={exportingReport}>
+                {exportingReport && <Loader2 size={14} className="animate-spin" />} Export report (Word)
+              </button>
+            )}
             {canContinue && (
-              <button type="button" className={primary} onClick={onContinue} disabled={continuing}>
+              <button type="button" className={onExportReport ? secondary : primary} onClick={onContinue} disabled={continuing}>
                 {continuing && <Loader2 size={14} className="animate-spin" />} Continue with the {followUpQuote!.unansweredQuestions} unanswered question{followUpQuote!.unansweredQuestions === 1 ? '' : 's'}
               </button>
             )}
-            {followUp
-              ? <button type="button" className={canContinue ? secondary : primary} onClick={() => onFollowUp(prefillFrom(session))}>Start new research from this</button>
-              : <button type="button" className={primary} onClick={onExport} disabled={exporting}>{exporting && <Loader2 size={14} className="animate-spin" />} Download evidence package</button>}
             {followUp && (
-              <button type="button" className={secondary} onClick={onExport} disabled={exporting}
-                title="A JSON file with your questions, accepted and contradicting sources, gaps, search coverage and what was used.">
-                {exporting && <Loader2 size={14} className="animate-spin" />} Download evidence package
-              </button>
+              <button type="button" className={onExportReport || canContinue ? secondary : primary} onClick={() => onFollowUp(prefillFrom(session))}>Start new research from this</button>
             )}
+            <button type="button" className={onExportReport || followUp ? secondary : primary} onClick={onExport} disabled={exporting}
+              title="A JSON file with your questions, accepted and contradicting sources, gaps, search coverage and what was used.">
+              {exporting && <Loader2 size={14} className="animate-spin" />} Download evidence package
+            </button>
             <button type="button" className={ghost} onClick={() => onFollowUp({ ...prefillFrom(session), unanswered: [] })}>Edit question</button>
             <button type="button" className={ghost} onClick={onNew}>{followUp ? 'Blank new research' : 'New research'}</button>
           </div>
@@ -446,28 +455,33 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
               </p>
             </section>
 
-            {result.keyFindings.length > 0 && (
+            {/* The Report tab says all of this with citations; this block is only the fallback while there is no report. */}
+            {!report && result.keyFindings.length > 0 && (
               <section>
-                <h3 className="text-[15px] font-semibold text-slate-900 mb-2">Key findings{followUp ? ' so far' : ''}</h3>
+                <h3 className="text-left text-[15px] font-semibold text-slate-900 mb-2">Key findings{followUp ? ' so far' : ''}</h3>
                 <ul className="space-y-3">
-                  {result.keyFindings.map((f, i) => (
-                    <li key={i} className="rounded-xl border border-slate-200 bg-white p-3.5">
-                      <p className="text-[13px] text-slate-800">{f.statement}</p>
-                      <p className="text-[11px] text-slate-500 mt-1">{strengthLabel(f.strength)} · {f.scope}</p>
-                      {f.caveats.map((c, j) => <p key={j} className="text-[11px] text-amber-700 mt-1">{c}</p>)}
-                      {f.supportingSourceIds.length > 0 && (
-                        <p className="text-[11px] text-slate-500 mt-1.5">
-                          Based on:{' '}
-                          {f.supportingSourceIds.map((id, k) => {
-                            const g = groups.find(x => x.id === id)
-                            return g ? (
-                              <span key={id}>{k > 0 && '; '}<button type="button" className="text-purple-accent hover:underline" onClick={() => goToSource(id)}>{g.title}</button></span>
-                            ) : null
-                          })}
-                        </p>
-                      )}
-                    </li>
-                  ))}
+                  {result.keyFindings.map((f, i) => {
+                    const tag = questionTag(f.evidenceQuestionId, questions)
+                    const based = f.supportingSourceIds.map(id => groups.find(x => x.id === id)).filter((g): g is SourceGroup => !!g)
+                    return (
+                      <li key={i} className="rounded-xl border border-slate-200 bg-white p-3.5">
+                        {tag && <span title={tag.hint} className="mb-1.5 inline-block rounded bg-purple-tint px-1.5 py-px text-[11px] font-semibold text-purple-deep">{tag.label}</span>}
+                        <p className="text-[13px] text-slate-800">{stripSeparators(f.statement)}</p>
+                        <p className="text-[11px] text-slate-500 mt-1">{joinMeta(strengthLabel(f.strength), f.scope)}</p>
+                        <div className="mt-1 space-y-1">{f.caveats.map((c, j) => <CaveatLine key={j} text={c} />)}</div>
+                        {based.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-[11px] font-medium text-slate-500">Based on</p>
+                            <ul className="mt-0.5 space-y-0.5">
+                              {based.map(g => (
+                                <li key={g.id}><button type="button" className="text-left text-[12px] text-purple-accent hover:underline" onClick={() => goToSource(g.id)}>{g.title}</button></li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
               </section>
             )}
@@ -505,15 +519,15 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
             {tab === 'questions' && (
               <>
                 {researched.map(r => {
-                  const chipTone = r.state === 'supported' ? 'success' : r.state === 'partly' ? 'warning' : 'neutral'
+                  const rating = rateQuestion(r)
                   return (
                     <section key={r.question.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                       <div className="flex items-start justify-between gap-3">
                         <p className="text-[11px] font-semibold tracking-wide text-purple-accent">QUESTION {numberOf(r)} · {prettyType(r.question.type)}</p>
-                        <span className={cn('px-2 py-0.5 rounded-full border text-[11px] font-medium shrink-0', CHIP_TONES[chipTone])}>{r.label}</span>
+                        <span className="shrink-0"><HintChip label={rating.label} hint={rating.reason} tone={rating.tone} /></span>
                       </div>
                       <h4 className="text-[15px] font-semibold text-slate-900 mt-1">{r.question.question}</h4>
-                      <p className="text-[12px] text-slate-500 mt-0.5 tabular-nums">{r.used.length} source{r.used.length === 1 ? '' : 's'} accepted</p>
+                      <p className="text-[12px] text-slate-500 mt-0.5 tabular-nums">{r.used.length} source{r.used.length === 1 ? '' : 's'} accepted{rating.cap ? ` · ${rating.cap}` : ''}</p>
                       {r.question.reasons.length > 0 && r.state !== 'supported' && (
                         <ul className="text-[12px] text-slate-500 mt-2 list-disc pl-4">{r.question.reasons.slice(0, 2).map((x, i) => <li key={i}>{x}</li>)}</ul>
                       )}
