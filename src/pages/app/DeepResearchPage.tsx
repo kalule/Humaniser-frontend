@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Loader2, Square, ArrowLeft, History } from 'lucide-react'
+import { Loader2, Square, ArrowLeft, History, Bell, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
 import { BindEvidenceModal } from '../../components/app/BindEvidenceModal'
@@ -13,8 +13,9 @@ import { researchApi } from '../../api/research'
 import type { ResearchProject } from '../../types/research'
 import {
   deepResearchApi,
-  type DeepResearchMode, type DeepResearchSession, type DeepResearchSessionSummary, type EvidenceSource,
+  type DeepResearchMode, type DeepResearchReport, type DeepResearchSession, type DeepResearchSessionSummary, type EvidenceSource,
 } from '../../api/deepResearch'
+import { RUN_STEPS, currentStep, elapsedLabel, stepState, timeLeftLabel } from '../../lib/deepResearchReport'
 import {
   POLL_INTERVAL_MS,
   STALL_AFTER_MS, activeSessionFor, apiErrorMessage, timeAgo, isQuestionValid, progressPercent, shouldPoll,
@@ -214,6 +215,20 @@ function MyResearch({ sessions, projects, onOpen, onStop, onResume }: {
 function RunningView({ session, onStop, stopping, onResume }: { session: DeepResearchSession; onStop: () => void; stopping: boolean; onResume: () => void }) {
   const p = session.progress
   const pct = progressPercent(session)
+  const step = currentStep(p, session.isFinished)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
+  const canNotify = typeof Notification !== 'undefined'
+  const [notify, setNotify] = useState(() => canNotify && Notification.permission === 'granted')
+  // The session is already watched from the moment it starts; this asks the browser for permission to show the alert.
+  const askToNotify = async () => {
+    try {
+      const result = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
+      setNotify(result === 'granted')
+      if (result === 'granted') { watchSession(session.id); toast.success('We will tell you when it is done.') }
+      else toast('Notifications are blocked in this browser. You will still find it under Your research.')
+    } catch { toast.error('This browser cannot show notifications.') }
+  }
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
@@ -224,9 +239,24 @@ function RunningView({ session, onStop, stopping, onResume }: { session: DeepRes
             <p className="text-[12px] text-slate-500 mt-0.5 truncate">{session.researchQuestion}</p>
           </div>
         </div>
-        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-          <div className="h-full bg-primary transition-all duration-700" style={{ width: `${pct}%` }} />
-        </div>
+        <ol aria-label="Progress" className="grid grid-cols-5 gap-1.5">
+          {RUN_STEPS.map((label, i) => {
+            const st = stepState(i, step)
+            return (
+              <li key={label} aria-current={st === 'active' ? 'step' : undefined} className="min-w-0">
+                <span className={cn('block h-1.5 rounded-full', st === 'todo' ? 'bg-slate-200' : 'bg-purple-accent', st === 'active' && 'animate-pulse')} />
+                <span className={cn('mt-1.5 flex items-center gap-1 text-[11px]', st === 'todo' ? 'text-slate-500' : 'font-semibold text-slate-800')}>
+                  {st === 'done' && <Check size={11} className="text-emerald-600" aria-hidden="true" />}
+                  {label}<span className="sr-only">{st === 'done' ? ' (done)' : st === 'active' ? ' (in progress)' : ''}</span>
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+        <div className="sr-only" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>{pct}%</div>
+        <p className="text-[12px] text-slate-600 tabular-nums">
+          {elapsedLabel(session.createdAt, now)} elapsed · {timeLeftLabel(session.depth, session.createdAt, now)}
+        </p>
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
           {[
             ['Searches run', p.searchesRun],
@@ -247,7 +277,13 @@ function RunningView({ session, onStop, stopping, onResume }: { session: DeepRes
           <button onClick={onResume} className="shrink-0 text-[12px] font-medium text-amber-900 underline">Pick up where it left off</button>
         </div>
       )}
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {canNotify && (
+          <button onClick={() => void askToNotify()} disabled={notify} aria-pressed={notify}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-[12px] text-slate-700 hover:bg-slate-50 disabled:text-emerald-700 disabled:bg-emerald-50 disabled:border-emerald-200">
+            {notify ? <Check size={12} /> : <Bell size={12} />} {notify ? 'We will notify you' : 'Notify me when done'}
+          </button>
+        )}
         <button onClick={onStop} disabled={stopping}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-[12px] text-slate-600 hover:bg-slate-50 disabled:opacity-50">
           <Square size={12} /> {stopping ? 'Stopping…' : 'Stop and keep what was found'}
@@ -273,6 +309,9 @@ export default function DeepResearchPage() {
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
   const [prefill, setPrefill] = useState<Prefill | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [report, setReport] = useState<DeepResearchReport | null>(null)
+  const [reportFailed, setReportFailed] = useState(false)
+  const [exportingReport, setExportingReport] = useState(false)
   const alive = useRef(true)
 
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
@@ -289,9 +328,17 @@ export default function DeepResearchPage() {
     } catch { /* the session view still renders without the source list */ }
   }, [])
 
+  // The report is built on demand from the current evidence, so it is fetched again after the student changes a source.
+  const loadReport = useCallback(async (id: string) => {
+    try {
+      const r = await deepResearchApi.report(id)
+      if (alive.current) { setReport(r); setReportFailed(false) }
+    } catch { if (alive.current) { setReport(null); setReportFailed(true) } }
+  }, [])
+
   // Load, then poll only while the research is still running.
   useEffect(() => {
-    if (!sessionId) { setSession(null); setSources([]); setLoading(false); return }
+    if (!sessionId) { setSession(null); setSources([]); setReport(null); setReportFailed(false); setLoading(false); return }
     let timer: ReturnType<typeof setTimeout> | undefined
     let cancelled = false
     const tick = async () => {
@@ -301,7 +348,7 @@ export default function DeepResearchPage() {
         setSession(s)
         setLoading(false)
         if (shouldPoll(s)) { watchSession(sessionId); timer = setTimeout(() => void tick(), POLL_INTERVAL_MS) }
-        else { unwatchSession(sessionId); void loadSources(sessionId) }
+        else { unwatchSession(sessionId); void loadSources(sessionId); void loadReport(sessionId) }
       } catch (err) {
         if (cancelled) return
         setLoading(false)
@@ -311,7 +358,7 @@ export default function DeepResearchPage() {
     }
     void tick()
     return () => { cancelled = true; if (timer) clearTimeout(timer) }
-  }, [sessionId, setParams, loadSources])
+  }, [sessionId, setParams, loadSources, loadReport])
 
   // "Your research": loaded whenever the start screen is showing, refreshed while anything is still running.
   const refreshSessions = useCallback(async () => {
@@ -367,7 +414,7 @@ export default function DeepResearchPage() {
     setBusyId(sourceId)
     try {
       await deepResearchApi.decide(session.id, sourceId, decision)
-      const [fresh] = await Promise.all([deepResearchApi.get(session.id), loadSources(session.id)])
+      const [fresh] = await Promise.all([deepResearchApi.get(session.id), loadSources(session.id), loadReport(session.id)])
       if (alive.current) setSession(fresh)
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Could not save your decision.'))
@@ -403,6 +450,14 @@ export default function DeepResearchPage() {
       setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (error) { toast.error(apiErrorMessage(error, 'Could not download the evidence package.')) }
     finally { setExporting(false) }
+  }
+
+  const exportReport = async () => {
+    if (!session || exportingReport) return
+    setExportingReport(true)
+    try { await deepResearchApi.exportReportDocx(session.id) }
+    catch (error) { toast.error(apiErrorMessage(error, 'Could not export the report.')) }
+    finally { setExportingReport(false) }
   }
 
   // A stopped or failed session cannot be continued, so a follow-up is a new session with the question filled in.
@@ -444,6 +499,7 @@ export default function DeepResearchPage() {
             onUse={(g: SourceGroup) => setBindFor(sources.find(r => r.id === g.id) ?? null)}
             onExport={() => void exportPackage()} exporting={exporting}
             onFollowUp={followUp} onNew={newBlank}
+            report={report} reportFailed={reportFailed} onExportReport={() => void exportReport()} exportingReport={exportingReport}
           />
         )}
       </div>

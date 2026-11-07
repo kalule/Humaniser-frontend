@@ -94,6 +94,34 @@ export interface DeepResearchSession {
   createdAt: string
   updatedAt: string
   result: DeepResearchResult | null
+  /** summary | standard | deep; absent for sessions started before depth existed. */
+  depth?: string | null
+}
+
+/** One sentence of the report. `sourceIds` is never empty: the server drops a claim that has no verified source. */
+export interface DeepResearchReportClaim { text: string; sourceIds: string[] }
+export interface DeepResearchReportSection {
+  questionId: string
+  heading: string
+  sufficiency: 'Sufficient' | 'PartiallySufficient' | 'Insufficient' | string
+  claims: DeepResearchReportClaim[]
+  caveats: string[]
+}
+export interface DeepResearchReportGap { questionId: string; question: string; reason: string }
+export interface DeepResearchReportReference {
+  number: number; sourceId: string; title: string; authors: string[]; year: number | null; journal: string | null; doi: string | null
+}
+export interface DeepResearchReport {
+  sessionId: string
+  researchQuestion: string
+  evidenceStrength: string
+  bottomLine: DeepResearchReportClaim[]
+  bottomLineNote: string | null
+  sections: DeepResearchReportSection[]
+  conflicts: DeepResearchReportClaim[]
+  gaps: DeepResearchReportGap[]
+  references: DeepResearchReportReference[]
+  status: string
 }
 
 export type SourceDecision = 'Accepted' | 'Rejected' | 'Pending'
@@ -157,6 +185,17 @@ export const deepResearchApi = {
   list: async (projectId?: string, take = 15): Promise<DeepResearchSessionSummary[]> =>
     data(await client.get(base, { params: { projectId, take } })),
   get: async (id: string): Promise<DeepResearchSession> => data(await client.get(`${base}/${id}`)),
+  report: async (id: string): Promise<DeepResearchReport> => data(await client.get(`${base}/${id}/report`)),
+  /** Downloads the report as a Word document. */
+  exportReportDocx: async (id: string): Promise<void> => {
+    const res = await client.get(`${base}/${id}/report/docx`, { responseType: 'blob' })
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `deep-research-report-${id}.docx`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  },
   evidencePackage: async (id: string): Promise<VerifiedEvidencePackage> => data(await client.get(`${base}/${id}/evidence-package`)),
   projectPackages: async (projectId: string): Promise<EvidencePackageReuse[]> => data(await client.get(`${base}/projects/${projectId}/packages`)),
   detachPackage: async (id: string): Promise<void> => { await client.delete(`${base}/${id}/reuse`) },

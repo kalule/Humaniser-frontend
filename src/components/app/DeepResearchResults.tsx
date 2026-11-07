@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Check, ExternalLink, Loader2, Minus, Undo2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
-import { deepResearchApi, type DeepResearchSession, type EvidenceQuestion, type EvidenceSource, type VerifiedEvidencePackage } from '../../api/deepResearch'
+import { deepResearchApi, type DeepResearchReport, type DeepResearchSession, type EvidenceQuestion, type EvidenceSource, type VerifiedEvidencePackage } from '../../api/deepResearch'
+import { DeepResearchReportView } from './DeepResearchReportView'
+import { dedupeQuotes, funnelRows } from '../../lib/deepResearchReport'
 import { authorLine, strengthLabel } from '../../lib/deepResearch'
 import {
   answeredCount, bySourceYearDesc, citationCheckChip, countSources, coverageChip, evidenceAgainst, mergeSourceRows, needsFollowUp,
@@ -56,7 +58,7 @@ const CHECK_WORD = { ok: 'Passed', warn: 'Could not check', fail: 'Failed', none
 
 const prettyType = (t: string) => t.replace(/([a-z])([A-Z])/g, '$1 $2').toUpperCase()
 
-type Tab = 'questions' | 'against' | 'left' | 'log'
+type Tab = 'report' | 'questions' | 'against' | 'left' | 'log'
 
 // ── the source list rows ────────────────────────────────────────────────────────────────────
 
@@ -101,7 +103,7 @@ interface DetailProps {
 function SourceDetail({ source, questions, busy, added, onAdd, onUse, onExclude, onRestore }: DetailProps) {
   const used = source.bucket === 'used'
   const links = source.links.filter(l => used ? l.decision === 'Accepted' : true)
-  const passages = [...new Set(links.map(l => l.quote).filter((q): q is string => !!q))]
+  const passages = dedupeQuotes(links.map(l => l.quote))
   const checks = verificationChecks(source.verification, passages.length > 0, source.coverage)
   const read = coverageChip(source.coverage, source.studyDesign)
   const region = regionLabel(source.geography)
@@ -113,7 +115,8 @@ function SourceDetail({ source, questions, busy, added, onAdd, onUse, onExclude,
 
   return (
     <div className="space-y-5">
-      <div>
+      {/* Stays in view while the panel scrolls, so it is always clear which source the checks belong to. */}
+      <div className="sticky -top-5 z-10 -mx-5 -mt-2 border-b border-slate-100 bg-white px-5 pb-3 pt-2">
         <h3 className="font-serif text-[19px] leading-snug font-semibold text-slate-900">{source.title}</h3>
         <p className="text-[12px] text-slate-500 mt-1.5">{authorLine(source)}</p>
         <p className="text-[12px] text-slate-500">{source.year ?? 'n.d.'}{source.journal ? ` · ${source.journal}` : ''}</p>
@@ -282,9 +285,14 @@ export interface DeepResearchResultsProps {
   exporting: boolean
   onFollowUp: (prefill: Prefill) => void
   onNew: () => void
+  /** The cited report. Null while it loads or if it could not be loaded; the evidence tabs work without it. */
+  report?: DeepResearchReport | null
+  reportFailed?: boolean
+  onExportReport?: () => void
+  exportingReport?: boolean
 }
 
-export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide, onAdd, onUse, onExport, exporting, onFollowUp, onNew }: DeepResearchResultsProps) {
+export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide, onAdd, onUse, onExport, exporting, onFollowUp, onNew, report = null, reportFailed = false, onExportReport, exportingReport = false }: DeepResearchResultsProps) {
   const result = session.result
   const questions = result?.questions ?? []
   const groups = useMemo(() => mergeSourceRows(rows), [rows])
@@ -299,7 +307,9 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
   const followUp = needsFollowUp(session.status)
   const failed = session.status === 'Failed'
 
-  const [tab, setTab] = useState<Tab>('questions')
+  // The report is the first thing a student sees once it has loaded; until then (or without one) the evidence tabs lead.
+  const [chosenTab, setTab] = useState<Tab | null>(null)
+  const tab: Tab = chosenTab ?? (report ? 'report' : 'questions')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [announce, setAnnounce] = useState('')
   const selected = groups.find(g => g.id === selectedId) ?? null
@@ -332,11 +342,18 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
     })
   }
 
+  const openFromReport = (id: string) => {
+    setSelectedId(id)
+    // On a narrow screen the panel sits below the report, so bring it into view without scrolling the whole page.
+    requestAnimationFrame(() => document.getElementById('selected-source-panel')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+  }
+
   const primary = 'inline-flex items-center gap-2 px-4 min-h-10 rounded-xl bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-semibold shadow shadow-purple-400/20 disabled:opacity-60'
   const secondary = 'inline-flex items-center gap-2 px-4 min-h-10 rounded-xl border border-slate-200 bg-white text-slate-700 text-[13px] font-medium hover:bg-slate-50 disabled:opacity-60'
   const ghost = 'inline-flex items-center gap-1.5 px-2 min-h-10 rounded-lg text-purple-accent text-[13px] font-medium hover:underline'
 
   const tabs: { id: Tab; label: string }[] = [
+    { id: 'report', label: 'Report' },
     { id: 'questions', label: `Questions (${questions.length})` },
     { id: 'against', label: `Evidence against (${against.length})` },
     ...(leftOut.length > 0 ? [{ id: 'left' as Tab, label: `Left out (${leftOut.length})` }] : []),
@@ -397,15 +414,12 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
             <section className="rounded-2xl border border-slate-200 bg-white p-5" aria-label="Where the sources went">
               <h3 className="text-[15px] font-semibold text-slate-900 mb-3">Where the {counts.found} sources went</h3>
               <ul className="space-y-2.5">
-                {[
-                  { label: 'Found', n: counts.found, bar: 'bg-purple-200' },
-                  { label: 'Accepted as evidence', n: counts.used, bar: 'bg-purple-accent' },
-                  { label: 'Disagree with you', n: against.length, bar: 'bg-orange-700' },
-                ].map(b => (
-                  <li key={b.label} className="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-3 text-[12px] text-slate-600">
-                    <span>{b.label}</span>
-                    <span className="h-2.5 rounded-full bg-slate-100 overflow-hidden" aria-hidden="true">
-                      <span className={cn('block h-full rounded-full', b.bar)} style={{ width: `${counts.found > 0 ? Math.max(b.n > 0 ? 3 : 0, Math.round((b.n / counts.found) * 100)) : 0}%` }} />
+                {funnelRows(counts, against.length).map(b => (
+                  <li key={b.key} className="grid grid-cols-[11rem_1fr_2.5rem] items-center gap-3 text-[12px] text-slate-600">
+                    <span className={cn(b.nested && 'pl-3 text-slate-500')}>{b.nested && <span aria-hidden="true">↳ </span>}{b.label}</span>
+                    {/* Centred and narrowing: each row is a part of the one above it, not a separate pool. */}
+                    <span className="flex h-2.5 justify-center rounded-full bg-slate-100 overflow-hidden" aria-hidden="true">
+                      <span className={cn('block h-full rounded-full', b.key === 'found' ? 'bg-purple-200' : b.key === 'used' ? 'bg-purple-accent' : 'bg-orange-700')} style={{ width: `${b.widthPct}%` }} />
                     </span>
                     <span className="text-right font-semibold text-slate-900 tabular-nums">{b.n}</span>
                   </li>
@@ -465,6 +479,13 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
           </div>
 
           <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mt-4 space-y-4">
+            {tab === 'report' && (report
+              ? <DeepResearchReportView report={report} onOpenSource={openFromReport} selectedId={selectedId}
+                  onExport={() => onExportReport?.()} exporting={exportingReport} onAsk={q => onFollowUp({ ...prefillFrom(session), question: q, unanswered: [] })} />
+              : reportFailed
+                ? <p className="text-[13px] text-slate-600">The report could not be loaded. The evidence tabs still show everything that was found.</p>
+                : <div className="flex justify-center py-8"><Loader2 className="animate-spin text-slate-400" /></div>)}
+
             {tab === 'questions' && (
               <>
                 {researched.map(r => {
@@ -564,7 +585,7 @@ export function DeepResearchResults({ session, rows, busyId, addedIds, onDecide,
       </div>
 
       {/* The selected source */}
-      <aside aria-label="Selected source" className="rounded-2xl border border-slate-200 bg-white p-5 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+      <aside id="selected-source-panel" aria-label="Selected source" className="rounded-2xl border border-slate-200 bg-white p-5 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
         <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-2">Selected source</p>
         {selected ? (
           <SourceDetail
