@@ -449,6 +449,27 @@ export default function DeepResearchPage() {
     } finally { setBusyId(null) }
   }
 
+  // Saves several sources to the project's references with one message, and remembers each as added.
+  const addMany = async (sourceIds: string[]) => {
+    if (!session || sourceIds.length === 0) return
+    let added = 0, already = 0, failed = 0
+    const done = new Set<string>()
+    for (const id of sourceIds) {
+      try {
+        const r = await deepResearchApi.addToProject(session.id, id)
+        if (r.alreadyInProject) already++; else added++
+        done.add(id)
+      } catch { failed++ }
+    }
+    setAddedIds(prev => {
+      const next = new Set([...prev, ...done])
+      try { localStorage.setItem(`deepResearch.added.${session.id}`, JSON.stringify([...next])) } catch { /* only a convenience */ }
+      return next
+    })
+    if (failed === 0) toast.success(added > 0 ? `Saved ${added} source${added === 1 ? '' : 's'} to your references${already ? ` (${already} already there)` : ''}.` : 'Already in your references.')
+    else toast.error(`Saved ${added + already}, but ${failed} could not be added.`)
+  }
+
   const exportPackage = async () => {
     if (!session || exporting) return
     setExporting(true)
@@ -519,7 +540,7 @@ export default function DeepResearchPage() {
         ) : (
           <DeepResearchResults
             session={session} rows={sources} busyId={busyId} addedIds={addedIds}
-            onDecide={decide} onAdd={add}
+            onDecide={decide} onAdd={add} onAddMany={addMany}
             onUse={(g: SourceGroup) => setBindFor(sources.find(r => r.id === g.id) ?? null)}
             onExport={() => void exportPackage()} exporting={exporting}
             onFollowUp={followUp} onNew={newBlank}

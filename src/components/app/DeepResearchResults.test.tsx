@@ -6,7 +6,7 @@ import { mergeSourceRows } from '../../lib/deepResearchView'
 import { SourcesSummary } from './deepResearchParts'
 
 const row = (over: Partial<EvidenceSource>): EvidenceSource => ({
-  id: 's', questionId: 'q1', title: 'A paper', authors: ['A'], year: 2024, journal: 'J', doi: '10.1/x',
+  id: 's', questionId: 'q1', title: 'A paper', authors: ['A'], year: 2024, journal: 'J', doi: `10.1/${over.id ?? 's'}`,
   polarity: 'Supports', strength: 'Moderate', geography: 'Unknown', decision: 'Accepted', decidedBy: 'Humaniser',
   exclusionReason: null, quote: null, verification: 'Verified', foundVia: [], ...over,
 })
@@ -35,13 +35,14 @@ const rows = [
 ]
 
 const noop = async () => {}
-const render = (status: DeepResearchSession['status']) => renderToStaticMarkup(
+const render = (status: DeepResearchSession['status'], extra: Partial<React.ComponentProps<typeof DeepResearchResults>> = {}) => renderToStaticMarkup(
   <DeepResearchResults session={session(status)} rows={rows} busyId={null} addedIds={new Set()}
-    onDecide={noop} onAdd={noop} onUse={() => {}} onExport={() => {}} exporting={false} onFollowUp={() => {}} onNew={() => {}} />,
+    onDecide={noop} onAdd={noop} onUse={() => {}} onExport={() => {}} exporting={false} onFollowUp={() => {}} onNew={() => {}} {...extra} />,
 )
 
 describe('DeepResearchResults (stopped session)', () => {
   const html = render('Stopped')
+  const questionsView = render('Stopped', { initialPanelView: 'questions' })
 
   it('leads with how many questions were answered and explains the stop', () => {
     // the one accepted source is abstract-only, so nothing counts as answered yet
@@ -69,13 +70,13 @@ describe('DeepResearchResults (stopped session)', () => {
   })
 
   it('shows each question with its type, status and accepted sources, and says which were never searched', () => {
-    expect(html).toContain('QUESTION 1 · DEFINITION')
-    expect(html).toContain('Some support')                // one abstract-only source can never be "Well supported"
-    expect(html).not.toContain('>Well supported<')
-    expect(html).toContain('Abstract-only sources')       // and the reason is visible, not only in the tooltip
-    expect(html).toContain('1 question still to research')
-    expect(html).toContain('Planned, not yet researched')
-    expect(html).toContain('QUESTION 2 · GAP')
+    expect(questionsView).toContain('QUESTION 1 · DEFINITION')
+    expect(questionsView).toContain('Some support')                // one abstract-only source can never be "Well supported"
+    expect(questionsView).not.toContain('>Well supported<')
+    expect(questionsView).toContain('Abstract-only sources')       // and the reason is visible, not only in the tooltip
+    expect(questionsView).toContain('1 question still to research')
+    expect(questionsView).toContain('Planned, not yet researched')
+    expect(questionsView).toContain('QUESTION 2 · GAP')
   })
 
   it('does not use the labels that overstated what was checked', () => {
@@ -93,7 +94,7 @@ describe('DeepResearchResults (stopped session)', () => {
 
   it('makes sources selectable and starts with nothing selected', () => {
     expect(html).toContain('aria-pressed="false"')
-    expect(html).toContain('Select a source to see its verification checks')
+    expect(html).toContain('Choose a source, or a citation in the report')
     expect(html).toContain('role="tablist"')
   })
 
@@ -146,10 +147,10 @@ describe('DeepResearchResults (funnel, source panel, follow-up)', () => {
       <DeepResearchResults session={session('Stopped')} rows={rows} busyId={null} addedIds={new Set()} onDecide={noop} onAdd={noop} onUse={() => {}}
         onExport={() => {}} exporting={false} onFollowUp={() => {}} onNew={() => {}} followUpQuote={quote} onContinue={() => {}} />,
     )
-    expect(withQuote).toContain('Research the remaining 2 questions · 7 credits')
+    expect(withQuote).toContain('Research remaining 2 questions · 7 credits')
     expect(withQuote).toContain('7 credits')
     expect(withQuote).toContain('instead of the 14 a fresh run holds')
-    expect(withQuote.match(/bg-purple-accent hover:bg-purple-deep text-white text-\[13px\] font-semibold shadow/g)).toHaveLength(1)   // still one primary: Continue
+    expect(withQuote.match(/data-primary="true"/g)).toHaveLength(1)   // still one primary: Continue
     expect(html).not.toContain('Continue with the')
     expect(renderToStaticMarkup(
       <DeepResearchResults session={session('Stopped')} rows={rows} busyId={null} addedIds={new Set()} onDecide={noop} onAdd={noop} onUse={() => {}}
@@ -181,7 +182,7 @@ describe('DeepResearchResults (honest status, hierarchy, no duplicate findings)'
   })
 
   it('2. shows why a label is capped, in the tooltip and in a short visible note', () => {
-    const html = view(doneSession())
+    const html = view(doneSession(), { initialPanelView: 'questions' })
     expect(html).toContain('Abstract-only sources')
     expect(html).toContain('Some support')
   })
@@ -204,9 +205,8 @@ describe('DeepResearchResults (honest status, hierarchy, no duplicate findings)'
 
   it('5. makes Export report (Word) the primary action and the evidence package secondary', () => {
     const html = view(doneSession(), { onExportReport: () => {} })
-    const primary = /bg-purple-accent hover:bg-purple-deep text-white text-\[13px\] font-semibold shadow/g
-    expect(html.match(primary)).toHaveLength(1)
-    expect(html).toMatch(/shadow-purple-400\/20[^>]*>\s*Export report \(Word\)/)
+    expect(html.match(/data-primary="true"/g)).toHaveLength(1)
+    expect(html).toMatch(/data-primary="true"[^>]*>(?:(?!<\/button>).)*Export report \(Word\)/s)
     expect(html).toMatch(/border border-slate-300 bg-white text-slate-800[^>]*title="A JSON file[^>]*>\s*Download evidence package/)
   })
 
