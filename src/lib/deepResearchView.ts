@@ -451,3 +451,50 @@ export function caveatReason(text: string): { tag: string } | null {
   if (/\b(single|one study|only one|few |small|limited|weak|abstract|preliminary|low[- ]quality)\b/i.test(text)) return { tag: 'Weak support' }
   return null
 }
+
+// ── results page layout helpers ─────────────────────────────────────────────────────────────
+
+export type SegmentState = 'done' | 'partial' | 'pending'
+export const SEGMENT_SYMBOL: Record<SegmentState, string> = { done: '✓', partial: '◐', pending: '○' }
+export const SEGMENT_WORDS: Record<SegmentState, string> = { done: 'answered', partial: 'started, not enough evidence yet', pending: 'not reached' }
+/** Answered, or a gap: of two kinds, so a student can tell "thin" from "never reached". */
+export const SEGMENT_LEGEND: { state: SegmentState; word: string }[] = [
+  { state: 'done', word: 'Answered' },
+  { state: 'partial', word: 'Gap: some evidence' },
+  { state: 'pending', word: 'Gap: not reached' },
+]
+
+/** "150 found · 86 accepted · 12 disagree". The last is a part of the one before it, and can never exceed it. */
+export function sourcesSummaryLine(counts: { found: number; used: number }, against: number): string {
+  const used = Math.min(counts.used, counts.found)
+  return `${counts.found} found · ${used} accepted · ${Math.min(against, used)} disagree`
+}
+
+export interface StrengthLevel { level: 0 | 1 | 2 | 3 | 4; label: string }
+
+/** One indicator for how strong a source's evidence is: four steps and a word. */
+export function strengthLevel(strength: string | null | undefined): StrengthLevel {
+  switch (strength) {
+    case 'Strong': return { level: 4, label: 'Strong evidence' }
+    case 'Moderate': return { level: 3, label: 'Moderate evidence' }
+    case 'Weak': return { level: 2, label: 'Limited evidence' }
+    case 'Conflicting': return { level: 2, label: 'Conflicting evidence' }
+    case 'Insufficient': return { level: 1, label: 'Not enough evidence' }
+    default: return { level: 0, label: 'Not rated' }
+  }
+}
+
+/** The element id a question card carries, so a progress segment can scroll to it. */
+export const questionAnchor = (questionId: string): string => `question-${questionId}`
+
+/** The strength to show for a source: the best accepted link, or the first link when none is accepted. */
+export function sourceStrength(g: Pick<SourceGroup, 'links'>, questionId?: string): string {
+  const own = g.links.filter(l => (questionId ? l.questionId === questionId : true))
+  const pick = own.find(l => l.decision === 'Accepted') ?? own[0] ?? g.links[0]
+  return pick?.strength ?? ''
+}
+
+/** The first quote on file for a source, for a hover preview. */
+export function previewQuote(g: Pick<SourceGroup, 'links'> | undefined): string | null {
+  return g?.links.find(l => l.decision === 'Accepted' && l.quote)?.quote ?? g?.links.find(l => l.quote)?.quote ?? null
+}

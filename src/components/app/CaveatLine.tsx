@@ -11,7 +11,7 @@ export function CaveatLine({ text, children }: { text: string; children?: React.
   const reason = caveatReason(clean)
   return (
     <p className={cn('text-[12px] leading-snug', reason ? 'text-amber-900' : 'text-slate-600')}>
-      {reason && <span className="mr-1.5 inline-block rounded border border-amber-200 bg-amber-50 px-1.5 py-px text-[11px] font-semibold text-amber-800">{reason.tag}</span>}
+      {reason && <span className="mr-1.5 inline-block rounded border border-amber-200 bg-amber-50 px-1.5 py-px text-[12px] font-semibold text-amber-800">{reason.tag}</span>}
       {clean} {children}
     </p>
   )
