@@ -20,6 +20,8 @@ export interface StartDeepResearchPayload {
   minimumPublicationYear?: number
   maximumPublicationYear?: number
   requirePeerReviewed?: boolean
+  /** summary | standard | deep. Sets the credits held and the search/read budget; the server ignores unknown values. */
+  depth?: 'summary' | 'standard' | 'deep'
 }
 
 export interface DeepResearchProgress {

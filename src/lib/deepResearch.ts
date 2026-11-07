@@ -1,18 +1,33 @@
 import type { DeepResearchMode, DeepResearchSession, EvidenceSource } from '../api/deepResearch'
 
-export const DEEP_RESEARCH_MODES: { value: DeepResearchMode; label: string; hint: string }[] = [
-  { value: 'TopicExploration', label: 'Explore a topic', hint: 'What does the literature say about this area?' },
-  { value: 'EvidenceForClaim', label: 'Find evidence for a claim', hint: 'Is there published support for a specific statement?' },
-  { value: 'RelationshipInvestigation', label: 'Investigate a relationship', hint: 'Does X influence Y? Looks for conflicting findings too.' },
-  { value: 'TheoreticalFramework', label: 'Find a theoretical framework', hint: 'Which theories are used to study this?' },
-  { value: 'MeasurementInstrument', label: 'Find a measurement instrument', hint: 'Which validated scales or instruments exist?' },
-  { value: 'MethodologyEvidence', label: 'Support a methodology choice', hint: 'Evidence for a design, sampling or analysis approach.' },
-  { value: 'ContradictoryEvidence', label: 'Look for conflicting evidence', hint: 'Studies that disagree with a position.' },
-  { value: 'ResearchGapInvestigation', label: 'Investigate a possible gap', hint: 'Checks whether something looks under-studied.' },
-]
+export interface DeepResearchModeInfo {
+  value: DeepResearchMode
+  label: string
+  hint: string
+  /** Shown in the empty textarea once this mode is chosen. */
+  placeholder: string
+  /** An editable starting sentence; `___` marks what the student fills in. */
+  template: string
+}
 
-/** What a run costs, as shown before starting. Mirrors the server's DeepResearch options (CreditsReserved / MinCreditsCharged). */
-export const DEEP_RESEARCH_CREDITS = { reserved: 20, minCharged: 5 } as const
+export const DEEP_RESEARCH_MODES: DeepResearchModeInfo[] = [
+  { value: 'TopicExploration', label: 'Explore a topic', hint: 'What does the literature say about this area?',
+    placeholder: 'e.g. What factors influence digital learning adoption among university students in South Africa?', template: 'What does the literature say about ___ in ___?' },
+  { value: 'EvidenceForClaim', label: 'Find evidence for a claim', hint: 'Is there published support for a specific statement?',
+    placeholder: 'e.g. Is there evidence that retrieval practice improves exam performance in higher education?', template: 'Is there evidence that ___?' },
+  { value: 'RelationshipInvestigation', label: 'Investigate a relationship', hint: 'Does X influence Y? Looks for conflicting findings too.',
+    placeholder: 'e.g. Does learning management system usability influence student satisfaction in South African universities?', template: 'Does ___ influence ___ in ___?' },
+  { value: 'TheoreticalFramework', label: 'Find a theoretical framework', hint: 'Which theories are used to study this?',
+    placeholder: 'e.g. Which theories explain technology adoption among university students?', template: 'Which theories are used to study ___ in ___?' },
+  { value: 'MeasurementInstrument', label: 'Find a measurement instrument', hint: 'Which validated scales or instruments exist?',
+    placeholder: 'e.g. Which validated scales measure students’ attitudes towards generative AI?', template: 'Which validated scales measure ___?' },
+  { value: 'MethodologyEvidence', label: 'Support a methodology choice', hint: 'Evidence for a design, sampling or analysis approach.',
+    placeholder: 'e.g. What evidence supports purposive sampling for studying lecturers’ views on AI?', template: 'What evidence supports ___ for studying ___?' },
+  { value: 'ContradictoryEvidence', label: 'Look for conflicting evidence', hint: 'Studies that disagree with a position.',
+    placeholder: 'e.g. What evidence disagrees that social media use lowers academic performance?', template: 'What evidence disagrees that ___?' },
+  { value: 'ResearchGapInvestigation', label: 'Investigate a possible gap', hint: 'Checks whether something looks under-studied.',
+    placeholder: 'e.g. Is AI-assisted feedback under-researched in African universities?', template: 'Is ___ under-researched in ___?' },
+]
 
 /** One-click starting points on the "New research" screen. Each also picks the kind of research that fits it. */
 export const DEEP_RESEARCH_EXAMPLES: { question: string; mode: DeepResearchMode }[] = [
@@ -29,7 +44,8 @@ export const STALL_AFTER_MS = 6 * 60 * 1000
 
 export function isQuestionValid(question: string): boolean {
   const n = question.trim().length
-  return n >= MIN_QUESTION_CHARS && n <= MAX_QUESTION_CHARS
+  // An unfilled template slot ("Does ___ influence ___?") is long enough but is not a question yet.
+  return n >= MIN_QUESTION_CHARS && n <= MAX_QUESTION_CHARS && !/_{2,}/.test(question)
 }
 
 /** Poll until the session is finished; never poll a finished one. */

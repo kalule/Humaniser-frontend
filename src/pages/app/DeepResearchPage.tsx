@@ -4,7 +4,8 @@ import { Loader2, Square, ArrowLeft, History } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
 import { BindEvidenceModal } from '../../components/app/BindEvidenceModal'
-import { DeepResearchPrompt } from '../../components/app/DeepResearchPrompt'
+import { DeepResearchPrompt, type ModeChoice } from '../../components/app/DeepResearchPrompt'
+import { DEFAULT_DEPTH, detectIntent, suggestQuestions, type DepthId } from '../../lib/deepResearchIntake'
 import { DeepResearchResults } from '../../components/app/DeepResearchResults'
 import { statusBanner, type Prefill, type SourceGroup } from '../../lib/deepResearchView'
 import { unwatchSession, watchSession } from '../../lib/deepResearchWatch'
@@ -33,12 +34,22 @@ function StartForm({ projects, initialProjectId, prefill, sessions, onStarted, o
 }) {
   const [projectId, setProjectId] = useState(prefill?.projectId ?? initialProjectId)
   const [question, setQuestion] = useState(prefill?.question ?? '')
-  const [mode, setMode] = useState<DeepResearchMode>(prefill?.mode ?? 'TopicExploration')
+  // Auto follows what the question looks like; a prefilled run keeps the mode it had.
+  const [mode, setMode] = useState<ModeChoice>(prefill?.mode ?? 'Auto')
+  const [depth, setDepth] = useState<DepthId>(DEFAULT_DEPTH)
   const [geography, setGeography] = useState(prefill?.geography ?? '')
   const [peerReviewed, setPeerReviewed] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [settled, setSettled] = useState(question)
 
   useEffect(() => { if (!projectId && projects[0]) setProjectId(projects[0].id) }, [projects, projectId])
+  // Look at the question once the student pauses typing, not on every keystroke.
+  useEffect(() => { const t = setTimeout(() => setSettled(question), 400); return () => clearTimeout(t) }, [question])
+
+  const detected = detectIntent(settled)
+  const resolvedMode: DeepResearchMode = mode === 'Auto' ? (detected ?? 'TopicExploration') : mode
+  const project = projects.find(p => p.id === projectId)
+  const suggestions = project ? suggestQuestions(project.title ?? '') : []
 
   // The server allows one unfinished session per project, so say so up front and point at it,
   // instead of letting the student fill the form in and be refused.
@@ -52,7 +63,7 @@ function StartForm({ projects, initialProjectId, prefill, sessions, onStarted, o
     try { if ('Notification' in window && Notification.permission === 'default') void Notification.requestPermission() } catch { /* unsupported */ }
     try {
       onStarted(await deepResearchApi.start({
-        projectId, researchQuestion: question.trim(), mode,
+        projectId, researchQuestion: question.trim(), mode: resolvedMode, depth,
         geography: geography.trim() || undefined,
         requirePeerReviewed: peerReviewed || undefined,
       }))
@@ -96,33 +107,43 @@ function StartForm({ projects, initialProjectId, prefill, sessions, onStarted, o
         onQuestion={setQuestion}
         mode={mode}
         onMode={setMode}
+        detected={detected}
+        depth={depth}
+        onDepth={setDepth}
+        suggestions={suggestions}
         onExample={(q, m) => { setQuestion(q); setMode(m) }}
         canStart={canStart}
         busy={busy}
         onStart={() => void start()}
         autoFocus={!!prefill}
+        // TODO(add-pdfs): an "Add PDFs" control belongs in this row. There is no reusable upload component that feeds
+        // Deep Research (it only searches providers today), so it needs a backend ingest path first and is not built here.
         options={(
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-[12px] text-slate-500 mb-1 block">Project</label>
+          <div role="group" aria-label="Options" className="flex flex-wrap items-end gap-x-4 gap-y-3">
+            <div className="min-w-[14rem] flex-1 basis-64">
+              <label htmlFor="dr-project" className="text-[12px] text-slate-600 mb-1 block">Project</label>
               {projects.length === 0 ? (
                 <p className="text-[13px] text-slate-600">Create a research project first — Deep Research saves what it finds against a project.</p>
               ) : (
-                <select value={projectId} onChange={e => setProjectId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] text-slate-700 bg-white outline-none focus:border-purple-accent">
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.title || 'Untitled project'}</option>)}
-                </select>
+                <>
+                  <select id="dr-project" value={projectId} onChange={e => setProjectId(e.target.value)} title={project?.title || undefined}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] text-slate-700 bg-white outline-none focus:border-purple-accent focus-visible:ring-2 focus-visible:ring-purple-accent/30">
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.title || 'Untitled project'}</option>)}
+                  </select>
+                  {/* A select clips long titles, so the chosen title is also shown in full. */}
+                  <p className="text-[12px] text-slate-700 mt-1 leading-snug">{project?.title || 'Untitled project'}</p>
+                </>
               )}
             </div>
-            <div>
-              <label className="text-[12px] text-slate-500 mb-1 block">Study region <span className="text-slate-400">(optional)</span></label>
-              <input value={geography} onChange={e => setGeography(e.target.value)} placeholder="e.g. South Africa"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] text-slate-700 outline-none focus:border-purple-accent" />
-              <p className="text-[11px] text-slate-500 mt-1">Evidence from this region is weighted above evidence from elsewhere.</p>
+            <div className="w-44">
+              <label htmlFor="dr-region" className="text-[12px] text-slate-600 mb-1 block">Study region <span className="text-slate-500">(optional)</span></label>
+              <input id="dr-region" value={geography} onChange={e => setGeography(e.target.value)} placeholder="e.g. South Africa"
+                title="Evidence from this region is weighted above evidence from elsewhere."
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] text-slate-700 outline-none focus:border-purple-accent focus-visible:ring-2 focus-visible:ring-purple-accent/30" />
             </div>
-            <label className="sm:col-span-2 flex items-center gap-2 text-[13px] text-slate-600">
+            <label className="flex items-center gap-2 text-[13px] text-slate-700 pb-2">
               <input type="checkbox" checked={peerReviewed} onChange={e => setPeerReviewed(e.target.checked)} />
-              Peer-reviewed sources only
+              Peer-reviewed only
             </label>
           </div>
         )}
@@ -140,7 +161,7 @@ function statusChip(s: DeepResearchSessionSummary): { label: string; className: 
     ? { label: 'Paused', className: 'bg-amber-50 text-amber-700' }
     : { label: 'Running', className: 'bg-purple-50 text-purple-700' }
   switch (s.status) {
-    case 'Completed': return { label: 'Complete', className: 'bg-emerald-50 text-emerald-700' }
+    case 'Completed': return { label: 'Done', className: 'bg-emerald-50 text-emerald-700' }
     case 'Stopped':   return { label: 'Stopped at limit', className: 'bg-amber-50 text-amber-700' }
     case 'Cancelled': return { label: 'Stopped by you', className: 'bg-slate-100 text-slate-600' }
     default:          return { label: 'Could not finish', className: 'bg-red-50 text-red-700' }
@@ -398,10 +419,6 @@ export default function DeepResearchPage() {
             </button>
           </div>
         )}
-        {!sessionId && (
-          <p className="max-w-2xl mx-auto mb-5 text-[13px] text-slate-500">Searches the literature, checks every source, and gives you an evidence package you can review.</p>
-        )}
-
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="animate-spin text-slate-400" /></div>
         ) : !session ? (
