@@ -79,4 +79,12 @@ describe('DeepResearchPrompt', () => {
   it('renders the options row inside the card', () => {
     expect(render({ options: <span>PROJECT-OPTIONS</span> })).toContain('PROJECT-OPTIONS')
   })
+
+  it('7. offers a one-click rewrite when the text looks like a study title, and not for a question', () => {
+    const title = 'Does generative AI tool usage influence academic writing Self-Efficacy among postgraduate students at selected public universities in gauteng: a Cross-Sectional survey?'
+    const html = render({ question: title })
+    expect(html).toContain('looks like the title of a study')
+    expect(html).toContain('Ask it as: Does generative AI tool usage influence academic writing Self-Efficacy among postgraduate students at selected public universities in gauteng?')
+    expect(render()).not.toContain('looks like the title of a study')
+  })
 })

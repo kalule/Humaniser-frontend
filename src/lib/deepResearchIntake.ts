@@ -131,8 +131,12 @@ export function rewriteNormative(question: string): string {
 
 /** Title case → sentence case, leaving acronyms ("AI", "LMS") and "I" alone. */
 function sentenceCase(s: string): string {
-  return s.split(/\s+/).map(w => ((w.match(/[A-Z]/g) ?? []).length >= 2 || w === 'I' ? w : w.toLowerCase())).join(' ')
+  return restorePlaces(s.split(/\s+/).map(w => ((w.match(/[A-Z]/g) ?? []).length >= 2 || w === 'I' ? w : w.toLowerCase())).join(' '))
 }
+
+/** Lower-casing a title must not turn "Uganda" or "Gauteng" into common nouns. Only places the product's students study in. */
+const PLACES = /\b(south africa(?:n)?|cape town|eastern cape|western cape|northern cape|free state|north west|kwazulu-natal|gauteng|limpopo|mpumalanga|johannesburg|pretoria|durban|soweto|africa(?:n)?|kenya(?:n)?|uganda(?:n)?|nigeria(?:n)?|ghana(?:ian)?|tanzania(?:n)?|rwanda|ethiopia(?:n)?|zambia(?:n)?|zimbabwe(?:an)?|malawi|botswana|namibia|mozambique|lesotho|eswatini|egypt|morocco|cameroon|senegal|europe(?:an)?|asia(?:n)?|india(?:n)?|china|chinese|canada|australia(?:n)?|brazil|usa|uk)\b/gi
+const restorePlaces = (s: string) => s.replace(PLACES, m => m.replace(/(^|[\s-])([a-z])/g, (_, p: string, c: string) => p + c.toUpperCase()))
 
 /**
  * Up to three starting questions built from a project's title. Deterministic: it reshapes the words the student
@@ -159,4 +163,38 @@ export function suggestQuestions(title: string): string[] {
     `What factors influence ${topic}?`,
     `Which theories are used to study ${topic}?`,
   ]
+}
+
+// ── study titles ────────────────────────────────────────────────────────────────────────────
+
+const DESIGN_PHRASE = /\b(?:an?\s+)?(?:(?:cross[- ]sectional|longitudinal|qualitative|quantitative|mixed[- ]methods?|descriptive|correlational|exploratory|comparative|empirical|case)\s+)?(?:survey|study|design|analysis|investigation)\b|\b(?:systematic|scoping|narrative|integrative)\s+(?:literature\s+)?review\b|\bmeta-?analysis\b/i
+const QUESTION_START = /^\s*(what|which|how|why|who|where|when|does|do|did|is|are|was|were|can|could|will|would|has|have)\b/i
+
+/**
+ * Whether the text reads like the title of a study ("…: A Cross-Sectional Survey") rather than a question to research.
+ * A title searches badly because its design words and subtitle are about the paper, not the topic.
+ */
+export function looksLikeStudyTitle(text: string): boolean {
+  const t = text.trim()
+  if (t.length < 25) return false
+  const colon = t.indexOf(':')
+  const afterColon = colon > 0 ? t.slice(colon + 1) : ''
+  if (colon > 0 && DESIGN_PHRASE.test(afterColon)) return true                              // "…: a cross-sectional survey"
+  if (/(?:^|[\s,\u2013\u2014-])an?\s+(?:[\w-]+\s+){0,2}(?:survey|study|review)\s*\??\s*$/i.test(t)) return true   // a design phrase at the end
+  if (colon > 0 && !t.includes('?') && afterColon.trim().split(/\s+/).length >= 3) return true   // a plain subtitle on a non-question
+  return false
+}
+
+/**
+ * A research question taken from a study title, using the student's own words: the subtitle and design phrase are
+ * dropped, and what is left is turned into a question only if it is not one already.
+ */
+export function titleToQuestion(text: string): string {
+  let main = text.trim().replace(/\?+\s*$/, '')
+  const colon = main.indexOf(':')
+  if (colon > 0) main = main.slice(0, colon)
+  main = main.replace(/[,–—-]?\s*\ba\s+(?:[\w-]+\s+){0,2}(?:survey|study|review|design)\b.*$/i, '').trim()
+  if (QUESTION_START.test(main)) return `${main}?`
+  const [first] = suggestQuestions(main)
+  return first ?? `What does the literature say about ${main}?`
 }

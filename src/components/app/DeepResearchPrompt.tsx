@@ -6,7 +6,7 @@ import {
   DEEP_RESEARCH_EXAMPLES, DEEP_RESEARCH_MODES, MAX_QUESTION_CHARS, MIN_QUESTION_CHARS,
 } from '../../lib/deepResearch'
 import {
-  DEPTH_ORDER, DEPTH_TIERS, depthCost, isNormativeQuestion, rewriteNormative, startLabel, type DepthEstimates, type DepthId,
+  DEPTH_ORDER, DEPTH_TIERS, depthCost, isNormativeQuestion, looksLikeStudyTitle, rewriteNormative, startLabel, titleToQuestion, type DepthEstimates, type DepthId,
 } from '../../lib/deepResearchIntake'
 
 export type ModeChoice = DeepResearchMode | 'Auto'
@@ -46,10 +46,13 @@ export function DeepResearchPrompt({
 }: DeepResearchPromptProps) {
   const [showModes, setShowModes] = useState(false)
   const [normativeDismissed, setNormativeDismissed] = useState(false)
+  const [titleDismissed, setTitleDismissed] = useState(false)
   const box = useRef<HTMLTextAreaElement>(null)
   const trimmed = question.trim().length
   const normative = isNormativeQuestion(question)
   useEffect(() => { if (!normative) setNormativeDismissed(false) }, [normative])
+  const isTitle = looksLikeStudyTitle(question)
+  useEffect(() => { if (!isTitle) setTitleDismissed(false) }, [isTitle])
 
   const effective: DeepResearchMode | null = mode === 'Auto' ? detected : mode
   const info = DEEP_RESEARCH_MODES.find(m => m.value === (effective ?? 'RelationshipInvestigation'))
@@ -113,7 +116,25 @@ export function DeepResearchPrompt({
           <p className="text-[11px] text-slate-500">Add a little more detail so the search knows what to look for.</p>
         )}
 
-        {normative && !normativeDismissed && (
+        {isTitle && !titleDismissed && (
+          <div role="note" className="mt-2 flex items-start gap-2 rounded-lg border border-purple-200 bg-purple-tint/50 px-3 py-2 text-[12px] text-slate-800">
+            <Lightbulb size={14} className="mt-0.5 shrink-0 text-purple-accent" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p>This looks like the title of a study. Searching works better with the question behind it, without the design or subtitle.</p>
+              <button type="button" onClick={() => onQuestion(titleToQuestion(question))}
+                className="mt-1 text-left font-semibold text-purple-deep underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40 rounded">
+                Ask it as: {titleToQuestion(question)}
+              </button>
+              <span className="block text-slate-600 mt-0.5">Or keep it as it is.</span>
+            </div>
+            <button type="button" onClick={() => setTitleDismissed(true)} aria-label="Dismiss this hint"
+              className="shrink-0 rounded p-0.5 hover:bg-purple-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {normative && !normativeDismissed && !isTitle && (
           <div role="note" className="mt-2 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
             <Lightbulb size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
             <div className="min-w-0 flex-1">
