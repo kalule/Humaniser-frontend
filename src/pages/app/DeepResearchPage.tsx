@@ -16,9 +16,10 @@ import {
   type DeepResearchMode, type DepthEstimate, type DeepResearchReport, type FollowUpQuote, type DeepResearchSession, type DeepResearchSessionSummary, type EvidenceSource,
 } from '../../api/deepResearch'
 import { RUN_STEPS, currentStep, elapsedLabel, stepState, timeLeftLabel } from '../../lib/deepResearchReport'
+import { buildReportLocally, reportToWordHtml } from '../../lib/deepResearchLocalReport'
 import {
   POLL_INTERVAL_MS,
-  STALL_AFTER_MS, activeSessionFor, apiErrorMessage, timeAgo, isQuestionValid, progressPercent, shouldPoll,
+  STALL_AFTER_MS, activeSessionFor, apiErrorMessage, reportFailureHint, timeAgo, isQuestionValid, progressPercent, shouldPoll,
 } from '../../lib/deepResearch'
 
 // ── start form ──────────────────────────────────────────────────────────────────────────────
@@ -317,6 +318,9 @@ export default function DeepResearchPage() {
   const [exporting, setExporting] = useState(false)
   const [report, setReport] = useState<DeepResearchReport | null>(null)
   const [reportFailed, setReportFailed] = useState(false)
+  const [reportHint, setReportHint] = useState<string | undefined>()
+  const [retryingReport, setRetryingReport] = useState(false)
+  const [generatingReport, setGeneratingReport] = useState(false)
   const [exportingReport, setExportingReport] = useState(false)
   const [followUpQuote, setFollowUpQuote] = useState<FollowUpQuote | null>(null)
   const [continuing, setContinuing] = useState(false)
@@ -340,8 +344,14 @@ export default function DeepResearchPage() {
   const loadReport = useCallback(async (id: string) => {
     try {
       const r = await deepResearchApi.report(id)
-      if (alive.current) { setReport(r); setReportFailed(false) }
-    } catch { if (alive.current) { setReport(null); setReportFailed(true) } }
+      if (alive.current) { setReport(r); setReportFailed(false); setReportHint(undefined) }
+    } catch (err) { if (alive.current) { setReport(null); setReportFailed(true); setReportHint(reportFailureHint(err)) } }
+  }, [])
+
+  // What continuing would cost. The server decides whether the session can be continued, so every finished one asks.
+  const loadQuote = useCallback(async (id: string) => {
+    try { const q = await deepResearchApi.followUpQuote(id); if (alive.current) setFollowUpQuote(q) }
+    catch { if (alive.current) setFollowUpQuote(null) }
   }, [])
 
   // Load, then poll only while the research is still running.
@@ -358,8 +368,7 @@ export default function DeepResearchPage() {
         if (shouldPoll(s)) { watchSession(sessionId); timer = setTimeout(() => void tick(), POLL_INTERVAL_MS) }
         else {
           unwatchSession(sessionId); void loadSources(sessionId); void loadReport(sessionId)
-          // Only a stopped or cut-short session can be continued; the server says whether and what it would cost.
-          if (s.status !== 'Completed') deepResearchApi.followUpQuote(sessionId).then(q => { if (alive.current) setFollowUpQuote(q) }).catch(() => {})
+          void loadQuote(sessionId)
         }
       } catch (err) {
         if (cancelled) return
@@ -370,7 +379,7 @@ export default function DeepResearchPage() {
     }
     void tick()
     return () => { cancelled = true; if (timer) clearTimeout(timer) }
-  }, [sessionId, setParams, loadSources, loadReport])
+  }, [sessionId, setParams, loadSources, loadReport, loadQuote])
 
   // "Your research": loaded whenever the start screen is showing, refreshed while anything is still running.
   const refreshSessions = useCallback(async () => {
@@ -501,8 +510,35 @@ export default function DeepResearchPage() {
     if (!session || exportingReport) return
     setExportingReport(true)
     try { await deepResearchApi.exportReportDocx(session.id) }
-    catch (error) { toast.error(apiErrorMessage(error, 'Could not export the report.')) }
+    catch (error) {
+      // The server could not make the .docx. Never leave the student without their report: save a Word-readable file instead.
+      const local = report ?? (sources.length > 0 ? buildReportLocally(session, sources) : null)
+      if (local) {
+        const url = URL.createObjectURL(new Blob(['\ufeff', reportToWordHtml(local)], { type: 'application/msword' }))
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `deep-research-report-${session.id}.doc`
+        a.click()
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+        toast.success('Saved as a Word document (.doc). The server could not make the .docx.')
+      } else toast.error(apiErrorMessage(error, 'Could not export the report.'))
+    }
     finally { setExportingReport(false) }
+  }
+
+  const retryReport = async () => {
+    if (!session) return
+    setRetryingReport(true)
+    try { await Promise.all([loadReport(session.id), loadQuote(session.id)]) }
+    finally { if (alive.current) setRetryingReport(false) }
+  }
+
+  // Builds the report here, from the findings and sources this session already holds.
+  const generateReport = () => {
+    if (!session) return
+    setGeneratingReport(true)
+    try { setReport(buildReportLocally(session, sources)); setReportFailed(false); toast.success('Report built from this session\u2019s findings.') }
+    finally { setGeneratingReport(false) }
   }
 
   // A stopped or failed session cannot be continued, so a follow-up is a new session with the question filled in.
@@ -545,6 +581,7 @@ export default function DeepResearchPage() {
             onExport={() => void exportPackage()} exporting={exporting}
             onFollowUp={followUp} onNew={newBlank}
             report={report} reportFailed={reportFailed} onExportReport={() => void exportReport()} exportingReport={exportingReport}
+            reportErrorHint={reportHint} onRetryReport={() => void retryReport()} retryingReport={retryingReport} onGenerateReport={generateReport} generatingReport={generatingReport}
             followUpQuote={followUpQuote?.canContinue ? followUpQuote : null} onContinue={() => void continueSession()} continuing={continuing}
           />
         )}

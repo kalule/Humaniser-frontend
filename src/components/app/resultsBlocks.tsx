@@ -3,11 +3,11 @@ import { AlertTriangle, Check, ExternalLink, Loader2, Minus, Undo2, X } from 'lu
 import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
 import { deepResearchApi, type EvidenceQuestion, type VerifiedEvidencePackage } from '../../api/deepResearch'
-import { StrengthMeter, DisagreesBadge } from './deepResearchParts'
+import { StanceMarker } from './deepResearchParts'
 import { dedupeQuotes } from '../../lib/deepResearchReport'
 import { authorLine, strengthLabel } from '../../lib/deepResearch'
 import {
-  coverageChip, joinMeta, regionLabel, relationshipTag, shortQuestion, sourceStrength, verificationChecks, type Chip, type SourceGroup,
+  coverageChip, joinMeta, regionLabel, relationshipTag, shortQuestion, sourceFacts, verificationChecks, type Chip, type SourceGroup,
 } from '../../lib/deepResearchView'
 
 // ── small building blocks ───────────────────────────────────────────────────────────────────
@@ -55,9 +55,15 @@ export const prettyType = (t: string) => t.replace(/([a-z])([A-Z])/g, '$1 $2').t
 
 // ── the source list rows ────────────────────────────────────────────────────────────────────
 
-export function SourceRow({ source, questionId, selected, onSelect, cite }: { source: SourceGroup; questionId?: string; selected: boolean; onSelect: () => void; /** The number of its citation in the report, when it is cited. */ cite?: number }) {
-  const link = source.links.find(l => (questionId ? l.questionId === questionId : true) && l.decision === 'Accepted')
-  const disagrees = link?.polarity === 'Contradicts' || link?.polarity === 'Null'
+export function SourceRow({ source, questionId, selected, onSelect, cite, note }: {
+  source: SourceGroup; questionId?: string; selected: boolean; onSelect: () => void
+  /** The number of its citation in the report, when it is cited. */
+  cite?: number
+  /** A line under the facts, such as why a source was left out. */
+  note?: string
+}) {
+  const f = sourceFacts(source, questionId)
+  const regionMark = f.region.match === 'match' ? '✓ ' : f.region.match === 'near' ? '≈ ' : f.region.match === 'far' ? '↗ ' : ''
   return (
     <li data-source-id={source.id}>
       <button
@@ -69,11 +75,14 @@ export function SourceRow({ source, questionId, selected, onSelect, cite }: { so
       >
         <span className="block text-[13px] font-semibold leading-snug text-slate-900">{cite ? <span className="mr-1.5 rounded bg-purple-tint px-1 text-[12px] font-semibold tabular-nums text-purple-deep" title="Its number in the report">[{cite}]</span> : null}{source.title}</span>
         <span className="block text-[12px] text-slate-600 mt-0.5">{source.year ?? 'n.d.'}{source.journal ? ` · ${source.journal}` : ''}</span>
-        {/* One indicator here. The DOI check, what was read and the quote are in the panel once the source is opened. */}
-        <span className="mt-2 flex flex-wrap items-center gap-2">
-          <StrengthMeter strength={sourceStrength(source, questionId)} />
-          {disagrees && <DisagreesBadge kind={link?.polarity === 'Null' ? 'Null' : 'Contradicts'} />}
+        {/* What the source is, not a score: whether it supports or disagrees, what kind of study, how big, and where. */}
+        <span className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-slate-700">
+          <StanceMarker stance={f.stance} />
+          <span>{f.design ?? 'Design not seen'}</span>
+          {f.sample !== null && <span className="tabular-nums">n = {f.sample.toLocaleString('en-US')}</span>}
+          <span>{regionMark}{f.region.label}</span>
         </span>
+        {note && <span className="mt-1 block text-[12px] text-slate-600">{note}</span>}
       </button>
     </li>
   )

@@ -5,14 +5,15 @@ import { cn } from '../../lib/utils'
 import type { DeepResearchReport, FollowUpQuote, DeepResearchSession, EvidenceSource } from '../../api/deepResearch'
 import { DeepResearchReportView } from './DeepResearchReportView'
 import { CaveatLine } from './CaveatLine'
-import { ClampedTitle, QuestionProgress, SourcesSummary } from './deepResearchParts'
+import { CitationMarker, ClampedTitle, QuestionProgress, ReportUnavailable, SourcesSummary } from './deepResearchParts'
+import { QuestionsSection } from './QuestionsSection'
 import { ResultsPanel, type PanelView } from './ResultsPanel'
 import { CHIP_TONES } from './resultsBlocks'
 import { strengthLabel } from '../../lib/deepResearch'
 import {
-  answeredFromRatings, bySourceYearDesc, completionSummary, countSources, currentSection, dedupeByDoi, evidenceAgainst, findGroup, idsOf, joinMeta,
-  mergeSourceRows, needsFollowUp, outlineItems, prefillFrom, previewQuote, questionAnchor, questionRows, questionTag, rateQuestion, savableSources,
-  segmentsFromRatings, statusBanner, stripSeparators, filterSources, type Prefill, type SourceFilterId, type SourceGroup,
+  buildCitationIndex, completionSummary, countSources, currentSection, dedupeByDoi, evidenceAgainst, findGroup, idsOf,
+  mergeSourceRows, needsFollowUp, outlineItems, prefillFrom, previewQuote, qualityRollup, questionAnchor, questionRows, questionTag, rateQuestion, savableSources,
+  rollupText, segmentsFromRatings, statusBanner, stripSeparators, type Prefill, type SourceFilterId, type SourceGroup,
 } from '../../lib/deepResearchView'
 
 export { SourceDetail, SourceRow } from './resultsBlocks'
@@ -38,12 +39,20 @@ export interface DeepResearchResultsProps {
   reportFailed?: boolean
   onExportReport?: () => void
   exportingReport?: boolean
+  /** Why the report failed, in words, when it did. */
+  reportErrorHint?: string
+  onRetryReport?: () => void
+  retryingReport?: boolean
+  /** Builds the report in the browser from the session's findings and sources. */
+  onGenerateReport?: () => void
+  generatingReport?: boolean
   /** What continuing this session would cost against starting again. Present only when the server says it can be continued. */
   followUpQuote?: FollowUpQuote | null
   onContinue?: () => void
   continuing?: boolean
-  /** Which panel view to start on. Sources unless a link or a test asks for another. */
+  /** Which panel view, and which Sources filter, to start on. */
   initialPanelView?: PanelView
+  initialSourceFilter?: SourceFilterId
 }
 
 const chipBase = 'inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-purple-accent focus-visible:ring-offset-1 disabled:opacity-60'
@@ -52,7 +61,8 @@ const chipSecondary = `${chipBase} border-slate-300 bg-white text-slate-800 hove
 
 export function DeepResearchResults({
   session, rows, busyId, addedIds, onDecide, onAdd, onAddMany, onUse, onExport, exporting, onFollowUp, onNew, report = null, reportFailed = false,
-  onExportReport, exportingReport = false, followUpQuote = null, onContinue, continuing = false, initialPanelView = 'sources',
+  onExportReport, exportingReport = false, reportErrorHint, onRetryReport, retryingReport = false, onGenerateReport, generatingReport = false,
+  followUpQuote = null, onContinue, continuing = false, initialPanelView = 'sources', initialSourceFilter,
 }: DeepResearchResultsProps) {
   const result = session.result
   const questions = result?.questions ?? []
@@ -61,33 +71,26 @@ export function DeepResearchResults({
   const counts = useMemo(() => countSources(groups), [groups])
   const qRows = useMemo(() => questionRows(questions, groups), [questions, groups])
   const against = useMemo(() => evidenceAgainst(groups), [groups])
-  const leftOut = useMemo(() => groups.filter(g => g.bucket !== 'used').sort(bySourceYearDesc), [groups])
   // "Answered" is decided by how well each question is supported, so the count, the bar and the labels always agree.
   const ratings = useMemo(() => qRows.map(rateQuestion), [qRows])
-  const segments = segmentsFromRatings(ratings, questions)
-  const answered = answeredFromRatings(ratings)
-  const banner = statusBanner(session, answered, questions.length)
-  const summary = completionSummary(session, answered, questions.length)
+  const segments = segmentsFromRatings(ratings)
+  const rollup = qualityRollup(ratings)
+  const unanswered = rollup.total - rollup.strong
+  const banner = statusBanner(session, rollup.strong, questions.length)
+  const summary = completionSummary(session, rollup)
   const followUp = needsFollowUp(session.status)
   const canContinue = followUp && !!followUpQuote?.canContinue && !!onContinue
   const failed = session.status === 'Failed'
 
-  // the report's citation numbers, by the id of the merged source each one belongs to
-  const citedIds = useMemo(() => new Set(report?.references.map(r => r.sourceId) ?? []), [report])
-  const numbers = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const r of report?.references ?? []) {
-      const g = findGroup(groups, r.sourceId)
-      m.set(g?.id ?? r.sourceId, r.number)
-    }
-    return m
-  }, [report, groups])
-  const citedCount = filterSources(groups, 'cited', citedIds).length
+  // One list of what is cited and under which numbers: the report's references, then any source only a key finding names.
+  const citation = useMemo(() => buildCitationIndex(groups, report, result?.keyFindings), [groups, report, result])
+  const numbers = citation.numbers
+  const citedIds = citation.cited
 
   // ── the panel ──
   const [view, setView] = useState<PanelView>(initialPanelView)
   const [filterChoice, setFilter] = useState<SourceFilterId | null>(null)
-  const filter: SourceFilterId = filterChoice ?? (citedCount > 0 ? 'cited' : 'all')
+  const filter: SourceFilterId = filterChoice ?? initialSourceFilter ?? (citation.ids.length > 0 ? 'cited' : 'all')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [selectedId, setSelectedRaw] = useState<string | null>(null)
   const [announce, setAnnounce] = useState('')
@@ -142,16 +145,15 @@ export function DeepResearchResults({
     setCurrentId(id)
   }
 
-  // A progress segment opens the Questions list in the panel and moves focus to that question.
+  // A progress segment goes to that question, in the main column, and moves focus there.
   const jumpToQuestion = (index: number) => {
     const q = questions[index]
     if (!q) return
-    setSelectedRaw(null); setView('questions'); setSheetOpen(true)
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
       const el = document.getElementById(questionAnchor(q.id))
       el?.focus({ preventScroll: true })
       el?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-    }))
+    })
   }
 
   // ── decisions on the selected source: every record of the same paper moves together ──
@@ -206,42 +208,50 @@ export function DeepResearchResults({
           {(summary.note ?? (questions.length === 0 ? banner.title : null)) && (
             <p role={banner.role} className={cn('mt-1 text-[13px]', failed ? 'text-red-700' : 'text-slate-700')}>{summary.note ?? banner.title}</p>
           )}
-          <QuestionProgress segments={segments} answered={answered} onSelect={jumpToQuestion} />
+          <QuestionProgress segments={segments} summary={rollupText(rollup)} onSelect={jumpToQuestion} />
         </section>
 
         {/* The funnel, as one line above the report */}
         {result && <SourcesSummary counts={counts} against={against.length} overall={strengthLabel(result.evidenceStrength)} />}
 
         {report ? (
-          <DeepResearchReportView part="document" report={report} onOpenSource={openSource} selectedId={selected?.id ?? null} quoteFor={quoteFor}
-            onExport={() => onExportReport?.()} exporting={exportingReport} onAsk={q => onFollowUp({ ...prefillFrom(session), question: q, unanswered: [] })} />
+          <>
+            {report.builtLocally && (
+              <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-700">
+                Built here from this session&rsquo;s findings, because the server&rsquo;s report was not available. It follows the same rule: every sentence cites a verified source.
+              </p>
+            )}
+            <DeepResearchReportView part="document" report={report} onOpenSource={openSource} selectedId={selected?.id ?? null} quoteFor={quoteFor}
+              onExport={() => onExportReport?.()} exporting={exportingReport} onAsk={q => onFollowUp({ ...prefillFrom(session), question: q, unanswered: [] })} />
+          </>
         ) : onExportReport && !reportFailed ? (
           <div className="flex justify-center py-10"><Loader2 className="animate-spin text-slate-500" aria-label="Loading the report" /></div>
         ) : (
           <>
-            {reportFailed && <p className="text-[13px] text-slate-700">The report could not be loaded. The panel still shows everything that was found.</p>}
-            {/* The report says all of this with citations; this block is only the fallback while there is no report. */}
+            {reportFailed && (
+              <ReportUnavailable hint={reportErrorHint} retrying={retryingReport} generating={generatingReport}
+                canGenerate={rows.length > 0 && !!onGenerateReport} onRetry={() => onRetryReport?.()} onGenerate={() => onGenerateReport?.()} />
+            )}
+            {/* The key findings the session produced, so there is always something to read. */}
             {result && result.keyFindings.length > 0 && (
-              <section>
-                <h3 className="mb-2 text-left text-[15px] font-semibold text-slate-900">Key findings{followUp ? ' so far' : ''}</h3>
+              <section aria-labelledby="fallback-findings">
+                <h3 id="fallback-findings" className="mb-2 text-left text-[15px] font-semibold text-slate-900">Key findings{followUp ? ' so far' : ''}</h3>
                 <ul className="space-y-3">
                   {result.keyFindings.map((f, i) => {
                     const tag = questionTag(f.evidenceQuestionId, questions)
-                    const based = f.supportingSourceIds.map(id => findGroup(groups, id)).filter((g): g is SourceGroup => !!g)
+                    const cites = [...f.supportingSourceIds, ...f.contradictingSourceIds].map(id => findGroup(groups, id)).filter((g): g is SourceGroup => !!g)
+                    const unique = cites.filter((g, k) => cites.findIndex(x => x.id === g.id) === k)
                     return (
                       <li key={i} className="rounded-xl border border-slate-200 bg-white p-3.5">
                         {tag && <span title={tag.hint} className="mb-1.5 inline-block rounded bg-purple-tint px-1.5 py-px text-[12px] font-semibold text-purple-deep">{tag.label}</span>}
-                        <p className="text-[13px] text-slate-800">{stripSeparators(f.statement)}</p>
-                        <p className="mt-1 text-[12px] text-slate-600">{joinMeta(strengthLabel(f.strength), f.scope)}</p>
+                        <p className="text-[14px] leading-relaxed text-slate-800">
+                          {stripSeparators(f.statement)}{' '}
+                          {unique.map(g => (
+                            <CitationMarker key={g.id} n={numbers.get(g.id) ?? 0} title={g.title} quote={previewQuote(g)} selected={selected?.id === g.id} onOpen={() => select(g.id)} />
+                          ))}
+                        </p>
+                        <p className="mt-1 text-[12px] text-slate-600">{strengthLabel(f.strength)}</p>
                         <div className="mt-1 space-y-1">{f.caveats.map((c, j) => <CaveatLine key={j} text={c} />)}</div>
-                        {based.length > 0 && (
-                          <div className="mt-2">
-                            <p className="text-[12px] font-medium text-slate-600">Based on</p>
-                            <ul className="mt-0.5 space-y-0.5">
-                              {based.map(g => <li key={g.id}><button type="button" className="text-left text-[13px] text-purple-deep hover:underline" onClick={() => select(g.id)}>{g.title}</button></li>)}
-                            </ul>
-                          </div>
-                        )}
                       </li>
                     )
                   })}
@@ -253,17 +263,20 @@ export function DeepResearchResults({
 
         {/* Under the report: what to do next */}
         <div role="group" aria-label="Next steps" className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
-          {canContinue && (
-            <button type="button" data-primary={lead === 'continue' ? 'true' : undefined} className={lead === 'continue' ? chipPrimary : chipSecondary} onClick={onContinue} disabled={continuing}>
-              {continuing ? <Loader2 size={14} className="animate-spin" /> : <Telescope size={14} aria-hidden="true" />} Research remaining {followUpQuote!.unansweredQuestions} question{followUpQuote!.unansweredQuestions === 1 ? '' : 's'} · {followUpQuote!.followUpCredits} credits
+          {(canContinue || unanswered > 0) && (
+            <button type="button" data-primary={lead === 'continue' ? 'true' : undefined} className={lead === 'continue' ? chipPrimary : chipSecondary}
+              onClick={onContinue} disabled={!canContinue || continuing}
+              title={canContinue ? undefined : (followUpQuote?.reason ?? 'The server could not price a follow-up right now. Try again in a moment, or start new research from this.')}>
+              {continuing ? <Loader2 size={14} className="animate-spin" /> : <Telescope size={14} aria-hidden="true" />}
+              {canContinue
+                ? <>Research remaining {followUpQuote!.unansweredQuestions} question{followUpQuote!.unansweredQuestions === 1 ? '' : 's'} · {followUpQuote!.followUpCredits} credits</>
+                : <>Research remaining {unanswered} question{unanswered === 1 ? '' : 's'}</>}
             </button>
           )}
-          {report && (
-            <button type="button" className={chipSecondary} onClick={() => jumpTo('report-gaps')} disabled={gapCount === 0}
-              title={gapCount === 0 ? 'The report found no gaps' : 'Jump to what the evidence did not answer'}>
-              <Search size={14} aria-hidden="true" /> Find gaps{gapCount > 0 ? ` (${gapCount})` : ''}
-            </button>
-          )}
+          <button type="button" className={chipSecondary} onClick={() => jumpTo(report ? 'report-gaps' : 'questions-heading')} disabled={(report ? gapCount : unanswered) === 0}
+            title={(report ? gapCount : unanswered) === 0 ? 'No gaps were found' : 'Jump to what the evidence did not answer'}>
+            <Search size={14} aria-hidden="true" /> Find gaps{(report ? gapCount : unanswered) > 0 ? ` (${report ? gapCount : unanswered})` : ''}
+          </button>
           {onExportReport && (
             <button type="button" data-primary={lead === 'export' ? 'true' : undefined} className={lead === 'export' ? chipPrimary : chipSecondary} onClick={onExportReport} disabled={exportingReport}>
               {exportingReport ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} aria-hidden="true" />} Export report (Word)
@@ -291,6 +304,8 @@ export function DeepResearchResults({
           <button type="button" className={secondary} onClick={onNew}>{followUp ? 'Blank new research' : 'New research'}</button>
         </div>
         {followUp && <p className="text-[12px] text-slate-600">Starting from this opens the form with your question filled in, so you can edit it first. It runs as a new session.</p>}
+
+        {result && <QuestionsSection qRows={qRows} questions={questions} numbers={numbers} selectedId={selected?.id ?? null} onSelect={select} />}
 
         {report && <DeepResearchReportView part="followup" report={report} onOpenSource={openSource} selectedId={selected?.id ?? null}
           onExport={() => onExportReport?.()} exporting={exportingReport} onAsk={q => onFollowUp({ ...prefillFrom(session), question: q, unanswered: [] })} />}
@@ -326,7 +341,7 @@ export function DeepResearchResults({
       <ResultsPanel
         panelRef={panelRef} sessionId={session.id} view={view} onView={v => { setSelectedRaw(null); setView(v) }}
         filter={filter} onFilter={setFilter} groups={groups} citedIds={citedIds} numbers={numbers}
-        against={against} leftOut={leftOut} qRows={qRows} questions={questions}
+        questions={questions}
         outline={outline} currentSectionId={currentId} onJump={jumpTo}
         selected={selected} selectedId={selected?.id ?? null} onSelect={select} onBack={back}
         busyId={busyId} added={selected ? idsOf(selected).some(id => addedIds.has(id)) : false}

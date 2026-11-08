@@ -1,8 +1,8 @@
 import { useId, useState, type KeyboardEvent } from 'react'
-import { AlertTriangle, ChevronDown } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, Loader2, RefreshCw, Wand2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { funnelRows } from '../../lib/deepResearchReport'
-import { SEGMENT_LEGEND, SEGMENT_SYMBOL, SEGMENT_WORDS, sourcesSummaryLine, strengthLevel, type SegmentState } from '../../lib/deepResearchView'
+import { SEGMENT_LEGEND, SEGMENT_SYMBOL, SEGMENT_WORDS, sourcesSummaryLine, strengthLevel, type SegmentState, type Stance } from '../../lib/deepResearchView'
 
 // Small presentational parts of the results page. Each is used in more than one place, or needs its own keyboard
 // behaviour, so it lives here rather than inline.
@@ -55,11 +55,11 @@ const SEGMENT_STYLES: Record<SegmentState, string> = {
 }
 
 /** One button per question: a symbol and a number as well as a colour, a legend, and a click that jumps to that question. */
-export function QuestionProgress({ segments, answered, onSelect }: { segments: SegmentState[]; answered: number; onSelect: (index: number) => void }) {
+export function QuestionProgress({ segments, summary, onSelect }: { segments: SegmentState[]; summary: string; onSelect: (index: number) => void }) {
   if (segments.length === 0) return null
   return (
     <div className="mt-3">
-      <div role="group" aria-label={`${answered} of ${segments.length} questions answered. Choose a question to go to it.`} className="flex gap-1.5">
+      <div role="group" aria-label={`${summary}. Choose a question to go to it.`} className="flex gap-1.5">
         {segments.map((s, i) => (
           <button key={i} type="button" onClick={() => onSelect(i)}
             aria-label={`Question ${i + 1}: ${SEGMENT_WORDS[s]}. Go to this question.`}
@@ -139,5 +139,47 @@ export function CitationPreview({ id, title, quote }: { id: string; title: strin
       <span className="block font-semibold">{title}</span>
       {quote ? <span className="mt-1 block text-slate-200">“{quote.length > 220 ? `${quote.slice(0, 220).trimEnd()}…` : quote}”</span> : <span className="mt-1 block text-slate-300">No supporting sentence was kept for this source.</span>}
     </span>
+  )
+}
+
+/** Whether a source supports the question, disagrees, found no effect, or is only background. Icon and word, never colour alone. */
+export function StanceMarker({ stance }: { stance: Stance }) {
+  if (stance === 'disagrees') return <DisagreesBadge />
+  if (stance === 'noEffect') return <DisagreesBadge kind="Null" />
+  if (stance === 'supports') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded border border-emerald-300 bg-emerald-50 px-1.5 py-px text-[12px] font-semibold text-emerald-900">
+        <Check size={12} aria-hidden="true" /> Supports
+      </span>
+    )
+  }
+  return <span className="inline-flex items-center rounded border border-slate-300 bg-slate-50 px-1.5 py-px text-[12px] font-semibold text-slate-700">Background</span>
+}
+
+/**
+ * Shown when the report could not be loaded. Always offers a way forward: try again, or build it here from the findings
+ * the session already holds. It says what probably happened instead of leaving a bare sentence.
+ */
+export function ReportUnavailable({ hint, retrying, generating, canGenerate, onRetry, onGenerate }: {
+  hint?: string; retrying?: boolean; generating?: boolean; canGenerate: boolean; onRetry: () => void; onGenerate: () => void
+}) {
+  return (
+    <section role="alert" aria-label="Report unavailable" className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
+      <h3 className="text-[16px] font-semibold text-amber-950">The report could not be loaded</h3>
+      <p className="mt-1 text-[13px] text-amber-950">
+        {hint ?? 'The server did not return the report.'} Everything that was found is still here: the sources, the questions, and the findings below.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" onClick={onRetry} disabled={retrying}
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-amber-400 bg-white px-4 text-[13px] font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent disabled:opacity-60">
+          {retrying ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} aria-hidden="true" />} Retry
+        </button>
+        <button type="button" onClick={onGenerate} disabled={generating || !canGenerate}
+          title={canGenerate ? 'Build the report here from this session’s findings and sources' : 'The sources have not loaded yet'}
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-purple-accent px-4 text-[13px] font-semibold text-white hover:bg-purple-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent focus-visible:ring-offset-2 disabled:opacity-60">
+          {generating ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} aria-hidden="true" />} Generate report
+        </button>
+      </div>
+    </section>
   )
 }

@@ -42,19 +42,20 @@ const render = (status: DeepResearchSession['status'], extra: Partial<React.Comp
 
 describe('DeepResearchResults (stopped session)', () => {
   const html = render('Stopped')
-  const questionsView = render('Stopped', { initialPanelView: 'questions' })
+  const questionsView = html
 
   it('leads with how many questions were answered and explains the stop', () => {
-    // the one accepted source is abstract-only, so nothing counts as answered yet
-    expect(html).toContain('0 of 3 questions answered')
+    // abstract-only evidence is partly supported at best, so nothing is called strongly supported
+    expect(html).toContain('2 partly supported · 1 not reached')
+    expect(html).not.toContain('0 of 3')
     expect(html).toContain('The research reached its limit before every question was answered.')
     expect(html).toContain('Stopped at limit')
     expect(html).toContain('role="status"')
   })
 
   it('describes the progress bar to assistive tech, question by question', () => {
-    expect(html).toContain('Question 1: started, not enough evidence yet')
-    expect(html).toContain('Question 2: started, not enough evidence yet')
+    expect(html).toContain('Question 1: partly supported')
+    expect(html).toContain('Question 2: partly supported')
     expect(html).toContain('Question 3: not reached')
   })
 
@@ -65,8 +66,8 @@ describe('DeepResearchResults (stopped session)', () => {
 
   it('counts a source linked to two questions once', () => {
     expect(html).toContain('3 found · 2 accepted · 1 disagree')        // one line; it opens into the funnel
-    expect(html).toContain('Evidence against (1)')
-    expect(html).toContain('Left out (1)')
+    expect(html).toContain('>Disagree 1<')
+    expect(html).toContain('>Left out 1<')
   })
 
   it('shows each question with its type, status and accepted sources, and says which were never searched', () => {
@@ -85,7 +86,7 @@ describe('DeepResearchResults (stopped session)', () => {
     expect(html).not.toMatch(/>Verified</)
     // the checks moved out of the rows: one strength indicator per row, details in the panel
     expect(html).not.toContain('DOI matched')
-    expect(html).toContain('Moderate evidence')
+    expect(html).toContain('Design not seen')
     const [src] = mergeSourceRows([row({ id: 'z' })])
     const panel = renderToStaticMarkup(<SourceDetail source={src} questions={[]} busy={false} added={false} onAdd={() => {}} onUse={() => {}} onExclude={() => {}} onRestore={() => {}} />)
     expect(panel).toContain('DOI resolves')
@@ -177,22 +178,23 @@ describe('DeepResearchResults (honest status, hierarchy, no duplicate findings)'
     const html = view(doneSession())
     expect(html).not.toContain('Every key question has enough evidence')
     expect(html).toContain('Completed with gaps')
-    expect(html).toContain('0 of 3 answered, 3 have gaps')
+    expect(html).toContain('2 partly supported · 1 not reached')
     expect(html).not.toMatch(/>Complete</)
   })
 
   it('2. shows why a label is capped, in the tooltip and in a short visible note', () => {
-    const html = view(doneSession(), { initialPanelView: 'questions' })
+    const html = view(doneSession())
     expect(html).toContain('Abstract-only sources')
     expect(html).toContain('Some support')
   })
 
-  it('3. lists "Based on" one link per line, tags findings Q<number>, and has no stray separators', () => {
+  it('3. tags findings Q<number>, cites with numbered markers instead of title links, and has no stray separators', () => {
     const html = view(withFindings(doneSession()))
     expect(html).toContain('Q1 \u00b7 Definition')
     expect(html).not.toContain('How is usability defined?</span>')              // the tag, not the whole question
-    expect(html).toMatch(/Based on<\/p><ul[^>]*><li><button[^>]*>Shared source<\/button><\/li><\/ul>/)
-    expect(html).toContain('>Usability tracks satisfaction.<')                  // the leading " · " is gone
+    expect(html).not.toContain('Based on')                                      // no list of title links
+    expect(html).toMatch(/aria-label="Source 1: Shared source\. Open its checks and supporting quote"/)
+    expect(html).toContain('>Usability tracks satisfaction.')                   // the leading separator is gone
     expect(html).not.toMatch(/Limited evidence · <|· <\/p>/)
   })
 
