@@ -385,8 +385,30 @@ export function rateQuestion(row: QuestionRow): QuestionRating {
 /** "Answered" means well supported, so the headline count and the labels can never disagree. */
 export const answeredFromRatings = (ratings: QuestionRating[]): number => ratings.filter(r => r.rank === 3).length
 
-export function segmentsFromRatings(ratings: QuestionRating[], questions: Pick<EvidenceQuestion, 'status'>[]): ('done' | 'partial' | 'pending')[] {
-  return ratings.map((r, i) => r.rank === 3 ? 'done' : r.rank > 0 || questions[i]?.status === 'Researching' || questions[i]?.status === 'Exhausted' ? 'partial' : 'pending')
+/** Strongly supported, partly supported (some accepted evidence, but not strong), or not reached (nothing accepted). */
+export function segmentsFromRatings(ratings: QuestionRating[], _questions?: unknown): ('done' | 'partial' | 'pending')[] {
+  return ratings.map(r => (r.rank === 3 ? 'done' : r.rank > 0 ? 'partial' : 'pending'))
+}
+
+export interface QualityRollup { strong: number; partial: number; none: number; total: number }
+
+/** The same three counts the progress bar, its legend and the headline all use. */
+export function qualityRollup(ratings: QuestionRating[]): QualityRollup {
+  return {
+    strong: ratings.filter(r => r.rank === 3).length,
+    partial: ratings.filter(r => r.rank === 1 || r.rank === 2).length,
+    none: ratings.filter(r => r.rank === 0).length,
+    total: ratings.length,
+  }
+}
+
+/** "2 strongly supported · 3 partly supported · 1 not reached". Zero parts are left out. */
+export function rollupText(r: QualityRollup): string {
+  return [
+    r.strong > 0 ? `${r.strong} strongly supported` : '',
+    r.partial > 0 ? `${r.partial} partly supported` : '',
+    r.none > 0 ? `${r.none} not reached` : '',
+  ].filter(Boolean).join(' \u00b7 ')
 }
 
 export interface CompletionSummary {
@@ -397,26 +419,24 @@ export interface CompletionSummary {
 }
 
 export function completionSummary(
-  session: Pick<DeepResearchSession, 'status' | 'completionNote' | 'isFinished'>, answered: number, total: number,
+  session: Pick<DeepResearchSession, 'status' | 'completionNote' | 'isFinished'>, rollup: QualityRollup,
 ): CompletionSummary {
-  const gaps = Math.max(0, total - answered)
+  const { strong, total } = rollup
+  const gaps = Math.max(0, total - strong)
   const chip = sessionStatusChip(session.status)
   const claimsAllAnswered = (session.completionNote ?? '').toLowerCase().includes('every key question has enough evidence')
+  const headline = total === 0 ? statusBanner(session, 0, 0).title : gaps === 0 ? `All ${total} questions strongly supported` : rollupText(rollup)
   if (session.status === 'Completed' && total > 0) {
     if (gaps > 0) {
       return {
         chip: { label: 'Completed with gaps', tone: 'warning' },
-        headline: `${answered} of ${total} answered, ${gaps} ${gaps === 1 ? 'has a gap' : 'have gaps'}`,
-        note: 'The research finished, but the questions without strong support are listed under Gaps in the report.',
+        headline,
+        note: 'The research finished, but only the questions marked strongly supported have strong evidence. The rest are listed under Gaps in the report.',
       }
     }
-    return { chip, headline: `All ${total} questions answered`, note: session.completionNote }
+    return { chip, headline, note: session.completionNote }
   }
-  return {
-    chip,
-    headline: total > 0 ? `${answered} of ${total} questions answered` : statusBanner(session, answered, total).title,
-    note: claimsAllAnswered && gaps > 0 ? null : session.completionNote,
-  }
+  return { chip, headline, note: claimsAllAnswered && gaps > 0 ? null : session.completionNote }
 }
 
 // ── findings: tidy text, Q-tags, and a visible reason for every flag ───────────────────────────────────────────
@@ -458,12 +478,12 @@ export function caveatReason(text: string): { tag: string } | null {
 
 export type SegmentState = 'done' | 'partial' | 'pending'
 export const SEGMENT_SYMBOL: Record<SegmentState, string> = { done: '✓', partial: '◐', pending: '○' }
-export const SEGMENT_WORDS: Record<SegmentState, string> = { done: 'answered', partial: 'started, not enough evidence yet', pending: 'not reached' }
-/** Answered, or a gap: of two kinds, so a student can tell "thin" from "never reached". */
+export const SEGMENT_WORDS: Record<SegmentState, string> = { done: 'strongly supported', partial: 'partly supported', pending: 'not reached' }
+/** The three states, in the words the headline uses. "Not reached" means nothing was accepted as evidence for that question. */
 export const SEGMENT_LEGEND: { state: SegmentState; word: string }[] = [
-  { state: 'done', word: 'Answered' },
-  { state: 'partial', word: 'Gap: some evidence' },
-  { state: 'pending', word: 'Gap: not reached' },
+  { state: 'done', word: 'Strongly supported' },
+  { state: 'partial', word: 'Partly supported' },
+  { state: 'pending', word: 'Not reached' },
 ]
 
 /** "150 found · 86 accepted · 12 disagree". The last is a part of the one before it, and can never exceed it. */
@@ -543,12 +563,13 @@ export const idsOf = (g: Pick<SourceGroup, 'id' | 'aliases'>): string[] => [g.id
 export const findGroup = (groups: SourceGroup[], id: string | null | undefined): SourceGroup | undefined =>
   id ? groups.find(g => g.id === id || g.aliases?.includes(id)) : undefined
 
-export type SourceFilterId = 'cited' | 'all' | 'disagree'
+export type SourceFilterId = 'cited' | 'all' | 'disagree' | 'left'
 
 /** The sources for one filter chip: cited in the report, everything found, or those that disagree. */
 export function filterSources(groups: SourceGroup[], filter: SourceFilterId, citedIds: Set<string>): SourceGroup[] {
   if (filter === 'cited') return groups.filter(g => idsOf(g).some(id => citedIds.has(id)))
   if (filter === 'disagree') return evidenceAgainst(groups)
+  if (filter === 'left') return groups.filter(g => g.bucket !== 'used').sort(bySourceYearDesc)
   return groups
 }
 
@@ -579,3 +600,88 @@ export function currentSection(tops: { id: string; top: number }[], line: number
 /** Sources the student can save to their references: accepted, verified, not saved yet. */
 export const savableSources = (groups: SourceGroup[], saved: Set<string>): SourceGroup[] =>
   groups.filter(g => g.bucket === 'used' && g.verification === 'Verified' && !idsOf(g).some(id => saved.has(id)))
+
+// ── citations: one index for the report, the findings and the panel ─────────────────────────────
+
+export interface CitationIndex {
+  /** Ids of the sources that are cited, as the ids of their merged entries, in citation order. */
+  ids: string[]
+  /** Entry id → citation number. */
+  numbers: Map<string, number>
+  /** The same ids as a set, for filtering. */
+  cited: Set<string>
+}
+
+/**
+ * Which sources are cited, and under which numbers. The report's references come first, with the report's own numbers
+ * (they are what the Word file uses); a source named only by a key finding follows, numbered after them. The Cited chip,
+ * the row numbers, the markers on findings and the report all read this one list, so they cannot disagree.
+ */
+export function buildCitationIndex(
+  groups: SourceGroup[],
+  report: { references: { sourceId: string; number: number }[] } | null | undefined,
+  keyFindings: { supportingSourceIds: string[]; contradictingSourceIds: string[] }[] | null | undefined,
+): CitationIndex {
+  const numbers = new Map<string, number>()
+  const ids: string[] = []
+  const add = (rawId: string, n?: number) => {
+    const g = findGroup(groups, rawId)
+    const id = g?.id ?? rawId
+    if (numbers.has(id)) return
+    numbers.set(id, n ?? Math.max(0, ...numbers.values()) + 1)
+    ids.push(id)
+  }
+  for (const r of [...(report?.references ?? [])].sort((a, b) => a.number - b.number)) add(r.sourceId, r.number)
+  for (const f of keyFindings ?? []) for (const id of [...f.supportingSourceIds, ...f.contradictingSourceIds]) add(id)
+  return { ids, numbers, cited: new Set(ids) }
+}
+
+// ── what a source card shows: stance, study type, sample, region ────────────────────────────────
+
+export type Stance = 'supports' | 'disagrees' | 'noEffect' | 'background'
+
+export interface SourceFacts {
+  stance: Stance
+  /** The study design, only when a full-text read saw it. Null for an abstract, which cannot show it. */
+  design: string | null
+  /** A sample size the quote or text states ("n = 412", "412 students"), or null. Never estimated. */
+  sample: number | null
+  region: { label: string; match: 'match' | 'near' | 'far' | 'unknown' }
+}
+
+const SAMPLE_PATTERNS = [
+  /\b[nN]\s*=\s*([\d][\d,]{1,8})\b/,
+  /\b([\d][\d,]{1,8})\s+(?:participants|students|respondents|patients|adults|children|teachers|learners|undergraduates|postgraduates|graduates|lecturers|women|men|employees|individuals|subjects|universities|schools)\b/i,
+]
+
+/** A sample size stated in the text, or null. Larger than a million is taken as a misread, not a sample. */
+export function sampleSizeFrom(text: string | null | undefined): number | null {
+  if (!text) return null
+  for (const re of SAMPLE_PATTERNS) {
+    const m = text.match(re)
+    if (!m) continue
+    const n = parseInt(m[1].replace(/,/g, ''), 10)
+    if (Number.isFinite(n) && n >= 2 && n <= 1_000_000) return n
+  }
+  return null
+}
+
+const REGION_FACT: Record<string, SourceFacts['region']> = {
+  Target: { label: 'In your region', match: 'match' },
+  Regional: { label: 'Nearby region', match: 'near' },
+  International: { label: 'Elsewhere', match: 'far' },
+}
+
+/** One source's stance, design, sample and region match. Each is stated only when the data says it. */
+export function sourceFacts(g: Pick<SourceGroup, 'links' | 'studyDesign' | 'geography'>, questionId?: string): SourceFacts {
+  const own = g.links.filter(l => (questionId ? l.questionId === questionId : true))
+  const link = own.find(l => l.decision === 'Accepted') ?? own[0] ?? g.links[0]
+  const stance: Stance = link?.polarity === 'Supports' ? 'supports' : link?.polarity === 'Contradicts' ? 'disagrees' : link?.polarity === 'Null' ? 'noEffect' : 'background'
+  const text = g.links.map(l => l.quote).filter(Boolean).join(' ')
+  return {
+    stance,
+    design: g.studyDesign ? (DESIGN_LABELS[g.studyDesign] ?? g.studyDesign) : null,
+    sample: sampleSizeFrom(text),
+    region: REGION_FACT[g.geography] ?? { label: 'Region not stated', match: 'unknown' },
+  }
+}

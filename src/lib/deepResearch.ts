@@ -122,6 +122,20 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
   return found ?? fallback
 }
 
+/**
+ * Why a report request failed, in words a student can act on. A 404 here almost always means the server is running a
+ * version from before the report endpoint existed (it needs restarting), so it says that.
+ */
+export function reportFailureHint(err: unknown): string {
+  const e = err as { response?: { status?: number }; code?: unknown; message?: unknown } | null | undefined
+  const status = e?.response?.status
+  if (status === 404) return 'The server did not recognise the report request. It is probably running an older version; restarting it brings the report endpoint.'
+  if (status === 400) return 'The server says the report is written only once the research has finished or been stopped.'
+  if (status !== undefined && status >= 500) return 'The server hit an error while building the report.'
+  if (status === undefined && (e?.code === 'ERR_NETWORK' || /network/i.test(String(e?.message ?? '')))) return 'The server could not be reached.'
+  return 'The server did not return the report.'
+}
+
 /** "just now", "5 min ago", "3 h ago", "2 d ago" — from an ISO timestamp the server sent. */
 export function timeAgo(iso: string, now: number = Date.now()): string {
   const seconds = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000))

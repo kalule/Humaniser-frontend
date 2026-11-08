@@ -142,6 +142,8 @@ export interface DeepResearchReport {
   gaps: DeepResearchReportGap[]
   references: DeepResearchReportReference[]
   status: string
+  /** True when the browser built this report from the session's findings because the server's report was unavailable. */
+  builtLocally?: boolean
 }
 
 export type SourceDecision = 'Accepted' | 'Rejected' | 'Pending'

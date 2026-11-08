@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { EvidenceQuestion, EvidenceSource } from '../api/deepResearch'
 import {
-  answeredFromRatings, caveatReason, completionSummary, joinMeta, mergeSourceRows, questionRows, questionTag, rateQuestion, relationshipTag,
-  segmentsFromRatings, stripSeparators,
+  answeredFromRatings, caveatReason, completionSummary, joinMeta, mergeSourceRows, qualityRollup, questionRows, questionTag, rateQuestion, relationshipTag,
+  rollupText, segmentsFromRatings, stripSeparators,
 } from './deepResearchView'
 import { looksLikeStudyTitle, titleToQuestion } from './deepResearchIntake'
 import { isQuestionValid } from './deepResearch'
@@ -14,27 +14,43 @@ const src = (id: string, over: Partial<EvidenceSource> = {}): EvidenceSource => 
 })
 const rate = (rows: EvidenceSource[], q: EvidenceQuestion = Q) => rateQuestion(questionRows([q], mergeSourceRows(rows))[0])
 
-describe('1. completion status never overclaims', () => {
+describe('1. completion status never overclaims, and has a middle state', () => {
   const done = { status: 'Completed' as const, isFinished: true, completionNote: 'Every key question has enough evidence.' }
 
-  it('says "Completed with gaps" and "N of M answered, K have gaps" when anything is unanswered', () => {
-    const s = completionSummary(done, 3, 6)
+  it('says "Completed with gaps" with strongly / partly / not reached, never "0 of N answered"', () => {
+    const s = completionSummary(done, { strong: 3, partial: 2, none: 1, total: 6 })
     expect(s.chip.label).toBe('Completed with gaps')
     expect(s.chip.tone).toBe('warning')
-    expect(s.headline).toBe('3 of 6 answered, 3 have gaps')
+    expect(s.headline).toBe('3 strongly supported \u00b7 2 partly supported \u00b7 1 not reached')
     expect(s.note).not.toMatch(/every key question has enough evidence/i)
-    expect(completionSummary(done, 5, 6).headline).toBe('5 of 6 answered, 1 has a gap')
+    expect(completionSummary(done, { strong: 0, partial: 6, none: 0, total: 6 }).headline).toBe('6 partly supported')
   })
-  it('says "Complete" only when every question is answered', () => {
-    const s = completionSummary(done, 6, 6)
+  it('says "Complete" only when every question is strongly supported', () => {
+    const s = completionSummary(done, { strong: 6, partial: 0, none: 0, total: 6 })
     expect(s.chip.label).toBe('Complete')
-    expect(s.headline).toBe('All 6 questions answered')
+    expect(s.headline).toBe('All 6 questions strongly supported')
     expect(s.note).toBe('Every key question has enough evidence.')
   })
   it('never repeats the "every key question" claim on a stopped run that has gaps', () => {
-    const s = completionSummary({ ...done, status: 'Stopped' }, 1, 3)
+    const s = completionSummary({ ...done, status: 'Stopped' }, { strong: 1, partial: 1, none: 1, total: 3 })
     expect(s.note).toBeNull()
     expect(s.chip.label).toBe('Stopped at limit')
+  })
+  it('the headline, the segments and the legend are one rollup', () => {
+    const q = (id: string, sufficiency: string): EvidenceQuestion => ({ ...Q, id, sufficiency })
+    const fullText = (id: string) => src(id, { coverage: 'FullText', studyDesign: 'Experimental' })
+    const rows = questionRows([q('q1', 'Sufficient'), q('q2', 'Insufficient'), q('q3', 'Insufficient')],
+      mergeSourceRows([fullText('a'), src('b'), src('c', { strength: 'Strong' }), src('d', { questionId: 'q2' })]))
+    const ratings = rows.map(rateQuestion)
+    const rollup = qualityRollup(ratings)
+    expect(rollup).toEqual({ strong: 1, partial: 1, none: 1, total: 3 })
+    expect(rollupText(rollup)).toBe('1 strongly supported \u00b7 1 partly supported \u00b7 1 not reached')
+    const seg = segmentsFromRatings(ratings)
+    expect(seg).toEqual(['done', 'partial', 'pending'])
+    expect(seg.filter(x => x === 'done').length).toBe(rollup.strong)
+    expect(seg.filter(x => x === 'partial').length).toBe(rollup.partial)
+    expect(seg.filter(x => x === 'pending').length).toBe(rollup.none)
+    expect(rollupText({ strong: 0, partial: 0, none: 2, total: 2 })).toBe('2 not reached')
   })
 })
 
@@ -80,7 +96,7 @@ describe('2. the label comes from the number, quality and depth of accepted sour
     const ratings = rows.map(rateQuestion)
     expect(ratings.map(r => r.label)).toEqual(['Well supported', 'Some support'])
     expect(answeredFromRatings(ratings)).toBe(ratings.filter(r => r.label === 'Well supported').length)
-    expect(segmentsFromRatings(ratings, [Q, Q])).toEqual(ratings.map(r => (r.rank === 3 ? 'done' : 'partial')))
+    expect(segmentsFromRatings(ratings)).toEqual(ratings.map(r => (r.rank === 3 ? 'done' : 'partial')))
   })
 })
 
