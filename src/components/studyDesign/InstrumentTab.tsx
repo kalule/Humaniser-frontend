@@ -7,6 +7,7 @@ import {
   setConstructScale, updateItem, type ItemRole, type QuestionnaireDocument, type QuestionnaireDto, type QuestionnaireFinding, type QuestionnaireItem, type ScalePoint,
 } from '../../lib/questionnaire'
 import { cn } from '../../lib/utils'
+import { PilotReliability } from './PilotReliability'
 
 const field = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[14px] text-slate-900 outline-none focus:border-purple-accent focus-visible:ring-2 focus-visible:ring-purple-accent/30'
 const small = 'inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-2.5 text-[13px] font-medium text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40 disabled:cursor-not-allowed disabled:opacity-50'
@@ -297,6 +298,11 @@ export function InstrumentTab({ projectId, projectTitle }: { projectId: string; 
             </div>
             <p className="mt-2 text-[12px] text-slate-600">{!saved ? 'Save the questionnaire first.' : dirty ? 'Save your changes first: the codebook is built from the saved version.' : !report?.canExport ? 'Fix the errors under Checks first. A codebook built now would be wrong.' : 'Built from the saved version.'}</p>
           </section>
+
+          {saved ? (
+            <PilotReliability projectId={projectId} ready={!dirty && !!report?.canExport}
+              blockedReason={dirty ? 'Save your changes first: scales are scored from the saved version.' : !report?.canExport ? 'Fix the errors under Checks first.' : null} />
+          ) : null}
 
           {saved ? (
             <section aria-label="Review and pilot" className="rounded-xl border border-slate-200 p-4">

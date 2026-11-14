@@ -84,6 +84,51 @@ export interface StoredCalculation {
 
 export interface MethodsTexts { harvard: string; apa: string }
 
+export interface PilotDataset { id: string; fileName: string; rowCount: number; columnCount: number; uploadedAt: string }
+export interface ItemReliability {
+  variable: string
+  reverseCoded: boolean
+  nValid: number
+  nMissing: number
+  nOutOfRange: number
+  nNotANumber: number
+  mean: number | null
+  sd: number | null
+  itemRestCorrelation: number | null
+  alphaIfDeleted: number | null
+}
+export interface ScaleReliability {
+  name: string
+  label: string
+  scaleMin: number
+  scaleMax: number
+  missingColumns: string[]
+  nRows: number
+  nComplete: number
+  /** null when it could not be computed; reason then says why. */
+  alpha: number | null
+  reasonCode: string | null
+  reason: string | null
+  scoreMean: number | null
+  scoreSd: number | null
+  items: ItemReliability[]
+  notes: { code: string; text: string }[]
+}
+export interface PilotReliability {
+  datasetId: string
+  fileName: string
+  questionnaireVersion: number
+  banner: string
+  report: {
+    formulaVersion: string
+    formulaName: string
+    nRows: number
+    variablesNotInDataset: string[]
+    scales: ScaleReliability[]
+    assumptions: { code: string; text: string }[]
+  }
+}
+
 export const studyDesignApi = {
   availability: () => client.get<StudyDesignAvailability>(`${base}/availability`).then(data),
   /** Nothing is stored. */
@@ -114,6 +159,10 @@ export const studyDesignApi = {
     const res = await client.get(`${base}/projects/${projectId}/instrument/codebook`, { params: { format }, responseType: 'blob' })
     downloadBlob(new Blob([res.data], { type: format === 'json' ? 'application/json' : 'text/csv' }), `codebook.${format}`)
   },
+  /** The user's Data Analyst datasets, to choose pilot data from. */
+  datasets: () => client.get<PilotDataset[]>(`${base}/datasets`).then(data),
+  /** Cronbach's alpha per scale, computed on the server from the saved questionnaire and the chosen dataset. */
+  reliability: (projectId: string, datasetId: string) => client.post<PilotReliability>(`${base}/projects/${projectId}/instrument/reliability`, { datasetId }).then(data),
   storedMethodsText: (projectId: string, id: string, style: 'harvard' | 'apa') =>
     client.get<{ text: string; style: string; projectChangedSince: boolean }>(`${base}/projects/${projectId}/calculations/${id}/methods-text`, { params: { style } }).then(data),
 }
