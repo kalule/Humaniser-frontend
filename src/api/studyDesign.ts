@@ -1,5 +1,7 @@
 import client from './client'
 import type { CalculateRequest, CalculationResult } from '../lib/studyDesign'
+import type { QuestionnaireDocument, QuestionnaireDto } from '../lib/questionnaire'
+import { downloadBlob } from '../lib/utils'
 
 // The shared client already unwraps the server's ApiResponse envelope.
 const data = <T>(response: { data: T }) => response.data
@@ -10,6 +12,8 @@ export interface StudyDesignAvailability {
   /** The design advisor makes a paid model call and has its own switch. */
   advisor?: boolean
   advisorCredits?: number
+  /** The questionnaire builder and codebook export. */
+  instrument?: boolean
   /** Design name -> family, the closed list the advisor works with. */
   designs?: Record<string, string>
   formulaVersion: string
@@ -96,6 +100,20 @@ export const studyDesignApi = {
   latestAdvice: (projectId: string) =>
     client.get<DesignAdviceResponse | { none: true }>(`${base}/projects/${projectId}/advice/latest`).then(data).then(r => ('none' in r ? null : r)),
   advise: (request: DesignAdviceRequest) => client.post<DesignAdviceResponse>(`${base}/advice`, request).then(data),
+  /** The project's questionnaire, or an unsaved starting point (version 0) built from its title and objectives. */
+  instrument: (projectId: string) => client.get<QuestionnaireDto>(`${base}/projects/${projectId}/instrument`).then(data),
+  /** Runs the checks on the server without storing anything. */
+  checkInstrument: (document: QuestionnaireDocument) => client.post<QuestionnaireDto>(`${base}/instrument/check`, { document, expectedVersion: 0 }).then(data),
+  /** expectedVersion is the version this edit started from; the server refuses the save if it has moved on. */
+  saveInstrument: (projectId: string, document: QuestionnaireDocument, expectedVersion: number) =>
+    client.put<QuestionnaireDto>(`${base}/projects/${projectId}/instrument`, { document, expectedVersion }).then(data),
+  setInstrumentStatus: (projectId: string, status: { contentValidityReviewed: boolean; contentValidityNote?: string; piloted: boolean; pilotNote?: string }) =>
+    client.put<QuestionnaireDto>(`${base}/projects/${projectId}/instrument/status`, status).then(data),
+  deleteInstrument: (projectId: string) => client.delete(`${base}/projects/${projectId}/instrument`).then(() => undefined),
+  downloadCodebook: async (projectId: string, format: 'json' | 'csv'): Promise<void> => {
+    const res = await client.get(`${base}/projects/${projectId}/instrument/codebook`, { params: { format }, responseType: 'blob' })
+    downloadBlob(new Blob([res.data], { type: format === 'json' ? 'application/json' : 'text/csv' }), `codebook.${format}`)
+  },
   storedMethodsText: (projectId: string, id: string, style: 'harvard' | 'apa') =>
     client.get<{ text: string; style: string; projectChangedSince: boolean }>(`${base}/projects/${projectId}/calculations/${id}/methods-text`, { params: { style } }).then(data),
 }

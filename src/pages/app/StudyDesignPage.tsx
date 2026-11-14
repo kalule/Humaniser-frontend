@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { researchApi } from '../../api/research'
 import { studyDesignApi, type StudyDesignAvailability } from '../../api/studyDesign'
 import { DesignTab } from '../../components/studyDesign/DesignTab'
+import { InstrumentTab } from '../../components/studyDesign/InstrumentTab'
 import { SampleSizeTab } from '../../components/studyDesign/SampleSizeTab'
 import { ComingSoon } from '../../components/app/ToolGate'
 import { Skeleton } from '../../components/ui/Skeleton'
@@ -22,8 +23,8 @@ interface ProjectOption { id: string; title: string }
 
 /**
  * Study Design: design choice, sample size, instrument, export and ethics for one study. Sample size is always
- * available; Design is available when the advisor is switched on for the user. The others are shown disabled so the
- * shape of the tool is visible without pretending they work.
+ * available; Design and Instrument are available when switched on for the user. The others are shown disabled so
+ * the shape of the tool is visible without pretending they work.
  */
 export default function StudyDesignPage() {
   const [params, setParams] = useSearchParams()
@@ -58,7 +59,8 @@ export default function StudyDesignPage() {
   }
 
   const advisorOn = !!features?.advisor
-  const TABS = TAB_LIST.map(t => ({ ...t, ready: t.id === 'sample-size' || (t.id === 'design' && advisorOn) }))
+  const instrumentOn = !!features?.instrument
+  const TABS = TAB_LIST.map(t => ({ ...t, ready: t.id === 'sample-size' || (t.id === 'design' && advisorOn) || (t.id === 'instrument' && instrumentOn) }))
   const ready = TABS.filter(t => t.ready)
   const requested = params.get('tab') as TabId | null
   const tab: TabId = ready.some(t => t.id === requested) ? requested! : 'sample-size'
@@ -142,6 +144,11 @@ export default function StudyDesignPage() {
           <div role="tabpanel" id="sd-panel-sample-size" aria-labelledby="sd-tab-sample-size" hidden={tab !== 'sample-size'} className="pt-5">
             <SampleSizeTab projectId={project?.id ?? ''} projectTitle={project?.title ?? null} />
           </div>
+          {instrumentOn ? (
+            <div role="tabpanel" id="sd-panel-instrument" aria-labelledby="sd-tab-instrument" hidden={tab !== 'instrument'} className="pt-5">
+              <InstrumentTab projectId={project?.id ?? ''} projectTitle={project?.title ?? null} />
+            </div>
+          ) : null}
           {advisorOn ? (
             <div role="tabpanel" id="sd-panel-design" aria-labelledby="sd-tab-design" hidden={tab !== 'design'} className="pt-5">
               <DesignTab projectId={project?.id ?? ''} projectTitle={project?.title ?? null} credits={features?.advisorCredits ?? 3} designs={features?.designs ?? {}} />
