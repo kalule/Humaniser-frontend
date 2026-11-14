@@ -2,28 +2,31 @@ import { useEffect, useState, type KeyboardEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { researchApi } from '../../api/research'
 import { studyDesignApi, type StudyDesignAvailability } from '../../api/studyDesign'
+import { ConsistencyTab } from '../../components/studyDesign/ConsistencyTab'
 import { DesignTab } from '../../components/studyDesign/DesignTab'
+import { EthicsTab } from '../../components/studyDesign/EthicsTab'
 import { InstrumentTab } from '../../components/studyDesign/InstrumentTab'
 import { SampleSizeTab } from '../../components/studyDesign/SampleSizeTab'
 import { ComingSoon } from '../../components/app/ToolGate'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { cn } from '../../lib/utils'
 
-type TabId = 'design' | 'sample-size' | 'instrument' | 'export' | 'ethics'
+type TabId = 'design' | 'sample-size' | 'instrument' | 'export' | 'ethics' | 'consistency'
 const TAB_LIST: { id: TabId; label: string }[] = [
   { id: 'design', label: 'Design' },
   { id: 'sample-size', label: 'Sample size' },
   { id: 'instrument', label: 'Instrument' },
   { id: 'export', label: 'Export' },
   { id: 'ethics', label: 'Ethics' },
+  { id: 'consistency', label: 'Consistency' },
 ]
 
 type Availability = 'loading' | 'on' | 'off' | 'error'
 interface ProjectOption { id: string; title: string }
 
 /**
- * Study Design: design choice, sample size, instrument, export and ethics for one study. Sample size is always
- * available; Design and Instrument are available when switched on for the user. The others are shown disabled so
+ * Study Design: design choice, sample size, instrument, export, ethics and consistency checks for one study. Sample
+ * size is always available; the other tabs are available when switched on for the user. The rest are shown disabled so
  * the shape of the tool is visible without pretending they work.
  */
 export default function StudyDesignPage() {
@@ -60,7 +63,9 @@ export default function StudyDesignPage() {
 
   const advisorOn = !!features?.advisor
   const instrumentOn = !!features?.instrument
-  const TABS = TAB_LIST.map(t => ({ ...t, ready: t.id === 'sample-size' || (t.id === 'design' && advisorOn) || (t.id === 'instrument' && instrumentOn) }))
+  const ethicsOn = !!features?.ethics
+  const consistencyOn = !!features?.consistency
+  const TABS = TAB_LIST.map(t => ({ ...t, ready: t.id === 'sample-size' || (t.id === 'design' && advisorOn) || (t.id === 'instrument' && instrumentOn) || (t.id === 'ethics' && ethicsOn) || (t.id === 'consistency' && consistencyOn) }))
   const ready = TABS.filter(t => t.ready)
   const requested = params.get('tab') as TabId | null
   const tab: TabId = ready.some(t => t.id === requested) ? requested! : 'sample-size'
@@ -147,6 +152,16 @@ export default function StudyDesignPage() {
           {instrumentOn ? (
             <div role="tabpanel" id="sd-panel-instrument" aria-labelledby="sd-tab-instrument" hidden={tab !== 'instrument'} className="pt-5">
               <InstrumentTab projectId={project?.id ?? ''} projectTitle={project?.title ?? null} />
+            </div>
+          ) : null}
+          {ethicsOn ? (
+            <div role="tabpanel" id="sd-panel-ethics" aria-labelledby="sd-tab-ethics" hidden={tab !== 'ethics'} className="pt-5">
+              <EthicsTab projectId={project?.id ?? ''} />
+            </div>
+          ) : null}
+          {consistencyOn ? (
+            <div role="tabpanel" id="sd-panel-consistency" aria-labelledby="sd-tab-consistency" hidden={tab !== 'consistency'} className="pt-5">
+              <ConsistencyTab projectId={project?.id ?? ''} active={tab === 'consistency'} />
             </div>
           ) : null}
           {advisorOn ? (

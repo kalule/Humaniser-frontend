@@ -14,6 +14,10 @@ export interface StudyDesignAvailability {
   advisorCredits?: number
   /** The questionnaire builder and codebook export. */
   instrument?: boolean
+  /** The ethics-readiness checklist. */
+  ethics?: boolean
+  /** The consistency checks across the project, the primary calculation and the questionnaire. */
+  consistency?: boolean
   /** Design name -> family, the closed list the advisor works with. */
   designs?: Record<string, string>
   formulaVersion: string
@@ -129,6 +133,46 @@ export interface PilotReliability {
   }
 }
 
+export type EthicsState = 'NotStarted' | 'InProgress' | 'Done' | 'NotApplicable'
+export interface EthicsItem { id: string; text: string; state: EthicsState; note: string }
+export interface EthicsEntry { itemId: string; state: EthicsState; note: string | null }
+export interface EthicsChecklist {
+  projectId: string
+  version: number
+  updatedAt: string | null
+  checklistVersion: string
+  header: string
+  wordingNotice: string
+  groups: { id: string; title: string; items: EthicsItem[] }[]
+  /** Facts from elsewhere in Study Design shown beside an item. They never set a state. */
+  links: { itemId: string; text: string }[]
+  counts: Record<EthicsState, number>
+}
+
+export interface ConsistencyFinding {
+  key: string
+  code: string
+  severity: 'warning' | 'info'
+  message: string
+  values: { label: string; value: string; source: string }[]
+  foundInText: boolean
+  canDismiss: boolean
+  quote?: string | null
+}
+export interface ConsistencyResult {
+  projectId: string
+  checkedAt: string
+  report: {
+    rulesVersion: string
+    findings: ConsistencyFinding[]
+    dismissed: ConsistencyFinding[]
+    hasPrimaryCalculation: boolean
+    hasQuestionnaire: boolean
+    sectionsRead: number
+    notes: { code: string; text: string }[]
+  }
+}
+
 export const studyDesignApi = {
   availability: () => client.get<StudyDesignAvailability>(`${base}/availability`).then(data),
   /** Nothing is stored. */
@@ -163,6 +207,15 @@ export const studyDesignApi = {
   datasets: () => client.get<PilotDataset[]>(`${base}/datasets`).then(data),
   /** Cronbach's alpha per scale, computed on the server from the saved questionnaire and the chosen dataset. */
   reliability: (projectId: string, datasetId: string) => client.post<PilotReliability>(`${base}/projects/${projectId}/instrument/reliability`, { datasetId }).then(data),
+  ethicsChecklist: (projectId: string) => client.get<EthicsChecklist>(`${base}/projects/${projectId}/ethics-checklist`).then(data),
+  /** expectedVersion is the version this edit started from; the server refuses the save if it has moved on. */
+  saveEthicsChecklist: (projectId: string, entries: EthicsEntry[], expectedVersion: number) =>
+    client.put<EthicsChecklist>(`${base}/projects/${projectId}/ethics-checklist`, { entries, expectedVersion }).then(data),
+  /** Every finding is worked out on the server. Nothing in the project is changed. */
+  consistency: (projectId: string) => client.get<ConsistencyResult>(`${base}/projects/${projectId}/consistency`).then(data),
+  dismissFinding: (projectId: string, key: string) => client.post<ConsistencyResult>(`${base}/projects/${projectId}/consistency/dismissals`, { key }).then(data),
+  restoreFinding: (projectId: string, key: string) =>
+    client.delete<ConsistencyResult>(`${base}/projects/${projectId}/consistency/dismissals/${encodeURIComponent(key)}`).then(data),
   storedMethodsText: (projectId: string, id: string, style: 'harvard' | 'apa') =>
     client.get<{ text: string; style: string; projectChangedSince: boolean }>(`${base}/projects/${projectId}/calculations/${id}/methods-text`, { params: { style } }).then(data),
 }
