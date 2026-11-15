@@ -93,7 +93,7 @@ export function ConsistencyTab({ projectId, active }: { projectId: string; activ
   )
 }
 
-function FindingCard({ finding: f, busy, onAction, actionLabel }: { finding: ConsistencyFinding; busy: boolean; onAction: (() => void) | null; actionLabel: string }) {
+export function FindingCard({ finding: f, busy, onAction, actionLabel }: { finding: ConsistencyFinding; busy: boolean; onAction: (() => void) | null; actionLabel: string }) {
   const warning = f.severity === 'warning'
   return (
     <li className={`rounded-xl border p-3 ${warning ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200 bg-slate-50/60'}`}>
