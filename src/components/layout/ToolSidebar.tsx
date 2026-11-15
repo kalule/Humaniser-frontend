@@ -1,33 +1,21 @@
 import { useLocation, Link } from 'react-router-dom'
-import {
-  Library, Globe, FileText, GraduationCap, Sparkles, Shield, RefreshCw,
-  SpellCheck, BookOpen, Scissors, BarChart2, MessageSquare, BookMarked,
-  Brain, Mic, Settings,
-} from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/authStore'
+import { TOOLS, TOOL_NAV_ORDER } from '../../config/navigation'
+import { useIsToolEnabled, type ToolId } from '../../config/features'
 
-export const TOOL_NAV: { label: string; icon: React.ElementType; link: string }[] = [
-  { label: 'My Library',     icon: Library,       link: '/app/library' },
-  { label: 'Research Library', icon: Globe,       link: '/app/web-library' },
-  { label: 'Doc Writer',     icon: FileText,      link: '/app/editor/new' },
-  { label: 'Research Agent', icon: GraduationCap, link: '/app/research-agent/new' },
-  { label: 'Rewrite',     icon: Sparkles,      link: '/app/humaniser' },
-  { label: 'AI Detector',    icon: Shield,        link: '/app/detector' },
-  { label: 'Paraphraser',    icon: RefreshCw,     link: '/app/paraphrase' },
-  { label: 'Grammar',        icon: SpellCheck,    link: '/app/grammar' },
-  { label: 'Source Check',   icon: BookOpen,      link: '/app/plagiarism' },
-  { label: 'Summariser',     icon: Scissors,      link: '/app/summarise' },
-  { label: 'Data Analyst',   icon: BarChart2,     link: '/app/analyst' },
-  { label: 'Document Chat',  icon: MessageSquare, link: '/app/document-chat' },
-  { label: 'Citations',      icon: BookMarked,    link: '/app/citations' },
-  { label: 'Flashcards',     icon: Brain,         link: '/app/flashcards' },
-  { label: 'Lecture Notes',  icon: Mic,           link: '/app/lecture' },
-]
+// Labels, icons, links and descriptions all come from the shared registry in config/navigation.ts.
+export const TOOL_NAV: { id: ToolId; label: string; description: string; icon: React.ElementType; link: string }[] =
+  TOOL_NAV_ORDER.map(id => {
+    const { label, description, icon, link } = TOOLS[id]
+    return { id, label, description, icon, link }
+  })
 
 export function ToolSidebar() {
   const location = useLocation()
   const { user } = useAuthStore()
+  const isEnabled = useIsToolEnabled()
   const userInitials = user?.name
     ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : (user?.email?.[0]?.toUpperCase() ?? 'U')
@@ -61,14 +49,14 @@ export function ToolSidebar() {
 
       {/* Tool icons */}
       <div className="flex-1 flex flex-col items-center gap-0.5 py-2 overflow-y-auto w-full px-2">
-        {TOOL_NAV.map(tool => {
+        {TOOL_NAV.filter(tool => isEnabled(tool.id)).map(tool => {
           const active = isToolActive(tool.link)
           return (
             <Link
               key={tool.label}
               to={tool.link}
               aria-label={tool.label}
-              title={tool.label}
+              title={`${tool.label} — ${tool.description}`}
               className={cn(
                 'flex items-center justify-center rounded-lg transition-colors',
                 active

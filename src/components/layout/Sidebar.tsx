@@ -8,15 +8,15 @@ import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 import { authApi } from '../../api/auth';
-import { NAV_SECTIONS, isNavItemActive, type NavItem } from '../../config/navigation';
+import { visibleNavSections, isNavItemActive, type NavItem } from '../../config/navigation';
+import { useIsToolEnabled } from '../../config/features';
+import { isDetectorMeterVisible, showUsageBar, usageSummaryText } from '../../lib/usageMeter';
 import { NewMenu } from './NewMenu';
 
 interface SidebarProps {
   mobileOpen: boolean;
   onMobileClose: () => void;
 }
-
-const TOOL_SECTIONS = NAV_SECTIONS;
 
 // The tool list scrolls inside the sidebar (the footer is pinned), so on a shorter window the last
 // entries sit out of sight with nothing hinting that there is more. Fade the bottom edge while
@@ -37,9 +37,15 @@ function NavScrollArea({ children }: { children: React.ReactNode }) {
     return () => { el.removeEventListener('scroll', update); ro.disconnect(); };
   }, []);
 
+  // Keep the current page's entry in view: on a short window it can sit below the fold of this list.
+  const { pathname } = useLocation();
+  useEffect(() => {
+    ref.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'center' });
+  }, [pathname]);
+
   return (
     <div className="relative flex-1 min-h-0">
-      <div ref={ref} className="h-full overflow-y-auto py-4 scrollbar-thin">{children}</div>
+      <div ref={ref} className="h-full overflow-y-auto py-2 scrollbar-thin">{children}</div>
       {more && (
         <div
           aria-hidden="true"
@@ -55,6 +61,9 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  // Tools outside the launch set (config/features.ts) are not rendered; empty groups disappear with them.
+  const isToolOn = useIsToolEnabled();
+  const toolSections = visibleNavSections(isToolOn);
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar_collapsed') === 'true');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -121,39 +130,43 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     : 'var(--color-purple)';
 
   // Prompt #7 — the collapsed summary line shows whichever metric is actually closest to its
-  // limit, so the one line that's always visible is the one worth seeing. AI Detector checks are
+  // limit, so the one line that's always visible is the one worth seeing. AI Content Check scans are
   // never unlimited in this data model (even on the Unlimited plan — a deliberate fair-use cap,
   // not a bug: see detectorChecksLimit above), so on an Unlimited plan this naturally surfaces
   // detector usage as the summary rather than two metrics that are permanently at 0%.
+  // The AI Content Check meter only appears once it is worth the user's attention (above 70% of the
+  // limit). On an Unlimited plan the badge says Unlimited while this cap still applies, so say so.
+  const detectorVisible = isDetectorMeterVisible(detectorChecksUsed, detectorChecksLimit);
+  const detectorLabelSuffix = isUnlimited ? ' (fair-use limit)' : '';
   const allUsageMetrics = [
     {
-      key: 'words', label: 'Words', used: wordsUsed, limit: wordsLimit, pct: usagePct, color: progressColor,
+      key: 'words' as const, label: 'Words', used: wordsUsed, limit: wordsLimit, pct: usagePct, color: progressColor,
       unlimited: isUnlimited,
       // Factual, not marketing copy — describes what this number actually measures, since
       // "Words" / "Credits" aren't otherwise defined anywhere in the sidebar.
-      description: 'Words processed this month across Humaniser, Paraphraser, Grammar and Summariser.',
+      description: 'Words processed this month across Humanise, Paraphraser, Grammar & Style and Summariser.',
     },
     {
-      key: 'credits', label: 'Credits', used: creditsUsed, limit: creditsLimit, pct: creditsPct, color: creditsColor,
+      key: 'credits' as const, label: 'Credits', used: creditsUsed, limit: creditsLimit, pct: creditsPct, color: creditsColor,
       unlimited: creditsUnlimited,
       description: 'A separate per-action allowance spent by heavier AI operations (e.g. Write with AI).',
     },
     {
-      key: 'detector', label: 'AI Detector checks', used: detectorChecksUsed, limit: detectorChecksLimit, pct: detectorPct, color: detectorColor,
+      key: 'detector' as const, label: 'AI Content Check scans', used: detectorChecksUsed, limit: detectorChecksLimit, pct: detectorPct, color: detectorColor,
       unlimited: false,
       // This is the one place the "Unlimited Plan" badge and a hard, non-zero limit coexist —
       // genuinely a separate fair-use cap on this one feature, not a data bug. Worth saying so
       // explicitly rather than leaving it looking contradictory.
       description: 'A fair-use limit kept separate from your plan\'s word/credit allowance, including on the Unlimited plan.',
     },
-  ]
+  ].filter(m => m.key !== 'detector' || detectorVisible);
   // Prompt #7 — the collapsed summary line shows whichever metric is actually closest to its
-  // limit, so the one line that's always visible is the one worth seeing. AI Detector checks are
+  // limit, so the one line that's always visible is the one worth seeing. AI Content Check scans are
   // never unlimited in this data model (even on the Unlimited plan — see its description above),
   // so on an Unlimited plan this naturally surfaces detector usage as the summary rather than two
   // metrics permanently at 0%.
   const usageSummary = allUsageMetrics.filter(m => !m.unlimited).sort((a, b) => b.pct - a.pct)[0]
-    ?? allUsageMetrics[allUsageMetrics.length - 1];
+    ?? allUsageMetrics[0];
 
   const userInitials = user?.name
     ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -303,15 +316,15 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             scrolls internally instead of pushing the footer past the h-screen
             sidebar (which clipped bottom items like "Citations" on short viewports) */}
         <NavScrollArea>
-          {TOOL_SECTIONS.map((sec, i) => (
-            <div key={sec.section} className={cn(i > 0 && 'mt-5')}>
+          {toolSections.map((sec, i) => (
+            <div key={sec.section} className={cn(i > 0 && 'mt-2')}>
               {!compact && (
                 <>
-                  {i > 0 && <div className="mx-5 mb-3" style={{ borderTop: '0.5px solid var(--border-sidebar)' }} />}
-                  <p className="text-[10px] uppercase tracking-widest px-5 mb-2 font-semibold" style={{ color: 'var(--text-muted)' }}>{sec.section}</p>
+                  {i > 0 && <div className="mx-5 mb-2" style={{ borderTop: '0.5px solid var(--border-sidebar)' }} />}
+                  <p className="text-[10px] uppercase tracking-widest px-5 mb-1 font-semibold" style={{ color: 'var(--text-muted)' }}>{sec.section}</p>
                 </>
               )}
-              <div className="space-y-0.5 px-2 mb-2">
+              <div className="space-y-0.5 px-2 mb-1">
                 {sec.items.map((t) => {
                   const active = isActive(t);
                   if (t.disabled) {
@@ -320,16 +333,21 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                         key={t.label}
                         onClick={() => toast('Coming Phase 2')}
                         className={cn(
-                          'w-full h-10 px-3 rounded-lg flex items-center gap-3 transition-all duration-150',
+                          'w-full min-h-[38px] py-0.5 px-3 rounded-lg flex items-center gap-3 transition-all duration-150',
                           compact && 'justify-center',
                         )}
                         style={{ color: 'var(--text-muted)' }}
-                        title={compact ? t.label : undefined}
+                        title={compact ? `${t.label} — ${t.description}` : t.description}
                         onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-rail)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                       >
                         <t.icon size={18} />
-                        {!compact && <span className="text-[15px] font-medium">{t.label}</span>}
+                        {!compact && (
+                          <span className="min-w-0 flex flex-col text-left">
+                            <span className="text-[15px] font-medium leading-tight">{t.label}</span>
+                            <span className="text-[11px] font-normal leading-snug truncate" style={{ color: 'var(--text-muted)', opacity: 0.85 }}>{t.description}</span>
+                          </span>
+                        )}
                         {!compact && t.badge && (
                           <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--color-purple-tint)', color: 'var(--color-purple-text)' }}>{t.badge}</span>
                         )}
@@ -341,15 +359,16 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                       key={t.label}
                       to={t.link}
                       onClick={onMobileClose}
+                      aria-current={active ? 'page' : undefined}
                       className={cn(
-                        'h-10 px-3 rounded-lg flex items-center gap-3 transition-all duration-150',
+                        'min-h-[38px] py-0.5 px-3 rounded-lg flex items-center gap-3 transition-all duration-150',
                         compact && 'justify-center',
                       )}
                       style={{
                         background: active ? 'var(--color-purple-tint)' : 'transparent',
                         color: active ? 'var(--color-purple)' : 'var(--text-muted)',
                       }}
-                      title={compact ? t.label : undefined}
+                      title={compact ? `${t.label} — ${t.description}` : t.description}
                       onMouseEnter={e => {
                         if (!active) {
                           e.currentTarget.style.background = 'var(--surface-rail)';
@@ -364,7 +383,12 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                       }}
                     >
                       <t.icon size={18} />
-                      {!compact && <span className="text-[15px] font-medium">{t.label}</span>}
+                      {!compact && (
+                          <span className="min-w-0 flex flex-col text-left">
+                            <span className="text-[15px] font-medium leading-tight">{t.label}</span>
+                            <span className="text-[11px] font-normal leading-snug truncate" style={{ color: 'var(--text-muted)', opacity: 0.85 }}>{t.description}</span>
+                          </span>
+                        )}
                       {!compact && t.badge && (
                         <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--color-purple-tint)', color: 'var(--color-purple-text)' }}>{t.badge}</span>
                       )}
@@ -426,25 +450,27 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[12px] font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
-                      {usageSummary.label}: {usageSummary.used.toLocaleString()} / {usageSummary.limit.toLocaleString()}
+                    <span className="text-[12px] font-medium leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                      {usageSummaryText(usageSummary, isUnlimited)}
                     </span>
                     <ChevronUp size={12} className={cn('shrink-0 transition-transform duration-200 ml-2', !usageExpanded && 'rotate-180')} style={{ color: 'var(--text-muted)' }} />
                   </div>
-                  <div
-                    role="progressbar"
-                    aria-valuenow={Math.round(usageSummary.pct)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={`${usageSummary.label} used`}
-                    className="h-1.5 rounded-full overflow-hidden"
-                    style={{ background: 'var(--border-hairline)' }}
-                  >
+                  {showUsageBar(usageSummary) && (
                     <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(usageSummary.pct, 100)}%`, background: usageSummary.color }}
-                    />
-                  </div>
+                      role="progressbar"
+                      aria-valuenow={Math.round(usageSummary.pct)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${usageSummary.label} used`}
+                      className="h-1.5 rounded-full overflow-hidden"
+                      style={{ background: 'var(--border-hairline)' }}
+                    >
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(usageSummary.pct, 100)}%`, background: usageSummary.color }}
+                      />
+                    </div>
+                  )}
                   {usageSummary.key === 'detector' && (
                     <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
                       Fair-use limit, separate from your plan
@@ -457,7 +483,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                     {allUsageMetrics.map(m => (
                       <div key={m.key} title={m.description}>
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>{m.label} this month</p>
+                          <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>{m.label} this month{m.key === 'detector' ? detectorLabelSuffix : ''}</p>
                         </div>
                         <div className="flex justify-between items-end mb-2">
                           <p className="text-[16px] font-semibold" style={{ color: 'var(--text-primary)' }}>
@@ -520,7 +546,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               ) : (
                 <div
                   className="w-full flex justify-center py-2"
-                  title={`${wordsUsed.toLocaleString()} / ${isUnlimited ? 'Unlimited' : wordsLimit.toLocaleString()}`}
+                  title={isUnlimited ? `Words used this month: ${wordsUsed.toLocaleString()}` : `${wordsUsed.toLocaleString()} / ${wordsLimit.toLocaleString()} words`}
                 >
                   <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-purple)' }} />
                 </div>

@@ -4,7 +4,7 @@ import { Menu } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useLibraryStore } from '../../store/libraryStore';
 import { useEditorFlushStore } from '../../store/editorFlushStore';
-import { resolvePageTitle, matchEditorDocumentId, resolveEditorHeaderTitle } from '../../config/navigation';
+import { resolvePageTitle, toolForPath, matchEditorDocumentId, resolveEditorHeaderTitle } from '../../config/navigation';
 import { AccountMenu } from './AccountMenu';
 
 export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => void }) {
@@ -19,6 +19,7 @@ export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => voi
     : null;
 
   const pageTitle = resolvePageTitle(location.pathname);
+  const pageDescription = toolForPath(location.pathname)?.description;
   const tabTitle = editorTitle ? editorTitle.tabTitle : `${pageTitle} · HumaniseAI`;
 
   useEffect(() => {
@@ -85,9 +86,14 @@ export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => voi
             )}
           </h1>
         ) : (
-          <h1 className="font-semibold text-[22px] hidden sm:block" style={{ color: 'var(--text-primary)' }}>
-            {pageTitle}
-          </h1>
+          <div className="hidden sm:flex items-baseline gap-3 min-w-0">
+            <h1 className="font-semibold text-[22px] shrink-0" style={{ color: 'var(--text-primary)' }}>
+              {pageTitle}
+            </h1>
+            {pageDescription && (
+              <p className="hidden lg:block text-[13px] truncate" style={{ color: 'var(--text-muted)' }}>{pageDescription}</p>
+            )}
+          </div>
         )}
       </div>
 

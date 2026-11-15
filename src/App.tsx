@@ -12,6 +12,7 @@ import { useWorkbenchStore, migrateLocalPinnedChartsIfPresent } from './store/wo
 import { AppShell } from './components/layout/AppShell'
 import { ScrollToTop } from './components/layout/ScrollToTop'
 
+import { ToolGate } from './components/app/ToolGate'
 const LandingPage = lazy(() => import('./pages/LandingPage'))
 const PricingPage = lazy(() => import('./pages/PricingPage'))
 const FeaturesPage = lazy(() => import('./pages/FeaturesPage'))
@@ -58,6 +59,8 @@ const DocumentEditorPage = lazy(() => import('./pages/app/DocumentEditorRoute'))
 const WebLibraryPage      = lazy(() => import('./pages/app/WebLibraryPage'))
 const FindPapersPage      = lazy(() => import('./pages/app/FindPapersPage'))
 const DeepResearchPage    = lazy(() => import('./pages/app/DeepResearchPage'))
+const StudyDesignPage     = lazy(() => import('./pages/app/StudyDesignPage'))
+const FeedbackTrackerPage = lazy(() => import('./pages/app/FeedbackTrackerPage'))
 const CollectionsPage     = lazy(() => import('./pages/app/CollectionsPage'))
 const EvidencePackagesPage = lazy(() => import('./pages/app/EvidencePackagesPage'))
 const CollectionDetailPage = lazy(() => import('./pages/app/CollectionDetailPage'))
@@ -220,48 +223,101 @@ function AppInner() {
         <Route element={<ProtectedRoute />}>
           <Route path="/app" element={<AppShell />}>
             <Route index element={<Navigate to="/app/humaniser" replace />} />
-            <Route path="humaniser" element={<EditorPage />} />
-            <Route path="paraphrase" element={<ParaphrasePage />} />
-            <Route path="grammar"    element={<GrammarPage />} />
-            <Route path="plagiarism" element={<PlagiarismPage />} />
-            <Route path="summarise"  element={<SummarisePage />} />
-            <Route path="detector" element={<DetectorPage />} />
+            <Route element={<ToolGate tool="humanise" />}>
+              <Route path="humaniser" element={<EditorPage />} />
+            </Route>
+            <Route element={<ToolGate tool="paraphraser" />}>
+              <Route path="paraphrase" element={<ParaphrasePage />} />
+            </Route>
+            <Route element={<ToolGate tool="grammar" />}>
+              <Route path="grammar"    element={<GrammarPage />} />
+            </Route>
+            <Route element={<ToolGate tool="similarity-check" />}>
+              <Route path="plagiarism" element={<PlagiarismPage />} />
+            </Route>
+            <Route element={<ToolGate tool="summariser" />}>
+              <Route path="summarise"  element={<SummarisePage />} />
+            </Route>
+            <Route element={<ToolGate tool="ai-content-check" />}>
+              <Route path="detector" element={<DetectorPage />} />
+              <Route path="detector/history" element={<DetectorHistoryPage />} />
+            </Route>
             <Route path="history" element={<HistoryPage />} />
             <Route path="account" element={<AccountPage />} />
             <Route path="billing" element={<BillingPage />} />
             <Route path="upgrade" element={<PricingPage />} />
             <Route path="checkout/mock/:sessionId" element={<MockCheckoutPage />} />
-            <Route path="detector/history" element={<DetectorHistoryPage />} />
-            <Route path="analyst"       element={<AnalystPage />} />
-            <Route path="document-chat" element={<DocumentChatPage />} />
-            <Route path="citations"     element={<CitationPage />} />
-            <Route path="flashcards"    element={<FlashcardPage />} />
-            <Route path="lecture"       element={<LecturePage />} />
+            <Route element={<ToolGate tool="data-analyst" />}>
+              <Route path="analyst"       element={<AnalystPage />} />
+            </Route>
+            <Route element={<ToolGate tool="study-design" />}>
+              <Route path="study-design"  element={<StudyDesignPage />} />
+            </Route>
+            <Route element={<ToolGate tool="feedback-tracker" />}>
+              <Route path="feedback-tracker"      element={<FeedbackTrackerPage />} />
+              <Route path="feedback-tracker/:id"  element={<FeedbackTrackerPage />} />
+            </Route>
+            <Route element={<ToolGate tool="document-chat" />}>
+              <Route path="document-chat" element={<DocumentChatPage />} />
+            </Route>
+            <Route element={<ToolGate tool="citation-generator" />}>
+              <Route path="citations"     element={<CitationPage />} />
+            </Route>
+            <Route element={<ToolGate tool="flashcards" />}>
+              <Route path="flashcards"    element={<FlashcardPage />} />
+            </Route>
+            <Route element={<ToolGate tool="lecture-notes" />}>
+              <Route path="lecture"       element={<LecturePage />} />
+            </Route>
             <Route path="workbench"     element={<WorkbenchPage />} />
-            <Route path="library"       element={<LibraryPage />} />
-            <Route path="editor/new"              element={<DocumentEditorPage />} />
-            <Route path="editor/:documentId"      element={<DocumentEditorPage />} />
-            <Route path="web-library"             element={<WebLibraryPage />} />
-            <Route path="web-library/find"        element={<FindPapersPage />} />
-            <Route path="deep-research"           element={<DeepResearchPage />} />
-            <Route path="web-library/collections" element={<CollectionsPage />} />
-            <Route path="web-library/packages" element={<EvidencePackagesPage />} />
-            <Route path="web-library/collections/:collectionId" element={<CollectionDetailPage />} />
-            <Route path="web-library/papers/:workId/pdf" element={<WebLibraryPdfViewerPage />} />
-            <Route path="proposal-studio"           element={<ProposalStudioPage />} />
-            <Route path="thesis-studio"              element={<ThesisStudioPage />} />
-            <Route path="research-agent/:projectId" element={<ResearchAgentPage />} />
-            <Route path="research-agent/:projectId/document" element={<DocumentViewPage />} />
-            <Route path="research-agent/:projectId/dashboard" element={<ResearchDashboardPage />} />
-            <Route path="research-agent/:projectId/proposal-workflow" element={<ProposalWorkflowPage />} />
-            <Route path="systematic-review"     element={<SystematicReviewPage />} />
-            <Route path="systematic-review/:id" element={<SystematicReviewWorkspacePage />} />
-            <Route path="systematic-review/:id/screen" element={<SharedScreeningPage />} />
-            <Route path="literature-review"     element={<LiteratureReviewPage />} />
-            <Route path="literature-review/discovery" element={<LiteratureDiscoveryProgressPage />} />
-            <Route path="reviewer"     element={<ReviewerPage />} />
-            <Route path="reviewer/:id" element={<ReviewerWorkspacePage />} />
-            <Route path="citation-integrity" element={<CitationIntegrityPage />} />
+            <Route element={<ToolGate tool="documents" />}>
+              <Route path="library"       element={<LibraryPage />} />
+            </Route>
+            <Route element={<ToolGate tool="editor" />}>
+              <Route path="editor/new"              element={<DocumentEditorPage />} />
+              <Route path="editor/:documentId"      element={<DocumentEditorPage />} />
+            </Route>
+            <Route element={<ToolGate tool="saved-sources" />}>
+              <Route path="web-library"             element={<WebLibraryPage />} />
+              <Route path="web-library/find"        element={<FindPapersPage />} />
+              <Route path="web-library/collections" element={<CollectionsPage />} />
+              <Route path="web-library/packages" element={<EvidencePackagesPage />} />
+              <Route path="web-library/collections/:collectionId" element={<CollectionDetailPage />} />
+              <Route path="web-library/papers/:workId/pdf" element={<WebLibraryPdfViewerPage />} />
+            </Route>
+            <Route element={<ToolGate tool="deep-research" />}>
+              <Route path="deep-research"           element={<DeepResearchPage />} />
+            </Route>
+            <Route element={<ToolGate tool="proposal-studio" />}>
+              <Route path="proposal-studio"           element={<ProposalStudioPage />} />
+            </Route>
+            <Route element={<ToolGate tool="proposal-studio" />}>
+              <Route path="thesis-studio"              element={<ThesisStudioPage />} />
+            </Route>
+            <Route element={<ToolGate tool="research-agent" />}>
+              <Route path="research-agent/:projectId" element={<ResearchAgentPage />} />
+              <Route path="research-agent/:projectId/document" element={<DocumentViewPage />} />
+              <Route path="research-agent/:projectId/dashboard" element={<ResearchDashboardPage />} />
+              <Route path="research-agent/:projectId/proposal-workflow" element={<ProposalWorkflowPage />} />
+            </Route>
+            <Route element={<ToolGate tool="systematic-review" />}>
+              <Route path="systematic-review"     element={<SystematicReviewPage />} />
+              <Route path="systematic-review/:id" element={<SystematicReviewWorkspacePage />} />
+              <Route path="systematic-review/:id/screen" element={<SharedScreeningPage />} />
+            </Route>
+            <Route element={<ToolGate tool="research-agent" />}>
+              <Route path="literature-review"     element={<LiteratureReviewPage />} />
+              <Route path="literature-review/discovery" element={<LiteratureDiscoveryProgressPage />} />
+            </Route>
+            <Route element={<ToolGate tool="reviewer" />}>
+              <Route path="reviewer"     element={<ReviewerPage />} />
+              <Route path="reviewer/:id" element={<ReviewerWorkspacePage />} />
+            </Route>
+            <Route element={<ToolGate tool="verify-citations" />}>
+              <Route path="citation-integrity" element={<CitationIntegrityPage />} />
+              {/* Bridge until the Citation Check page is committed: the menu entry points here. */}
+              <Route path="citation-check" element={<Navigate to="/app/citation-integrity" replace />} />
+            </Route>
           </Route>
         </Route>
 

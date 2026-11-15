@@ -55,7 +55,7 @@ describe('resolveEditorHeaderTitle', () => {
 describe('resolvePageTitle (unaffected by the editor title resolver)', () => {
   it('still resolves static nav routes exactly as before', () => {
     expect(resolvePageTitle('/app/library')).toBe('Documents')
-    expect(resolvePageTitle('/app/humaniser')).toBe('Humaniser')
+    expect(resolvePageTitle('/app/humaniser')).toBe('Humanise')
     expect(resolvePageTitle('/app/account')).toBe('Account Settings')
   })
 

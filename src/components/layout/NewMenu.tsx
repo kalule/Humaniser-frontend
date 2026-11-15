@@ -2,29 +2,26 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Plus, FileText, Upload, Sparkles, Shield, RefreshCw, SpellCheck, Scissors,
+  Plus, FileText, Upload,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
 import { useLibraryStore } from '../../store/libraryStore'
 import { importDocumentFromFile } from '../../lib/importWordDocument'
 import { CreationCard } from '../app/CreationCard'
+import { TOOLS } from '../../config/navigation'
+import { useIsToolEnabled } from '../../config/features'
 
 // New-document flow prompt #4 — a global entry point into document creation, reachable from any
 // authenticated screen (not just the Library). "New document" reuses prompt #3's CreationCard
 // unchanged; "Import document" is a quicker, no-dialog version of the same card's import button
 // (importDocumentFromFile, shared) since asking for a document type/citation style just to upload
 // an existing file would be unnecessary friction here.
-const LAUNCH_TOOLS = [
-  { label: 'Humaniser',   icon: Sparkles,   link: '/app/humaniser',  description: 'Rewrite AI text to sound natural' },
-  { label: 'AI Detector', icon: Shield,     link: '/app/detector',   description: 'Check text for AI authorship' },
-  { label: 'Paraphraser', icon: RefreshCw,  link: '/app/paraphrase', description: 'Rephrase text in a new style' },
-  { label: 'Grammar',     icon: SpellCheck, link: '/app/grammar',    description: 'Fix spelling and grammar issues' },
-  { label: 'Summariser',  icon: Scissors,   link: '/app/summarise',  description: 'Condense text to its key points' },
-]
+const MENU_TOOLS = (['humanise', 'ai-content-check', 'paraphraser', 'grammar', 'summariser'] as const).map(id => TOOLS[id])
 
 export function NewMenu({ compact }: { compact: boolean }) {
   const [open, setOpen] = useState(false)
+  const isToolEnabled = useIsToolEnabled()
   const [showCreationCard, setShowCreationCard] = useState(false)
   const [importing, setImporting] = useState(false)
   const createDocument = useLibraryStore(s => s.createDocument)
@@ -103,8 +100,8 @@ export function NewMenu({ compact }: { compact: boolean }) {
         onKeyDown={handleTriggerKeyDown}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={compact ? 'New' : undefined}
-        title={compact ? 'New' : undefined}
+        aria-label={compact ? 'New document' : undefined}
+        title={compact ? 'New document' : undefined}
         className={cn(
           'flex items-center gap-2 rounded-lg border font-medium text-[13px] transition-colors',
           compact ? 'w-8 h-8 justify-center mx-auto' : 'w-full px-3 py-1.5',
@@ -114,7 +111,7 @@ export function NewMenu({ compact }: { compact: boolean }) {
         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
       >
         <Plus size={16} />
-        {!compact && 'New'}
+        {!compact && 'New document'}
       </button>
 
       <AnimatePresence>
@@ -164,7 +161,7 @@ export function NewMenu({ compact }: { compact: boolean }) {
             <p className="px-3 pb-1 text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--text-muted)' }}>
               Start with a tool
             </p>
-            {LAUNCH_TOOLS.map((tool, i) => (
+            {MENU_TOOLS.filter(t => isToolEnabled(t.id)).map((tool, i) => (
               <Link
                 key={tool.label}
                 ref={el => { itemRefs.current[2 + i] = el }}

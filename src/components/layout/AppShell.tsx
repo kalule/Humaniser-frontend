@@ -12,8 +12,8 @@ import { TopUpModal } from '../ui/TopUpModal'
 import { DeepResearchWatcher } from '../app/DeepResearchWatcher'
 
 const BOTTOM_TABS = [
-  { to: '/app/humaniser', label: 'Rewrite', icon: Wand2 },
-  { to: '/app/detector', label: 'Detector', icon: Brain },
+  { to: '/app/humaniser', label: 'Humanise', icon: Wand2 },
+  { to: '/app/detector', label: 'AI Content Check', icon: Brain },
   { to: '/app/history', label: 'History', icon: Clock },
   { to: '/app/account', label: 'Account', icon: Settings },
 ] as const
@@ -62,7 +62,7 @@ export function AppShell() {
             {({ isActive }) => (
               <>
                 <Icon size={20} strokeWidth={isActive ? 2.5 : 1.75} />
-                <span className="text-[10px] font-medium leading-none">{label}</span>
+                <span className="text-[10px] font-medium leading-tight text-center">{label}</span>
               </>
             )}
           </NavLink>
