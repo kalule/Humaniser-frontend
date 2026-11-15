@@ -122,6 +122,10 @@ export function checkDisplay(check: FeedbackCheck | null): CheckDisplay {
     cautions.push('The passage quoted as evidence could not be found in your draft.')
   if (check.flags.includes('reworded_not_removed')) cautions.push('The comment asks for something to be removed; it was reworded, not removed.')
   if (check.flags.includes('removal_not_done')) cautions.push('The comment asks for something to be removed and it is still in the draft.')
+  // A comment that asks for better writing has nothing a check can verify: a reworded sentence exists, but whether it
+  // is better is for the student and the supervisor. The server never returns "addressed" for it.
+  const wording = check.flags.includes('wording_judgement')
+  if (wording) cautions.push('This comment asks for better wording. The passage was rewritten; whether it now reads better is for you and your supervisor to judge.')
 
   switch (check.verdict) {
     case 'addressed':
@@ -134,7 +138,7 @@ export function checkDisplay(check: FeedbackCheck | null): CheckDisplay {
     case 'not_addressed':
       return { tone: 'red', label: check.method === 'NotChanged' ? 'No change found' : 'Not addressed', cautions }
     default:
-      return { tone: 'grey', label: 'Cannot tell', cautions }
+      return { tone: 'grey', label: wording ? 'Reworded: judge it yourself' : 'Cannot tell', cautions }
   }
 }
 

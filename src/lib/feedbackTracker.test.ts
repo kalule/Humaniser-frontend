@@ -51,6 +51,14 @@ describe('checkDisplay: the green tick', () => {
     expect(checkDisplay(check({ verdict: 'cannot_tell', canShowAsAddressed: false }))).toMatchObject({ tone: 'grey', label: 'Cannot tell' })
   })
 
+  it('shows a reworded passage as a judgement call, never as addressed', () => {
+    const d = checkDisplay(check({ verdict: 'cannot_tell', flags: ['wording_judgement'], canShowAsAddressed: false }))
+    expect(d).toMatchObject({ tone: 'grey', label: 'Reworded: judge it yourself' })
+    expect(d.cautions[0]).toMatch(/for you and your supervisor to judge/)
+    // Even if a server ever sent "addressed" with the flag, the caution keeps it off green.
+    expect(checkDisplay(check({ flags: ['wording_judgement'] })).tone).toBe('amber')
+  })
+
   it('keeps the figures caution on any verdict', () => {
     expect(checkDisplay(check({ verdict: 'not_addressed', numberWarning: true, canShowAsAddressed: false })).cautions).toHaveLength(1)
   })
