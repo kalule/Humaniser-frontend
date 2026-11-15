@@ -105,7 +105,7 @@ export function ThreadView({ thread, onChange, onDeleted }: Props) {
       </Link>
 
       <header className="mt-3">
-        <h2 className="text-[20px] font-semibold leading-snug text-slate-900">{thread.title}</h2>
+        <h2 className="text-[20px] font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere]">{thread.title}</h2>
         <p className="mt-1 text-[14px] text-slate-800" data-testid="ft-progress">
           <span className="font-semibold">{p.done} of {p.total} marked done</span>
           {p.inProgress > 0 ? ` · ${p.inProgress} in progress` : ''}{p.disputed > 0 ? ` · ${p.disputed} to discuss` : ''}
@@ -126,7 +126,7 @@ export function ThreadView({ thread, onChange, onDeleted }: Props) {
 
       {/* Latest draft: how it was checked, and any figures that disagree. Focused after a re-check so the outcome is announced. */}
       <div ref={resultRef} tabIndex={-1} className="mt-5 rounded-xl border border-slate-200 bg-white p-4 outline-none" aria-label={`Version ${latest.version} of the draft`}>
-        <h3 className="text-[14px] font-semibold text-slate-900">
+        <h3 className="text-[14px] font-semibold text-slate-900 [overflow-wrap:anywhere]">
           Version {latest.version}{latest.fileName ? ` · ${latest.fileName}` : ''} <span className="font-normal text-slate-700">· added {formatShortDate(latest.createdAt)} · {latest.charCount.toLocaleString('en-GB')} characters</span>
         </h3>
         <p className="mt-1 text-[14px] text-slate-800">{describeDraftCheck(latest)}</p>

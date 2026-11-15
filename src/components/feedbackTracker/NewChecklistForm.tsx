@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { feedbackTrackerApi } from '../../api/feedbackTracker'
 import {
-  DOCUMENT_TYPES, EXTRACTION_CREDITS, failureMessage, validateComments,
+  DOCUMENT_TYPES, EXTRACTION_CREDITS, MAX_TITLE_CHARS, failureMessage, validateComments,
   type DocumentType, type FeedbackThread,
 } from '../../lib/feedbackTracker'
 import { DraftInput, EMPTY_DRAFT, draftError, type DraftValue } from './DraftInput'
@@ -68,7 +68,7 @@ export function NewChecklistForm({ retentionDays, onCreated }: { retentionDays: 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="ft-new-title" className="mb-1 block text-[13px] font-medium text-slate-800">Name <span className="font-normal text-slate-700">(optional)</span></label>
-          <input id="ft-new-title" value={title} onChange={e => setTitle(e.target.value)} disabled={busy} maxLength={300} placeholder="For example: Chapter 3, second round" className={field} />
+          <input id="ft-new-title" value={title} onChange={e => setTitle(e.target.value)} disabled={busy} maxLength={MAX_TITLE_CHARS} placeholder="For example: Chapter 3, second round" className={field} />
         </div>
         <div>
           <label htmlFor="ft-new-type" className="mb-1 block text-[13px] font-medium text-slate-800">Kind of document</label>

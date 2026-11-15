@@ -73,7 +73,8 @@ function ListRoute() {
             {threads.map(t => (
               <li key={t.id}>
                 <Link to={`/app/feedback-tracker/${t.id}`} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-4 py-3 outline-none hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-purple-accent/40">
-                  <span className="min-w-0 text-[15px] font-semibold text-purple-deep underline">{t.title}</span>
+                  {/* A name can be one unbroken string (a file name, a pasted identifier): let it break anywhere rather than leave the card. */}
+                  <span className="min-w-0 max-w-full text-[15px] font-semibold text-purple-deep underline [overflow-wrap:anywhere]">{t.title}</span>
                   <span className="text-[13px] text-slate-700">
                     {t.addressedCount} of {t.itemCount} marked done · {t.draftCount} {t.draftCount === 1 ? 'version' : 'versions'} · last used {formatShortDate(t.updatedAt)}
                   </span>

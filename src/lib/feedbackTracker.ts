@@ -88,6 +88,8 @@ export const MAX_COMMENTS_CHARS = 30_000
 export const MAX_DRAFT_CHARS = 400_000
 export const MIN_DRAFT_CHARS = 200
 export const MIN_COMMENTS_CHARS = 20
+/** What the name field accepts. The server stores up to 300, which a name taken from an uploaded file can reach. */
+export const MAX_TITLE_CHARS = 120
 
 export const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
   { value: 'Proposal', label: 'Research proposal' },
