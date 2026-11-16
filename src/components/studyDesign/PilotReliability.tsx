@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle } from 'lucide-react'
-import { studyDesignApi, type PilotDataset, type PilotReliability as Result } from '../../api/studyDesign'
+import { studyDesignApi, type CodebookAttachment, type PilotDataset, type PilotReliability as Result } from '../../api/studyDesign'
 import type { ApiFieldError } from '../../lib/studyDesign'
 
 interface ApiFailure { code?: string; details?: ApiFieldError[]; response?: { status?: number } }
@@ -19,6 +19,8 @@ export function PilotReliability({ projectId, ready, blockedReason }: { projectI
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
+  const [attachment, setAttachment] = useState<CodebookAttachment | null>(null)
+  const [attaching, setAttaching] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -26,7 +28,22 @@ export function PilotReliability({ projectId, ready, blockedReason }: { projectI
     return () => { cancelled = true }
   }, [])
   // A result belongs to the project and questionnaire it was computed for.
-  useEffect(() => { setResult(null); setFailure(null) }, [projectId])
+  useEffect(() => { setResult(null); setFailure(null); setAttachment(null) }, [projectId])
+
+  const selected = datasets?.find(d => d.id === datasetId) ?? null
+  const setCodebook = async (attach: boolean) => {
+    setAttaching(true); setFailure(null)
+    try {
+      const done = attach ? await studyDesignApi.attachCodebook(projectId, datasetId) : await studyDesignApi.detachCodebook(datasetId)
+      setAttachment(done)
+      setDatasets(list => list?.map(d => (d.id === datasetId ? { ...d, hasCodebook: done.attached } : d)) ?? list)
+    } catch (err) {
+      const e = err as ApiFailure
+      setAttachment(null)
+      setFailure(e?.details?.[0]?.message ?? (e?.code === 'STUDY_DESIGN_NOT_FOUND' ? 'That dataset could not be found. It may have been removed.'
+        : e?.response?.status === 429 ? 'Too many requests in a short time. Wait a minute and try again.' : 'That could not be done. Try again.'))
+    } finally { setAttaching(false) }
+  }
 
   const run = async () => {
     setBusy(true); setFailure(null)
@@ -53,7 +70,7 @@ export function PilotReliability({ projectId, ready, blockedReason }: { projectI
         <div className="mt-2 space-y-2">
           <div>
             <label htmlFor="sdq-pilot-dataset" className="mb-1 block text-[13px] font-medium text-slate-800">Dataset</label>
-            <select id="sdq-pilot-dataset" value={datasetId} onChange={e => { setDatasetId(e.target.value); setResult(null) }}
+            <select id="sdq-pilot-dataset" value={datasetId} onChange={e => { setDatasetId(e.target.value); setResult(null); setAttachment(null) }}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[14px] text-slate-900 outline-none focus:border-purple-accent focus-visible:ring-2 focus-visible:ring-purple-accent/30">
               <option value="">Choose…</option>
               {datasets.map(d => <option key={d.id} value={d.id}>{d.fileName} ({d.rowCount} rows, {new Date(d.uploadedAt).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })})</option>)}
@@ -64,6 +81,34 @@ export function PilotReliability({ projectId, ready, blockedReason }: { projectI
             {busy ? 'Checking…' : 'Check scales on this data'}
           </button>
           {blockedReason ? <p className="text-[12px] text-slate-600">{blockedReason}</p> : null}
+          {selected ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+              <p className="text-[13px] font-medium text-slate-900">Use this codebook in Data Analyst</p>
+              <p className="mt-0.5 text-[12px] leading-snug text-slate-600">
+                Tells Data Analyst which columns form each scale, which items are reverse-coded and which values mean "no answer", so its analyses of this file use them. Your data are not changed.
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button type="button" disabled={!ready || attaching} onClick={() => void setCodebook(true)}
+                  className="inline-flex min-h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-[13px] font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40 disabled:cursor-not-allowed disabled:opacity-50">
+                  {attaching ? 'Working…' : selected.hasCodebook ? 'Send the codebook again' : 'Send the codebook to Data Analyst'}
+                </button>
+                {selected.hasCodebook ? (
+                  <button type="button" disabled={attaching} onClick={() => void setCodebook(false)} className="min-h-9 rounded-lg px-2 text-[13px] font-medium text-slate-700 underline hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40 disabled:opacity-50">
+                    Remove it from this dataset
+                  </button>
+                ) : null}
+              </div>
+              <p className="mt-1.5 text-[12px] text-slate-700" aria-live="polite">
+                {attachment?.attached ? `Sent. ${attachment.match.matched.length} variable${attachment.match.matched.length === 1 ? '' : 's'} matched to columns (questionnaire version ${attachment.questionnaireVersion}).`
+                  : attachment ? 'Removed. Data Analyst no longer has a codebook for this dataset.'
+                  : selected.hasCodebook ? 'Data Analyst has a codebook for this dataset. Send it again after you change the questionnaire.' : ''}
+              </p>
+              {attachment?.attached && attachment.match.variablesNotInDataset.length > 0 ? (
+                <p className="mt-1 flex items-start gap-1.5 text-[12px] text-amber-950"><AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+                  <span>No column named: {attachment.match.variablesNotInDataset.join(', ')}.{attachment.match.namesDifferingOnlyByCase.length > 0 ? ` ${attachment.match.namesDifferingOnlyByCase.join(', ')} differ${attachment.match.namesDifferingOnlyByCase.length === 1 ? 's' : ''} from a column only by capital letters; names must match exactly.` : ''}</span></p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
       {failure ? <p role="alert" className="mt-2 rounded-lg border border-red-300 bg-red-50 p-2.5 text-[13px] font-medium text-red-800">{failure}</p> : null}

@@ -88,7 +88,15 @@ export interface StoredCalculation {
 
 export interface MethodsTexts { harvard: string; apa: string }
 
-export interface PilotDataset { id: string; fileName: string; rowCount: number; columnCount: number; uploadedAt: string }
+export interface PilotDataset { id: string; fileName: string; rowCount: number; columnCount: number; uploadedAt: string; hasCodebook?: boolean }
+/** Names only: which variables were matched to columns when the codebook was put on a dataset. */
+export interface CodebookAttachment {
+  datasetId: string
+  fileName: string
+  attached: boolean
+  questionnaireVersion: number
+  match: { matched: string[]; variablesNotInDataset: string[]; columnsNotInCodebook: string[]; namesDifferingOnlyByCase: string[] }
+}
 export interface ItemReliability {
   variable: string
   reverseCoded: boolean
@@ -134,7 +142,8 @@ export interface PilotReliability {
 }
 
 export type EthicsState = 'NotStarted' | 'InProgress' | 'Done' | 'NotApplicable'
-export interface EthicsItem { id: string; text: string; state: EthicsState; note: string }
+/** basis names the source the item's wording was checked against, e.g. "NDoH 2024, 3.1.10" or "POPIA s 72". */
+export interface EthicsItem { id: string; text: string; state: EthicsState; note: string; basis?: string }
 export interface EthicsEntry { itemId: string; state: EthicsState; note: string | null }
 export interface EthicsChecklist {
   projectId: string
@@ -216,6 +225,10 @@ export const studyDesignApi = {
   dismissFinding: (projectId: string, key: string) => client.post<ConsistencyResult>(`${base}/projects/${projectId}/consistency/dismissals`, { key }).then(data),
   restoreFinding: (projectId: string, key: string) =>
     client.delete<ConsistencyResult>(`${base}/projects/${projectId}/consistency/dismissals/${encodeURIComponent(key)}`).then(data),
+  /** Tells Data Analyst about this questionnaire's scales, reverse-coded items and missing codes for one dataset. The data are not changed. */
+  attachCodebook: (projectId: string, datasetId: string) =>
+    client.put<CodebookAttachment>(`${base}/projects/${projectId}/instrument/codebook/datasets/${datasetId}`).then(data),
+  detachCodebook: (datasetId: string) => client.delete<CodebookAttachment>(`${base}/datasets/${datasetId}/codebook`).then(data),
   storedMethodsText: (projectId: string, id: string, style: 'harvard' | 'apa') =>
     client.get<{ text: string; style: string; projectChangedSince: boolean }>(`${base}/projects/${projectId}/calculations/${id}/methods-text`, { params: { style } }).then(data),
 }

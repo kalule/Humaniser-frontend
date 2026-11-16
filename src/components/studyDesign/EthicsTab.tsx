@@ -101,7 +101,10 @@ export function EthicsTab({ projectId }: { projectId: string }) {
               return (
                 <li key={item.id} className="border-t border-slate-100 pt-3 first:border-t-0 first:pt-0">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <p id={`sde-text-${item.id}`} className="text-[14px] leading-snug text-slate-900">{item.text}</p>
+                    <div className="min-w-0">
+                      <p id={`sde-text-${item.id}`} className="text-[14px] leading-snug text-slate-900">{item.text}</p>
+                      {item.basis ? <p className="mt-0.5 text-[12px] text-slate-600">Source: {item.basis}</p> : null}
+                    </div>
                     <select aria-labelledby={`sde-text-${item.id}`} value={v.state} onChange={e => change(item.id, { state: e.target.value as EthicsState })}
                       className="w-full shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-900 outline-none focus:border-purple-accent focus-visible:ring-2 focus-visible:ring-purple-accent/30 sm:w-40">
                       {STATES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
