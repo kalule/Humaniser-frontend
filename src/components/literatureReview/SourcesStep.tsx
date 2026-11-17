@@ -140,6 +140,8 @@ function SearchTab({ review }: { review: Review }) {
       if (queries.length === 0) {
         setBusy('Planning the search from your question')
         await researchApi.generateTopicScope(projectId)
+        // The backend builds queries from the enabled research dimensions, so they must exist first.
+        await researchApi.generateDiscoveryDimensions(projectId)
         await researchApi.generateDiscoveryQueries(projectId)
       }
       setBusy('Starting the search')
