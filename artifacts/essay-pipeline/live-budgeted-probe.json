@@ -1,0 +1,92 @@
+{
+  "protocol": "frozen-retrieval-live-models-v1",
+  "repetitionsPerModeAndCase": 1,
+  "cacheConditions": "Preparation cache disabled; identical frozen retrieval data; upstream verification HTTP caches uncontrolled. Baseline first. No causal speedup claim or tail/median estimate.",
+  "records": [
+    {
+      "Name": "argumentative",
+      "compact": true,
+      "status": "Incomplete",
+      "elapsedMs": 79676,
+      "reason": "The draft still has findings after its one repair operation.",
+      "initialPlanning": null,
+      "pipeline": {
+        "CorrelationId": "e1905b7a40544c01be4e7edf2e90f973",
+        "Counts": {
+          "assessment_raw_candidates": 10,
+          "assessment_candidates": 10,
+          "assessed_sources": 10,
+          "recovery_searches": 1,
+          "whole_document_repairs": 1
+        },
+        "TotalMs": 79667,
+        "StagesMs": {
+          "starting": 94,
+          "planning-question": 5846,
+          "searching-sources": 171,
+          "assessing-evidence": 10045,
+          "searching-gaps": 23,
+          "building-outline": 4439,
+          "drafting": 5442,
+          "repairing-draft-format": 8817,
+          "reviewing-answer": 5460,
+          "checking-claims": 39327,
+          "incomplete": 3
+        },
+        "ModelCalls": 11,
+        "InputTokens": 78631,
+        "OutputTokens": 25889,
+        "ProviderRetries": 1,
+        "CancelledModelCalls": 0,
+        "FailedModelCalls": 0,
+        "ModelElapsedMs": 110162,
+        "TokenUsageComplete": true
+      },
+      "WordCount": 755,
+      "sources": 5,
+      "frozenSources": 12,
+      "flags": [
+        "EssayStructureGap",
+        "EssayIncomplete"
+      ],
+      "claimAudit": {
+        "AuditAvailable": true,
+        "AuditWarning": null,
+        "AtomicClaims": 79,
+        "EvidenceRequiring": 59,
+        "NonEvidenceClaims": 20,
+        "Cited": 55,
+        "Uncited": 4,
+        "Supported": 47,
+        "SupportedCanonical": 47,
+        "SupportedTrustedEvidence": 0,
+        "Unsupported": 8,
+        "Unverifiable": 0,
+        "Misaligned": 0,
+        "Rewritten": 0,
+        "Removed": 0,
+        "CoveragePercent": 79,
+        "VerifiedCoveragePercent": 79,
+        "VerifiedCoverageCanonical": 79,
+        "VerifiedCoverageAnyTrusted": 79,
+        "CoverageBeforeRepair": 0,
+        "UniqueSourcesBeforeRepair": 0,
+        "UniqueSourcesAfterRepair": 0,
+        "ExistingCorpusRepairs": 1,
+        "ExternalGapQueries": 0,
+        "NewSourcesAdded": 0,
+        "AuditLatencyMs": 20372,
+        "VerificationLatencyMs": 18755,
+        "RepairLatencyMs": 8704
+      },
+      "diagnostics": [
+        "assessment_ranked:10:10",
+        "assessment_window:10/10",
+        "recovery_trigger:essential_gaps=1:minimum_sources=0:queries=1",
+        "draft_schema:empty_or_uncited_section",
+        "model_calls:4",
+        "recovery_calls:1"
+      ]
+    }
+  ]
+}

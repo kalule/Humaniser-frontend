@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { tokenRef } from '../lib/tokenRef'
+import { fetchWithAuth } from '../lib/fetchWithAuth'
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 
@@ -68,13 +68,8 @@ export function useSectionDraftStream(): UseSectionDraftStreamResult {
 
     void (async () => {
       try {
-        const token = tokenRef.current
         const url = `${API_BASE}/api/v1/research/projects/${projectId}/sections/stream?code=${encodeURIComponent(sectionCode)}`
-        const res = await fetch(url, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          credentials: 'include',
-          signal: controller.signal,
-        })
+        const res = await fetchWithAuth(url, { signal: controller.signal })
 
         // 204 (nothing to stream) or any non-2xx — fall back silently to the poll.
         if (!res.ok || !res.body) return

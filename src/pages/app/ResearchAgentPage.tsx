@@ -42,6 +42,7 @@ import type {
   MethodologyViolation, ProjectHypothesis, UpdateHypothesisPayload, DefencePreparation, ThesisAuditResult, RubricScores,
 } from '../../types/research'
 import toast from 'react-hot-toast'
+import { AddSavedSourcesToProject } from '../../components/webLibrary/AddSavedSourcesToProject'
 import { FixIssuesPanel } from '../../components/research-agent/FixIssuesPanel'
 // STEPS and SECTION_PROMPTS live in src/data/proposalOutline.ts — shared with
 // AutonomousProposalTools' autonomous generation flow, which needs the same
@@ -50,6 +51,7 @@ import { STEPS, SECTION_PROMPTS, getStepLabel } from '../../data/proposalOutline
 import { isAbstractStepLocked } from './abstractStepStatus'
 import { apiErrorMessage } from '../../lib/deepResearch'
 import { recommendMethodology, methodologyInputFingerprint, type MethodologyRecommendation } from '../../lib/methodologyRecommendation'
+import { useConfirm } from '../../components/ui/ConfirmDialog'
 
 export { STEPS }
 
@@ -1050,6 +1052,7 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
   const [suggestionError, setSuggestionError] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const requestRef = useRef(0)
+  const { confirm: ask, dialog: confirmDialog } = useConfirm()
 
   // Setup steps run before the chapter-writing screen's own initSections/loadSections effect —
   // load here too so the "already generated content" lock-check below isn't working off a
@@ -1118,11 +1121,14 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
     catch { toast.error('Could not save the research approach.') }
   }
 
-  const applyTier1 = (value: MethodologyTier1) => {
+  const applyTier1 = async (value: MethodologyTier1) => {
     if (tier1 && tier1 !== value && hasGeneratedContent) {
-      const ok = window.confirm(
-        `Changing this may require regenerating already-approved chapters that assumed "${tier1}". Continue?`,
-      )
+      const ok = await ask({
+        title: 'Change the research approach?',
+        message: `Chapters you have already approved assumed "${tier1}". Changing this may mean regenerating them.`,
+        confirmLabel: 'Change approach',
+        tone: 'warning',
+      })
       if (!ok) return
     }
     void saveApproach(value, 'manual-choice')
@@ -1167,11 +1173,20 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
               ? `${impact.affectedDraftSectionCodes.length} draft chapter(s) (${impact.affectedDraftSectionCodes.join(', ')}) will be flagged for review`
               : null,
           ].filter(Boolean)
-          const ok = window.confirm(
-            `Changing the confirmed methodology from "${project.confirmedMethodology.methodologyType}" to "${tier1}" ` +
-            (parts.length > 0 ? `will: ${parts.join('; ')}. Content is preserved, not deleted. ` : '') +
-            'Continue?',
-          )
+          const ok = await ask({
+            title: 'Change the confirmed methodology?',
+            message: (
+              <>
+                <p>From <strong className="font-semibold text-slate-800">{project.confirmedMethodology.methodologyType}</strong> to <strong className="font-semibold text-slate-800">{tier1}</strong>.</p>
+                {parts.length > 0 && (
+                  <ul className="mt-2 list-disc space-y-1 pl-5">{parts.map(p => <li key={p}>{p}</li>)}</ul>
+                )}
+                <p className="mt-2">Content is preserved, not deleted.</p>
+              </>
+            ),
+            confirmLabel: 'Change methodology',
+            tone: 'warning',
+          })
           if (!ok) return
         }
       } catch {
@@ -1263,7 +1278,7 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
               key={opt.value}
               role="radio"
               aria-checked={tier1 === opt.value}
-              onClick={() => applyTier1(opt.value)}
+              onClick={() => void applyTier1(opt.value)}
               className={cn(
                 'text-left p-4 rounded-xl border transition-all',
                 tier1 === opt.value
@@ -1382,6 +1397,7 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
           <p className="text-[12px] text-slate-400">Progress automatically saved</p>
         </div>
       </div>
+      {confirmDialog}
     </StepCard>
   )
 }
@@ -1627,7 +1643,7 @@ function LiteratureStep({
         <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
           <FolderOpen size={28} className="text-slate-300 mx-auto mb-2" />
           <p className="text-[13px] font-medium text-slate-500 mb-1">No documents yet</p>
-          <p className="text-[12px] text-slate-400">Upload PDFs or documents in My Library, then come back to select them.</p>
+          <p className="text-[12px] text-slate-400">Upload PDFs or documents in Documents, then come back to select them.</p>
         </div>
       ) : (
         <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
@@ -1734,7 +1750,7 @@ function LiteratureStep({
         {mode === 'hybrid'    && (
           <div className="space-y-6">
             <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">From My Library</p>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">From Documents</p>
               <DocsBrowser />
             </div>
             <div className="border-t border-slate-100 pt-6">
@@ -1743,6 +1759,9 @@ function LiteratureStep({
             </div>
           </div>
         )}
+
+        {/* Saved Sources: papers the student already saved, reused here without searching again */}
+        <div className="mt-6"><AddSavedSourcesToProject projectId={project.id} /></div>
 
         {/* Summary of gathered sources */}
         {webVal.trim() && (

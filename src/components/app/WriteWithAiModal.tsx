@@ -1,5 +1,7 @@
+import { cancelPaperRun, clearPaper, pendingPaper, planResearchPaper } from '../../lib/researchPaperRuns'
+import type { ResearchPaperPlanSection } from '../../types/workbench'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Sparkles, Globe, FolderOpen, Layers, Loader2, X, ArrowRight, ArrowLeft, FileText, Check } from 'lucide-react'
+import { Sparkles, Globe, FolderOpen, Layers, Loader2, X, ArrowRight, ArrowLeft, Check } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { cn, tiptapJsonToText } from '../../lib/utils'
 import { useLibraryStore } from '../../store/libraryStore'
@@ -12,8 +14,11 @@ import { clearPendingGeneration, findAnyPendingGeneration, savePendingGeneration
 import type { CaseStudyPlan, EssayAcademicLevel, EssayCitationStyle, EssayDiscipline, EssayPlan, EssaySubType, LiteratureReviewArchetype, ResearchPaperDisciplineProfile, WriteWithAiDocumentType, WriteWithAiRequest, WriteWithAiResponse, WriteWithAiSourceMode, ThesisChapterKind } from '../../types/workbench'
 import type { AnalystJobSummary } from '../../types/analyst'
 import toast from 'react-hot-toast'
+import { SavedSourcePicker } from '../webLibrary/SavedSourcePicker'
+import { MAX_SAVED_SOURCES_PER_REQUEST } from '../../lib/savedSources'
 import { RESEARCH_STAGE_OPTIONS, toResearchState, type ResearchStageChoice } from './researchStage'
 import { essayStageLabel } from '../../lib/essayProgress'
+import { assertWritableDraft } from '../../lib/writeWithAiOutcome'
 
 const STAGE_LABEL: Record<string, string> = {
   drafting: 'Drafting your essay…',
@@ -32,7 +37,6 @@ interface WriteWithAiModalProps {
   isOpen:            boolean
   onClose:           () => void
   onGenerated:       (result: WriteWithAiResponse, citationStyle: EssayCitationStyle) => void
-  onIncomplete?:    (result: WriteWithAiResponse) => void
   onFailure?:       (message: string) => void
   /** Reports whether a generation is in flight and its current stage label, so the page can show progress while this modal is hidden. */
   onBusyChange?:     (busy: boolean, label: string) => void
@@ -61,7 +65,7 @@ const TOPIC_QUESTION: Record<Exclude<WriteWithAiDocumentType, 'CaseStudy'>, { la
   },
   ThesisChapter: {
     label: 'What is your thesis about?',
-    placeholder: "Enter your thesis title or research question (e.g., 'How does remote work affect junior developers\' skill growth?')",
+    placeholder: "Enter your thesis title or research question (e.g., 'How does remote work affect junior developers' skill growth?')",
   },
   Essay: {
     label: 'What is your essay topic or question?',
@@ -77,7 +81,11 @@ const TOPIC_QUESTION: Record<Exclude<WriteWithAiDocumentType, 'CaseStudy'>, { la
   },
 }
 
-const ARCHETYPE_OPTIONS: { value: LiteratureReviewArchetype; label: string; description: string }[] = [
+// 'Auto' is the default: nothing is sent and the server picks the structure from the topic's own cues (change over time, competing theories, how
+// something is measured), falling back to Thematic. A student's explicit pick is always honoured.
+type ArchetypeChoice = LiteratureReviewArchetype | 'Auto'
+const ARCHETYPE_OPTIONS: { value: ArchetypeChoice; label: string; description: string }[] = [
+  { value: 'Auto',           label: 'Auto (recommended)', description: 'Chosen for you from your topic: chronological for change over time, theoretical for competing frameworks, methodological for how something is measured, otherwise thematic' },
   { value: 'Thematic',       label: 'Thematic',       description: 'Organized around recurring concepts across sources' },
   { value: 'Chronological',  label: 'Chronological',  description: 'Traces how understanding evolved over time' },
   { value: 'Methodological', label: 'Methodological', description: 'Grouped by research design/method class' },
@@ -112,7 +120,7 @@ const STEP1_SUBTITLE: Record<WriteWithAiDocumentType, string> = {
 }
 
 export function WriteWithAiModal({
-  isOpen, onClose, onGenerated, onIncomplete, onFailure, onBusyChange, excludeDocumentId,
+  isOpen, onClose, onGenerated, onFailure, onBusyChange, excludeDocumentId,
   initialTopic, initialDocumentType, initialThesisChapter, initialCitationStyle,
 }: WriteWithAiModalProps) {
   const [wizardStep, setWizardStep] = useState<1 | 2>(1)
@@ -128,15 +136,15 @@ export function WriteWithAiModal({
   const [citationStyle, setCitationStyle] = useState<EssayCitationStyle>('Harvard')
   // A subject suggests its usual citation style (Vancouver for medicine, IEEE for engineering…) until the user picks one themselves.
   const styleChosenByUser = useRef(false)
-  // Essays are written one section at a time by default: the student reviews each paragraph and its sources before the next.
   const [plan, setPlan] = useState<EssayPlan | null>(null)
-  // Essays need a plan before drafting (the backend requires one). By default it is made and used
-  // automatically; this opt-in stops on the outline screen first so the user can edit it.
+  // The backend plans from the original question. Request a separate preview only when the user opts in.
   const [reviewOutline, setReviewOutline] = useState(false)
   const [assignmentText, setAssignmentText] = useState('')
   const [casePlan, setCasePlan] = useState<CaseStudyPlan | null>(null)
+  const [paperPlan, setPaperPlan] = useState<ResearchPaperPlanSection[] | null>(null)
+  const [paperPlanSignature, setPaperPlanSignature] = useState('')
   const [researchProfile, setResearchProfile] = useState<ResearchPaperDisciplineProfile>('GeneralImrad')
-  const [literatureReviewArchetype, setLiteratureReviewArchetype] = useState<LiteratureReviewArchetype>('Thematic')
+  const [literatureReviewArchetype, setLiteratureReviewArchetype] = useState<ArchetypeChoice>('Auto')
   const [includeLiteratureReview, setIncludeLiteratureReview] = useState(false)
   const [targetJournal, setTargetJournal] = useState('')
   const [researchStage, setResearchStage] = useState<ResearchStageChoice>('PlanningOrDesigning')
@@ -151,9 +159,12 @@ export function WriteWithAiModal({
   const [ethicsApprovalEvidence, setEthicsApprovalEvidence] = useState('')
   const [completedActivitiesEvidence, setCompletedActivitiesEvidence] = useState('')
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([])
+  // Papers chosen from Saved Sources. The server loads them for this account; only the ids are sent.
+  const [savedSourceIds, setSavedSourceIds] = useState<string[]>([])
+  const [showSavedSources, setShowSavedSources] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [planningEssay, setPlanningEssay] = useState(false)
   const [generationError, setGenerationError] = useState<string | null>(null)
-  const [incompleteEssay, setIncompleteEssay] = useState<WriteWithAiResponse | null>(null)
   // A literature review is already being written (HTTP 409): not a failure. Names the document it will appear in when this browser knows.
   const [alreadyRunning, setAlreadyRunning] = useState<{ message: string; documentId: string | null } | null>(null)
   const { stage, generate } = useWriteWithAiStream()
@@ -172,9 +183,6 @@ export function WriteWithAiModal({
 
   const documents = useLibraryStore(s => s.documents)
   const handoffSkipped = useRef<string | null>(null)
-  // Full-draft generation is the default. Section-by-section is no longer offered up front; it is only
-  // switched on by the "coverage too low" recovery action below.
-  const [coWrite, setCoWrite] = useState(false)
 
   // Pre-fill from the creation card's hand-off, read once on the false→true edge (useState's own
   // initial value only applies on first mount, and this modal is mounted once and toggled via
@@ -225,6 +233,8 @@ export function WriteWithAiModal({
   const maxWords = isCaseStudy ? LONG_FORM_MAX_WORDS : STANDARD_MAX_WORDS
   const lengthPresets = maxWords > STANDARD_MAX_WORDS ? LONG_FORM_PRESETS : WORD_COUNT_PRESETS
   const showDocPicker = usesMyFiles || isCaseStudy || isResearchPaper
+  // The grounded literature-review pipeline builds its own corpus; saved sources reach it through the project screens instead.
+  const usesSavedSources = !isLiteratureReview
   const primaryInputValid = isCaseStudy ? assignmentText.trim().length >= 20 : topic.trim().length > 0
 
   // Backend two-step flow (plan → draft) — separate from UI wizard steps
@@ -232,7 +242,7 @@ export function WriteWithAiModal({
 
   const loadingLabel = isCaseStudy && !casePlan
     ? 'Classifying and planning…'
-    : documentType === 'Essay' && !plan
+    : planningEssay
       ? 'Planning your essay…'
       : (stage && (essayStageLabel(stage) ?? STAGE_LABEL[stage])) ?? 'Generating your draft…'
 
@@ -256,24 +266,15 @@ export function WriteWithAiModal({
 
   const handleCancel = () => {
     if (!loading) { handleClose(); return }
+    if (requestDocumentType === 'ResearchPaper' && excludeDocumentId) {
+      const pending = pendingPaper(excludeDocumentId)
+      if (pending) { void cancelPaperRun(pending.runId).catch(error => toast.error(String(error))); clearPaper(excludeDocumentId) }
+    }
     cancelledRef.current = true
     abortControllerRef.current?.abort()
     if (excludeDocumentId) clearPendingGeneration(excludeDocumentId)
     setLoading(false)
     toast('Generation cancelled.', { icon: '✕' })
-  }
-
-  const handleInsertIncompleteDraft = () => {
-    if (!incompleteEssay) return
-    onGenerated(incompleteEssay, citationStyle)
-    toast('Draft inserted into editor. Please review citations and question coverage notes.', { icon: '📝', duration: 7000 })
-    setTopic('')
-    setPlan(null)
-    setAssignmentText('')
-    setCasePlan(null)
-    setIncompleteEssay(null)
-    setWizardStep(1)
-    onClose()
   }
 
   const handleBack = () => {
@@ -296,6 +297,7 @@ export function WriteWithAiModal({
     setAlreadyRunning(null)
     cancelledRef.current = false
     setLoading(true)
+    const generationStarted = performance.now()
     try {
       if (isCaseStudy && !casePlan) {
         const result = await workbenchApi.planCaseStudy({
@@ -307,9 +309,11 @@ export function WriteWithAiModal({
         return
       }
       let essayPlan = plan
-      if (documentType === 'Essay' && !essayPlan) {
+      if (documentType === 'Essay' && !essayPlan && (reviewOutline || import.meta.env.VITE_ESSAY_LEGACY_PLANNING === 'true')) {
+        setPlanningEssay(true)
         const result = await workbenchApi.planEssay({ topic: topic.trim(), targetWordCount: wordCount, subType: essaySubType, academicLevel, discipline, citationStyle })
         if (cancelledRef.current) return
+        setPlanningEssay(false)
         if (reviewOutline) {
           setPlan(result)
           return
@@ -328,10 +332,9 @@ export function WriteWithAiModal({
         discipline,
         citationStyle,
         approvedPlan: essayPlan ?? undefined,
-        coWrite: documentType === 'Essay' && coWrite ? true : undefined,
         approvedCasePlan: isCaseStudy ? casePlan ?? undefined : undefined,
         researchPaperProfile: isResearchPaper ? researchProfile : undefined,
-        literatureReviewArchetype: isLiteratureReview ? literatureReviewArchetype : undefined,
+        literatureReviewArchetype: isLiteratureReview && literatureReviewArchetype !== 'Auto' ? literatureReviewArchetype : undefined,
         includeSeparateLiteratureReview: isResearchPaper ? includeLiteratureReview : undefined,
         targetJournal: isResearchPaper && targetJournal.trim() ? targetJournal.trim() : undefined,
         researchState: isResearchPaper ? toResearchState(researchStage) : undefined,
@@ -344,6 +347,17 @@ export function WriteWithAiModal({
           completedActivitiesEvidence: completedActivitiesEvidence.trim() || undefined,
         } : undefined,
         libraryDocuments: showDocPicker ? selectedLibraryDocuments() : undefined,
+        savedSourceIds: usesSavedSources && savedSourceIds.length ? savedSourceIds : undefined,
+      }
+      if (requestDocumentType === 'ResearchPaper') {
+        const signature = JSON.stringify(payload)
+        if (!paperPlan || paperPlanSignature !== signature) {
+          const outline = await planResearchPaper(payload)
+          if (cancelledRef.current) return
+          setPaperPlan(outline); setPaperPlanSignature(signature)
+          return
+        }
+        payload.approvedResearchPaperPlan = paperPlan
       }
       const controller = new AbortController()
       abortControllerRef.current = controller
@@ -355,14 +369,15 @@ export function WriteWithAiModal({
       }, excludeDocumentId)
       abortControllerRef.current = null
       if (cancelledRef.current) return
-      if (result.completionStatus === 'Incomplete' || result.essayFlags?.some(flag => flag.code === 'EssayIncomplete')) {
-        setIncompleteEssay(result)
-        onIncomplete?.(result)
-        setGenerationError(null)
-        return
-      }
-      setIncompleteEssay(null)
+      // Evidence diagnostics stay internal. Deliver any available draft without a review gate.
+      assertWritableDraft(result)
       onGenerated(result, citationStyle)
+      if (excludeDocumentId && requestDocumentType === 'ResearchPaper' && result.completionStatus !== 'Incomplete' && !result.researchPaperFlags?.some(flag => flag.code === 'ModeMismatch')) clearPaper(excludeDocumentId)
+      performance.measure('essay:request-to-editor', { start: generationStarted, end: performance.now(),
+        detail: { correlationId: result.pipelineMetrics?.correlationId, status: result.completionStatus } })
+      if (result.completionStatus === 'Incomplete') toast('Draft added. Some passages still need review.', { icon: '!' })
+      if (result.savedSourcesSkipped?.length)
+        toast(`${result.savedSourcesSkipped.length} saved source${result.savedSourcesSkipped.length === 1 ? ' was' : 's were'} left out because ${result.savedSourcesSkipped.length === 1 ? 'it has' : 'they have'} no abstract: ${result.savedSourcesSkipped.slice(0, 3).join('; ')}${result.savedSourcesSkipped.length > 3 ? '…' : ''}`, { icon: '!', duration: 9000 })
       if (excludeDocumentId) clearPendingGeneration(excludeDocumentId)
       if (result.coWrite) {
         // Section-by-section results show no review notes, so the one that says which writer was used is shown here.
@@ -380,7 +395,7 @@ export function WriteWithAiModal({
       }
       result.researchPaperFlags?.forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!' }))
       result.caseStudyFlags?.forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!' }))
-      result.essayFlags?.forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!' }))
+      result.essayFlags?.filter(flag => !['EssayIncomplete', 'QuestionComponentCoverage'].includes(flag.code)).forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!' }))
       result.literatureReviewFlags?.forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!', duration: 8000 }))
       result.argumentativeQuality?.findings.forEach(finding =>
         toast(`Argument: ${finding.message}`, { icon: '✎', duration: 8000 }))
@@ -422,6 +437,7 @@ export function WriteWithAiModal({
         toast.error(message)
       }
     } finally {
+      setPlanningEssay(false)
       abortControllerRef.current = null
       setLoading(false)
     }
@@ -577,7 +593,7 @@ export function WriteWithAiModal({
       {isResearchPaper && (
         <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/40 p-4">
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Actual research stage</label>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Research purpose and stage</label>
             <select value={researchStage} onChange={e => setResearchStage(e.target.value as ResearchStageChoice)} className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-[13px] text-slate-700">
               {RESEARCH_STAGE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
@@ -830,6 +846,18 @@ export function WriteWithAiModal({
         </div>
       )}
 
+      {requestDocumentType === 'ResearchPaper' && paperPlan && (
+        <div className="space-y-3 rounded-xl border border-purple-200 bg-purple-50/30 p-4">
+          <h3 className="font-semibold text-slate-800">Review your research outline</h3>
+          <p className="text-xs text-slate-500">Edit each section?s focus before approving. Word budgets total {paperPlan.reduce((n, s) => n + s.targetWords, 0)} words. Research-state evidence checks still apply.</p>
+          {paperPlan.map((section, index) => <label key={section.sectionKey} className="block text-sm text-slate-700">
+            {section.heading} ? {section.targetWords} words
+            <textarea aria-label={`${section.heading} focus`} maxLength={2000} rows={2} value={section.guidance}
+              onChange={e => setPaperPlan(old => old!.map((s, i) => i === index ? { ...s, guidance: e.target.value } : s))}
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-xs" />
+          </label>)}
+        </div>
+      )}
       {/* Research paper citation style */}
       {isResearchPaper && (
         <div>
@@ -884,6 +912,38 @@ export function WriteWithAiModal({
         </div>
       </div>
 
+      {/* Saved sources */}
+      {usesSavedSources && (
+        <div>
+          <button
+            type="button" onClick={() => setShowSavedSources(v => !v)} aria-expanded={showSavedSources} disabled={loading}
+            className="flex w-full items-center justify-between text-left disabled:opacity-60"
+          >
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Saved sources (optional)</span>
+            <span className="text-[12px] text-purple-accent">
+              {savedSourceIds.length ? `${savedSourceIds.length} selected · ` : ''}{showSavedSources ? 'Hide' : 'Choose'}
+            </span>
+          </button>
+          {showSavedSources && (
+            <div className="mt-2">
+              <SavedSourcePicker
+                selectedIds={savedSourceIds}
+                onChange={ids => { setSavedSourceIds(ids); setCasePlan(null) }}
+                requireText max={MAX_SAVED_SOURCES_PER_REQUEST} disabled={loading} listClassName="max-h-52"
+              />
+            </div>
+          )}
+          {savedSourceIds.length > 0 && (
+            <p className="mt-1.5 text-[12px] text-slate-500">
+              {sourceMode === 'MyFiles'
+                ? 'The draft will stay within your saved sources and any documents you select. No web search is run.'
+                : 'Your saved sources are used first, alongside the papers found by web search.'}
+              {' '}Only their abstracts are read.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Doc picker */}
       {showDocPicker && (
         <div>
@@ -934,7 +994,7 @@ export function WriteWithAiModal({
             ? (isEssay && !reviewOutline
               ? 'We\'ll plan the essay and write the full draft in one go. You can edit it freely afterwards.'
               : 'We\'ll generate a structured outline for you to review before writing.')
-            : 'Your document will be generated with verified academic sources.'}
+            : 'Your draft will use available evidence. Source identity and claim support are checked separately.'}
         </p>
       )}
     </div>
@@ -962,6 +1022,7 @@ export function WriteWithAiModal({
   const ctaLabel = loading
     ? loadingLabel
     : isEssay && plan ? 'Generate full draft'
+    : requestDocumentType === 'ResearchPaper' ? (paperPlan ? 'Approve outline & write' : 'Build research outline')
     : isCaseStudy && casePlan ? 'Generate case study'
     : isEssay ? (reviewOutline ? 'Generate outline' : 'Generate full draft')
     : isCaseStudy ? 'Classify & plan case'
@@ -1020,123 +1081,6 @@ export function WriteWithAiModal({
           <p className="mt-1">Your existing document has been kept. You can retry with the same outline.</p>
         </div>
       )}
-      {incompleteEssay && (() => {
-        const hasUsableDraft = Boolean(incompleteEssay.content?.trim() || incompleteEssay.sections)
-        const wordCountEstimate = incompleteEssay.wordCount || (incompleteEssay.content ? incompleteEssay.content.trim().split(/\s+/).length : 0)
-
-        return (
-          <div role="alert" className="mx-6 my-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-950">
-            <p className="font-semibold text-amber-900">More evidence or revision is needed</p>
-            <p className="mt-1 font-medium text-slate-800">{incompleteEssay.title}</p>
-            <p className="mt-1 text-slate-700">{incompleteEssay.completionReason ?? incompleteEssay.essayFlags?.find(flag => flag.code === 'EssayIncomplete')?.message}</p>
-            <ul className="mt-2 list-disc pl-4 text-xs text-slate-600">
-              {incompleteEssay.essayFlags?.filter(flag => flag.code === 'QuestionComponentCoverage').map(flag => (
-                <li key={flag.section}><strong>{flag.section}:</strong> {flag.message}</li>
-              ))}
-            </ul>
-
-            {hasUsableDraft ? (
-              <div className="mt-3 rounded-lg border border-amber-300 bg-amber-100/70 p-3">
-                <p className="font-semibold text-amber-950 flex items-center gap-1.5">
-                  <FileText size={15} className="text-amber-800" />
-                  Generated draft is available ({wordCountEstimate} words)
-                </p>
-                <p className="mt-1 text-xs text-amber-900 leading-relaxed">
-                  The automated pipeline completed writing and citations, but flagged specific claims or reference details for review. You can insert the generated draft into the editor now and make manual edits, or retry generation.
-                </p>
-                <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleInsertIncompleteDraft}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-800 hover:bg-amber-900 text-white px-3.5 py-1.5 text-xs font-semibold shadow-sm transition-colors"
-                  >
-                    <FileText size={14} />
-                    Insert draft into editor anyway
-                  </button>
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-amber-900 underline hover:text-amber-950 ml-1"
-                    onClick={() => {
-                      const blob = new Blob([JSON.stringify(incompleteEssay, null, 2)], { type: 'application/json' })
-                      const url = URL.createObjectURL(blob)
-                      const link = document.createElement('a')
-                      link.href = url
-                      link.download = 'unfinished-essay-and-sources.json'
-                      link.click()
-                      URL.revokeObjectURL(url)
-                    }}
-                  >
-                    Download raw JSON and sources
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-3 rounded-lg border border-amber-300 bg-amber-100/70 p-3 space-y-2">
-                <p className="text-xs text-amber-900 leading-relaxed">
-                  Drafting paused because online literature coverage did not reach required targets for every sub-question. Try writing section-by-section (which writes each part interactively) or attach your own papers.
-                </p>
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCoWrite(true)
-                      setIncompleteEssay(null)
-                      setWizardStep(2)
-                      toast('Switched to Section-by-Section (Co-Write).', { icon: '✍️' })
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors"
-                  >
-                    Switch to Section-by-Section (Co-Write)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSourceMode('Hybrid')
-                      setIncompleteEssay(null)
-                      setWizardStep(2)
-                      toast('Switched to Hybrid sources. You can select documents from My Files.', { icon: '📂' })
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400 bg-white hover:bg-amber-50 text-amber-950 px-3 py-1.5 text-xs font-medium shadow-sm transition-colors"
-                  >
-                    Attach My Files (Hybrid)
-                  </button>
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-amber-900 underline hover:text-amber-950 ml-auto"
-                    onClick={() => {
-                      const blob = new Blob([JSON.stringify(incompleteEssay, null, 2)], { type: 'application/json' })
-                      const url = URL.createObjectURL(blob)
-                      const link = document.createElement('a')
-                      link.href = url
-                      link.download = 'unfinished-essay-and-sources.json'
-                      link.click()
-                      URL.revokeObjectURL(url)
-                    }}
-                  >
-                    Download research JSON
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {!!incompleteEssay.questionCoverage?.gapReport?.length && (
-              <div className="mt-3 overflow-x-auto">
-                <table className="w-full border-collapse text-left text-xs">
-                  <caption className="mb-2 text-left font-semibold">Evidence coverage — three direct sources per part is a retrieval target</caption>
-                  <thead><tr><th className="p-2">Sub-question</th><th className="p-2">Period</th><th className="p-2">Direct sources</th><th className="p-2">Status</th></tr></thead>
-                  <tbody>{incompleteEssay.questionCoverage.gapReport.map(row => (
-                    <tr key={row.componentId} className="border-t border-amber-200">
-                      <td className="p-2">{row.subQuestion}</td><td className="p-2">{row.period}</td>
-                      <td className="p-2">{row.directSourceCount}<details><summary>Sources and periods</summary>{row.sourcePeriods.map(period => <p key={period}>{period}</p>)}</details></td>
-                      <td className="p-2">{row.status}</td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )
-      })()}
       <div className="overflow-y-auto max-h-[60vh]">
         {wizardStep === 1 ? renderStep1() : renderStep2()}
       </div>
@@ -1180,7 +1124,7 @@ export function WriteWithAiModal({
             </button>
             {loading && (
               <span className="hidden sm:inline-block text-[11px] text-slate-400 max-w-[220px] text-center leading-tight">
-                Search and verification: {elapsedText} so far
+                Elapsed: {elapsedText}
               </span>
             )}
             <button

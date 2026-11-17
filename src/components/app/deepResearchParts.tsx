@@ -1,20 +1,69 @@
 import { useId, useState, type KeyboardEvent } from 'react'
-import { AlertTriangle, Check, ChevronDown, Loader2, RefreshCw, Wand2 } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, CircleSlash, Loader2, RefreshCw, Wand2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import type { DeepResearchCounts } from '../../api/deepResearch'
 import { funnelRows } from '../../lib/deepResearchReport'
-import { SEGMENT_LEGEND, SEGMENT_SYMBOL, SEGMENT_WORDS, sourcesSummaryLine, strengthLevel, type SegmentState, type Stance } from '../../lib/deepResearchView'
+import { SEGMENT_LEGEND, SEGMENT_SYMBOL, SEGMENT_WORDS, sourcesSummaryLine, strengthLevel, type SegmentState, type Stance, type StepState } from '../../lib/deepResearchView'
 
 // Small presentational parts of the results page. Each is used in more than one place, or needs its own keyboard
 // behaviour, so it lives here rather than inline.
 
-/** "Disagrees" with an icon and a word, so it never relies on colour. The same badge is used wherever a source disagrees. */
+/**
+ * "Contradicts" with an icon and a word, so it never relies on colour. A null result ("No effect found") is a finding of its
+ * own, not a disagreement, so it gets a neutral badge without the warning icon.
+ */
 export function DisagreesBadge({ kind = 'Contradicts' }: { kind?: 'Contradicts' | 'Null' }) {
+  if (kind === 'Null') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded border border-sky-300 bg-sky-50 px-1.5 py-px text-[12px] font-semibold text-sky-900">
+        <CircleSlash size={12} aria-hidden="true" /> No effect found
+      </span>
+    )
+  }
   return (
     <span className="inline-flex items-center gap-1 rounded border border-orange-300 bg-orange-50 px-1.5 py-px text-[12px] font-semibold text-orange-900">
-      <AlertTriangle size={12} aria-hidden="true" />
-      {kind === 'Null' ? 'No effect found' : 'Disagrees'}
+      <AlertTriangle size={12} aria-hidden="true" /> Contradicts
     </span>
   )
+}
+
+const STEP_STYLES: Record<StepState, string> = {
+  done: 'border-purple-accent bg-purple-accent text-white',
+  partial: 'border-purple-300 bg-purple-100 text-purple-deep',
+  pending: 'border-dashed border-slate-400 bg-white text-slate-700',
+  failed: 'border-red-300 bg-red-50 text-red-800',
+}
+const STEP_SYMBOL: Record<StepState, string> = { done: '✓', partial: '◐', pending: '○', failed: '!' }
+
+/**
+ * One labelled step per question ("Definition", "Mechanisms", "South Africa"), coloured AND marked by symbol from the
+ * server's verdict. Each step is a link to its question. There is no legend: the verdict is in each step's own name.
+ */
+export function ProgressSteps({ steps, onSelect }: { steps: { title: string; state: StepState; verdict: string }[]; onSelect: (index: number) => void }) {
+  if (steps.length === 0) return null
+  return (
+    <ol aria-label="Questions" className="mt-3 flex flex-wrap gap-1.5">
+      {steps.map((s, i) => (
+        <li key={i} className="min-w-[7rem] flex-1">
+          <button type="button" onClick={() => onSelect(i)} title={s.verdict}
+            aria-label={`${s.title}: ${s.verdict}. Go to this question.`}
+            className={cn('flex min-h-9 w-full items-center justify-center gap-1.5 rounded border px-2 text-[12px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-purple-accent focus-visible:ring-offset-1', STEP_STYLES[s.state])}>
+            <span aria-hidden="true">{STEP_SYMBOL[s.state]}</span><span className="truncate">{s.title}</span>
+          </button>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+/** The server's counts, as one line. Nothing is re-counted here. */
+export function CountsLine({ counts }: { counts: DeepResearchCounts }) {
+  const parts = [
+    `${counts.found} found`, `${counts.accepted} accepted`, `${counts.cited} cited`,
+    counts.contradicts > 0 ? `${counts.contradicts} contradict` : '', counts.noEffect > 0 ? `${counts.noEffect} found no effect` : '',
+    counts.offTopic > 0 ? `${counts.offTopic} off-topic` : '', `${counts.leftOut} left out`,
+  ].filter(Boolean)
+  return <p className="text-[13px] text-slate-700"><span className="text-slate-600">Sources: </span>{parts.join(' · ')}</p>
 }
 
 /** One evidence-strength indicator in place of several badges: four steps plus the word, so colour is never the only signal. */
@@ -34,10 +83,10 @@ export function StrengthMeter({ strength }: { strength: string }) {
 export function ClampedTitle({ text }: { text: string }) {
   const [open, setOpen] = useState(false)
   const id = useId()
-  const long = text.length > 110
+  const long = text.length > 220
   return (
     <div>
-      <h2 id={id} className={cn('text-left font-serif text-[24px] leading-snug font-semibold text-slate-900 break-words', long && !open && 'line-clamp-2')}>{text}</h2>
+      <h2 id={id} className={cn('text-left font-serif text-[28px] leading-tight font-semibold text-slate-900 break-words', long && !open && 'line-clamp-2')}>{text}</h2>
       {long && (
         <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(v => !v)}
           className="mt-1 text-[13px] font-medium text-purple-deep hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40">
@@ -146,6 +195,8 @@ export function CitationPreview({ id, title, quote }: { id: string; title: strin
 export function StanceMarker({ stance }: { stance: Stance }) {
   if (stance === 'disagrees') return <DisagreesBadge />
   if (stance === 'noEffect') return <DisagreesBadge kind="Null" />
+  if (stance === 'offTopic') return <span className="inline-flex items-center rounded border border-slate-300 bg-slate-100 px-1.5 py-px text-[12px] font-semibold text-slate-700">Off-topic</span>
+  if (stance === 'notUsed') return <span className="inline-flex items-center rounded border border-slate-200 bg-white px-1.5 py-px text-[12px] font-medium text-slate-600">Not used</span>
   if (stance === 'supports') {
     return (
       <span className="inline-flex items-center gap-1 rounded border border-emerald-300 bg-emerald-50 px-1.5 py-px text-[12px] font-semibold text-emerald-900">

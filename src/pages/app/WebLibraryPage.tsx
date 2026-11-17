@@ -1,17 +1,13 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft, ChevronRight, FolderOpen, Folder, Trash2, Tag, Plus,
-  Upload, BookOpen,
-  ChevronDown, Download, X, Sparkles, ArrowUpDown,
-  Check, Search, List, Table2,
+  Upload, BookOpen, X, Check, Search,
 } from 'lucide-react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { cn } from '../../lib/utils'
 import { useWebLibraryStore } from '../../store/webLibraryStore'
 import { UploadModal } from '../../components/ui/UploadModal'
-import { LibraryChatDrawer } from '../../components/ui/LibraryChatDrawer'
-import type { ChatContext } from '../../components/ui/LibraryChatDrawer'
 import { WebLibraryTabBar } from '../../components/webLibrary/WebLibraryTabBar'
 import { AddToCollectionModal } from '../../components/webLibrary/AddToCollectionModal'
 import { MoveToFolderModal } from '../../components/webLibrary/MoveToFolderModal'
@@ -21,36 +17,17 @@ import { LibraryReferenceTable } from '../../components/webLibrary/LibraryRefere
 import { getPrimaryRowActions, getOverflowRowActions, type RowActionHandlers } from '../../components/webLibrary/libraryRowActions'
 import { PaperDetailsDrawer } from '../../components/webLibrary/PaperDetailsDrawer'
 import { ImportSourcesModal } from '../../components/webLibrary/ImportSourcesModal'
+import { SavedPaperPanel } from '../../components/webLibrary/SavedPaperPanel'
+import { SavedPapersToolbar } from '../../components/webLibrary/SavedPapersToolbar'
+import { SAVED_SORT_OPTIONS, activeSavedFilterCount, sortSavedPapers, type SavedPaperFilters, type SavedSortKey } from '../../lib/savedPaperFilters'
+import type { SortDir } from '../../lib/collectionsView'
 import ConfirmActionModal from '../../components/app/ConfirmActionModal'
-import { Tooltip } from '../../components/ui/Tooltip'
 import { exportPapersToCsv } from '../../lib/libraryCsvExport'
+import { matchesSavedSourceFilter, savedSourceOrigin, savedSourceText, stepPaper } from '../../lib/savedSources'
 import type { PaperDetails } from '../../types/researchLibrary'
-import {
-  COLUMN_META, ORDERED_COLUMNS,
-} from '../../types/webLibrary'
-import type {
-  ResearchDocument, ColumnKey, ActiveLocation, ResearchDocType,
-} from '../../types/webLibrary'
+import { COLUMN_META } from '../../types/webLibrary'
+import type { ResearchDocument, ColumnKey, ActiveLocation } from '../../types/webLibrary'
 import toast from 'react-hot-toast'
-
-// ── Constants ──────────────────────────────────────────────────────────────────
-
-const DOC_TYPE_COLORS: Record<ResearchDocType, string> = {
-  'Journal Article':  'bg-slate-100 text-slate-600 border border-slate-200',
-  'Book':             'bg-slate-100 text-slate-600 border border-slate-200',
-  'Book Chapter':     'bg-slate-100 text-slate-600 border border-slate-200',
-  'Conference Paper': 'bg-slate-100 text-slate-600 border border-slate-200',
-  'Preprint':         'bg-slate-100 text-slate-600 border border-slate-200',
-  'Report':           'bg-slate-100 text-slate-600 border border-slate-200',
-  'Thesis':           'bg-slate-100 text-slate-600 border border-slate-200',
-}
-
-const SORT_OPTIONS = [
-  { label: 'Date Added',    value: 'date-added'   },
-  { label: 'Title A–Z',    value: 'title-asc'    },
-  { label: 'Title Z–A',    value: 'title-desc'   },
-  { label: 'Year',         value: 'year'         },
-]
 
 const TRASH = '__trash__'
 
@@ -163,7 +140,8 @@ function InnerSidebar({
 
         {/* Private Library */}
         <div>
-          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold px-2 mb-1.5">Private library</p>
+          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold px-2 mb-0.5">Private library</p>
+          <p className="px-2 mb-1.5 text-[11.5px] leading-snug text-slate-600">Folders are where your papers are stored. Each paper sits in one folder.</p>
           <div className="space-y-0.5">
             {/* All files */}
             <div>
@@ -247,7 +225,7 @@ function InnerSidebar({
   )
 }
 
-// ── Cell: Papers column (Library View) ──────────────────────────────────────────
+// ── Cell: Papers column (Library View) — one compact row per paper ─────────────
 
 function PapersCell({
   doc, selected, onToggle, handlers, inTrash,
@@ -260,49 +238,41 @@ function PapersCell({
 }) {
   const { open } = getPrimaryRowActions(doc, handlers)
   const overflow = getOverflowRowActions(doc, handlers, inTrash)
+  const hasAbstract = savedSourceText(doc) === 'abstract'
+  const authors = doc.authors.length === 0 ? 'No author recorded' : doc.authors.length > 3 ? `${doc.authors.slice(0, 3).join(', ')} et al.` : doc.authors.join(', ')
 
   return (
     <td className="align-top p-0 border-b border-slate-100">
-      <div className="flex gap-2.5 p-3 min-h-[120px]">
-        {/* Checkbox */}
+      <div className="flex items-start gap-2.5 px-3 py-2">
         <button
           onClick={e => { e.stopPropagation(); onToggle() }}
           aria-label={selected ? `Deselect ${doc.title}` : `Select ${doc.title}`}
+          aria-pressed={selected}
           className={cn(
-            'mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-colors',
-            selected ? 'border-purple-accent bg-purple-accent' : 'border-slate-300 hover:border-slate-400',
+            'mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40',
+            selected ? 'border-purple-accent bg-purple-accent' : 'border-slate-400 hover:border-slate-500',
           )}
         >
           {selected && <Check size={10} className="text-white" />}
         </button>
 
-        {/* Document info */}
-        <div className="flex-1 min-w-0 space-y-1.5">
-          {/* Type badge + Full-text indicator */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={cn('inline-block text-[10px] font-medium px-1.5 py-0.5 rounded', DOC_TYPE_COLORS[doc.docType] ?? 'bg-slate-50 text-slate-600')}>
-              {doc.docType}
+        <div className="flex-1 min-w-0">
+          <p className="truncate text-[13.5px] font-semibold leading-snug text-slate-900" title={doc.title}>{doc.title}</p>
+          <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px] text-slate-600">
+            <span className="truncate">
+              {authors}{doc.year ? ` · ${doc.year}` : ''}{doc.journal ? <span className="italic"> · {doc.journal}</span> : null}{doc.doi ? ` · ${doc.doi}` : ''}
             </span>
-            {doc.isFullText && (
-              <Tooltip label="Full text is available for this record">
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-tint text-purple-text">Full text</span>
-              </Tooltip>
-            )}
           </div>
-
-          {/* Title */}
-          <p className="text-[13px] font-semibold text-slate-800 hover:underline cursor-pointer leading-snug line-clamp-2">
-            {doc.title}
-          </p>
-
-          {/* Author */}
-          {doc.authors.length > 0 && (
-            <p className="text-[12px] text-slate-500">{doc.authors.join(', ')}</p>
-          )}
-
-          <div className="mt-2">
-            <RowActionBar open={open} overflow={overflow} paper={doc} />
+          <div className="mt-1 flex flex-wrap items-center gap-1 text-[10.5px]">
+            <span className="rounded bg-slate-100 px-1.5 py-px font-medium text-slate-700">{doc.docType}</span>
+            <span className={cn('rounded px-1.5 py-px font-medium', hasAbstract ? 'bg-green-tint text-green-text' : 'bg-slate-100 text-slate-600')}>{hasAbstract ? 'Abstract' : 'Details only'}</span>
+            <span className="rounded bg-slate-100 px-1.5 py-px text-slate-600">{savedSourceOrigin(doc) === 'search' ? 'From Find Papers' : 'Imported'}</span>
           </div>
+        </div>
+
+        {/* Quick actions on hover/focus (not on phones: no hover, and every action is also in the details panel). */}
+        <div className="hidden shrink-0 opacity-0 transition-opacity md:block group-hover:opacity-100 group-focus-within:opacity-100 group-aria-selected:opacity-100">
+          <RowActionBar open={open} overflow={overflow} paper={doc} />
         </div>
       </div>
     </td>
@@ -320,38 +290,21 @@ function ContentCell({
   expanded: boolean
   onToggle: () => void
 }) {
-  const PREVIEW_LEN = 320
-  const baseClass = 'align-top border-b border-slate-100 border-l border-slate-100 w-[340px] max-w-[340px]'
-
+  const baseClass = 'align-top border-b border-slate-100 border-l border-slate-100 w-[320px] max-w-[320px]'
   if (!text) {
     return (
-      <td
-        data-doc-id={docId}
-        data-col={colKey}
-        className={baseClass}
-      >
-        <div className="p-3 min-h-[120px] flex items-center justify-center">
-          <p className="text-[12px] text-slate-300 italic">No content available</p>
-        </div>
+      <td data-doc-id={docId} data-col={colKey} className={baseClass}>
+        <p className="px-3 py-2 text-[12px] text-slate-500">—</p>
       </td>
     )
   }
-
-  const truncated = text.length > PREVIEW_LEN && !expanded
-
   return (
-    <td
-      data-doc-id={docId}
-      data-col={colKey}
-      className={baseClass}
-    >
-      <div className="p-3 min-h-[120px] flex flex-col gap-2">
-        <p className="text-[13px] text-slate-700 leading-relaxed">
-          {truncated ? text.slice(0, PREVIEW_LEN) + '…' : text}
-        </p>
-        {text.length > PREVIEW_LEN && (
-          <button onClick={onToggle} className="text-[12px] text-purple-accent hover:text-purple-deep self-start font-medium transition-colors">
-            {expanded ? 'Show less' : 'View More'}
+    <td data-doc-id={docId} data-col={colKey} className={baseClass}>
+      <div className="px-3 py-2">
+        <p className={cn('text-[12.5px] text-slate-700 leading-relaxed', !expanded && 'line-clamp-3')}>{text}</p>
+        {text.length > 180 && (
+          <button onClick={e => { e.stopPropagation(); onToggle() }} aria-expanded={expanded} className="mt-0.5 text-[12px] font-medium text-purple-accent hover:text-purple-deep">
+            {expanded ? 'Show less' : 'Show more'}
           </button>
         )}
       </div>
@@ -368,24 +321,16 @@ function ColHeader({
 }) {
   const { label } = COLUMN_META[colKey]
   return (
-    <th scope="col" className="text-left px-3 py-2.5 border-b border-l border-slate-200 bg-slate-50/80 w-[340px] min-w-[340px]">
+    <th scope="col" className="text-left px-3 py-2 border-b border-l border-slate-200 bg-slate-50/90 w-[320px] min-w-[320px]">
       <div className="flex items-center gap-1">
-        <button
-          onClick={onPrev} disabled={!hasPrev}
-          aria-label={`Move ${label} column left`}
-          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-200 disabled:opacity-20 transition-colors"
-        >
+        <button onClick={onPrev} disabled={!hasPrev} aria-label={`Move ${label} column left`} className="w-6 h-6 rounded flex items-center justify-center text-slate-500 hover:bg-slate-200 disabled:opacity-20 transition-colors">
           <ChevronLeft size={13} />
         </button>
-        <span className="flex-1 text-[13px] font-semibold text-slate-700">{label}</span>
-        <button onClick={onRemove} aria-label={`Remove ${label} column`} className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors">
+        <span className="flex-1 text-[12.5px] font-semibold text-slate-700">{label}</span>
+        <button onClick={onRemove} aria-label={`Remove ${label} column`} className="w-6 h-6 rounded flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
           <X size={13} />
         </button>
-        <button
-          onClick={onNext} disabled={!hasNext}
-          aria-label={`Move ${label} column right`}
-          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-200 disabled:opacity-20 transition-colors"
-        >
+        <button onClick={onNext} disabled={!hasNext} aria-label={`Move ${label} column right`} className="w-6 h-6 rounded flex items-center justify-center text-slate-500 hover:bg-slate-200 disabled:opacity-20 transition-colors">
           <ChevronRight size={13} />
         </button>
       </div>
@@ -393,41 +338,11 @@ function ColHeader({
   )
 }
 
-// ── Sort Dropdown ──────────────────────────────────────────────────────────────
-
-function SortDropdown({ sortBy, onSort }: { sortBy: string; onSort: (v: string) => void }) {
-  const [open, setOpen] = useState(false)
-  const label = SORT_OPTIONS.find(o => o.value === sortBy)?.label ?? 'Date Added'
-
-  return (
-    <div className="relative">
-      <button onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-[13px] text-slate-600 hover:border-slate-300 transition-colors">
-        <ArrowUpDown size={13} className="text-slate-400" />
-        <span>Sort: <span className="font-medium text-slate-800">{label}</span></span>
-        <ChevronDown size={12} className={cn('text-slate-400 transition-transform', open && 'rotate-180')} />
-      </button>
-      <AnimatePresence>
-        {open && (
-          <>
-            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-            <motion.div
-              initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="absolute top-full mt-1 left-0 bg-white border border-slate-200 rounded-xl shadow-xl z-20 w-44 py-1 overflow-hidden"
-            >
-              {SORT_OPTIONS.map(o => (
-                <button key={o.value} onClick={() => { onSort(o.value); setOpen(false) }}
-                  className={cn('w-full flex items-center gap-2 px-3 py-2 text-[13px] transition-colors', sortBy === o.value ? 'text-purple-accent font-medium bg-purple-tint' : 'text-slate-600 hover:bg-slate-50')}>
-                  {sortBy === o.value && <Check size={12} className="text-purple-accent" />}
-                  <span>{o.label}</span>
-                </button>
-              ))}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </div>
-  )
+/** Keys that belong to whatever has focus, not to the paper list. */
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null
+  if (!el) return false
+  return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
@@ -444,17 +359,18 @@ export default function WebLibraryPage() {
   } = useWebLibraryStore()
 
   const [activeLocation,  setActiveLocation]  = useState<ActiveLocation>('all')
-  const [libCollapsed,    setLibCollapsed]    = useState(false)
+  const [libCollapsed,    setLibCollapsed]    = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 767px)').matches) // phones start with the folder rail, not the 224px panel
   const [viewMode,        setViewMode]        = useState<'library' | 'reference'>('library')
-  const [sortBy,          setSortBy]          = useState('date-added')
+  const [sortKey,         setSortKey]         = useState<SavedSortKey>('date-added')
+  const [sortDir,         setSortDir]         = useState<SortDir>('desc')
   const [tagFilter,       setTagFilter]       = useState('')
+  const [query,           setQuery]           = useState('')
+  const [savedFilters,    setSavedFilters]    = useState<SavedPaperFilters>({})
   const [selectedRows,    setSelectedRows]    = useState<Set<string>>(new Set())
+  const [openId,          setOpenId]          = useState<string | null>(null)
   const [expandedCells,   setExpandedCells]   = useState<Set<string>>(new Set())  // `${docId}-${colKey}`
   const [uploadOpen,      setUploadOpen]      = useState(false)
   const [importSourcesOpen, setImportSourcesOpen] = useState(false)
-  const [addColDropdown,  setAddColDropdown]  = useState(false)
-  const [chatOpen,        setChatOpen]        = useState(false)
-  const [chatContext,     setChatContext]     = useState<ChatContext | null>(null)
   const [collectionModalDocIds, setCollectionModalDocIds] = useState<string[]>([])
   const [moveFolderDoc,   setMoveFolderDoc]   = useState<ResearchDocument | null>(null)
   const [pendingTrash,    setPendingTrash]    = useState<ResearchDocument | null>(null)
@@ -495,17 +411,9 @@ export default function WebLibraryPage() {
     setParams(next, { replace: true })
   }, [params, setParams])
 
-  // Clear selection with Esc
-  useEffect(() => {
-    if (selectedRows.size === 0) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectedRows(new Set()) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [selectedRows.size])
-
   const allTags = useMemo(() => [...new Set(documents.flatMap(d => d.tags))].sort(), [documents])
 
-  // Filter by location, then by tag
+  // Location, then tag, then the toolbar's search and filters, then sort.
   const filteredDocs = useMemo(() => {
     let docs = [...documents]
     if (activeLocation === 'all')          docs = docs.filter(d => d.folderId !== TRASH)
@@ -517,18 +425,15 @@ export default function WebLibraryPage() {
       const q = tagFilter.trim().toLowerCase()
       docs = docs.filter(d => d.tags.some(t => t.toLowerCase().includes(q)))
     }
+    docs = docs.filter(d => matchesSavedSourceFilter(d, { ...savedFilters, query }))
 
-    if (sortBy === 'title-asc')  docs.sort((a, b) => a.title.localeCompare(b.title))
-    if (sortBy === 'title-desc') docs.sort((a, b) => b.title.localeCompare(a.title))
-    if (sortBy === 'year')       docs.sort((a, b) => (b.year ?? 0) - (a.year ?? 0))
-    if (sortBy === 'date-added') docs.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-
-    return docs
-  }, [documents, activeLocation, tagFilter, sortBy])
+    return sortSavedPapers(docs, sortKey, sortDir)
+  }, [documents, activeLocation, tagFilter, savedFilters, query, sortKey, sortDir])
 
   const trashCount = documents.filter(d => d.folderId === TRASH).length
   const allCount   = documents.filter(d => d.folderId !== TRASH).length
   const inTrash    = activeLocation === 'trash'
+  const isNarrowed = query.trim() !== '' || activeSavedFilterCount(savedFilters) > 0 || tagFilter.trim() !== ''
 
   // No "Generate" handler exists anywhere for these AI columns (confirmed via
   // discovery) — rather than show a column full of "No content available",
@@ -538,6 +443,54 @@ export default function WebLibraryPage() {
     () => visibleColumns.filter(key => filteredDocs.some(d => (d[key as keyof ResearchDocument] as string | undefined)?.trim())),
     [visibleColumns, filteredDocs],
   )
+
+  // The details panel follows the list: a paper that is filtered out, trashed or deleted closes it.
+  const openIndex = openId ? filteredDocs.findIndex(d => d.id === openId) : -1
+  const openDoc = openIndex >= 0 ? filteredDocs[openIndex] : null
+  useEffect(() => { if (openId && openIndex === -1) setOpenId(null) }, [openId, openIndex])
+
+  const focusRow = useCallback((id: string) => {
+    requestAnimationFrame(() => {
+      const row = Array.from(document.querySelectorAll<HTMLElement>('[data-paper-row]')).find(el => el.dataset.paperRow === id)
+      row?.focus({ preventScroll: true })
+      row?.scrollIntoView?.({ block: 'nearest' })
+    })
+  }, [])
+
+  const openPaper = useCallback((id: string | null, focus = false) => {
+    setOpenId(id)
+    if (id && focus) focusRow(id)
+  }, [focusRow])
+
+  const closePanel = useCallback(() => {
+    const id = openId
+    setOpenId(null)
+    if (id) focusRow(id)
+  }, [openId, focusRow])
+
+  // List keyboard: ↑/↓ move between papers (and open them when the panel is showing), Esc closes
+  // the panel first and only then clears a selection. Keys typed into a field, or pressed while a
+  // modal dialog (collection picker, confirmations, full record) is open, are left alone.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || isTypingTarget(e.target)) return
+      if (document.querySelector('[aria-modal="true"]')) return
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const fromRow = (e.target as HTMLElement | null)?.closest?.('[data-paper-row]')?.getAttribute('data-paper-row')
+        if (!openId && !fromRow) return
+        e.preventDefault()
+        const next = stepPaper(filteredDocs.map(d => d.id), openId ?? fromRow ?? null, e.key === 'ArrowDown' ? 1 : -1)
+        if (!next) return
+        if (openId) openPaper(next, true)
+        else focusRow(next)
+      } else if (e.key === 'Escape') {
+        if (openId) closePanel()
+        else if (selectedRows.size > 0) setSelectedRows(new Set())
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [openId, filteredDocs, selectedRows.size, openPaper, focusRow, closePanel])
 
   const toggleRow = (id: string) =>
     setSelectedRows(prev => {
@@ -555,12 +508,9 @@ export default function WebLibraryPage() {
     })
   }
 
+  const allVisibleSelected = filteredDocs.length > 0 && filteredDocs.every(d => selectedRows.has(d.id))
   const toggleAllRows = () => {
-    if (selectedRows.size === filteredDocs.length) {
-      setSelectedRows(new Set())
-    } else {
-      setSelectedRows(new Set(filteredDocs.map(d => d.id)))
-    }
+    setSelectedRows(allVisibleSelected ? new Set() : new Set(filteredDocs.map(d => d.id)))
   }
 
   const moveColumnLeft = (key: ColumnKey) => {
@@ -579,11 +529,6 @@ export default function WebLibraryPage() {
     reorderColumns(next)
   }
 
-  const handleChatClick = useCallback((doc: ResearchDocument) => {
-    setChatContext({ docId: doc.id, title: doc.title })
-    setChatOpen(true)
-  }, [])
-
   const handleUpload = (files: File[], folderId: string | null = null) => {
     files.forEach(file => {
       void useWebLibraryStore.getState().addDocument({
@@ -597,7 +542,7 @@ export default function WebLibraryPage() {
     toast.success(`${files.length} file${files.length !== 1 ? 's' : ''} uploaded`)
   }
 
-  // ── Shared row-action handlers (Library View, Reference Manager View) ───────
+  // ── Shared row-action handlers (Library View, Reference table, details panel) ──
   const rowActionHandlers: RowActionHandlers = {
     onOpenPdfViewer: (doc) => { if (doc.canonicalWorkId) navigate(`/app/web-library/papers/${doc.canonicalWorkId}/pdf`) },
     onDownload: (doc) => {
@@ -607,7 +552,6 @@ export default function WebLibraryPage() {
       a.download = `${doc.title}.pdf`
       a.click()
     },
-    onChat: handleChatClick,
     onAddToCollection: (doc) => setCollectionModalDocIds([doc.id]),
     onDetails: (doc) => {
       if (!doc.canonicalWorkId) return
@@ -623,6 +567,16 @@ export default function WebLibraryPage() {
 
   const heading = locationHeading(activeLocation, folders)
   const selectedDocs = filteredDocs.filter(d => selectedRows.has(d.id))
+  const folderNameOf = (doc: ResearchDocument) =>
+    doc.folderId === TRASH ? 'Trash' : doc.folderId ? folders.find(f => f.id === doc.folderId)?.name : undefined
+
+  const rowProps = (doc: ResearchDocument) => ({
+    'data-paper-row': doc.id,
+    tabIndex: 0,
+    'aria-selected': openId === doc.id,
+    onClick: () => openPaper(doc.id),
+    onKeyDown: (e: React.KeyboardEvent) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); openPaper(doc.id) } },
+  })
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white">
@@ -636,7 +590,7 @@ export default function WebLibraryPage() {
         onCollapse={() => setLibCollapsed(v => !v)}
         folders={folders}
         activeLocation={activeLocation}
-        onSelectLocation={setActiveLocation}
+        onSelectLocation={(loc) => { setActiveLocation(loc); setSelectedRows(new Set()) }}
         onCreateFolder={createFolder}
         allCount={allCount}
         trashCount={trashCount}
@@ -646,147 +600,70 @@ export default function WebLibraryPage() {
       />
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
-        {/* ── Ask your library — the one entry point into library chat.
-             LibraryChatDrawer doesn't accept an external initial question, so
-             this is a styled trigger button rather than a live input; no new
-             AI call is introduced (Research Library UX audit, 2026-10-03). ── */}
-        <button
-          onClick={() => { setChatContext(null); setChatOpen(true) }}
-          className="h-9 border-b border-slate-100 flex items-center px-5 gap-2 shrink-0 bg-slate-50/60 hover:bg-purple-tint/40 transition-colors text-left"
-        >
-          <Sparkles size={14} className="text-purple-accent" />
-          <span className="text-[13px] text-slate-600">Ask your library a question…</span>
-        </button>
+        <SavedPapersToolbar
+          heading={heading}
+          count={filteredDocs.length}
+          query={query}
+          onQuery={setQuery}
+          filters={savedFilters}
+          onFilters={setSavedFilters}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={(key, dir) => { setSortKey(key); setSortDir(dir) }}
+          viewMode={viewMode}
+          onViewMode={setViewMode}
+          visibleColumns={visibleColumns}
+          onToggleColumn={(k) => visibleColumns.includes(k) ? removeColumn(k) : addColumn(k)}
+          onExport={() => exportPapersToCsv(selectedRows.size > 0 ? selectedDocs : filteredDocs)}
+          exportLabel={selectedRows.size > 0 ? `Export ${selectedRows.size} selected (CSV)` : `Export ${filteredDocs.length} shown (CSV)`}
+          onImport={() => setImportSourcesOpen(true)}
+        />
 
-        {/* ── Top utility bar ────────────────────────────────────────────────── */}
-        <div className="min-h-[48px] border-b border-slate-100 flex items-center flex-wrap px-5 py-2 gap-3 shrink-0">
-          <h1 className="text-[15px] font-semibold text-slate-800 mr-1">My library – {heading}</h1>
-          <div className="flex-1" />
-          <button
-            onClick={() => setImportSourcesOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-medium transition-colors shadow-sm"
-          >
-            <Upload size={14} /> Import sources
-          </button>
-        </div>
-
-        {/* ── Table controls (view toggle, columns, sort, export) ──────────────── */}
-        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 shrink-0 flex-wrap">
-          {/* View toggle */}
-          <div role="radiogroup" aria-label="Table view" className="flex items-center bg-slate-100 rounded-lg p-0.5">
-            <button
-              role="radio"
-              aria-checked={viewMode === 'library'}
-              onClick={() => setViewMode('library')}
-              title="Library View — reading-oriented rows"
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors', viewMode === 'library' ? 'bg-white text-purple-accent shadow-sm' : 'text-slate-500 hover:text-slate-700')}
-            >
-              <List size={13} /> Library View
-            </button>
-            <button
-              role="radio"
-              aria-checked={viewMode === 'reference'}
-              onClick={() => setViewMode('reference')}
-              title="Reference Manager View — dense metadata table"
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors', viewMode === 'reference' ? 'bg-white text-purple-accent shadow-sm' : 'text-slate-500 hover:text-slate-700')}
-            >
-              <Table2 size={13} /> Reference Manager
-            </button>
-          </div>
-
-          {viewMode === 'library' && (
-            <div className="relative">
-              <button
-                onClick={() => setAddColDropdown(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-[13px] text-slate-600 hover:border-slate-300 transition-colors"
-              >
-                Columns: {visibleColumns.length} of {ORDERED_COLUMNS.length}
-                <ChevronDown size={12} className={cn('text-slate-400 transition-transform', addColDropdown && 'rotate-180')} />
-              </button>
-              <AnimatePresence>
-                {addColDropdown && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setAddColDropdown(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      className="absolute top-full mt-1 left-0 bg-white border border-slate-200 rounded-xl shadow-xl z-20 w-56 py-1 overflow-hidden"
-                    >
-                      {ORDERED_COLUMNS.map(key => {
-                        const isVisible = visibleColumns.includes(key)
-                        return (
-                          <button
-                            key={key}
-                            onClick={() => { isVisible ? removeColumn(key) : addColumn(key) }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-slate-600 hover:bg-slate-50 transition-colors"
-                          >
-                            <span className={cn('w-4 h-4 rounded border flex items-center justify-center shrink-0', isVisible ? 'border-purple-accent bg-purple-accent' : 'border-slate-300')}>
-                              {isVisible && <Check size={10} className="text-white" />}
-                            </span>
-                            {COLUMN_META[key].label}
-                          </button>
-                        )
-                      })}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-
-          <div className="flex-1" />
-
-          <SortDropdown sortBy={sortBy} onSort={setSortBy} />
-
-          <button
-            onClick={() => exportPapersToCsv(selectedRows.size > 0 ? selectedDocs : filteredDocs)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-[13px] text-slate-600 hover:border-slate-300 transition-colors"
-          >
-            <Download size={13} /> Export {selectedRows.size > 0 ? `(${selectedRows.size})` : 'CSV'}
-          </button>
-        </div>
-
-        {/* ── Bulk action bar ─────────────────────────────────────────────────── */}
+        {/* ── Contextual: only while papers are selected ─────────────────────── */}
         {selectedRows.size > 0 && (
           <BulkActionBar
             count={selectedRows.size}
-            onAddToCollection={() => setCollectionModalDocIds([...selectedRows])}
+            onAddToCollection={inTrash ? undefined : () => setCollectionModalDocIds([...selectedRows])}
             onExport={() => exportPapersToCsv(selectedDocs)}
             onTrash={() => setPendingBulkTrash(true)}
+            trashLabel={inTrash ? 'Delete permanently' : 'Move to Trash'}
             onClear={() => setSelectedRows(new Set())}
           />
         )}
 
-        {/* ── Table area ────────────────────────────────────────────────────── */}
+        {/* ── List ────────────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-auto">
-          {filteredDocs.length === 0 ? (
-            <div className="py-20 text-center">
+          {!hasLoaded ? (
+            <div className="space-y-2 p-4" aria-label="Loading saved papers">
+              {[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="h-14 animate-pulse rounded-lg bg-slate-100" />)}
+            </div>
+          ) : filteredDocs.length === 0 ? (
+            <div className="py-16 text-center">
               <div className="flex flex-col items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center">
-                  <BookOpen size={24} className="text-slate-400" />
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center">
+                  <BookOpen size={22} className="text-slate-500" />
                 </div>
                 <div>
-                  <p className="text-slate-700 font-medium text-[14px]">
-                    {inTrash ? 'Trash is empty' : `No documents in ${heading}`}
+                  <p className="text-slate-800 font-medium text-[14px]">
+                    {isNarrowed ? 'No papers match your search or filters' : inTrash ? 'Trash is empty' : `No papers in ${heading}`}
                   </p>
-                  {!inTrash && (
-                    <p className="text-slate-400 text-[13px] mt-1">Import a paper, or find one to save.</p>
+                  {!inTrash && !isNarrowed && (
+                    <p className="text-slate-600 text-[13px] mt-1">Find papers to save, or import references from Zotero, Mendeley or a file.</p>
                   )}
                 </div>
-                {!inTrash && (
+                {isNarrowed ? (
+                  <button onClick={() => { setQuery(''); setSavedFilters({}); setTagFilter('') }} className="text-[13px] font-medium text-purple-accent hover:text-purple-deep">
+                    Clear search and filters
+                  </button>
+                ) : !inTrash && (
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setImportSourcesOpen(true)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-medium transition-colors"
-                    >
-                      <Upload size={14} /> Import sources
-                    </button>
-                    <button
-                      onClick={() => navigate('/app/web-library/find')}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:border-slate-300 text-[13px] font-medium transition-colors"
-                    >
+                    <button onClick={() => navigate('/app/web-library/find')} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-medium transition-colors">
                       <Search size={14} /> Find papers
+                    </button>
+                    <button onClick={() => setImportSourcesOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-[13px] font-medium transition-colors">
+                      <Upload size={14} /> Import
                     </button>
                   </div>
                 )}
@@ -798,33 +675,37 @@ export default function WebLibraryPage() {
               selectedRows={selectedRows}
               onToggleRow={toggleRow}
               onToggleAll={toggleAllRows}
-              onOpenDoc={(doc) => doc.canonicalWorkId && rowActionHandlers.onDetails(doc)}
-              sortBy={sortBy}
-              onSort={setSortBy}
+              onOpenDoc={(doc) => openPaper(doc.id)}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={(key) => {
+                if (key === sortKey) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+                else { setSortKey(key); setSortDir(SAVED_SORT_OPTIONS.find(o => o.value === key)!.defaultDir) }
+              }}
               inTrash={inTrash}
               handlers={rowActionHandlers}
+              activeId={openId}
             />
           ) : (
-            <table className="w-full border-collapse min-w-max">
+            // Fixed layout so long titles truncate instead of widening the table past the screen;
+            // added content columns (320px each) still scroll sideways.
+            <table className="w-full table-fixed border-collapse" style={renderedColumns.length ? { minWidth: 420 + 320 * renderedColumns.length } : undefined}>
               <thead className="sticky top-0 z-10">
                 <tr>
-                  <th scope="col" className="text-left px-3 py-2.5 border-b border-slate-200 bg-slate-50/90 backdrop-blur-sm w-[420px] min-w-[380px]">
+                  <th scope="col" className="text-left px-3 py-2 border-b border-slate-200 bg-slate-50/90 backdrop-blur-sm">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={toggleAllRows}
-                        aria-label={selectedRows.size === filteredDocs.length && filteredDocs.length > 0 ? 'Deselect all' : 'Select all'}
+                        aria-label={allVisibleSelected ? 'Deselect all' : 'Select all'}
+                        aria-pressed={allVisibleSelected}
                         className={cn(
                           'w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors',
-                          selectedRows.size === filteredDocs.length && filteredDocs.length > 0
-                            ? 'border-purple-accent bg-purple-accent'
-                            : 'border-slate-300 hover:border-slate-400',
+                          allVisibleSelected ? 'border-purple-accent bg-purple-accent' : 'border-slate-400 hover:border-slate-500',
                         )}
                       >
-                        {selectedRows.size === filteredDocs.length && filteredDocs.length > 0 && (
-                          <Check size={10} className="text-white" />
-                        )}
+                        {allVisibleSelected && <Check size={10} className="text-white" />}
                       </button>
-                      <span className="text-[13px] font-semibold text-slate-700">
+                      <span className="text-[12.5px] font-semibold text-slate-700">
                         Papers ({selectedRows.size > 0 ? `${selectedRows.size}/` : ''}{filteredDocs.length})
                       </span>
                     </div>
@@ -846,7 +727,15 @@ export default function WebLibraryPage() {
 
               <tbody>
                 {filteredDocs.map(doc => (
-                  <tr key={doc.id} className={cn('group hover:bg-slate-50/60 transition-colors', selectedRows.has(doc.id) && 'bg-purple-tint/20')}>
+                  <tr
+                    key={doc.id}
+                    {...rowProps(doc)}
+                    className={cn(
+                      'group cursor-pointer hover:bg-slate-50/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-purple-accent/40',
+                      selectedRows.has(doc.id) && 'bg-purple-tint/25',
+                      openId === doc.id && 'bg-purple-tint/50 shadow-[inset_3px_0_0_var(--color-purple)]',
+                    )}
+                  >
                     <PapersCell
                       doc={doc}
                       selected={selectedRows.has(doc.id)}
@@ -871,6 +760,21 @@ export default function WebLibraryPage() {
           )}
         </div>
       </div>
+
+      {/* ── Details panel: a column on wide screens, a drawer on narrow ones ── */}
+      {openDoc && (
+        <SavedPaperPanel
+          doc={openDoc}
+          position={openIndex + 1}
+          total={filteredDocs.length}
+          folderName={folderNameOf(openDoc)}
+          inTrash={inTrash}
+          handlers={rowActionHandlers}
+          onClose={closePanel}
+          onPrev={openIndex > 0 ? () => openPaper(filteredDocs[openIndex - 1].id, true) : undefined}
+          onNext={openIndex < filteredDocs.length - 1 ? () => openPaper(filteredDocs[openIndex + 1].id, true) : undefined}
+        />
+      )}
       </div>
 
       {/* ── Import / Upload ───────────────────────────────────────────────── */}
@@ -889,18 +793,6 @@ export default function WebLibraryPage() {
         onUpload={handleUpload}
         onCreateFolder={createFolder}
       />
-
-      {/* ── Library Chat Drawer ───────────────────────────────────────────── */}
-      <AnimatePresence>
-        {chatOpen && (
-          <LibraryChatDrawer
-            open={chatOpen}
-            onClose={() => setChatOpen(false)}
-            context={chatContext}
-            onClearContext={() => setChatContext(null)}
-          />
-        )}
-      </AnimatePresence>
 
       {/* ── Add to Collection (single row or bulk) ──────────────────────────── */}
       <AddToCollectionModal
@@ -951,13 +843,15 @@ export default function WebLibraryPage() {
       <AnimatePresence>
         {pendingBulkTrash && (
           <ConfirmActionModal
-            title={`Move ${selectedRows.size} paper${selectedRows.size === 1 ? '' : 's'} to Trash?`}
-            message="They'll be hidden from your library but not deleted — restore them from Trash at any time."
-            confirmLabel="Move to Trash"
-            tone="reversible"
+            title={inTrash
+              ? `Delete ${selectedRows.size} paper${selectedRows.size === 1 ? '' : 's'} permanently?`
+              : `Move ${selectedRows.size} paper${selectedRows.size === 1 ? '' : 's'} to Trash?`}
+            message={inTrash ? 'This cannot be undone.' : "They'll be hidden from your library but not deleted — restore them from Trash at any time."}
+            confirmLabel={inTrash ? 'Delete permanently' : 'Move to Trash'}
+            tone={inTrash ? undefined : 'reversible'}
             onClose={() => setPendingBulkTrash(false)}
             onConfirm={async () => {
-              await Promise.all(selectedDocs.map(d => trashDocument(d.id)))
+              await Promise.all(selectedDocs.map(d => inTrash ? deleteDocument(d.id) : trashDocument(d.id)))
               setPendingBulkTrash(false)
               setSelectedRows(new Set())
             }}

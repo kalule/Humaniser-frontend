@@ -1,0 +1,2346 @@
+{
+  "documentId": "b35babfa-762d-4ea1-b9af-4659766ec767",
+  "runId": "20d07e8e-53ae-44f7-b590-ce3620f692a7",
+  "events": [
+    {
+      "status": "Queued",
+      "stage": "queued",
+      "completedSections": 0
+    },
+    {
+      "status": "Running",
+      "stage": "searching",
+      "completedSections": 0
+    },
+    {
+      "status": "Running",
+      "stage": "drafting:Introduction",
+      "completedSections": 0
+    },
+    {
+      "status": "Running",
+      "stage": "verifying:Introduction",
+      "completedSections": 0
+    },
+    {
+      "status": "Running",
+      "stage": "drafting:LiteratureReview",
+      "completedSections": 2
+    },
+    {
+      "status": "Running",
+      "stage": "verifying:LiteratureReview",
+      "completedSections": 2
+    },
+    {
+      "status": "Running",
+      "stage": "drafting:Discussion",
+      "completedSections": 3
+    },
+    {
+      "status": "Running",
+      "stage": "verifying:Discussion",
+      "completedSections": 3
+    },
+    {
+      "status": "Running",
+      "stage": "drafting:ResearchGaps",
+      "completedSections": 4
+    },
+    {
+      "status": "Running",
+      "stage": "verifying:ResearchGaps",
+      "completedSections": 4
+    },
+    {
+      "status": "Running",
+      "stage": "drafting:Conclusion",
+      "completedSections": 5
+    },
+    {
+      "status": "Running",
+      "stage": "drafting:Abstract",
+      "completedSections": 6
+    },
+    {
+      "status": "Completed",
+      "stage": "ready",
+      "completedSections": 7
+    }
+  ],
+  "outcome": {
+    "runId": "20d07e8e-53ae-44f7-b590-ce3620f692a7",
+    "documentId": "b35babfa-762d-4ea1-b9af-4659766ec767",
+    "status": "Completed",
+    "stage": "ready",
+    "createdAt": "2026-10-30T15:45:00.0971232Z",
+    "updatedAt": "2026-10-30T15:48:36.3891307Z",
+    "error": "",
+    "completedSections": 7,
+    "result": {
+      "pipelineMetrics": null,
+      "completionStatus": "Complete",
+      "completionReason": null,
+      "questionCoverage": null,
+      "coWrite": null,
+      "evidencePlan": null,
+      "evidenceIssues": [],
+      "isEssay": false,
+      "title": "The relationship between sleep quality and academic performance among university students.",
+      "content": "The available literature, comprising 38 records, explores the complex relationship between sleep quality and academic performance in university students. This synthesis examines direct associations, moderating and mediating factors, and methodological considerations.\n\nA significant body of evidence suggests a positive association, where better sleep quality and sufficient sleep duration correlate with higher academic achievement, including higher GPAs and improved learning efficiency. Conversely, poorer sleep quality, insufficient or irregular sleep, fragmented sleep, and an evening chronotype are frequently linked to lower academic performance. These associations are supported by both self-reported measures and objective assessments like actigraphy, which show that consistent, high-quality weekday sleep is crucial for academic success.\n\nHowever, several studies report no significant relationship, and some even suggest that poorer sleep may, in specific contexts, be associated with better academic outcomes, possibly due to increased study time. This heterogeneity of findings indicates that the relationship is not universally linear.\n\nVarious factors moderate and mediate this association. Psychological elements such as anxiety, depressive symptoms, emotional fatigue, and academic stress frequently mediate the impact of sleep health on academic performance. Lifestyle habits, including cannabis use, social media addiction, and caffeine intake, also play roles, though their effects are sometimes inconsistent. Demographic characteristics, such as gender and chronotype, further contribute to the complexity.\n\nMethodological variations across studies are a key limitation. A predominant reliance on self-reported measures for both sleep and academic performance, coupled with the prevalence of cross-sectional designs, hinders the establishment of definitive causal relationships and may inflate observed associations. Few studies use objective sleep measurements or adjust comprehensively for confounding variables, further contributing to the diverse findings. More rigorous designs, including longitudinal and experimental studies with objective measures, are needed to clarify the causal pathways and the nuanced interplay of contributing factors.\n\nSleep is a fundamental physiological process that underpins cognitive function, emotional regulation, and overall well-being [S3][S4][S7][S17]. University students frequently experience disruptions to their sleep patterns, including shortened duration, poor quality, and irregular sleep-wake cycles, often compounded by academic demands and psychosocial changes inherent in the university transition [S1][S5][S11][S17][S28]. These sleep disturbances are a growing concern due to their potential negative influence on academic performance and student success [S1][S5][S11][S17].\n\nNumerous studies have explored the association between various sleep parameters and academic outcomes among university students. A systematic review of 20 studies published between 2020 and 2025 found a consistent pattern: poorer sleep quality, insufficient or irregular sleep duration, fragmented sleep, evening chronotype, and late-night technology use were associated with lower grade point averages, reduced learning efficiency, and increased academic stress [S5]. Similarly, a scoping review of first-year university students revealed that shorter sleep duration, particularly below 6-7 hours per night, was generally linked to poorer academic achievement [S11]. Poor sleep quality has also been associated with lower academic performance in several studies, with affective factors potentially influencing this relationship [S3][S4][S11][S15][S20][S27][S29][S33][S34]. For instance, nearly half of undergraduate health sciences students in one study reported poor sleep quality, and those with good sleep quality showed significantly higher academic performance scores [S3]. Another study involving Nigerian students found that the academic performance of students with good sleep quality was significantly better than those with poor sleep quality [S20]. However, some research has indicated no significant relationship between academic performance and sleep quality [S2][S8][S9][S10][S12][S21][S31]. For example, a study of health sciences college students found a significant difference between sleeping hours and GPA but no significant difference between sleep quality and GPA [S2]. Another study reported no statistically significant relationship between sleep quality and academic performance among Nigerian students, even suggesting a trend where poor sleepers achieved better scores [S9]. These varied findings highlight the complexity of the relationship and suggest that other mediating factors, such as emotional fatigue or psychological well-being, may play a role [S6][S16][S18][S24][S27]. Furthermore, study design characteristics, such as reliance on self-reported measures for sleep and academic performance and the prevalence of cross-sectional designs, may contribute to the heterogeneity of reported effect sizes [S25].\n\nWhile the existing literature broadly suggests a link between sleep quality and academic performance, a comprehensive synthesis integrating the diverse findings and acknowledging contextual variations is still beneficial. The current body of literature, comprising 38 records, reveals both consistent patterns and conflicting results regarding this relationship. Therefore, this paper will synthesize the available literature to further delineate the relationship between sleep quality and academic performance among university students, identifying consistent associations, exploring factors that may moderate or mediate this relationship, and discussing methodological considerations that influence findings.\n\nThis paper presents a narrative synthesis of the evidence available to the writing run for the stated research question. The run assembled 38 distinct source records from OpenAlex. This is the available source pool, not the number of studies ultimately cited or a count from a systematic screening process. The synthesis draws on the metadata and source excerpts supplied by those records; access to every full text is not assumed. It compares reported relationships, differences in study contexts and methods, and limitations relevant to the research question. Search strategy: sources were retrieved on 30 October 2026 using the queries \"The relationship between sleep quality and academic performance among university students\"; \"sleep quality academic performance systematic review meta-analysis\"; \"sleep quality academic performance longitudinal prospective cohort\"; \"sleep quality academic performance mediating moderating confounding factors\"; \"sleep quality academic performance measurement instrument validated self-report objective\". Automated topical screening (term matching on titles and abstracts, not reading of full texts) found the core concepts in this many of the 38 records: \"sleep quality\" in 38, \"academic performance\" in 37. 2 preprint record(s) were excluded because they have not been peer reviewed. No study-design, sample or date inclusion criteria were applied beyond this topical screening. This is not an exhaustive or systematic review: no predefined screening protocol, independent double screening, comprehensive search coverage, or formal risk-of-bias assessment is claimed. Source identity checks and claim-support checks are separate, and remaining uncertainties are retained as review flags. No original participants were recruited, new dataset collected, or original statistical analysis performed for this literature-based paper.\n\nThe existing literature explores the intricate relationship between sleep quality and academic performance in university students, revealing both consistent patterns and conflicting findings [S5][S11][S25]. This synthesis categorizes the findings into direct associations, moderating and mediating factors, and methodological considerations.\n\n### Direct Associations Between Sleep Quality and Academic Performance\n\nA significant body of research indicates a positive association between good sleep quality and higher academic performance among university students [S1][S3][S4][S7][S15][S20][S23][S26][S33][S36]. For instance, studies across diverse populations, including undergraduate health sciences students in Rwanda and Sri Lanka, have reported that better sleep quality is linked to higher academic scores and GPAs [S3][S4]. In one study, nearly half of undergraduate health sciences students reported poor sleep quality, but those with good sleep quality demonstrated significantly higher academic performance scores [S3]. Similarly, research involving Nigerian students found that good sleep quality was associated with significantly better academic performance [S20]. A systematic review covering studies from 2020-2025 also identified a consistent pattern where poorer sleep quality and insufficient sleep duration were associated with lower GPAs and reduced learning efficiency [S5]. Another systematic review, examining 52 studies, highlighted a significant correlation between optimal sleep duration (7-9 hours) and improved academic performance [S23]. Objective measures, such as actigraphy, have also supported this link, showing that students with higher exam scores exhibit greater sleep efficiency, shorter sleep onset latency, and lower night-to-night variability in sleep parameters [S14]. This suggests that consistent, high-quality sleep, particularly during weekdays, is crucial for academic success [S14].\n\nHowever, some studies present conflicting results, finding no significant relationship between sleep quality and academic performance [S2][S8][S9][S10][S12][S21][S31]. A study of health sciences college students, for example, found no significant difference between sleep quality and GPA, despite noting a significant difference between sleeping hours and GPA [S2]. Another study among Nigerian students reported no statistically significant relationship between sleep quality and academic performance, even suggesting a trend where poor sleepers achieved better scores [S9]. Similarly, research in Delhi NCR found no significant relationship between academic performance and sleep quality, nor did self-control or sleep quality significantly affect academic performance [S10]. In a cross-sectional study of Saudi university students, no significant connection was discerned between academic performance scores (GPA) and sleep quality [S31]. Furthermore, a study involving Malaysian university students suggested that poor sleep was associated with better academic performance, particularly for \"poor-sleepers\" who showed higher academic achievement in later years of study, implying that longer waking hours for academic commitments might be a factor [S22][S36]. These varied findings highlight the complex nature of the relationship, suggesting that other factors may mediate or moderate the direct association [S6][S16][S18][S24][S27].\n\n### Moderating and Mediating Factors\n\nSeveral factors have been identified that can moderate or mediate the relationship between sleep quality and academic performance. Psychological factors, including anxiety, depressive symptoms, and emotional dysregulation, frequently mediate the associations between sleep health and academic outcomes [S5]. Poor sleep quality has been linked to increased emotional fatigue, which, in turn, negatively affects academic performance [S6]. Emotional exhaustion appears to act as a mediating variable, where poor sleep quality exacerbates emotional fatigue, thereby reducing academic achievement [S6]. Academic stress is another significant factor, with high perceived stress being associated with both poorer sleep quality and lower cognitive performance [S24]. Elevated anxiety levels and sleep disorders are common among university students, and adaptation problems and academic stress may play crucial roles in mediating the relationship between anxiety and sleep quality [S16]. Interpersonal relationships can further moderate these effects, suggesting that fostering strong interpersonal connections might improve sleep quality and academic performance [S16].\n\nLifestyle habits also play a role. Cannabis use, for example, can moderate the relationship between sleep disturbances and academic performance; fewer sleep disturbances were associated with better academic performance for students with minimal or no cannabis use, but not for those with moderate or high use [S19]. Digital well-being factors, such as screen time and social media usage, have been explored. While one study found positive associations between digital well-being and student performance, with sleep quality, screen time, and social media usage predicting better academic achievement [S12], other research indicates that social media addiction can negatively impact academic performance indirectly through poorer sleep quality [S35]. Caffeine intake has been shown to affect students' sleep and circadian parameters, but these effects do not always directly translate into academic success [S21].\n\nOther demographic and individual characteristics, such as gender and chronotype, have also been explored. One study found that male gender was correlated with higher academic scores [S3], while another indicated that females exhibited substandard sleep quality more significantly than males [S31]. An evening chronotype is generally associated with poorer academic performance and adjustment [S11]. Trait self-control can mediate the relationship between chronotype and academic achievement, with higher self-control potentially compensating for the negative effects of sleep problems on study success [S32][S37].\n\n### Methodological Considerations\n\nThe heterogeneity of findings in the literature can be partly attributed to methodological variations across studies [S25]. Many studies rely on self-reported measures for both sleep and academic performance, which can introduce common method bias and potentially inflate observed relationships [S4][S25]. For instance, a critical appraisal of 282 studies noted that academic outcomes were often assessed by self-reported grades (65.2%), and very few studies (3.9%) used objective measurements of sleep, such\n\nThe reviewed literature indicates a complex and often contradictory relationship between sleep quality and academic performance among university students, influenced by various moderating and mediating factors and methodological approaches. While a substantial body of evidence suggests a positive association between good sleep quality and higher academic achievement [S1][S3][S4][S7][S15][S20][S23][S26][S33][S36], a notable number of studies report no significant relationship [S2][S8][S9][S10][S12][S21][S31]. This divergence in findings underscores the multifaceted nature of sleep's influence on academic outcomes.\n\nConsistent patterns show that poorer sleep quality, insufficient duration, irregular sleep-wake cycles, fragmented sleep, and evening chronotype are often associated with lower GPAs, reduced learning efficiency, and increased academic stress [S5][S11][S17]. For example, studies from Rwanda and Sri Lanka reported that better sleep quality correlated with higher academic scores [S3][S4], and Nigerian students with good sleep quality performed significantly better academically [S20]. Objective sleep measurements, such as actigraphy, further support this by revealing that higher exam scores are linked to greater sleep efficiency, shorter sleep onset latency, and lower night-to-night variability in sleep parameters, especially on weekdays [S14]. This suggests that consistent, high-quality sleep is crucial for academic success [S14].\n\nHowever, the literature also presents direct contradictions. A study of health sciences students found no significant difference between sleep quality and GPA, despite finding a link between sleeping hours and GPA [S2]. Another study in Nigeria reported no statistically significant relationship, with a trend even suggesting that \"poor sleepers\" achieved better scores [S9]. Similarly, research in Delhi NCR found no significant relationship between academic performance and sleep quality or self-control [S10]. In some cases, poor sleep was even associated with better academic performance, particularly for \"poor-sleepers\" in Malaysia, potentially due to longer waking hours dedicated to academic commitments [S22][S36]. These conflicting results highlight that sleep quality is not a standalone predictor of academic performance, suggesting that other factors may mediate or moderate this association [S6][S16][S18][S24][S27].\n\nSeveral moderating and mediating factors contribute to the complexity of this relationship. Psychological elements such as anxiety, depressive symptoms, and emotional dysregulation frequently mediate the association between sleep health and academic outcomes [S5]. Poor sleep quality can lead to increased emotional fatigue, which subsequently negatively impacts academic performance [S6]. Academic stress is another significant factor, correlating with both poorer sleep and lower cognitive performance [S24]. Interpersonal relationships may also moderate these effects, with stronger connections potentially improving sleep quality and academic performance [S16]. Lifestyle habits, including cannabis use [S19], social media addiction [S35], and caffeine intake [S21], also play roles, though their effects are not always direct or consistent. For instance, while social media addiction can indirectly reduce academic performance through poor sleep quality [S35], another study found positive associations between digital well-being (including sleep quality and social media usage) and student performance [S12]. Demographic and individual characteristics like gender [S3][S31] and chronotype [S11][S37] also present varied influences.\n\nThe methodological approaches employed across studies significantly contribute to the heterogeneity of findings [S25]. A predominant limitation is the reliance on self-reported measures for both sleep and academic performance, which can introduce common method bias and potentially inflate observed relationships [S4][S25]. For instance, a critical appraisal of 282 studies found that academic outcomes were largely self-reported (65.2%), and very few (3.9%) used objective sleep measurements like actigraphy [S25]. The prevalence of cross-sectional designs (81.2%) further limits the ability to establish causal direction [S25]. Only a minority of studies adjusted for potential confounding variables (38.4%), and none used randomized controlled experimental designs, hindering definitive causal inferences [S25]. These methodological variations make it challenging to directly compare findings and synthesize a conclusive understanding of the sleep-academic performance relationship, suggesting that the true relationship might be larger but requires more rigorous experimental designs to be fully elucidated [S25].\n\nWhile existing literature establishes a broad link between sleep quality and academic performance in university students, several gaps and areas of uncertainty remain. The prevalence of cross-sectional designs in the majority of studies (81.2%) limits the ability to establish causal direction between sleep and academic outcomes [S25]. This is further compounded by the reliance on self-reported measures for both sleep and academic performance in most research (65.2% for grades, 3.9% for objective sleep measures), which can introduce common method bias and potentially inflate observed relationships [S4][S25]. More rigorous experimental designs, such as randomized controlled trials, are needed to clarify these causal relationships definitively [S25].\n\nThe heterogeneity of findings, including studies reporting no significant relationship between sleep quality and academic performance [S2][S8][S9][S10][S12][S21][S31], suggests that unidentified or under-explored moderating and mediating factors may be at play. While some psychological factors like anxiety and emotional fatigue have been identified as mediators [S5][S6], the nuanced interplay of these and other psychosocial elements, as well as lifestyle factors, requires further investigation. For example, the finding that poor sleep was associated with better academic performance for \"poor-sleepers\" in some contexts [S22][S36] indicates that the relationship is not universally linear and may be influenced by compensatory behaviors or contextual demands, which are not fully elucidated. The varying effects of digital well-being factors, such as social media usage, with some studies showing positive associations with academic performance [S12] and others indirect negative impacts through sleep quality [S35], warrant more detailed examination to understand the specific mechanisms at play.\n\nFurthermore, although some studies account for potential confounding variables, fewer than half (38.4%) do so [S25]. This lack of comprehensive adjustment for confounders across the literature hinders a clearer understanding of the independent effect of sleep quality. Specific populations, such as Japanese university students, have been noted as underrepresented in recent systematic reviews, highlighting a need for more geographically diverse research to understand potential cultural and contextual influences on this relationship [S5]. Finally, the \"modest explained variance\" observed in some moderation analyses [S19] implies that additional, currently unexamined factors likely contribute to the complex relationship between sleep, lifestyle habits, and academic performance.\n\nThe available literature, encompassing 38 records, reveals a complex and often contradictory relationship between sleep quality and academic performance among university students. While many studies suggest a positive association where better sleep quality correlates with higher academic achievement, other research indicates no significant relationship or even, in some specific contexts, an inverse trend. These varied findings highlight that the link between sleep quality and academic performance is not universally linear and is influenced by a range of moderating and mediating factors.\n\nPsychological aspects such as anxiety, depressive symptoms, emotional fatigue, and academic stress frequently mediate this relationship. Lifestyle habits, including cannabis use, social media engagement, and caffeine intake, also play roles, although their influences can be inconsistent across studies. Additionally, demographic characteristics like gender and chronotype contribute to the complexity of these associations. Methodological approaches across the literature, particularly the widespread reliance on self-reported measures and cross-sectional designs, limit the ability to establish definitive causal relationships and may contribute to the observed heterogeneity in findings. Moving forward, more rigorous research designs, including longitudinal and experimental studies employing objective sleep measurements, are needed to further delineate the causal pathways and explore the nuanced interplay of identified and potentially unexamined factors influencing this critical relationship.",
+      "sections": null,
+      "references": [
+        {
+          "sourceId": "S1",
+          "canonicalId": "46ff407a-2e91-eb9d-d051-b10b2a966d5a",
+          "openAlexWorkId": "W4363678534",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4363678534",
+          "title": "Sleep quality and sleep deprivation: relationship with academic performance in university students during examination period",
+          "url": "https://link.springer.com/content/pdf/10.1007/s41105-023-00457-1.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1007/s41105-023-00457-1",
+          "authors": "Maria Suardiaz-Muro, Manuel Ortega-Moreno, Miguel Morante\u2010Ruiz, Manuel Monroy, Miguel \u00c1ngel Ruiz, Pilar Mart\u00edn Plasencia, Antonio Vela\u2010Bueno",
+          "authorDetails": [
+            {
+              "family": "Suardiaz-Muro",
+              "given": "Maria",
+              "name": "Maria Suardiaz-Muro",
+              "orcid": "https://orcid.org/0000-0002-8104-5723",
+              "affiliations": [
+                "Universidad Aut\u00f3noma de Madrid"
+              ]
+            },
+            {
+              "family": "Ortega-Moreno",
+              "given": "Manuel",
+              "name": "Manuel Ortega-Moreno",
+              "orcid": null,
+              "affiliations": [
+                "Hospital Universitario de M\u00f3stoles"
+              ]
+            },
+            {
+              "family": "Morante-Ruiz",
+              "given": null,
+              "name": "Miguel Morante\u2010Ruiz",
+              "orcid": "https://orcid.org/0000-0001-9155-1788",
+              "affiliations": [
+                "Hospital Universitario Fundaci\u00f3n Jim\u00e9nez D\u00edaz"
+              ]
+            },
+            {
+              "family": "Monroy",
+              "given": "Manuel",
+              "name": "Manuel Monroy",
+              "orcid": null,
+              "affiliations": [
+                "Universidad Aut\u00f3noma de Madrid"
+              ]
+            },
+            {
+              "family": "Ruiz",
+              "given": "Miguel \u00c1ngel",
+              "name": "Miguel \u00c1ngel Ruiz",
+              "orcid": "https://orcid.org/0000-0002-2734-2196",
+              "affiliations": [
+                "Universidad Aut\u00f3noma de Madrid"
+              ]
+            },
+            {
+              "family": "Plasencia",
+              "given": "Pilar Mart\u00edn",
+              "name": "Pilar Mart\u00edn Plasencia",
+              "orcid": null,
+              "affiliations": [
+                "Universidad Aut\u00f3noma de Madrid"
+              ]
+            },
+            {
+              "family": "Vela-Bueno",
+              "given": null,
+              "name": "Antonio Vela\u2010Bueno",
+              "orcid": null,
+              "affiliations": [
+                "Pennsylvania State University"
+              ]
+            }
+          ],
+          "year": 2023,
+          "venue": "Sleep and Biological Rhythms",
+          "volume": "21",
+          "issue": "3",
+          "pages": "377-383",
+          "workType": "article",
+          "publisher": "Springer Science+Business Media",
+          "language": "en"
+        },
+        {
+          "sourceId": "S2",
+          "canonicalId": "2e6a6f03-7ad4-fafa-e3b1-ab73dddf118d",
+          "openAlexWorkId": "W7214900463",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7214900463",
+          "title": "The association between academic performance and sleep quality and quantity among health sciences college students",
+          "url": "https://www.mattioli1885journals.com/index.php/actabiomedica/article/download/14958/11999",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.23750/abm.v95i3.14958",
+          "authors": "Hussain Aldoraissi, Mustafa Istad, Mohammed Alhakeem, Ahmad Nabzah, Khaled Alsubogh, Hatem A. Alqahtani, Khalid S. Alharkan, Yousef D. Alqurashi",
+          "authorDetails": [
+            {
+              "family": "Aldoraissi",
+              "given": "Hussain",
+              "name": "Hussain Aldoraissi",
+              "orcid": null,
+              "affiliations": [
+                "Imam Abdulrahman Bin Faisal University"
+              ]
+            },
+            {
+              "family": "Istad",
+              "given": "Mustafa",
+              "name": "Mustafa Istad",
+              "orcid": null,
+              "affiliations": [
+                "Imam Abdulrahman Bin Faisal University"
+              ]
+            },
+            {
+              "family": "Alhakeem",
+              "given": "Mohammed",
+              "name": "Mohammed Alhakeem",
+              "orcid": null,
+              "affiliations": [
+                "Imam Abdulrahman Bin Faisal University"
+              ]
+            },
+            {
+              "family": "Nabzah",
+              "given": "Ahmad",
+              "name": "Ahmad Nabzah",
+              "orcid": null,
+              "affiliations": [
+                "Imam Abdulrahman Bin Faisal University"
+              ]
+            },
+            {
+              "family": "Alsubogh",
+              "given": "Khaled",
+              "name": "Khaled Alsubogh",
+              "orcid": null,
+              "affiliations": [
+                "Imam Abdulrahman Bin Faisal University"
+              ]
+            },
+            {
+              "family": "Alqahtani",
+              "given": "Hatem A.",
+              "name": "Hatem A. Alqahtani",
+              "orcid": "https://orcid.org/0000-0002-0832-1357",
+              "affiliations": [
+                "Imam Abdulrahman Al Faisal Hospital",
+                "Imam Abdulrahman Bin Faisal University"
+              ]
+            },
+            {
+              "family": "Alharkan",
+              "given": "Khalid S.",
+              "name": "Khalid S. Alharkan",
+              "orcid": "https://orcid.org/0000-0002-5480-2557",
+              "affiliations": [
+                "Imam Abdulrahman Al Faisal Hospital",
+                "Imam Abdulrahman Bin Faisal University"
+              ]
+            },
+            {
+              "family": "Alqurashi",
+              "given": "Yousef D.",
+              "name": "Yousef D. Alqurashi",
+              "orcid": "https://orcid.org/0000-0003-3263-0237",
+              "affiliations": [
+                "Imam Abdulrahman Bin Faisal University"
+              ]
+            }
+          ],
+          "year": 2024,
+          "venue": "Acta bio-medica dell'Ateneo parmense/Acta biomedica",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S3",
+          "canonicalId": "091e6e15-4a62-80d1-2097-2b40db85e6c7",
+          "openAlexWorkId": "W7127884235",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7127884235",
+          "title": "Sleep Quality, Academic Performance, and Associated Predictors Among Undergraduate Health Sciences Students at the University of Rwanda",
+          "url": "https://www.dovepress.com/article/download/111713",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.2147/amep.s576834",
+          "authors": "Francois Nzamwita, Chadia Igihozo, Pierre Damien Turikumana, Joseph Nshimiyimana, Peter Mooni Nyangezi, Emmanuel Biracyaza, Lizahn Gracia Cloete",
+          "authorDetails": [
+            {
+              "family": "Nzamwita",
+              "given": "Francois",
+              "name": "Francois Nzamwita",
+              "orcid": null,
+              "affiliations": [
+                "University of Rwanda"
+              ]
+            },
+            {
+              "family": "Igihozo",
+              "given": "Chadia",
+              "name": "Chadia Igihozo",
+              "orcid": null,
+              "affiliations": [
+                "University of Rwanda"
+              ]
+            },
+            {
+              "family": "Turikumana",
+              "given": "Pierre Damien",
+              "name": "Pierre Damien Turikumana",
+              "orcid": "https://orcid.org/0000-0001-6230-7567",
+              "affiliations": [
+                "University of Rwanda"
+              ]
+            },
+            {
+              "family": "Nshimiyimana",
+              "given": "Joseph",
+              "name": "Joseph Nshimiyimana",
+              "orcid": "https://orcid.org/0000-0003-4533-1543",
+              "affiliations": [
+                "University of Rwanda"
+              ]
+            },
+            {
+              "family": "Nyangezi",
+              "given": "Peter Mooni",
+              "name": "Peter Mooni Nyangezi",
+              "orcid": "https://orcid.org/0009-0005-7964-2552",
+              "affiliations": [
+                "University of Rwanda"
+              ]
+            },
+            {
+              "family": "Biracyaza",
+              "given": "Emmanuel",
+              "name": "Emmanuel Biracyaza",
+              "orcid": "https://orcid.org/0000-0001-7494-2779",
+              "affiliations": [
+                "Centre for Interdisciplinary Research in Rehabilitation",
+                "Universit\u00e9 de Montr\u00e9al"
+              ]
+            },
+            {
+              "family": "Cloete",
+              "given": "Lizahn Gracia",
+              "name": "Lizahn Gracia Cloete",
+              "orcid": "https://orcid.org/0000-0001-6791-098X",
+              "affiliations": [
+                "Stellenbosch University"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "Advances in Medical Education and Practice",
+          "volume": "Volume 17",
+          "issue": null,
+          "pages": "1-14",
+          "workType": "article",
+          "publisher": "Dove Medical Press",
+          "language": "en"
+        },
+        {
+          "sourceId": "S4",
+          "canonicalId": "ac6ed057-2236-5f80-d78b-6994af93bb94",
+          "openAlexWorkId": "W7171939883",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7171939883",
+          "title": "Sleep Quality and Academic Performance Among University Undergraduates in Sri Lanka",
+          "url": "https://kjms.sljol.info/articles/252/files/6a6c3ec318849.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.4038/kjms.v8i1.252",
+          "authors": "H. L. M. M. Chandrasiri",
+          "authorDetails": [
+            {
+              "family": "Chandrasiri",
+              "given": "H. L. M. M.",
+              "name": "H. L. M. M. Chandrasiri",
+              "orcid": "https://orcid.org/0009-0004-8388-1970",
+              "affiliations": [
+                "IIC University of Technology"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "KDU Journal of Multidisciplinary Studies",
+          "volume": "8",
+          "issue": "1",
+          "pages": "12-22",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S5",
+          "canonicalId": "9385ebaa-40db-2d04-5042-812277b461b2",
+          "openAlexWorkId": "W7154497483",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7154497483",
+          "title": "Sleep Health and Academic Outcomes in University Students: A Systematic Review",
+          "url": "https://kanazawa-med.repo.nii.ac.jp/records/2000273",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.57457/0002000273",
+          "authors": "\u677e\u6c38 \u7950\u8f14",
+          "authorDetails": [
+            {
+              "family": "\u677e\u6c38 \u7950\u8f14",
+              "given": null,
+              "name": "\u677e\u6c38 \u7950\u8f14",
+              "orcid": null,
+              "affiliations": []
+            }
+          ],
+          "year": 2026,
+          "venue": "Institutional Repositories DataBase (IRDB)",
+          "volume": "52",
+          "issue": null,
+          "pages": "48-59",
+          "workType": "article",
+          "publisher": "National Institute of Informatics",
+          "language": "en"
+        },
+        {
+          "sourceId": "S6",
+          "canonicalId": "c6c65848-3f02-af5c-6475-94b79e0be168",
+          "openAlexWorkId": "W7133596089",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7133596089",
+          "title": "Calidad del sue\u00f1o, cansancio emocional y rendimiento acad\u00e9mico en estudiantes de Ciencias de la Salud",
+          "url": "https://revistahorizonte.ujat.mx/horizonte/article/download/6091/4544",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.19136/hs.a25n1.6091",
+          "authors": "Nissa Yaing Torres Soto, Beatriz Mart\u00ednez Ram\u00edrez, Elizabeth Carmita Manzanero, Julieta Rodr\u00edguez-de-Ita, Daniela Le\u00f3n Rojas, Alma Karina Tzec Nahuat",
+          "authorDetails": [
+            {
+              "family": "Soto",
+              "given": "Nissa Yaing Torres",
+              "name": "Nissa Yaing Torres Soto",
+              "orcid": "https://orcid.org/0000-0003-3646-6649",
+              "affiliations": [
+                "University of Quintana Roo"
+              ]
+            },
+            {
+              "family": "Ram\u00edrez",
+              "given": "Beatriz Mart\u00ednez",
+              "name": "Beatriz Mart\u00ednez Ram\u00edrez",
+              "orcid": "https://orcid.org/0000-0001-8617-4279",
+              "affiliations": [
+                "University of Quintana Roo"
+              ]
+            },
+            {
+              "family": "Manzanero",
+              "given": "Elizabeth Carmita",
+              "name": "Elizabeth Carmita Manzanero",
+              "orcid": null,
+              "affiliations": [
+                "Universidad Vizcaya de las Am\u00e9ricas"
+              ]
+            },
+            {
+              "family": "Rodr\u00edguez-de-Ita",
+              "given": "Julieta",
+              "name": "Julieta Rodr\u00edguez-de-Ita",
+              "orcid": "https://orcid.org/0000-0002-9557-5741",
+              "affiliations": [
+                "Tecnol\u00f3gico de Monterrey"
+              ]
+            },
+            {
+              "family": "Rojas",
+              "given": "Daniela Le\u00f3n",
+              "name": "Daniela Le\u00f3n Rojas",
+              "orcid": "https://orcid.org/0000-0002-1020-2488",
+              "affiliations": [
+                "Tecnol\u00f3gico de Monterrey"
+              ]
+            },
+            {
+              "family": "Nahuat",
+              "given": "Alma Karina Tzec",
+              "name": "Alma Karina Tzec Nahuat",
+              "orcid": null,
+              "affiliations": [
+                "University of Quintana Roo"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "Horizonte Sanitario",
+          "volume": "25",
+          "issue": "1",
+          "pages": "e6091",
+          "workType": "article",
+          "publisher": "Universidad Ju\u00e1rez Aut\u00f3noma de Tabasco",
+          "language": "en"
+        },
+        {
+          "sourceId": "S7",
+          "canonicalId": "ef54c27d-dd28-2fe7-a8da-04a6b8777abc",
+          "openAlexWorkId": "W7166561805",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7166561805",
+          "title": "Association of Sleep Patterns and Sleep Quality with Academic Performance Among Female University Students: Insights Supporting SDG 3 (Good Health and Well-Being)",
+          "url": "https://www.mdpi.com/2624-5175/8/3/39/pdf?version=1782736796",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.3390/clockssleep8030039",
+          "authors": "Noorah Saleh Al\u2010Sowayan, Lama Essam Aboselmiya",
+          "authorDetails": [
+            {
+              "family": "Al-Sowayan",
+              "given": null,
+              "name": "Noorah Saleh Al\u2010Sowayan",
+              "orcid": "https://orcid.org/0000-0003-1631-6467",
+              "affiliations": [
+                "Qassim University"
+              ]
+            },
+            {
+              "family": "Aboselmiya",
+              "given": "Lama Essam",
+              "name": "Lama Essam Aboselmiya",
+              "orcid": null,
+              "affiliations": [
+                "Qassim University"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "Clocks & Sleep",
+          "volume": "8",
+          "issue": "3",
+          "pages": "39",
+          "workType": "article",
+          "publisher": "Multidisciplinary Digital Publishing Institute",
+          "language": "en"
+        },
+        {
+          "sourceId": "S8",
+          "canonicalId": "fd15d85d-8480-9034-c39f-a6dd93c86619",
+          "openAlexWorkId": "W4200398031",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4200398031",
+          "title": "Questionnaire-Derived Sleep Habits and Academic Achievement in First Year University Students",
+          "url": "https://www.mdpi.com/2624-5175/4/1/1/pdf?version=1640669565",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.3390/clockssleep4010001",
+          "authors": "Matthew William Driller, Haresh T. Suppiah, Paul B. Gastin, C. Martyn Beaven",
+          "authorDetails": [
+            {
+              "family": "Driller",
+              "given": "Matthew William",
+              "name": "Matthew William Driller",
+              "orcid": "https://orcid.org/0000-0002-9990-8830",
+              "affiliations": [
+                "La Trobe University"
+              ]
+            },
+            {
+              "family": "Suppiah",
+              "given": "Haresh T.",
+              "name": "Haresh T. Suppiah",
+              "orcid": "https://orcid.org/0000-0001-9828-2349",
+              "affiliations": [
+                "La Trobe University"
+              ]
+            },
+            {
+              "family": "Gastin",
+              "given": "Paul B.",
+              "name": "Paul B. Gastin",
+              "orcid": "https://orcid.org/0000-0003-2320-7875",
+              "affiliations": [
+                "La Trobe University"
+              ]
+            },
+            {
+              "family": "Beaven",
+              "given": "C. Martyn",
+              "name": "C. Martyn Beaven",
+              "orcid": "https://orcid.org/0000-0003-2900-7460",
+              "affiliations": [
+                "University of Waikato"
+              ]
+            }
+          ],
+          "year": 2021,
+          "venue": "Clocks & Sleep",
+          "volume": "4",
+          "issue": "1",
+          "pages": "1-7",
+          "workType": "article",
+          "publisher": "Multidisciplinary Digital Publishing Institute",
+          "language": "en"
+        },
+        {
+          "sourceId": "S9",
+          "canonicalId": "00673d47-d72c-e126-9bfa-34341f3bbfd9",
+          "openAlexWorkId": "W7117680688",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7117680688",
+          "title": "Correlation between sleep quality and academic performance among Nigerian students",
+          "url": "https://magnascientiapub.com/journals/msarr/sites/default/files/MSARR-2025-0171.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.30574/msarr.2025.15.2.0171",
+          "authors": "Obi Daniel Ogochukwu, Etta Solomon JNR Enyi, Fab-Emerenini Eziokwu Bright, Obodozie Chiamaka Huldah, Unini Collins Kelechi",
+          "authorDetails": [
+            {
+              "family": "Ogochukwu",
+              "given": "Obi Daniel",
+              "name": "Obi Daniel Ogochukwu",
+              "orcid": null,
+              "affiliations": [
+                "Nnamdi Azikiwe University Teaching Hospital"
+              ]
+            },
+            {
+              "family": "JNR Enyi",
+              "given": "Etta Solomon",
+              "name": "Etta Solomon JNR Enyi",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Bright",
+              "given": "Fab-Emerenini Eziokwu",
+              "name": "Fab-Emerenini Eziokwu Bright",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Huldah",
+              "given": "Obodozie Chiamaka",
+              "name": "Obodozie Chiamaka Huldah",
+              "orcid": null,
+              "affiliations": [
+                "Nnamdi Azikiwe University Teaching Hospital"
+              ]
+            },
+            {
+              "family": "Kelechi",
+              "given": "Unini Collins",
+              "name": "Unini Collins Kelechi",
+              "orcid": null,
+              "affiliations": [
+                "Nnamdi Azikiwe University Teaching Hospital"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Magna Scientia Advanced Research and Reviews",
+          "volume": "15",
+          "issue": "2",
+          "pages": "306-316",
+          "workType": "article",
+          "publisher": "GSC Online Press",
+          "language": "en"
+        },
+        {
+          "sourceId": "S10",
+          "canonicalId": "9146e2b4-545b-caff-4fcd-04f470a8ad03",
+          "openAlexWorkId": "W7218201198",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7218201198",
+          "title": "Sleep Quality and Self-Control: Impact on Academic Performance on University Students",
+          "url": "https://psychopediajournals.com/index.php/index/article/view/350",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Yoihenba Ningombam, Anu Teotia",
+          "authorDetails": [
+            {
+              "family": "Ningombam",
+              "given": "Yoihenba",
+              "name": "Yoihenba Ningombam",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Teotia",
+              "given": "Anu",
+              "name": "Anu Teotia",
+              "orcid": null,
+              "affiliations": []
+            }
+          ],
+          "year": 2024,
+          "venue": "International Journal of Interdisciplinary Approaches in Psychology",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S11",
+          "canonicalId": "1666ac26-481c-160a-96e3-99b88664e669",
+          "openAlexWorkId": "W7204093892",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7204093892",
+          "title": "Evidence on Sleep and Academic Achievement in First-Year University Students: A Scoping Review",
+          "url": "https://doi.org/10.3390/clockssleep8030050",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.3390/clockssleep8030050",
+          "authors": "Diana R. Pereira",
+          "authorDetails": [
+            {
+              "family": "Pereira",
+              "given": "Diana R.",
+              "name": "Diana R. Pereira",
+              "orcid": "https://orcid.org/0000-0002-3190-9298",
+              "affiliations": [
+                "University of Minho"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "Clocks & Sleep",
+          "volume": "8",
+          "issue": "3",
+          "pages": "50",
+          "workType": "review",
+          "publisher": "Multidisciplinary Digital Publishing Institute",
+          "language": "en"
+        },
+        {
+          "sourceId": "S12",
+          "canonicalId": "55b07fed-2451-18d7-5ec2-36279af280ad",
+          "openAlexWorkId": "W4406145701",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4406145701",
+          "title": "Digital Well-being and Student Performance: The Effect of Screen Time, Social Media Usage on Students Performance mediated by Sleep Quality",
+          "url": "https://hnpublisher.com/ojs/index.php/HNJSS/article/download/592/560",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.71016/hnjss/hdp1jd98",
+          "authors": "Ahmed Ali Qureshi",
+          "authorDetails": [
+            {
+              "family": "Qureshi",
+              "given": "Ahmed Ali",
+              "name": "Ahmed Ali Qureshi",
+              "orcid": "https://orcid.org/0009-0005-1511-1277",
+              "affiliations": [
+                "Shaheed Zulfiqar Ali Bhutto Institute of Science and Technology"
+              ]
+            }
+          ],
+          "year": 2024,
+          "venue": "Human Nature Journal of Social Sciences",
+          "volume": "5",
+          "issue": "4",
+          "pages": "222-232",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S14",
+          "canonicalId": "416f316b-7b41-59df-2674-eda374b2e95d",
+          "openAlexWorkId": "W7117308533",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7117308533",
+          "title": "Better sleep is associated with higher academic performance from an actigraphy-based analysis of sleep consistency and grades in college students",
+          "url": "https://www.nature.com/articles/s41598-025-33775-0_reference.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1038/s41598-025-33775-0",
+          "authors": "Chen-Ta Lin, Sheng-Fu Liang, Fu\u2010Zen Shaw",
+          "authorDetails": [
+            {
+              "family": "Lin",
+              "given": "Chen-Ta",
+              "name": "Chen-Ta Lin",
+              "orcid": "https://orcid.org/0009-0005-2432-117X",
+              "affiliations": [
+                "National Cheng Kung University"
+              ]
+            },
+            {
+              "family": "Liang",
+              "given": "Sheng-Fu",
+              "name": "Sheng-Fu Liang",
+              "orcid": null,
+              "affiliations": [
+                "National Cheng Kung University"
+              ]
+            },
+            {
+              "family": "Shaw",
+              "given": "Fu\u2010Zen",
+              "name": "Fu\u2010Zen Shaw",
+              "orcid": "https://orcid.org/0000-0001-6221-4045",
+              "affiliations": [
+                "National Cheng Kung University"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Scientific Reports",
+          "volume": "16",
+          "issue": "1",
+          "pages": "3766",
+          "workType": "article",
+          "publisher": "Nature Portfolio",
+          "language": "en"
+        },
+        {
+          "sourceId": "S15",
+          "canonicalId": "fd5ebc03-c493-fc95-6adc-76da4a3faf02",
+          "openAlexWorkId": "W7154711786",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7154711786",
+          "title": "Sleep, movement, and marks: exploring the relationship between sleep quality, physical activity, and academic performance in male university students",
+          "url": "https://doi.org/10.7717/peerj.21154",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.7717/peerj.21154",
+          "authors": "Mshari Alghadier",
+          "authorDetails": [
+            {
+              "family": "Alghadier",
+              "given": "Mshari",
+              "name": "Mshari Alghadier",
+              "orcid": "https://orcid.org/0000-0003-3686-8074",
+              "affiliations": [
+                "Prince Sattam Bin Abdulaziz University"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "PeerJ",
+          "volume": "14",
+          "issue": null,
+          "pages": "e21154",
+          "workType": "article",
+          "publisher": "PeerJ, Inc.",
+          "language": "en"
+        },
+        {
+          "sourceId": "S16",
+          "canonicalId": "a2e87ef2-e34c-db25-4d91-1c7722ec9da2",
+          "openAlexWorkId": "W4404332418",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4404332418",
+          "title": "Moderated serial mediation effects of adaptation problems, academic stress, and interpersonal relationships on the sleep quality of early-year university students",
+          "url": "https://www.frontiersin.org/journals/public-health/articles/10.3389/fpubh.2024.1476020/pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.3389/fpubh.2024.1476020",
+          "authors": "Chenyang Zhao, Yang Zhang",
+          "authorDetails": [
+            {
+              "family": "Zhao",
+              "given": "Chenyang",
+              "name": "Chenyang Zhao",
+              "orcid": "https://orcid.org/0000-0002-4716-2002",
+              "affiliations": [
+                "Hunan Normal University"
+              ]
+            },
+            {
+              "family": "Zhang",
+              "given": "Yang",
+              "name": "Yang Zhang",
+              "orcid": "https://orcid.org/0000-0002-3588-4702",
+              "affiliations": []
+            }
+          ],
+          "year": 2024,
+          "venue": "Frontiers in Public Health",
+          "volume": "12",
+          "issue": null,
+          "pages": "1476020",
+          "workType": "article",
+          "publisher": "Frontiers Media",
+          "language": "en"
+        },
+        {
+          "sourceId": "S17",
+          "canonicalId": "c371aac3-53da-06d4-49d5-59c5280382a4",
+          "openAlexWorkId": "W3039575799",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W3039575799",
+          "title": "Sue\u00f1o y rendimiento acad\u00e9mico en estudiantes universitarios: revisi\u00f3n sistem\u00e1tica",
+          "url": "https://doi.org/10.33588/rn.7102.2020015",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.33588/rn.7102.2020015",
+          "authors": "Maria Suardiaz-Muro, Miguel Morante Ruiz, Manuel Ortega Moreno, Miguel A. Ruiz, Pilar Mart\u00edn Plasencia, Antonio Vela Bueno",
+          "authorDetails": [
+            {
+              "family": "Suardiaz-Muro",
+              "given": "Maria",
+              "name": "Maria Suardiaz-Muro",
+              "orcid": "https://orcid.org/0000-0002-8104-5723",
+              "affiliations": []
+            },
+            {
+              "family": "Ruiz",
+              "given": "Miguel Morante",
+              "name": "Miguel Morante Ruiz",
+              "orcid": null,
+              "affiliations": [
+                "Hospital Universitario Fundaci\u00f3n Jim\u00e9nez D\u00edaz",
+                "Universidad Aut\u00f3noma de Madrid"
+              ]
+            },
+            {
+              "family": "Moreno",
+              "given": "Manuel Ortega",
+              "name": "Manuel Ortega Moreno",
+              "orcid": null,
+              "affiliations": [
+                "Hospital Universitario de M\u00f3stoles"
+              ]
+            },
+            {
+              "family": "Ruiz",
+              "given": "Miguel A.",
+              "name": "Miguel A. Ruiz",
+              "orcid": null,
+              "affiliations": [
+                "Universidad Aut\u00f3noma de Madrid"
+              ]
+            },
+            {
+              "family": "Plasencia",
+              "given": "Pilar Mart\u00edn",
+              "name": "Pilar Mart\u00edn Plasencia",
+              "orcid": null,
+              "affiliations": [
+                "Universidad Aut\u00f3noma de Madrid"
+              ]
+            },
+            {
+              "family": "Bueno",
+              "given": "Antonio Vela",
+              "name": "Antonio Vela Bueno",
+              "orcid": null,
+              "affiliations": [
+                "Pennsylvania State University"
+              ]
+            }
+          ],
+          "year": 2020,
+          "venue": "Revista de Neurolog\u00eda",
+          "volume": "71",
+          "issue": "02",
+          "pages": "43",
+          "workType": "article",
+          "publisher": "Viguera Publishers",
+          "language": "es"
+        },
+        {
+          "sourceId": "S18",
+          "canonicalId": "a45c1265-9d38-ed69-0a08-9a38309c5747",
+          "openAlexWorkId": "W4410521108",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4410521108",
+          "title": "SLEEP QUALITY, ACADEMIC PERFORMANCE AND ANXIETY AMONG UNIVERSITY HOSTELITES AND NON-HOSTELITES STUDENTS",
+          "url": "https://insightsjhr.com/index.php/home/article/download/783/867",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.71000/ec1c5021",
+          "authors": "Kainat Rashid, M. Abdullah, Ayesha Jabbar, Tauseef Ahmad, Sameen Sadaqat, Shahnawaz, Eazzad Yaar, Faisal Ijaz, Muqadas Zahid, Washma Ahmad, Fatima Umaira Saeed",
+          "authorDetails": [
+            {
+              "family": "Rashid",
+              "given": "Kainat",
+              "name": "Kainat Rashid",
+              "orcid": null,
+              "affiliations": [
+                "University of Okara"
+              ]
+            },
+            {
+              "family": "Abdullah",
+              "given": "M.",
+              "name": "M. Abdullah",
+              "orcid": "https://orcid.org/0000-0001-5638-4726",
+              "affiliations": []
+            },
+            {
+              "family": "Jabbar",
+              "given": "Ayesha",
+              "name": "Ayesha Jabbar",
+              "orcid": "https://orcid.org/0009-0009-8254-6747",
+              "affiliations": [
+                "University of Okara"
+              ]
+            },
+            {
+              "family": "Ahmad",
+              "given": "Tauseef",
+              "name": "Tauseef Ahmad",
+              "orcid": "https://orcid.org/0009-0008-9470-8320",
+              "affiliations": [
+                "University of Okara"
+              ]
+            },
+            {
+              "family": "Sadaqat",
+              "given": "Sameen",
+              "name": "Sameen Sadaqat",
+              "orcid": "https://orcid.org/0009-0004-6255-4671",
+              "affiliations": [
+                "Lahore College for Women University"
+              ]
+            },
+            {
+              "family": "Shahnawaz",
+              "given": null,
+              "name": "Shahnawaz",
+              "orcid": null,
+              "affiliations": [
+                "Lahore College for Women University"
+              ]
+            },
+            {
+              "family": "Yaar",
+              "given": "Eazzad",
+              "name": "Eazzad Yaar",
+              "orcid": null,
+              "affiliations": [
+                "University of Okara"
+              ]
+            },
+            {
+              "family": "Ijaz",
+              "given": "Faisal",
+              "name": "Faisal Ijaz",
+              "orcid": null,
+              "affiliations": [
+                "University of Okara"
+              ]
+            },
+            {
+              "family": "Zahid",
+              "given": "Muqadas",
+              "name": "Muqadas Zahid",
+              "orcid": null,
+              "affiliations": [
+                "University of Okara"
+              ]
+            },
+            {
+              "family": "Ahmad",
+              "given": "Washma",
+              "name": "Washma Ahmad",
+              "orcid": null,
+              "affiliations": [
+                "University of Okara"
+              ]
+            },
+            {
+              "family": "Saeed",
+              "given": "Fatima Umaira",
+              "name": "Fatima Umaira Saeed",
+              "orcid": "https://orcid.org/0009-0005-6990-8214",
+              "affiliations": []
+            }
+          ],
+          "year": 2025,
+          "venue": "Insights-Journal of Health and Rehabilitation",
+          "volume": "3",
+          "issue": "2 (Health & Rehab)",
+          "pages": "903-909",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S19",
+          "canonicalId": "3ae3fc60-264c-5b09-996f-39a634e9f567",
+          "openAlexWorkId": "W4410481279",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4410481279",
+          "title": "0235 Cannabis Use as a Moderator Between Sleep and Academic Performance in Canadian University Students",
+          "url": "https://academic.oup.com/sleep/article-pdf/48/Supplement_1/A103/63221826/zsaf090.0235.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1093/sleep/zsaf090.0235",
+          "authors": "Chlo\u00e9 Turpin, Jean-Fran\u00e7ois Caron, F\u00e9lix-Gabriel Duval, Vincent Bourgon, Genevi\u00e8ve Forest",
+          "authorDetails": [
+            {
+              "family": "Turpin",
+              "given": "Chlo\u00e9",
+              "name": "Chlo\u00e9 Turpin",
+              "orcid": null,
+              "affiliations": [
+                "Universit\u00e9 du Qu\u00e9bec en Outaouais"
+              ]
+            },
+            {
+              "family": "Caron",
+              "given": "Jean-Fran\u00e7ois",
+              "name": "Jean-Fran\u00e7ois Caron",
+              "orcid": null,
+              "affiliations": [
+                "Universit\u00e9 du Qu\u00e9bec en Outaouais"
+              ]
+            },
+            {
+              "family": "Duval",
+              "given": "F\u00e9lix-Gabriel",
+              "name": "F\u00e9lix-Gabriel Duval",
+              "orcid": "https://orcid.org/0009-0005-2509-0262",
+              "affiliations": [
+                "Universit\u00e9 du Qu\u00e9bec en Outaouais"
+              ]
+            },
+            {
+              "family": "Bourgon",
+              "given": "Vincent",
+              "name": "Vincent Bourgon",
+              "orcid": "https://orcid.org/0009-0005-0881-373X",
+              "affiliations": [
+                "Universit\u00e9 du Qu\u00e9bec en Outaouais"
+              ]
+            },
+            {
+              "family": "Forest",
+              "given": "Genevi\u00e8ve",
+              "name": "Genevi\u00e8ve Forest",
+              "orcid": "https://orcid.org/0000-0001-7552-5571",
+              "affiliations": [
+                "Universit\u00e9 du Qu\u00e9bec en Outaouais"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "SLEEP",
+          "volume": "48",
+          "issue": "Supplement_1",
+          "pages": "A103-A104",
+          "workType": "article",
+          "publisher": "Oxford University Press",
+          "language": "en"
+        },
+        {
+          "sourceId": "S20",
+          "canonicalId": "c0019e8e-ca4d-d737-428d-ab308f61b6e4",
+          "openAlexWorkId": "W2793115807",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W2793115807",
+          "title": "Sleep quality and academic performance among Nigerian undergraduate students",
+          "url": "https://www.oatext.com/pdf/JSIN-3-179.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.15761/jsin.1000179",
+          "authors": "Champion Tobi Seun-Fadipe, Kolawole Samuel Mosaku",
+          "authorDetails": [
+            {
+              "family": "Seun-Fadipe",
+              "given": "Champion Tobi",
+              "name": "Champion Tobi Seun-Fadipe",
+              "orcid": "https://orcid.org/0000-0002-6215-6786",
+              "affiliations": [
+                "Obafemi Awolowo University Teaching Hospitals Complex",
+                "Obafemi Awolowo University"
+              ]
+            },
+            {
+              "family": "Mosaku",
+              "given": "Kolawole Samuel",
+              "name": "Kolawole Samuel Mosaku",
+              "orcid": "https://orcid.org/0000-0003-2009-9223",
+              "affiliations": [
+                "Obafemi Awolowo University Teaching Hospitals Complex",
+                "Obafemi Awolowo University"
+              ]
+            }
+          ],
+          "year": 2017,
+          "venue": "Journal of Systems and Integrative Neuroscience",
+          "volume": "3",
+          "issue": "5",
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S21",
+          "canonicalId": "e85a11d3-31ab-a2f4-9260-26343dcbe8d8",
+          "openAlexWorkId": "W4410930302",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4410930302",
+          "title": "Caffeine, Sleep, and Academic Performance: A Cross-Sectional Study Among University Students",
+          "url": "https://www.jashso.org.tr/index.php/jashso/article/download/27/17",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.51271/jashso.27",
+          "authors": "Fatma S\u0131la Sad\u0131k, Ekinsu Ya\u011fc\u0131, Yaren Y\u00fcksel, Kadriye Toprak, Nevin \u015eanl\u0131er",
+          "authorDetails": [
+            {
+              "family": "Sad\u0131k",
+              "given": "Fatma S\u0131la",
+              "name": "Fatma S\u0131la Sad\u0131k",
+              "orcid": null,
+              "affiliations": [
+                "Ankara Medipol \u00dcniversitesi"
+              ]
+            },
+            {
+              "family": "Ya\u011fc\u0131",
+              "given": "Ekinsu",
+              "name": "Ekinsu Ya\u011fc\u0131",
+              "orcid": null,
+              "affiliations": [
+                "Ankara Medipol \u00dcniversitesi"
+              ]
+            },
+            {
+              "family": "Y\u00fcksel",
+              "given": "Yaren",
+              "name": "Yaren Y\u00fcksel",
+              "orcid": null,
+              "affiliations": [
+                "Ankara Medipol \u00dcniversitesi"
+              ]
+            },
+            {
+              "family": "Toprak",
+              "given": "Kadriye",
+              "name": "Kadriye Toprak",
+              "orcid": "https://orcid.org/0000-0001-8706-8689",
+              "affiliations": [
+                "Ankara Medipol \u00dcniversitesi"
+              ]
+            },
+            {
+              "family": "\u015eanl\u0131er",
+              "given": "Nevin",
+              "name": "Nevin \u015eanl\u0131er",
+              "orcid": "https://orcid.org/0000-0001-5937-0485",
+              "affiliations": [
+                "Ankara Medipol \u00dcniversitesi"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Journal of Advanced Studies in Health Science and Obesity",
+          "volume": "1",
+          "issue": "2",
+          "pages": "22-42",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S22",
+          "canonicalId": "7caccfd9-4962-f932-5cb9-9fd3ba6b2a4e",
+          "openAlexWorkId": "W4361285914",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4361285914",
+          "title": "Factors Associated With Sleeping Quality and Behaviors Among University Students in Malaysia",
+          "url": "https://www.sleepmedres.org/upload/pdf/smr-2022-01536.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.17241/smr.2022.01536",
+          "authors": "Siew Chin Ong, Nizuwan Azman, Hui Ting Ho",
+          "authorDetails": [
+            {
+              "family": "Ong",
+              "given": "Siew Chin",
+              "name": "Siew Chin Ong",
+              "orcid": "https://orcid.org/0000-0002-9750-9588",
+              "affiliations": [
+                "Universiti Sains Malaysia"
+              ]
+            },
+            {
+              "family": "Azman",
+              "given": "Nizuwan",
+              "name": "Nizuwan Azman",
+              "orcid": "https://orcid.org/0000-0002-4000-2831",
+              "affiliations": [
+                "Universiti Sains Malaysia"
+              ]
+            },
+            {
+              "family": "Ho",
+              "given": "Hui Ting",
+              "name": "Hui Ting Ho",
+              "orcid": "https://orcid.org/0009-0003-5528-3263",
+              "affiliations": [
+                "Universiti Sains Malaysia"
+              ]
+            }
+          ],
+          "year": 2023,
+          "venue": "Sleep Medicine Research",
+          "volume": "14",
+          "issue": "1",
+          "pages": "43-49",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S23",
+          "canonicalId": "ed95048c-7dc9-b31c-f9e6-595e2c06f98e",
+          "openAlexWorkId": "W4409073757",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4409073757",
+          "title": "Kajian Sistematis: Pengaruh Durasi Tidur Terhadap Performa Akademik Mahasiswa Perguruan Tinggi",
+          "url": "https://sihojurnal.com/index.php/identik/article/download/141/195",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.70134/identik.v2i2.141",
+          "authors": "Ester Ratna Cahyani Zega, Metalitas Zega",
+          "authorDetails": [
+            {
+              "family": "Zega",
+              "given": "Ester Ratna Cahyani",
+              "name": "Ester Ratna Cahyani Zega",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Nias"
+              ]
+            },
+            {
+              "family": "Zega",
+              "given": "Metalitas",
+              "name": "Metalitas Zega",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Sari Mutiara Indonesia"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Jurnal Ilmu Ekonomi, Pendidikan dan Teknik.",
+          "volume": "2",
+          "issue": "2",
+          "pages": "61-66",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S24",
+          "canonicalId": "2f0c4bd3-a129-81dc-e77c-a0af7651e76d",
+          "openAlexWorkId": "W4415592413",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4415592413",
+          "title": "EXPLORING THE RELATIONSHIP BETWEEN SLEEP QUALITY AND COGNITIVE PERFORMANCE AMONG UNIVERSITY STUDENTS EXPERIENCING ACADEMIC STRESS",
+          "url": "https://insightsjlss.com/index.php/home/article/download/374/364",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.71000/mn71dw82",
+          "authors": "Anushka Majeed, Khudija tul Kubra, Asmara Shafqat, Gulrukh Rana, Shaikh Khalid Muhammad, Muhammad Naveed",
+          "authorDetails": [
+            {
+              "family": "Majeed",
+              "given": "Anushka",
+              "name": "Anushka Majeed",
+              "orcid": null,
+              "affiliations": [
+                "University of Lahore"
+              ]
+            },
+            {
+              "family": "Kubra",
+              "given": "Khudija tul",
+              "name": "Khudija tul Kubra",
+              "orcid": "https://orcid.org/0009-0001-2835-6530",
+              "affiliations": [
+                "Shaheed Mohtarma Benazir Bhutto Medical University"
+              ]
+            },
+            {
+              "family": "Shafqat",
+              "given": "Asmara",
+              "name": "Asmara Shafqat",
+              "orcid": "https://orcid.org/0000-0002-5928-5915",
+              "affiliations": [
+                "NED University of Engineering and Technology"
+              ]
+            },
+            {
+              "family": "Rana",
+              "given": "Gulrukh",
+              "name": "Gulrukh Rana",
+              "orcid": null,
+              "affiliations": [
+                "Allama Iqbal Open University"
+              ]
+            },
+            {
+              "family": "Muhammad",
+              "given": "Shaikh Khalid",
+              "name": "Shaikh Khalid Muhammad",
+              "orcid": null,
+              "affiliations": [
+                "Shaheed Mohtarma Benazir Bhutto Medical University"
+              ]
+            },
+            {
+              "family": "Naveed",
+              "given": "Muhammad",
+              "name": "Muhammad Naveed",
+              "orcid": "https://orcid.org/0000-0001-6007-5619",
+              "affiliations": []
+            }
+          ],
+          "year": 2025,
+          "venue": "Insights-Journal of Life and Social Sciences",
+          "volume": "3",
+          "issue": "5 (Life)",
+          "pages": "108-115",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S25",
+          "canonicalId": "f6086e79-f7a6-001a-2b62-b0f4fbb2afb2",
+          "openAlexWorkId": "W4410502967",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4410502967",
+          "title": "0492 Sleep and Academic Performance in University Students: A Critical Appraisal",
+          "url": "https://academic.oup.com/sleep/article-pdf/48/Supplement_1/A214/63221285/zsaf090.0492.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1093/sleep/zsaf090.0492",
+          "authors": "Blake K. Barley, Ariadne Dias Godinho, Michael K. Scullin",
+          "authorDetails": [
+            {
+              "family": "Barley",
+              "given": "Blake K.",
+              "name": "Blake K. Barley",
+              "orcid": "https://orcid.org/0000-0002-5211-2309",
+              "affiliations": [
+                "Baylor University"
+              ]
+            },
+            {
+              "family": "Godinho",
+              "given": "Ariadne Dias",
+              "name": "Ariadne Dias Godinho",
+              "orcid": null,
+              "affiliations": [
+                "Baylor University"
+              ]
+            },
+            {
+              "family": "Scullin",
+              "given": "Michael K.",
+              "name": "Michael K. Scullin",
+              "orcid": "https://orcid.org/0000-0002-7578-7587",
+              "affiliations": [
+                "Baylor University"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "SLEEP",
+          "volume": "48",
+          "issue": "Supplement_1",
+          "pages": "A214-A215",
+          "workType": "article",
+          "publisher": "Oxford University Press",
+          "language": "en"
+        },
+        {
+          "sourceId": "S26",
+          "canonicalId": "1d10351f-5196-68c5-ec15-bf1f3ce09440",
+          "openAlexWorkId": "W1512775606",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W1512775606",
+          "title": "SLEEP AS A DETERMINANT OF ACADEMIC PERFORMANCE OF UNIVERSITY STUDENTS IN OGUN STATE, SOUTH WEST, NIGERIA",
+          "url": "http://eujournal.org/index.php/esj/article/viewFile/3384/3148",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Taiwo Motolani Williams, Ruth A. Aderanti",
+          "authorDetails": [
+            {
+              "family": "Williams",
+              "given": "Taiwo Motolani",
+              "name": "Taiwo Motolani Williams",
+              "orcid": "https://orcid.org/0000-0001-9190-6438",
+              "affiliations": [
+                "Babcock University"
+              ]
+            },
+            {
+              "family": "Aderanti",
+              "given": "Ruth A.",
+              "name": "Ruth A. Aderanti",
+              "orcid": null,
+              "affiliations": [
+                "Babcock University"
+              ]
+            }
+          ],
+          "year": 2014,
+          "venue": "European Scientific Journal ESJ",
+          "volume": "10",
+          "issue": "13",
+          "pages": null,
+          "workType": "article",
+          "publisher": "European Scientific Institute",
+          "language": "en"
+        },
+        {
+          "sourceId": "S27",
+          "canonicalId": "b55f9ea1-45f6-17a2-955b-6d2690268ca6",
+          "openAlexWorkId": "W3171807101",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W3171807101",
+          "title": "Sleep, Well-Being and Academic Performance: A Study in a Singapore Residential College",
+          "url": "https://www.frontiersin.org/articles/10.3389/fpsyg.2021.672238/pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.3389/fpsyg.2021.672238",
+          "authors": "M.A. Armand, Federica Biassoni, Alberto Corrias",
+          "authorDetails": [
+            {
+              "family": "Armand",
+              "given": "M.A.",
+              "name": "M.A. Armand",
+              "orcid": "https://orcid.org/0009-0006-4916-5596",
+              "affiliations": [
+                "National University of Singapore"
+              ]
+            },
+            {
+              "family": "Biassoni",
+              "given": "Federica",
+              "name": "Federica Biassoni",
+              "orcid": "https://orcid.org/0000-0002-0375-2211",
+              "affiliations": [
+                "Universit\u00e0 Cattolica del Sacro Cuore"
+              ]
+            },
+            {
+              "family": "Corrias",
+              "given": "Alberto",
+              "name": "Alberto Corrias",
+              "orcid": "https://orcid.org/0000-0003-2156-713X",
+              "affiliations": [
+                "National University of Singapore"
+              ]
+            }
+          ],
+          "year": 2021,
+          "venue": "Frontiers in Psychology",
+          "volume": "12",
+          "issue": null,
+          "pages": "672238",
+          "workType": "article",
+          "publisher": "Frontiers Media",
+          "language": "en"
+        },
+        {
+          "sourceId": "S28",
+          "canonicalId": "56366e10-1fcf-9967-fb54-678f1a3f156f",
+          "openAlexWorkId": "W4293809545",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4293809545",
+          "title": "Self-reported Sleep Quality and Associated Factors among Undergraduate Students in a Nigerian Tertiary Institution",
+          "url": "https://journalijtdh.com/index.php/IJTDH/article/download/1298/2593",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.9734/ijtdh/2022/v43i1630651",
+          "authors": "Oyewumi S. Oyewole, Adedotun Adewale, ElijahOlufemi Oyetola",
+          "authorDetails": [
+            {
+              "family": "Oyewole",
+              "given": "Oyewumi S.",
+              "name": "Oyewumi S. Oyewole",
+              "orcid": null,
+              "affiliations": [
+                "Obafemi Awolowo University"
+              ]
+            },
+            {
+              "family": "Adewale",
+              "given": "Adedotun",
+              "name": "Adedotun Adewale",
+              "orcid": "https://orcid.org/0000-0001-6347-8632",
+              "affiliations": [
+                "Obafemi Awolowo University"
+              ]
+            },
+            {
+              "family": "Oyetola",
+              "given": "ElijahOlufemi",
+              "name": "ElijahOlufemi Oyetola",
+              "orcid": "https://orcid.org/0000-0002-9163-8215",
+              "affiliations": [
+                "Obafemi Awolowo University"
+              ]
+            }
+          ],
+          "year": 2022,
+          "venue": "International Journal of TROPICAL DISEASE & Health",
+          "volume": null,
+          "issue": null,
+          "pages": "29-36",
+          "workType": "article",
+          "publisher": "Sciencedomain International",
+          "language": "en"
+        },
+        {
+          "sourceId": "S29",
+          "canonicalId": "8a5d952f-4559-0cb7-28f9-b6a920b63286",
+          "openAlexWorkId": "W2608386994",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W2608386994",
+          "title": "1123 SLEEP QUALITY, PERCEIVED STRESS AND ACADEMIC PERFORMANCE OF UNDERGRADUATE STUDENTS IN A NIGERIAN UNIVERSITY",
+          "url": "https://doi.org/10.1093/sleepj/zsx050.1122",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1093/sleepj/zsx050.1122",
+          "authors": "Champion Tobi Seun-Fadipe, Kolawole Samuel Mosaku, Morenikeji Adeyoyin Komolafe, Bimbo Fawale, Akintunde Adebowale",
+          "authorDetails": [
+            {
+              "family": "Seun-Fadipe",
+              "given": "Champion Tobi",
+              "name": "Champion Tobi Seun-Fadipe",
+              "orcid": "https://orcid.org/0000-0002-6215-6786",
+              "affiliations": [
+                "Obafemi Awolowo University Teaching Hospitals Complex"
+              ]
+            },
+            {
+              "family": "Mosaku",
+              "given": "Kolawole Samuel",
+              "name": "Kolawole Samuel Mosaku",
+              "orcid": "https://orcid.org/0000-0003-2009-9223",
+              "affiliations": [
+                "Obafemi Awolowo University Teaching Hospitals Complex"
+              ]
+            },
+            {
+              "family": "Komolafe",
+              "given": "Morenikeji Adeyoyin",
+              "name": "Morenikeji Adeyoyin Komolafe",
+              "orcid": "https://orcid.org/0000-0002-0592-5120",
+              "affiliations": [
+                "Obafemi Awolowo University Teaching Hospitals Complex"
+              ]
+            },
+            {
+              "family": "Fawale",
+              "given": "Bimbo",
+              "name": "Bimbo Fawale",
+              "orcid": "https://orcid.org/0000-0003-3205-7514",
+              "affiliations": [
+                "Obafemi Awolowo University Teaching Hospitals Complex"
+              ]
+            },
+            {
+              "family": "Adebowale",
+              "given": "Akintunde",
+              "name": "Akintunde Adebowale",
+              "orcid": "https://orcid.org/0000-0002-5570-9709",
+              "affiliations": [
+                "Obafemi Awolowo University Teaching Hospitals Complex"
+              ]
+            }
+          ],
+          "year": 2017,
+          "venue": "SLEEP",
+          "volume": "40",
+          "issue": "suppl_1",
+          "pages": "A418-A419",
+          "workType": "article",
+          "publisher": "Oxford University Press",
+          "language": "en"
+        },
+        {
+          "sourceId": "S31",
+          "canonicalId": "4261d69d-5759-a232-a765-a4c38c646ef6",
+          "openAlexWorkId": "W4400459972",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4400459972",
+          "title": "Effect of poor sleep quality on academic performance among students at a public Saudi University",
+          "url": "https://doi.org/10.24911/ijmdc.51-1714215275",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.24911/ijmdc.51-1714215275",
+          "authors": "Khalid A. Bin Abdulrahman, Joud N Bindekhayel, Layan A. Alrehaili, Nouf Aldhfayan, Aseel Ali Alomireeni, Laila Alzamil",
+          "authorDetails": [
+            {
+              "family": "Bin Abdulrahman",
+              "given": "Khalid A.",
+              "name": "Khalid A. Bin Abdulrahman",
+              "orcid": "https://orcid.org/0000-0003-4756-552X",
+              "affiliations": []
+            },
+            {
+              "family": "Bindekhayel",
+              "given": "Joud N",
+              "name": "Joud N Bindekhayel",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Alrehaili",
+              "given": "Layan A.",
+              "name": "Layan A. Alrehaili",
+              "orcid": "https://orcid.org/0009-0006-7943-9738",
+              "affiliations": []
+            },
+            {
+              "family": "Aldhfayan",
+              "given": "Nouf",
+              "name": "Nouf Aldhfayan",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Alomireeni",
+              "given": "Aseel Ali",
+              "name": "Aseel Ali Alomireeni",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Alzamil",
+              "given": "Laila",
+              "name": "Laila Alzamil",
+              "orcid": "https://orcid.org/0009-0001-9037-6268",
+              "affiliations": []
+            }
+          ],
+          "year": 2024,
+          "venue": "International Journal of Medicine in Developing Countries",
+          "volume": null,
+          "issue": null,
+          "pages": "1574-1581",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S32",
+          "canonicalId": "20199906-fdb0-792e-14de-21426e6f405a",
+          "openAlexWorkId": "W2608154354",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W2608154354",
+          "title": "Self-perceived Problems in Sleeping and in Self-control Are Related to First Year Study Success in Higher Education",
+          "url": "https://www.frontiersin.org/articles/10.3389/feduc.2017.00014/pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.3389/feduc.2017.00014",
+          "authors": "Marije Nije Bijvank, Geertje H. Tonnaer, Jelle Jolles",
+          "authorDetails": [
+            {
+              "family": "Bijvank",
+              "given": "Marije Nije",
+              "name": "Marije Nije Bijvank",
+              "orcid": null,
+              "affiliations": [
+                "Saxion"
+              ]
+            },
+            {
+              "family": "Tonnaer",
+              "given": "Geertje H.",
+              "name": "Geertje H. Tonnaer",
+              "orcid": null,
+              "affiliations": [
+                "Saxion"
+              ]
+            },
+            {
+              "family": "Jolles",
+              "given": "Jelle",
+              "name": "Jelle Jolles",
+              "orcid": null,
+              "affiliations": [
+                "Vrije Universiteit Amsterdam"
+              ]
+            }
+          ],
+          "year": 2017,
+          "venue": "Frontiers in Education",
+          "volume": "2",
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": "Frontiers Media",
+          "language": "en"
+        },
+        {
+          "sourceId": "S33",
+          "canonicalId": "d1ea9741-c29e-a1b8-4112-29d5e125b679",
+          "openAlexWorkId": "W4405123884",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4405123884",
+          "title": "Sleep quality, chronotype and academic performance of university students in the health area",
+          "url": "https://doi.org/10.1080/09291016.2024.2437643",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1080/09291016.2024.2437643",
+          "authors": "Sarah Santos Souza, Kauanne Sacramento de Brito, Gustavo Modesto Amorim, John Fontenele Ara\u00fajo, Leandro Louren\u00e7\u00e3o Duarte",
+          "authorDetails": [
+            {
+              "family": "Souza",
+              "given": "Sarah Santos",
+              "name": "Sarah Santos Souza",
+              "orcid": null,
+              "affiliations": [
+                "Universidade Federal do Rec\u00f4ncavo da Bahia"
+              ]
+            },
+            {
+              "family": "de Brito",
+              "given": "Kauanne Sacramento",
+              "name": "Kauanne Sacramento de Brito",
+              "orcid": null,
+              "affiliations": [
+                "Universidade Federal do Rec\u00f4ncavo da Bahia"
+              ]
+            },
+            {
+              "family": "Amorim",
+              "given": "Gustavo Modesto",
+              "name": "Gustavo Modesto Amorim",
+              "orcid": "https://orcid.org/0000-0002-9179-2378",
+              "affiliations": [
+                "Universidade Federal do Rec\u00f4ncavo da Bahia"
+              ]
+            },
+            {
+              "family": "Ara\u00fajo",
+              "given": "John Fontenele",
+              "name": "John Fontenele Ara\u00fajo",
+              "orcid": "https://orcid.org/0000-0002-8022-2425",
+              "affiliations": [
+                "Universidade Federal do Rio Grande do Norte"
+              ]
+            },
+            {
+              "family": "Duarte",
+              "given": "Leandro Louren\u00e7\u00e3o",
+              "name": "Leandro Louren\u00e7\u00e3o Duarte",
+              "orcid": "https://orcid.org/0000-0002-3925-5102",
+              "affiliations": [
+                "Universidade Federal do Rec\u00f4ncavo da Bahia"
+              ]
+            }
+          ],
+          "year": 2024,
+          "venue": "Biological Rhythm Research",
+          "volume": "56",
+          "issue": "1",
+          "pages": "31-44",
+          "workType": "article",
+          "publisher": "Taylor & Francis",
+          "language": "en"
+        },
+        {
+          "sourceId": "S34",
+          "canonicalId": "bf08ef19-50fe-070d-5bd5-da63e14c358a",
+          "openAlexWorkId": "W4414723142",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4414723142",
+          "title": "Association Between Sleep Quality and Cognitive Function Among University Students in Dhaka: A Cross-Sectional Study",
+          "url": "https://apjcr.org/index.php/apjcr/article/download/43/37",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.70818/apjcr.v02i03.043",
+          "authors": "Aishwarya Sarker Hridi, Nishat Shabnam Jesi, Sumaiya Chaudhuri Sharmy, Farhana Ferdaus",
+          "authorDetails": [
+            {
+              "family": "Hridi",
+              "given": "Aishwarya Sarker",
+              "name": "Aishwarya Sarker Hridi",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Jesi",
+              "given": "Nishat Shabnam",
+              "name": "Nishat Shabnam Jesi",
+              "orcid": null,
+              "affiliations": [
+                "Khulna Medical College"
+              ]
+            },
+            {
+              "family": "Sharmy",
+              "given": "Sumaiya Chaudhuri",
+              "name": "Sumaiya Chaudhuri Sharmy",
+              "orcid": null,
+              "affiliations": [
+                "Khulna Medical College"
+              ]
+            },
+            {
+              "family": "Ferdaus",
+              "given": "Farhana",
+              "name": "Farhana Ferdaus",
+              "orcid": null,
+              "affiliations": [
+                "Khulna Medical College"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Asia Pacific Journal of Cancer Research",
+          "volume": "2",
+          "issue": "3",
+          "pages": "73-78",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S35",
+          "canonicalId": "f65a3de8-122d-3fa0-b080-da2ff6d844cc",
+          "openAlexWorkId": "W4413957474",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4413957474",
+          "title": "Social media addiction and academic engagement: the role of sleep quality and fatigue among university students in Somalia",
+          "url": "https://www.frontiersin.org/journals/education/articles/10.3389/feduc.2025.1614746/pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.3389/feduc.2025.1614746",
+          "authors": "Mohamed Abdullahi Khalaf, Abdifetah Ibrahim Omar, Abdirizak Warsame Abdulle, Mohamed Ahmed Mohamud",
+          "authorDetails": [
+            {
+              "family": "Khalaf",
+              "given": "Mohamed Abdullahi",
+              "name": "Mohamed Abdullahi Khalaf",
+              "orcid": null,
+              "affiliations": [
+                "Jamhuriya University of Science and Technology"
+              ]
+            },
+            {
+              "family": "Omar",
+              "given": "Abdifetah Ibrahim",
+              "name": "Abdifetah Ibrahim Omar",
+              "orcid": "https://orcid.org/0000-0001-5444-6487",
+              "affiliations": [
+                "Jamhuriya University of Science and Technology"
+              ]
+            },
+            {
+              "family": "Abdulle",
+              "given": "Abdirizak Warsame",
+              "name": "Abdirizak Warsame Abdulle",
+              "orcid": "https://orcid.org/0009-0001-9359-8931",
+              "affiliations": [
+                "Jamhuriya University of Science and Technology"
+              ]
+            },
+            {
+              "family": "Mohamud",
+              "given": "Mohamed Ahmed",
+              "name": "Mohamed Ahmed Mohamud",
+              "orcid": "https://orcid.org/0009-0006-2849-4905",
+              "affiliations": [
+                "Jamhuriya University of Science and Technology"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Frontiers in Education",
+          "volume": "10",
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": "Frontiers Media",
+          "language": "en"
+        },
+        {
+          "sourceId": "S36",
+          "canonicalId": "9e8a3067-ac67-581f-47d5-18f3a1bcb04e",
+          "openAlexWorkId": "W7200229782",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7200229782",
+          "title": "Investigating the interactional effects of socio-demographic factors and sleep quality on academic achievement among Malaysian undergraduate students",
+          "url": "https://jurcon.ums.edu.my/ojums/index.php/JPKS/article/download/5709/5000",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.51200/jpks.v6i1.5709",
+          "authors": "Mazni Mustapha, Thurgha Ramasamy, Noorma Razali",
+          "authorDetails": [
+            {
+              "family": "Mustapha",
+              "given": "Mazni",
+              "name": "Mazni Mustapha",
+              "orcid": null,
+              "affiliations": [
+                "Universiti of Malaysia Sabah"
+              ]
+            },
+            {
+              "family": "Ramasamy",
+              "given": "Thurgha",
+              "name": "Thurgha Ramasamy",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Razali",
+              "given": "Noorma",
+              "name": "Noorma Razali",
+              "orcid": null,
+              "affiliations": [
+                "Universiti of Malaysia Sabah"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "Jurnal Psikologi dan Kesihatan Sosial",
+          "volume": "6",
+          "issue": "1",
+          "pages": null,
+          "workType": "article",
+          "publisher": "Universiti Malaysia Sabah",
+          "language": "en"
+        },
+        {
+          "sourceId": "S37",
+          "canonicalId": "775832a0-73ca-2b70-e12e-e1be4030ccac",
+          "openAlexWorkId": "W4404106781",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4404106781",
+          "title": "The Relationship Between Chronotype and Academic Achievement Among Slovenian University Students: The Mediating Role of Trait Self-Control and Sleep Quality",
+          "url": "https://cepsj.si/index.php/cepsj/article/download/1790/792",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.26529/cepsj.1790",
+          "authors": "Katarina Mau\u010dec, Vita \u0160tukovnik",
+          "authorDetails": [
+            {
+              "family": "Mau\u010dec",
+              "given": "Katarina",
+              "name": "Katarina Mau\u010dec",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "\u0160tukovnik",
+              "given": "Vita",
+              "name": "Vita \u0160tukovnik",
+              "orcid": null,
+              "affiliations": [
+                "University of Maribor"
+              ]
+            }
+          ],
+          "year": 2024,
+          "venue": "Center for Educational Policy Studies Journal",
+          "volume": "16",
+          "issue": "2",
+          "pages": "213-233",
+          "workType": "article",
+          "publisher": "University of Ljubljana",
+          "language": "en"
+        }
+      ],
+      "wordCount": 3031,
+      "processingTimeMs": 215789,
+      "citationVerification": null,
+      "claimAudit": null,
+      "essayFlags": [],
+      "argumentativeQuality": null,
+      "isCaseStudy": false,
+      "caseType": null,
+      "caseSections": null,
+      "caseFactAudit": null,
+      "caseStudyFlags": [],
+      "isResearchPaper": true,
+      "researchPaperSections": {
+        "abstract": "The available literature, comprising 38 records, explores the complex relationship between sleep quality and academic performance in university students. This synthesis examines direct associations, moderating and mediating factors, and methodological considerations.\n\nA significant body of evidence suggests a positive association, where better sleep quality and sufficient sleep duration correlate with higher academic achievement, including higher GPAs and improved learning efficiency. Conversely, poorer sleep quality, insufficient or irregular sleep, fragmented sleep, and an evening chronotype are frequently linked to lower academic performance. These associations are supported by both self-reported measures and objective assessments like actigraphy, which show that consistent, high-quality weekday sleep is crucial for academic success.\n\nHowever, several studies report no significant relationship, and some even suggest that poorer sleep may, in specific contexts, be associated with better academic outcomes, possibly due to increased study time. This heterogeneity of findings indicates that the relationship is not universally linear.\n\nVarious factors moderate and mediate this association. Psychological elements such as anxiety, depressive symptoms, emotional fatigue, and academic stress frequently mediate the impact of sleep health on academic performance. Lifestyle habits, including cannabis use, social media addiction, and caffeine intake, also play roles, though their effects are sometimes inconsistent. Demographic characteristics, such as gender and chronotype, further contribute to the complexity.\n\nMethodological variations across studies are a key limitation. A predominant reliance on self-reported measures for both sleep and academic performance, coupled with the prevalence of cross-sectional designs, hinders the establishment of definitive causal relationships and may inflate observed associations. Few studies use objective sleep measurements or adjust comprehensively for confounding variables, further contributing to the diverse findings. More rigorous designs, including longitudinal and experimental studies with objective measures, are needed to clarify the causal pathways and the nuanced interplay of contributing factors.",
+        "introduction": "Sleep is a fundamental physiological process that underpins cognitive function, emotional regulation, and overall well-being [S3][S4][S7][S17]. University students frequently experience disruptions to their sleep patterns, including shortened duration, poor quality, and irregular sleep-wake cycles, often compounded by academic demands and psychosocial changes inherent in the university transition [S1][S5][S11][S17][S28]. These sleep disturbances are a growing concern due to their potential negative influence on academic performance and student success [S1][S5][S11][S17].\n\nNumerous studies have explored the association between various sleep parameters and academic outcomes among university students. A systematic review of 20 studies published between 2020 and 2025 found a consistent pattern: poorer sleep quality, insufficient or irregular sleep duration, fragmented sleep, evening chronotype, and late-night technology use were associated with lower grade point averages, reduced learning efficiency, and increased academic stress [S5]. Similarly, a scoping review of first-year university students revealed that shorter sleep duration, particularly below 6-7 hours per night, was generally linked to poorer academic achievement [S11]. Poor sleep quality has also been associated with lower academic performance in several studies, with affective factors potentially influencing this relationship [S3][S4][S11][S15][S20][S27][S29][S33][S34]. For instance, nearly half of undergraduate health sciences students in one study reported poor sleep quality, and those with good sleep quality showed significantly higher academic performance scores [S3]. Another study involving Nigerian students found that the academic performance of students with good sleep quality was significantly better than those with poor sleep quality [S20]. However, some research has indicated no significant relationship between academic performance and sleep quality [S2][S8][S9][S10][S12][S21][S31]. For example, a study of health sciences college students found a significant difference between sleeping hours and GPA but no significant difference between sleep quality and GPA [S2]. Another study reported no statistically significant relationship between sleep quality and academic performance among Nigerian students, even suggesting a trend where poor sleepers achieved better scores [S9]. These varied findings highlight the complexity of the relationship and suggest that other mediating factors, such as emotional fatigue or psychological well-being, may play a role [S6][S16][S18][S24][S27]. Furthermore, study design characteristics, such as reliance on self-reported measures for sleep and academic performance and the prevalence of cross-sectional designs, may contribute to the heterogeneity of reported effect sizes [S25].\n\nWhile the existing literature broadly suggests a link between sleep quality and academic performance, a comprehensive synthesis integrating the diverse findings and acknowledging contextual variations is still beneficial. The current body of literature, comprising 38 records, reveals both consistent patterns and conflicting results regarding this relationship. Therefore, this paper will synthesize the available literature to further delineate the relationship between sleep quality and academic performance among university students, identifying consistent associations, exploring factors that may moderate or mediate this relationship, and discussing methodological considerations that influence findings.",
+        "literatureReview": "The existing literature explores the intricate relationship between sleep quality and academic performance in university students, revealing both consistent patterns and conflicting findings [S5][S11][S25]. This synthesis categorizes the findings into direct associations, moderating and mediating factors, and methodological considerations.\n\n### Direct Associations Between Sleep Quality and Academic Performance\n\nA significant body of research indicates a positive association between good sleep quality and higher academic performance among university students [S1][S3][S4][S7][S15][S20][S23][S26][S33][S36]. For instance, studies across diverse populations, including undergraduate health sciences students in Rwanda and Sri Lanka, have reported that better sleep quality is linked to higher academic scores and GPAs [S3][S4]. In one study, nearly half of undergraduate health sciences students reported poor sleep quality, but those with good sleep quality demonstrated significantly higher academic performance scores [S3]. Similarly, research involving Nigerian students found that good sleep quality was associated with significantly better academic performance [S20]. A systematic review covering studies from 2020-2025 also identified a consistent pattern where poorer sleep quality and insufficient sleep duration were associated with lower GPAs and reduced learning efficiency [S5]. Another systematic review, examining 52 studies, highlighted a significant correlation between optimal sleep duration (7-9 hours) and improved academic performance [S23]. Objective measures, such as actigraphy, have also supported this link, showing that students with higher exam scores exhibit greater sleep efficiency, shorter sleep onset latency, and lower night-to-night variability in sleep parameters [S14]. This suggests that consistent, high-quality sleep, particularly during weekdays, is crucial for academic success [S14].\n\nHowever, some studies present conflicting results, finding no significant relationship between sleep quality and academic performance [S2][S8][S9][S10][S12][S21][S31]. A study of health sciences college students, for example, found no significant difference between sleep quality and GPA, despite noting a significant difference between sleeping hours and GPA [S2]. Another study among Nigerian students reported no statistically significant relationship between sleep quality and academic performance, even suggesting a trend where poor sleepers achieved better scores [S9]. Similarly, research in Delhi NCR found no significant relationship between academic performance and sleep quality, nor did self-control or sleep quality significantly affect academic performance [S10]. In a cross-sectional study of Saudi university students, no significant connection was discerned between academic performance scores (GPA) and sleep quality [S31]. Furthermore, a study involving Malaysian university students suggested that poor sleep was associated with better academic performance, particularly for \"poor-sleepers\" who showed higher academic achievement in later years of study, implying that longer waking hours for academic commitments might be a factor [S22][S36]. These varied findings highlight the complex nature of the relationship, suggesting that other factors may mediate or moderate the direct association [S6][S16][S18][S24][S27].\n\n### Moderating and Mediating Factors\n\nSeveral factors have been identified that can moderate or mediate the relationship between sleep quality and academic performance. Psychological factors, including anxiety, depressive symptoms, and emotional dysregulation, frequently mediate the associations between sleep health and academic outcomes [S5]. Poor sleep quality has been linked to increased emotional fatigue, which, in turn, negatively affects academic performance [S6]. Emotional exhaustion appears to act as a mediating variable, where poor sleep quality exacerbates emotional fatigue, thereby reducing academic achievement [S6]. Academic stress is another significant factor, with high perceived stress being associated with both poorer sleep quality and lower cognitive performance [S24]. Elevated anxiety levels and sleep disorders are common among university students, and adaptation problems and academic stress may play crucial roles in mediating the relationship between anxiety and sleep quality [S16]. Interpersonal relationships can further moderate these effects, suggesting that fostering strong interpersonal connections might improve sleep quality and academic performance [S16].\n\nLifestyle habits also play a role. Cannabis use, for example, can moderate the relationship between sleep disturbances and academic performance; fewer sleep disturbances were associated with better academic performance for students with minimal or no cannabis use, but not for those with moderate or high use [S19]. Digital well-being factors, such as screen time and social media usage, have been explored. While one study found positive associations between digital well-being and student performance, with sleep quality, screen time, and social media usage predicting better academic achievement [S12], other research indicates that social media addiction can negatively impact academic performance indirectly through poorer sleep quality [S35]. Caffeine intake has been shown to affect students' sleep and circadian parameters, but these effects do not always directly translate into academic success [S21].\n\nOther demographic and individual characteristics, such as gender and chronotype, have also been explored. One study found that male gender was correlated with higher academic scores [S3], while another indicated that females exhibited substandard sleep quality more significantly than males [S31]. An evening chronotype is generally associated with poorer academic performance and adjustment [S11]. Trait self-control can mediate the relationship between chronotype and academic achievement, with higher self-control potentially compensating for the negative effects of sleep problems on study success [S32][S37].\n\n### Methodological Considerations\n\nThe heterogeneity of findings in the literature can be partly attributed to methodological variations across studies [S25]. Many studies rely on self-reported measures for both sleep and academic performance, which can introduce common method bias and potentially inflate observed relationships [S4][S25]. For instance, a critical appraisal of 282 studies noted that academic outcomes were often assessed by self-reported grades (65.2%), and very few studies (3.9%) used objective measurements of sleep, such",
+        "methods": "This paper presents a narrative synthesis of the evidence available to the writing run for the stated research question. The run assembled 38 distinct source records from OpenAlex. This is the available source pool, not the number of studies ultimately cited or a count from a systematic screening process. The synthesis draws on the metadata and source excerpts supplied by those records; access to every full text is not assumed. It compares reported relationships, differences in study contexts and methods, and limitations relevant to the research question. Search strategy: sources were retrieved on 30 October 2026 using the queries \"The relationship between sleep quality and academic performance among university students\"; \"sleep quality academic performance systematic review meta-analysis\"; \"sleep quality academic performance longitudinal prospective cohort\"; \"sleep quality academic performance mediating moderating confounding factors\"; \"sleep quality academic performance measurement instrument validated self-report objective\". Automated topical screening (term matching on titles and abstracts, not reading of full texts) found the core concepts in this many of the 38 records: \"sleep quality\" in 38, \"academic performance\" in 37. 2 preprint record(s) were excluded because they have not been peer reviewed. No study-design, sample or date inclusion criteria were applied beyond this topical screening. This is not an exhaustive or systematic review: no predefined screening protocol, independent double screening, comprehensive search coverage, or formal risk-of-bias assessment is claimed. Source identity checks and claim-support checks are separate, and remaining uncertainties are retained as review flags. No original participants were recruited, new dataset collected, or original statistical analysis performed for this literature-based paper.",
+        "results": "",
+        "discussion": "The reviewed literature indicates a complex and often contradictory relationship between sleep quality and academic performance among university students, influenced by various moderating and mediating factors and methodological approaches. While a substantial body of evidence suggests a positive association between good sleep quality and higher academic achievement [S1][S3][S4][S7][S15][S20][S23][S26][S33][S36], a notable number of studies report no significant relationship [S2][S8][S9][S10][S12][S21][S31]. This divergence in findings underscores the multifaceted nature of sleep's influence on academic outcomes.\n\nConsistent patterns show that poorer sleep quality, insufficient duration, irregular sleep-wake cycles, fragmented sleep, and evening chronotype are often associated with lower GPAs, reduced learning efficiency, and increased academic stress [S5][S11][S17]. For example, studies from Rwanda and Sri Lanka reported that better sleep quality correlated with higher academic scores [S3][S4], and Nigerian students with good sleep quality performed significantly better academically [S20]. Objective sleep measurements, such as actigraphy, further support this by revealing that higher exam scores are linked to greater sleep efficiency, shorter sleep onset latency, and lower night-to-night variability in sleep parameters, especially on weekdays [S14]. This suggests that consistent, high-quality sleep is crucial for academic success [S14].\n\nHowever, the literature also presents direct contradictions. A study of health sciences students found no significant difference between sleep quality and GPA, despite finding a link between sleeping hours and GPA [S2]. Another study in Nigeria reported no statistically significant relationship, with a trend even suggesting that \"poor sleepers\" achieved better scores [S9]. Similarly, research in Delhi NCR found no significant relationship between academic performance and sleep quality or self-control [S10]. In some cases, poor sleep was even associated with better academic performance, particularly for \"poor-sleepers\" in Malaysia, potentially due to longer waking hours dedicated to academic commitments [S22][S36]. These conflicting results highlight that sleep quality is not a standalone predictor of academic performance, suggesting that other factors may mediate or moderate this association [S6][S16][S18][S24][S27].\n\nSeveral moderating and mediating factors contribute to the complexity of this relationship. Psychological elements such as anxiety, depressive symptoms, and emotional dysregulation frequently mediate the association between sleep health and academic outcomes [S5]. Poor sleep quality can lead to increased emotional fatigue, which subsequently negatively impacts academic performance [S6]. Academic stress is another significant factor, correlating with both poorer sleep and lower cognitive performance [S24]. Interpersonal relationships may also moderate these effects, with stronger connections potentially improving sleep quality and academic performance [S16]. Lifestyle habits, including cannabis use [S19], social media addiction [S35], and caffeine intake [S21], also play roles, though their effects are not always direct or consistent. For instance, while social media addiction can indirectly reduce academic performance through poor sleep quality [S35], another study found positive associations between digital well-being (including sleep quality and social media usage) and student performance [S12]. Demographic and individual characteristics like gender [S3][S31] and chronotype [S11][S37] also present varied influences.\n\nThe methodological approaches employed across studies significantly contribute to the heterogeneity of findings [S25]. A predominant limitation is the reliance on self-reported measures for both sleep and academic performance, which can introduce common method bias and potentially inflate observed relationships [S4][S25]. For instance, a critical appraisal of 282 studies found that academic outcomes were largely self-reported (65.2%), and very few (3.9%) used objective sleep measurements like actigraphy [S25]. The prevalence of cross-sectional designs (81.2%) further limits the ability to establish causal direction [S25]. Only a minority of studies adjusted for potential confounding variables (38.4%), and none used randomized controlled experimental designs, hindering definitive causal inferences [S25]. These methodological variations make it challenging to directly compare findings and synthesize a conclusive understanding of the sleep-academic performance relationship, suggesting that the true relationship might be larger but requires more rigorous experimental designs to be fully elucidated [S25].",
+        "conclusion": "The available literature, encompassing 38 records, reveals a complex and often contradictory relationship between sleep quality and academic performance among university students. While many studies suggest a positive association where better sleep quality correlates with higher academic achievement, other research indicates no significant relationship or even, in some specific contexts, an inverse trend. These varied findings highlight that the link between sleep quality and academic performance is not universally linear and is influenced by a range of moderating and mediating factors.\n\nPsychological aspects such as anxiety, depressive symptoms, emotional fatigue, and academic stress frequently mediate this relationship. Lifestyle habits, including cannabis use, social media engagement, and caffeine intake, also play roles, although their influences can be inconsistent across studies. Additionally, demographic characteristics like gender and chronotype contribute to the complexity of these associations. Methodological approaches across the literature, particularly the widespread reliance on self-reported measures and cross-sectional designs, limit the ability to establish definitive causal relationships and may contribute to the observed heterogeneity in findings. Moving forward, more rigorous research designs, including longitudinal and experimental studies employing objective sleep measurements, are needed to further delineate the causal pathways and explore the nuanced interplay of identified and potentially unexamined factors influencing this critical relationship."
+      },
+      "researchPaperFlags": [
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Introduction",
+          "message": "16 of 49 cited claim(s) could not be confirmed against their source; 5 statement(s) carry no citation.",
+          "citationSourceIds": [
+            "S3",
+            "S4",
+            "S7",
+            "S17",
+            "S5",
+            "S11"
+          ]
+        },
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Thematic Literature Review",
+          "message": "5 of 63 cited claim(s) could not be confirmed against their source; 10 statement(s) carry no citation.",
+          "citationSourceIds": [
+            "S5",
+            "S31",
+            "S16",
+            "S25"
+          ]
+        },
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Discussion",
+          "message": "16 of 66 cited claim(s) could not be confirmed against their source; 5 statement(s) carry no citation.",
+          "citationSourceIds": [
+            "S5",
+            "S11",
+            "S17",
+            "S16",
+            "S25"
+          ]
+        },
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Research Gaps",
+          "message": "0 of 12 cited claim(s) could not be confirmed against their source; 5 statement(s) carry no citation.",
+          "citationSourceIds": []
+        },
+        {
+          "code": "ResearchPaperLength",
+          "section": "Whole paper",
+          "message": "Draft has 3031 words against a 2500-word target (20% tolerance). Review the section budgets; evidence checks were not relaxed to meet length.",
+          "citationSourceIds": []
+        },
+        {
+          "code": "AbstractBodyMismatch",
+          "section": "Abstract",
+          "message": "The abstract mentions that some studies 'even suggest that poorer sleep may, in specific contexts, be associated with better academic outcomes, possibly due to increased study time.' However, this specific explanation ('possibly due to increased study time') is only introduced later in the Discussion and Conclusion, not presented as a finding in the main body sections that the abstract purports to summarize.",
+          "citationSourceIds": []
+        }
+      ],
+      "researchPaperSectionResults": [
+        {
+          "sectionKey": "Abstract",
+          "heading": "Abstract",
+          "status": "Generated",
+          "content": "The available literature, comprising 38 records, explores the complex relationship between sleep quality and academic performance in university students. This synthesis examines direct associations, moderating and mediating factors, and methodological considerations.\n\nA significant body of evidence suggests a positive association, where better sleep quality and sufficient sleep duration correlate with higher academic achievement, including higher GPAs and improved learning efficiency. Conversely, poorer sleep quality, insufficient or irregular sleep, fragmented sleep, and an evening chronotype are frequently linked to lower academic performance. These associations are supported by both self-reported measures and objective assessments like actigraphy, which show that consistent, high-quality weekday sleep is crucial for academic success.\n\nHowever, several studies report no significant relationship, and some even suggest that poorer sleep may, in specific contexts, be associated with better academic outcomes, possibly due to increased study time. This heterogeneity of findings indicates that the relationship is not universally linear.\n\nVarious factors moderate and mediate this association. Psychological elements such as anxiety, depressive symptoms, emotional fatigue, and academic stress frequently mediate the impact of sleep health on academic performance. Lifestyle habits, including cannabis use, social media addiction, and caffeine intake, also play roles, though their effects are sometimes inconsistent. Demographic characteristics, such as gender and chronotype, further contribute to the complexity.\n\nMethodological variations across studies are a key limitation. A predominant reliance on self-reported measures for both sleep and academic performance, coupled with the prevalence of cross-sectional designs, hinders the establishment of definitive causal relationships and may inflate observed associations. Few studies use objective sleep measurements or adjust comprehensively for confounding variables, further contributing to the diverse findings. More rigorous designs, including longitudinal and experimental studies with objective measures, are needed to clarify the causal pathways and the nuanced interplay of contributing factors.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "UserProvided",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "Introduction",
+          "heading": "Introduction",
+          "status": "Generated",
+          "content": "Sleep is a fundamental physiological process that underpins cognitive function, emotional regulation, and overall well-being [S3][S4][S7][S17]. University students frequently experience disruptions to their sleep patterns, including shortened duration, poor quality, and irregular sleep-wake cycles, often compounded by academic demands and psychosocial changes inherent in the university transition [S1][S5][S11][S17][S28]. These sleep disturbances are a growing concern due to their potential negative influence on academic performance and student success [S1][S5][S11][S17].\n\nNumerous studies have explored the association between various sleep parameters and academic outcomes among university students. A systematic review of 20 studies published between 2020 and 2025 found a consistent pattern: poorer sleep quality, insufficient or irregular sleep duration, fragmented sleep, evening chronotype, and late-night technology use were associated with lower grade point averages, reduced learning efficiency, and increased academic stress [S5]. Similarly, a scoping review of first-year university students revealed that shorter sleep duration, particularly below 6-7 hours per night, was generally linked to poorer academic achievement [S11]. Poor sleep quality has also been associated with lower academic performance in several studies, with affective factors potentially influencing this relationship [S3][S4][S11][S15][S20][S27][S29][S33][S34]. For instance, nearly half of undergraduate health sciences students in one study reported poor sleep quality, and those with good sleep quality showed significantly higher academic performance scores [S3]. Another study involving Nigerian students found that the academic performance of students with good sleep quality was significantly better than those with poor sleep quality [S20]. However, some research has indicated no significant relationship between academic performance and sleep quality [S2][S8][S9][S10][S12][S21][S31]. For example, a study of health sciences college students found a significant difference between sleeping hours and GPA but no significant difference between sleep quality and GPA [S2]. Another study reported no statistically significant relationship between sleep quality and academic performance among Nigerian students, even suggesting a trend where poor sleepers achieved better scores [S9]. These varied findings highlight the complexity of the relationship and suggest that other mediating factors, such as emotional fatigue or psychological well-being, may play a role [S6][S16][S18][S24][S27]. Furthermore, study design characteristics, such as reliance on self-reported measures for sleep and academic performance and the prevalence of cross-sectional designs, may contribute to the heterogeneity of reported effect sizes [S25].\n\nWhile the existing literature broadly suggests a link between sleep quality and academic performance, a comprehensive synthesis integrating the diverse findings and acknowledging contextual variations is still beneficial. The current body of literature, comprising 38 records, reveals both consistent patterns and conflicting results regarding this relationship. Therefore, this paper will synthesize the available literature to further delineate the relationship between sleep quality and academic performance among university students, identifying consistent associations, exploring factors that may moderate or mediate this relationship, and discussing methodological considerations that influence findings.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "ReviewMethod",
+          "heading": "Review Method",
+          "status": "Generated",
+          "content": "This paper presents a narrative synthesis of the evidence available to the writing run for the stated research question. The run assembled 38 distinct source records from OpenAlex. This is the available source pool, not the number of studies ultimately cited or a count from a systematic screening process. The synthesis draws on the metadata and source excerpts supplied by those records; access to every full text is not assumed. It compares reported relationships, differences in study contexts and methods, and limitations relevant to the research question. Search strategy: sources were retrieved on 30 October 2026 using the queries \"The relationship between sleep quality and academic performance among university students\"; \"sleep quality academic performance systematic review meta-analysis\"; \"sleep quality academic performance longitudinal prospective cohort\"; \"sleep quality academic performance mediating moderating confounding factors\"; \"sleep quality academic performance measurement instrument validated self-report objective\". Automated topical screening (term matching on titles and abstracts, not reading of full texts) found the core concepts in this many of the 38 records: \"sleep quality\" in 38, \"academic performance\" in 37. 2 preprint record(s) were excluded because they have not been peer reviewed. No study-design, sample or date inclusion criteria were applied beyond this topical screening. This is not an exhaustive or systematic review: no predefined screening protocol, independent double screening, comprehensive search coverage, or formal risk-of-bias assessment is claimed. Source identity checks and claim-support checks are separate, and remaining uncertainties are retained as review flags. No original participants were recruited, new dataset collected, or original statistical analysis performed for this literature-based paper.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "UserProvided",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "LiteratureReview",
+          "heading": "Thematic Literature Review",
+          "status": "Generated",
+          "content": "The existing literature explores the intricate relationship between sleep quality and academic performance in university students, revealing both consistent patterns and conflicting findings [S5][S11][S25]. This synthesis categorizes the findings into direct associations, moderating and mediating factors, and methodological considerations.\n\n### Direct Associations Between Sleep Quality and Academic Performance\n\nA significant body of research indicates a positive association between good sleep quality and higher academic performance among university students [S1][S3][S4][S7][S15][S20][S23][S26][S33][S36]. For instance, studies across diverse populations, including undergraduate health sciences students in Rwanda and Sri Lanka, have reported that better sleep quality is linked to higher academic scores and GPAs [S3][S4]. In one study, nearly half of undergraduate health sciences students reported poor sleep quality, but those with good sleep quality demonstrated significantly higher academic performance scores [S3]. Similarly, research involving Nigerian students found that good sleep quality was associated with significantly better academic performance [S20]. A systematic review covering studies from 2020-2025 also identified a consistent pattern where poorer sleep quality and insufficient sleep duration were associated with lower GPAs and reduced learning efficiency [S5]. Another systematic review, examining 52 studies, highlighted a significant correlation between optimal sleep duration (7-9 hours) and improved academic performance [S23]. Objective measures, such as actigraphy, have also supported this link, showing that students with higher exam scores exhibit greater sleep efficiency, shorter sleep onset latency, and lower night-to-night variability in sleep parameters [S14]. This suggests that consistent, high-quality sleep, particularly during weekdays, is crucial for academic success [S14].\n\nHowever, some studies present conflicting results, finding no significant relationship between sleep quality and academic performance [S2][S8][S9][S10][S12][S21][S31]. A study of health sciences college students, for example, found no significant difference between sleep quality and GPA, despite noting a significant difference between sleeping hours and GPA [S2]. Another study among Nigerian students reported no statistically significant relationship between sleep quality and academic performance, even suggesting a trend where poor sleepers achieved better scores [S9]. Similarly, research in Delhi NCR found no significant relationship between academic performance and sleep quality, nor did self-control or sleep quality significantly affect academic performance [S10]. In a cross-sectional study of Saudi university students, no significant connection was discerned between academic performance scores (GPA) and sleep quality [S31]. Furthermore, a study involving Malaysian university students suggested that poor sleep was associated with better academic performance, particularly for \"poor-sleepers\" who showed higher academic achievement in later years of study, implying that longer waking hours for academic commitments might be a factor [S22][S36]. These varied findings highlight the complex nature of the relationship, suggesting that other factors may mediate or moderate the direct association [S6][S16][S18][S24][S27].\n\n### Moderating and Mediating Factors\n\nSeveral factors have been identified that can moderate or mediate the relationship between sleep quality and academic performance. Psychological factors, including anxiety, depressive symptoms, and emotional dysregulation, frequently mediate the associations between sleep health and academic outcomes [S5]. Poor sleep quality has been linked to increased emotional fatigue, which, in turn, negatively affects academic performance [S6]. Emotional exhaustion appears to act as a mediating variable, where poor sleep quality exacerbates emotional fatigue, thereby reducing academic achievement [S6]. Academic stress is another significant factor, with high perceived stress being associated with both poorer sleep quality and lower cognitive performance [S24]. Elevated anxiety levels and sleep disorders are common among university students, and adaptation problems and academic stress may play crucial roles in mediating the relationship between anxiety and sleep quality [S16]. Interpersonal relationships can further moderate these effects, suggesting that fostering strong interpersonal connections might improve sleep quality and academic performance [S16].\n\nLifestyle habits also play a role. Cannabis use, for example, can moderate the relationship between sleep disturbances and academic performance; fewer sleep disturbances were associated with better academic performance for students with minimal or no cannabis use, but not for those with moderate or high use [S19]. Digital well-being factors, such as screen time and social media usage, have been explored. While one study found positive associations between digital well-being and student performance, with sleep quality, screen time, and social media usage predicting better academic achievement [S12], other research indicates that social media addiction can negatively impact academic performance indirectly through poorer sleep quality [S35]. Caffeine intake has been shown to affect students' sleep and circadian parameters, but these effects do not always directly translate into academic success [S21].\n\nOther demographic and individual characteristics, such as gender and chronotype, have also been explored. One study found that male gender was correlated with higher academic scores [S3], while another indicated that females exhibited substandard sleep quality more significantly than males [S31]. An evening chronotype is generally associated with poorer academic performance and adjustment [S11]. Trait self-control can mediate the relationship between chronotype and academic achievement, with higher self-control potentially compensating for the negative effects of sleep problems on study success [S32][S37].\n\n### Methodological Considerations\n\nThe heterogeneity of findings in the literature can be partly attributed to methodological variations across studies [S25]. Many studies rely on self-reported measures for both sleep and academic performance, which can introduce common method bias and potentially inflate observed relationships [S4][S25]. For instance, a critical appraisal of 282 studies noted that academic outcomes were often assessed by self-reported grades (65.2%), and very few studies (3.9%) used objective measurements of sleep, such",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "Discussion",
+          "heading": "Discussion",
+          "status": "Generated",
+          "content": "The reviewed literature indicates a complex and often contradictory relationship between sleep quality and academic performance among university students, influenced by various moderating and mediating factors and methodological approaches. While a substantial body of evidence suggests a positive association between good sleep quality and higher academic achievement [S1][S3][S4][S7][S15][S20][S23][S26][S33][S36], a notable number of studies report no significant relationship [S2][S8][S9][S10][S12][S21][S31]. This divergence in findings underscores the multifaceted nature of sleep's influence on academic outcomes.\n\nConsistent patterns show that poorer sleep quality, insufficient duration, irregular sleep-wake cycles, fragmented sleep, and evening chronotype are often associated with lower GPAs, reduced learning efficiency, and increased academic stress [S5][S11][S17]. For example, studies from Rwanda and Sri Lanka reported that better sleep quality correlated with higher academic scores [S3][S4], and Nigerian students with good sleep quality performed significantly better academically [S20]. Objective sleep measurements, such as actigraphy, further support this by revealing that higher exam scores are linked to greater sleep efficiency, shorter sleep onset latency, and lower night-to-night variability in sleep parameters, especially on weekdays [S14]. This suggests that consistent, high-quality sleep is crucial for academic success [S14].\n\nHowever, the literature also presents direct contradictions. A study of health sciences students found no significant difference between sleep quality and GPA, despite finding a link between sleeping hours and GPA [S2]. Another study in Nigeria reported no statistically significant relationship, with a trend even suggesting that \"poor sleepers\" achieved better scores [S9]. Similarly, research in Delhi NCR found no significant relationship between academic performance and sleep quality or self-control [S10]. In some cases, poor sleep was even associated with better academic performance, particularly for \"poor-sleepers\" in Malaysia, potentially due to longer waking hours dedicated to academic commitments [S22][S36]. These conflicting results highlight that sleep quality is not a standalone predictor of academic performance, suggesting that other factors may mediate or moderate this association [S6][S16][S18][S24][S27].\n\nSeveral moderating and mediating factors contribute to the complexity of this relationship. Psychological elements such as anxiety, depressive symptoms, and emotional dysregulation frequently mediate the association between sleep health and academic outcomes [S5]. Poor sleep quality can lead to increased emotional fatigue, which subsequently negatively impacts academic performance [S6]. Academic stress is another significant factor, correlating with both poorer sleep and lower cognitive performance [S24]. Interpersonal relationships may also moderate these effects, with stronger connections potentially improving sleep quality and academic performance [S16]. Lifestyle habits, including cannabis use [S19], social media addiction [S35], and caffeine intake [S21], also play roles, though their effects are not always direct or consistent. For instance, while social media addiction can indirectly reduce academic performance through poor sleep quality [S35], another study found positive associations between digital well-being (including sleep quality and social media usage) and student performance [S12]. Demographic and individual characteristics like gender [S3][S31] and chronotype [S11][S37] also present varied influences.\n\nThe methodological approaches employed across studies significantly contribute to the heterogeneity of findings [S25]. A predominant limitation is the reliance on self-reported measures for both sleep and academic performance, which can introduce common method bias and potentially inflate observed relationships [S4][S25]. For instance, a critical appraisal of 282 studies found that academic outcomes were largely self-reported (65.2%), and very few (3.9%) used objective sleep measurements like actigraphy [S25]. The prevalence of cross-sectional designs (81.2%) further limits the ability to establish causal direction [S25]. Only a minority of studies adjusted for potential confounding variables (38.4%), and none used randomized controlled experimental designs, hindering definitive causal inferences [S25]. These methodological variations make it challenging to directly compare findings and synthesize a conclusive understanding of the sleep-academic performance relationship, suggesting that the true relationship might be larger but requires more rigorous experimental designs to be fully elucidated [S25].",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "ResearchGaps",
+          "heading": "Research Gaps",
+          "status": "Generated",
+          "content": "While existing literature establishes a broad link between sleep quality and academic performance in university students, several gaps and areas of uncertainty remain. The prevalence of cross-sectional designs in the majority of studies (81.2%) limits the ability to establish causal direction between sleep and academic outcomes [S25]. This is further compounded by the reliance on self-reported measures for both sleep and academic performance in most research (65.2% for grades, 3.9% for objective sleep measures), which can introduce common method bias and potentially inflate observed relationships [S4][S25]. More rigorous experimental designs, such as randomized controlled trials, are needed to clarify these causal relationships definitively [S25].\n\nThe heterogeneity of findings, including studies reporting no significant relationship between sleep quality and academic performance [S2][S8][S9][S10][S12][S21][S31], suggests that unidentified or under-explored moderating and mediating factors may be at play. While some psychological factors like anxiety and emotional fatigue have been identified as mediators [S5][S6], the nuanced interplay of these and other psychosocial elements, as well as lifestyle factors, requires further investigation. For example, the finding that poor sleep was associated with better academic performance for \"poor-sleepers\" in some contexts [S22][S36] indicates that the relationship is not universally linear and may be influenced by compensatory behaviors or contextual demands, which are not fully elucidated. The varying effects of digital well-being factors, such as social media usage, with some studies showing positive associations with academic performance [S12] and others indirect negative impacts through sleep quality [S35], warrant more detailed examination to understand the specific mechanisms at play.\n\nFurthermore, although some studies account for potential confounding variables, fewer than half (38.4%) do so [S25]. This lack of comprehensive adjustment for confounders across the literature hinders a clearer understanding of the independent effect of sleep quality. Specific populations, such as Japanese university students, have been noted as underrepresented in recent systematic reviews, highlighting a need for more geographically diverse research to understand potential cultural and contextual influences on this relationship [S5]. Finally, the \"modest explained variance\" observed in some moderation analyses [S19] implies that additional, currently unexamined factors likely contribute to the complex relationship between sleep, lifestyle habits, and academic performance.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "Conclusion",
+          "heading": "Conclusion",
+          "status": "Generated",
+          "content": "The available literature, encompassing 38 records, reveals a complex and often contradictory relationship between sleep quality and academic performance among university students. While many studies suggest a positive association where better sleep quality correlates with higher academic achievement, other research indicates no significant relationship or even, in some specific contexts, an inverse trend. These varied findings highlight that the link between sleep quality and academic performance is not universally linear and is influenced by a range of moderating and mediating factors.\n\nPsychological aspects such as anxiety, depressive symptoms, emotional fatigue, and academic stress frequently mediate this relationship. Lifestyle habits, including cannabis use, social media engagement, and caffeine intake, also play roles, although their influences can be inconsistent across studies. Additionally, demographic characteristics like gender and chronotype contribute to the complexity of these associations. Methodological approaches across the literature, particularly the widespread reliance on self-reported measures and cross-sectional designs, limit the ability to establish definitive causal relationships and may contribute to the observed heterogeneity in findings. Moving forward, more rigorous research designs, including longitudinal and experimental studies employing objective sleep measurements, are needed to further delineate the causal pathways and explore the nuanced interplay of identified and potentially unexamined factors influencing this critical relationship.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "ModelInference"
+          ]
+        }
+      ],
+      "isLiteratureReview": false,
+      "literatureReviewSections": [],
+      "literatureReviewFlags": [],
+      "generationAuditId": "7d4b7188-fbba-4146-a755-c3fadd73ce9c"
+    }
+  }
+}

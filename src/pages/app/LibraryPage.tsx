@@ -5,11 +5,16 @@ import { AnimatePresence, motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
   Plus, Upload, Search, Grid3x3, List, FileText, File, MoreVertical,
-  FolderOpen, Clock, Trash2, Edit3, FolderInput, FilePlus, Copy, X,
+  Clock, Trash2, Edit3, FolderInput, FilePlus, Copy, X, Download, ChevronRight, Loader2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useLibraryStore } from '../../store/libraryStore'
+import { useCitationStore } from '../../store/citationStore'
+import { citationApi } from '../../api/citation'
+import { useDocumentDownload } from '../../hooks/useDocumentDownload'
+import { EXPORT_FORMATS, buildExportReferences, type ExportFormat } from '../../lib/documentExport'
+import { docTypeLabel, isAbandonedBlankDraft, wordCountLabel } from '../../lib/documentRow'
 import { UploadModal } from '../../components/ui/UploadModal'
 import { CreationCard } from '../../components/app/CreationCard'
 import { importDocumentFromFile } from '../../lib/importWordDocument'
@@ -104,13 +109,6 @@ function activateOnKey(e: ReactKeyboardEvent<HTMLElement>, action: () => void) {
 
 interface DocInfo { preview: string; words: number }
 
-const GENRE_LABEL: Record<string, string> = {
-  Essay: 'Essay',
-  LiteratureReview: 'Lit review',
-  ResearchPaper: 'Paper',
-  ThesisChapter: 'Thesis',
-}
-
 function Highlight({ text, query }: { text: string; query: string }) {
   const q = query.trim()
   if (!q) return <>{text}</>
@@ -134,8 +132,8 @@ function Highlight({ text, query }: { text: string; query: string }) {
 function DocTypeIcon({ type, isPdf }: { type: string; isPdf: boolean }) {
   if (isPdf || type === 'pdf')
     return <div className="text-[10px] font-bold text-red-700 bg-red-100 rounded px-1">PDF</div>
-  if (type === 'docx' || type === 'doc')
-    return <div className="text-[10px] font-bold text-[#1e40af] bg-[#dbeafe] rounded px-1">DOC</div>
+  // Word documents are the overwhelming majority, so a "DOC" badge on every row said nothing — they
+  // get the neutral file icon; only the distinguishing formats (PDF/MD) keep a badge.
   if (type === 'md')
     return <div className="text-[10px] font-bold text-purple-700 bg-purple-100 rounded px-1">MD</div>
   return <FileText size={14} className="text-slate-400" />
@@ -145,9 +143,18 @@ function DocTypeIcon({ type, isPdf }: { type: string; isPdf: boolean }) {
 
 interface MenuItem { icon: LucideIcon; label: string; action: () => void; danger?: boolean }
 
+interface DownloadControl {
+  /** False for uploaded files and empty documents — the item is shown but disabled. */
+  enabled:    boolean
+  reason?:    string
+  busyFormat: ExportFormat | null
+  onSelect:   (format: ExportFormat) => void
+}
+
 function DocMenu({
   title,
   canDuplicate,
+  download,
   onRename,
   onDelete,
   onOpen,
@@ -155,12 +162,15 @@ function DocMenu({
 }: {
   title:        string
   canDuplicate: boolean
+  download:     DownloadControl
   onRename:     () => void
   onDelete:     () => void
   onOpen:       () => void
   onDuplicate:  () => void
 }) {
   const [open, setOpen] = useState(false)
+  const [downloadOpen, setDownloadOpen] = useState(false)
+  const downloading = download.busyFormat !== null
   const triggerRef = useRef<HTMLButtonElement>(null)
   const itemRefs   = useRef<(HTMLButtonElement | null)[]>([])
 
@@ -170,6 +180,8 @@ function DocMenu({
     ...(canDuplicate ? [{ icon: Copy, label: 'Duplicate', action: onDuplicate }] : []),
     { icon: Trash2,      label: 'Delete', action: onDelete, danger: true },
   ]
+  // Download sits between Duplicate and Delete and opens a two-option submenu (Word / PDF).
+  const deleteIndex = items.findIndex(i => i.danger)
 
   const close = useCallback(() => {
     setOpen(false)
@@ -223,23 +235,73 @@ function DocMenu({
               transition={{ duration: 0.1 }}
               className="absolute right-0 top-full mt-1 w-44 bg-white border border-[#e0e0da] rounded-xl shadow-lg z-20 overflow-hidden py-1"
             >
-              {items.map(({ icon: Icon, label, action, danger }, i) => (
-                <button
-                  key={label}
-                  ref={el => { itemRefs.current[i] = el }}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => { setOpen(false); action() }}
-                  className={cn(
-                    'w-full flex items-center gap-2.5 px-3 py-2.5 sm:py-2 text-[13px] text-left transition-colors outline-none',
-                    danger
-                      ? 'mt-1 border-t border-[#e0e0da] text-red-600 hover:bg-red-50 focus-visible:bg-red-50'
-                      : 'text-[#333] hover:bg-[#f5f5f3] focus-visible:bg-[#f5f5f3]',
-                  )}
-                >
-                  <Icon size={14} /> {label}
-                </button>
-              ))}
+              {(() => {
+                let refIndex = 0
+                const rows: ReactNode[] = []
+                const itemClass = (danger?: boolean) => cn(
+                  'w-full flex items-center gap-2.5 px-3 py-2.5 sm:py-2 text-[13px] text-left transition-colors outline-none',
+                  danger
+                    ? 'mt-1 border-t border-[#e0e0da] text-red-600 hover:bg-red-50 focus-visible:bg-red-50'
+                    : 'text-[#333] hover:bg-[#f5f5f3] focus-visible:bg-[#f5f5f3]',
+                )
+                const renderItem = ({ icon: Icon, label, action, danger }: MenuItem) => {
+                  const idx = refIndex++
+                  return (
+                    <button
+                      key={label}
+                      ref={el => { itemRefs.current[idx] = el }}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => { setOpen(false); action() }}
+                      className={itemClass(danger)}
+                    >
+                      <Icon size={14} /> {label}
+                    </button>
+                  )
+                }
+                items.forEach((item, i) => {
+                  if (i === deleteIndex) {
+                    const idx = refIndex++
+                    rows.push(
+                      <button
+                        key="download"
+                        ref={el => { itemRefs.current[idx] = el }}
+                        type="button"
+                        role="menuitem"
+                        aria-haspopup="menu"
+                        aria-expanded={downloadOpen}
+                        disabled={!download.enabled || downloading}
+                        title={download.enabled ? undefined : download.reason}
+                        onClick={() => setDownloadOpen(v => !v)}
+                        className={cn(itemClass(), 'disabled:opacity-50 disabled:cursor-not-allowed')}
+                      >
+                        {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download
+                        <ChevronRight size={13} className={cn('ml-auto transition-transform', downloadOpen && 'rotate-90')} />
+                      </button>,
+                    )
+                    if (downloadOpen && download.enabled) {
+                      EXPORT_FORMATS.forEach(({ format, label }) => {
+                        const subIdx = refIndex++
+                        rows.push(
+                          <button
+                            key={'dl-' + format}
+                            ref={el => { itemRefs.current[subIdx] = el }}
+                            type="button"
+                            role="menuitem"
+                            disabled={downloading}
+                            onClick={() => { setDownloadOpen(false); setOpen(false); download.onSelect(format) }}
+                            className={cn(itemClass(), 'pl-9 disabled:opacity-50')}
+                          >
+                            {label}
+                          </button>,
+                        )
+                      })
+                    }
+                  }
+                  rows.push(renderItem(item))
+                })
+                return rows
+              })()}
             </motion.div>
           </>
         )}
@@ -258,14 +320,15 @@ interface DocItemProps {
   onRename:     () => void
   onDuplicate:  () => void
   onDelete:     () => void
+  onDownload:   (format: ExportFormat) => void
+  downloadBusy: ExportFormat | null
 }
 
 const canDuplicateDoc = (doc: WorkspaceDocument) => !doc.isPdf && doc.type !== 'pdf' && !doc.filePath
 
-function DocCard({ doc, info, query, onOpen, onRename, onDuplicate, onDelete }: DocItemProps) {
+function DocCard({ doc, info, query, onOpen, onRename, onDuplicate, onDelete, onDownload, downloadBusy }: DocItemProps) {
   const name    = displayTitle(doc)
   const snippet = snippetFor(stripLeadingTitle(info.preview, name), query, 220)
-  const genre   = doc.documentType ? GENRE_LABEL[doc.documentType] : undefined
 
   return (
     <motion.div
@@ -288,7 +351,7 @@ function DocCard({ doc, info, query, onOpen, onRename, onDuplicate, onDelete }: 
             <Highlight text={snippet} query={query} />
           </p>
         ) : (
-          <span className="text-[11px] text-[#999]">Empty document</span>
+          <span className="text-[11px] text-[#999]">Empty</span>
         )}
       </div>
 
@@ -299,16 +362,19 @@ function DocCard({ doc, info, query, onOpen, onRename, onDuplicate, onDelete }: 
             <Highlight text={name} query={query} />
           </p>
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1">
-            <DocTypeIcon type={doc.type} isPdf={doc.isPdf} />
-            {genre && <span className="text-[11px] text-[#7c3aed]">{genre}</span>}
+            <span className="text-[11px] text-[#7c3aed]">{docTypeLabel(doc)}</span>
             <span className="text-[11px] text-[#888] whitespace-nowrap">{relativeDate(doc.updatedAt)}</span>
-            {info.words > 0 && (
-              <span className="text-[11px] text-[#888] whitespace-nowrap">· {info.words.toLocaleString()} words</span>
-            )}
+            <span className="text-[11px] text-[#888] whitespace-nowrap">· {wordCountLabel(info.words)}</span>
           </div>
         </div>
         <DocMenu
           title={name} canDuplicate={canDuplicateDoc(doc)}
+          download={{
+            enabled: canDuplicateDoc(doc) && info.words > 0,
+            reason: canDuplicateDoc(doc) ? 'This document is empty' : 'Uploaded files are already in their original format',
+            busyFormat: downloadBusy,
+            onSelect: onDownload,
+          }}
           onOpen={onOpen} onRename={onRename} onDuplicate={onDuplicate} onDelete={onDelete}
         />
       </div>
@@ -318,10 +384,9 @@ function DocCard({ doc, info, query, onOpen, onRename, onDuplicate, onDelete }: 
 
 // ── Document row (list) ────────────────────────────────────────────────────────
 
-function DocRow({ doc, info, query, onOpen, onRename, onDuplicate, onDelete }: DocItemProps) {
+function DocRow({ doc, info, query, onOpen, onRename, onDuplicate, onDelete, onDownload, downloadBusy }: DocItemProps) {
   const name    = displayTitle(doc)
   const snippet = snippetFor(stripLeadingTitle(info.preview, name), query)
-  const genre   = doc.documentType ? GENRE_LABEL[doc.documentType] : undefined
 
   return (
     <motion.div
@@ -342,21 +407,28 @@ function DocRow({ doc, info, query, onOpen, onRename, onDuplicate, onDelete }: D
           <Highlight text={name} query={query} />
         </p>
         <p className="text-[11px] text-[#888]">
-          {genre && <span className="text-[#7c3aed]">{genre} · </span>}
-          Modified {relativeDate(doc.updatedAt)}
-          {info.words > 0 && <> · {info.words.toLocaleString()} words</>}
+          <span className="text-[#7c3aed]">{docTypeLabel(doc)} · </span>
+          Modified {relativeDate(doc.updatedAt)} · {wordCountLabel(info.words)}
         </p>
-        {snippet && (
+        {snippet ? (
           <p className="hidden sm:block text-[12px] text-[#999] truncate mt-0.5">
             <Highlight text={snippet} query={query} />
           </p>
-        )}
+        ) : info.words === 0 ? (
+          <p className="hidden sm:block text-[12px] text-[#aaa] italic mt-0.5">Empty</p>
+        ) : null}
       </div>
       {/* Always visible on touch / small screens (there is no hover there); on desktop it appears on
           hover or keyboard focus. */}
       <div className="shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 sm:focus-within:opacity-100 transition-opacity">
         <DocMenu
           title={name} canDuplicate={canDuplicateDoc(doc)}
+          download={{
+            enabled: canDuplicateDoc(doc) && info.words > 0,
+            reason: canDuplicateDoc(doc) ? 'This document is empty' : 'Uploaded files are already in their original format',
+            busyFormat: downloadBusy,
+            onSelect: onDownload,
+          }}
           onOpen={onOpen} onRename={onRename} onDuplicate={onDuplicate} onDelete={onDelete}
         />
       </div>
@@ -445,7 +517,13 @@ function ConfirmDeleteDialog({
 
 export default function LibraryPage() {
   const navigate  = useNavigate()
-  const { documents, folders, createDocument, updateDocument, deleteDocument, createFolder } = useLibraryStore()
+  const { documents: allDocuments, folders, createDocument, updateDocument, deleteDocument, createFolder } = useLibraryStore()
+  // Untitled documents with no words (New → closed without typing) are hidden, not deleted: they
+  // reappear the moment they gain a title or content, and the server's cleanup job still sweeps them.
+  const documents = useMemo(() => allDocuments.filter(d => !isAbandonedBlankDraft(d)), [allDocuments])
+  const { citations } = useCitationStore()
+  const { download, busyFormat } = useDocumentDownload()
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   const [search,      setSearch]      = useState('')
   const [filter,      setFilter]      = useState<DocOwnership>('all')
@@ -568,6 +646,15 @@ export default function LibraryPage() {
 
   const clearSearch = () => setSearch('')
 
+  const handleDownload = async (doc: WorkspaceDocument, format: ExportFormat) => {
+    setDownloadingId(doc.id)
+    try {
+      // Legacy citations may reference the saved library rather than carry their own source.
+      const library = citations.length ? citations : await citationApi.getLibrary().catch(() => [])
+      await download(doc, format, buildExportReferences(doc.content, library, doc.citationStyle ?? 'apa7'))
+    } finally { setDownloadingId(null) }
+  }
+
   const FILTER_TABS: { label: string; value: DocOwnership }[] = SHARING_ENABLED
     ? [
         { label: 'All',         value: 'all' },
@@ -595,6 +682,8 @@ export default function LibraryPage() {
       onRename={() => setRenameDoc(doc)}
       onDuplicate={() => void handleDuplicate(doc)}
       onDelete={() => setDeleteTarget(doc)}
+      onDownload={format => void handleDownload(doc, format)}
+      downloadBusy={downloadingId === doc.id ? busyFormat : null}
     />
   )
 
@@ -603,11 +692,6 @@ export default function LibraryPage() {
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="h-14 border-b border-[#e0e0da] flex items-center px-4 sm:px-6 gap-3 sm:gap-4 shrink-0">
-        <div className="flex items-center gap-2.5 shrink-0">
-          <FolderOpen size={18} className="text-amber-500" />
-          <h2 className="text-[#1a1a18] font-semibold text-[15px]">My Library</h2>
-        </div>
-
         {/* Search — primary way to find a doc among many similarly-named drafts */}
         <div className="flex-1 min-w-0 max-w-md relative">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#999]" />

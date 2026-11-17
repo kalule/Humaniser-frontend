@@ -37,6 +37,7 @@ import type {
   InstrumentSummary,
   InstrumentType,
   LiteratureCsvImportResult,
+  SavedSourceProjectImportResult,
   LiteratureDimension,
   LiteratureSearchQuery,
   MethodologyAnchorCandidate,
@@ -636,6 +637,12 @@ export const researchApi = {
   pollProposalJob: async (jobId: string): Promise<ExternalProposalJobResult> =>
     unwrap(await client.get<Wrap<ExternalProposalJobResult>>(
       `/api/v1/research/projects/proposal-jobs/${jobId}`,
+    )),
+
+  importSavedSources: async (projectId: string, documentIds: string[]): Promise<SavedSourceProjectImportResult> =>
+    unwrap(await client.post<Wrap<SavedSourceProjectImportResult>>(
+      `/api/v1/research/projects/${projectId}/literature/from-saved-sources`,
+      { documentIds },
     )),
 
   importLiteratureCsv: async (projectId: string, csv: string): Promise<LiteratureCsvImportResult> =>

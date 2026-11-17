@@ -81,7 +81,8 @@ function StartForm({ projects, initialProjectId, prefill, sessions, onStarted, o
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="relative max-w-3xl mx-auto space-y-5 pt-4">
+      <div aria-hidden="true" className="pointer-events-none absolute left-1/2 -top-16 -z-10 h-72 w-[46rem] max-w-full -translate-x-1/2 rounded-full bg-gradient-to-b from-purple-200/60 via-fuchsia-100/40 to-transparent blur-3xl" />
       {active && (
         <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 flex items-start gap-3">
           <Loader2 size={16} className="animate-spin text-purple-accent mt-0.5 shrink-0" />
@@ -127,31 +128,31 @@ function StartForm({ projects, initialProjectId, prefill, sessions, onStarted, o
         // TODO(add-pdfs): an "Add PDFs" control belongs in this row. There is no reusable upload component that feeds
         // Deep Research (it only searches providers today), so it needs a backend ingest path first and is not built here.
         options={(
-          <div role="group" aria-label="Options" className="flex flex-wrap items-end gap-x-4 gap-y-3">
-            <div className="min-w-[14rem] flex-1 basis-64">
-              <label htmlFor="dr-project" className="text-[12px] text-slate-600 mb-1 block">Project</label>
+          <div role="group" aria-label="Options" className="grid gap-4 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start">
+            <div className="min-w-0">
+              <label htmlFor="dr-project" className="text-[12px] font-medium text-slate-700 mb-1.5 block">Project</label>
               {projects.length === 0 ? (
                 <p className="text-[13px] text-slate-600">Create a research project first — Deep Research saves what it finds against a project.</p>
               ) : (
                 <>
                   <select id="dr-project" value={projectId} onChange={e => setProjectId(e.target.value)} title={project?.title || undefined}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] text-slate-700 bg-white outline-none focus:border-purple-accent focus-visible:ring-2 focus-visible:ring-purple-accent/30">
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] text-slate-800 bg-white outline-none transition-colors hover:border-slate-300 focus:border-purple-accent focus-visible:ring-2 focus-visible:ring-purple-accent/30">
                     {projects.map(p => <option key={p.id} value={p.id}>{p.title || 'Untitled project'}</option>)}
                   </select>
                   {/* A select clips long titles, so the chosen title is also shown in full. */}
-                  <p className="text-[12px] text-slate-700 mt-1 leading-snug">{project?.title || 'Untitled project'}</p>
+                  <p className="text-[12px] text-slate-500 mt-1.5 leading-snug">{project?.title || 'Untitled project'}</p>
                 </>
               )}
             </div>
-            <div className="w-44">
-              <label htmlFor="dr-region" className="text-[12px] text-slate-600 mb-1 block">Study region <span className="text-slate-500">(optional)</span></label>
+            <div className="min-w-0">
+              <label htmlFor="dr-region" className="text-[12px] font-medium text-slate-700 mb-1.5 block">Study region <span className="font-normal text-slate-500">(optional)</span></label>
               <input id="dr-region" value={geography} onChange={e => setGeography(e.target.value)} placeholder="e.g. South Africa"
                 title="Evidence from this region is weighted above evidence from elsewhere."
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-[13px] text-slate-700 outline-none focus:border-purple-accent focus-visible:ring-2 focus-visible:ring-purple-accent/30" />
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[13px] text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-purple-accent focus-visible:ring-2 focus-visible:ring-purple-accent/30" />
             </div>
-            <label className="flex items-center gap-2 text-[13px] text-slate-700 pb-2">
-              <input type="checkbox" checked={peerReviewed} onChange={e => setPeerReviewed(e.target.checked)} />
-              Peer-reviewed only
+            <label className="sm:col-span-2 flex items-center gap-2.5 text-[13px] text-slate-700 cursor-pointer select-none">
+              <input type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-[#7c3aed]" checked={peerReviewed} onChange={e => setPeerReviewed(e.target.checked)} />
+              Peer-reviewed sources only
             </label>
           </div>
         )}
@@ -172,6 +173,7 @@ function statusChip(s: DeepResearchSessionSummary): { label: string; className: 
     case 'Completed': return { label: 'Done', className: 'bg-emerald-50 text-emerald-700' }
     case 'Stopped':   return { label: 'Stopped at limit', className: 'bg-amber-50 text-amber-700' }
     case 'Cancelled': return { label: 'Stopped by you', className: 'bg-slate-100 text-slate-600' }
+    case 'NeedsReview': return { label: 'Needs review: off-topic', className: 'bg-red-50 text-red-700' }
     default:          return { label: 'Could not finish', className: 'bg-red-50 text-red-700' }
   }
 }
@@ -186,13 +188,13 @@ function MyResearch({ sessions, projects, onOpen, onStop, onResume }: {
   if (sessions.length === 0) return null
   const projectName = (id: string) => projects.find(p => p.id === id)?.title || 'Untitled project'
   return (
-    <section className="pt-4 border-t border-slate-100">
-      <h3 className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-800 mb-2"><History size={14} /> Your research</h3>
+    <section className="pt-8 mt-4 border-t border-slate-100">
+      <h3 className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-slate-500 mb-3"><History size={14} /> Your research</h3>
       <ul className="space-y-2">
         {sessions.map(r => {
           const chip = statusChip(r)
           return (
-            <li key={r.id} className="rounded-lg border border-slate-200 bg-white p-3">
+            <li key={r.id} className="rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-slate-300 hover:shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <button onClick={() => onOpen(r.id)} className="min-w-0 text-left">
                   <p className="text-[13px] font-medium text-slate-800 line-clamp-2">{r.researchQuestion}</p>
@@ -324,6 +326,7 @@ export default function DeepResearchPage() {
   const [exportingReport, setExportingReport] = useState(false)
   const [followUpQuote, setFollowUpQuote] = useState<FollowUpQuote | null>(null)
   const [continuing, setContinuing] = useState(false)
+  const [retrying, setRetrying] = useState(false)
   const alive = useRef(true)
 
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
@@ -506,6 +509,19 @@ export default function DeepResearchPage() {
     finally { setContinuing(false) }
   }
 
+  // An off-topic run is retried at no cost: same question, a fresh search, scoped by the question itself.
+  const retrySession = async () => {
+    if (!session || retrying) return
+    setRetrying(true)
+    try {
+      onStarted(await deepResearchApi.start({
+        projectId: session.projectId, researchQuestion: session.researchQuestion, mode: session.mode as DeepResearchMode,
+        depth: (session.depth as DepthId | null | undefined) ?? undefined, retryOfSessionId: session.id,
+      }))
+    } catch (err) { toast.error(apiErrorMessage(err, 'Could not retry the search.')) }
+    finally { setRetrying(false) }
+  }
+
   const exportReport = async () => {
     if (!session || exportingReport) return
     setExportingReport(true)
@@ -582,7 +598,8 @@ export default function DeepResearchPage() {
             onFollowUp={followUp} onNew={newBlank}
             report={report} reportFailed={reportFailed} onExportReport={() => void exportReport()} exportingReport={exportingReport}
             reportErrorHint={reportHint} onRetryReport={() => void retryReport()} retryingReport={retryingReport} onGenerateReport={generateReport} generatingReport={generatingReport}
-            followUpQuote={followUpQuote?.canContinue ? followUpQuote : null} onContinue={() => void continueSession()} continuing={continuing}
+            followUpQuote={followUpQuote} onContinue={() => void continueSession()} continuing={continuing}
+            onRetry={() => void retrySession()} retrying={retrying}
           />
         )}
       </div>

@@ -1,5 +1,5 @@
 import client from './client'
-import type { ResearchDocument, LibraryFolder, PaperSearchResult, Collection, CollectionDetail } from '../types/webLibrary'
+import type { ResearchDocument, LibraryFolder, PaperSearchResult, PaperSearchFilters, Collection, CollectionDetail } from '../types/webLibrary'
 
 export interface SaveWebLibraryDocumentPayload {
   id?:          string
@@ -87,9 +87,11 @@ export const webLibraryApi = {
     await client.delete(`/api/v1/web-library/folders/${id}`)
   },
 
-  searchPapers: async (query: string, page = 1, pageSize = 20): Promise<WebLibrarySearchResponse> => {
+  searchPapers: async (query: string, page = 1, pageSize = 20, filters: PaperSearchFilters = {}): Promise<WebLibrarySearchResponse> => {
+    // Unset filters are left off the URL entirely rather than sent as empty strings.
+    const filterParams = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== undefined && v !== '' && v !== false))
     const res = await client.get<{ success: boolean; data: WebLibrarySearchResponse }>('/api/v1/web-library/search', {
-      params: { query, page, pageSize },
+      params: { query, page, pageSize, ...filterParams },
     })
     return res.data.data ?? (res.data as unknown as WebLibrarySearchResponse)
   },
@@ -116,6 +118,12 @@ export const webLibraryApi = {
 
   updateCollection: async (id: string, name: string, description?: string): Promise<Collection> => {
     const res = await client.put<{ success: boolean; data: Collection }>(`/api/v1/web-library/collections/${id}`, { name, description })
+    return res.data.data ?? (res.data as unknown as Collection)
+  },
+
+  /** Server-side copy: same description and papers, name + " (copy)". */
+  duplicateCollection: async (id: string): Promise<Collection> => {
+    const res = await client.post<{ success: boolean; data: Collection }>(`/api/v1/web-library/collections/${id}/duplicate`)
     return res.data.data ?? (res.data as unknown as Collection)
   },
 

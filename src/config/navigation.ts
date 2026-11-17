@@ -1,7 +1,7 @@
 import type { ElementType } from 'react'
 import {
   Sparkles, Shield, RefreshCw, Scissors, SpellCheck, ClipboardCheck, ClipboardList, Library, ScrollText,
-  BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, Ruler, ListChecks, Quote,
+  BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, Ruler, ListChecks, Table2, Quote,
 } from 'lucide-react'
 import type { ToolId } from './features'
 
@@ -36,9 +36,12 @@ export const TOOLS: Record<ToolId, ToolDef> = {
   'feedback-tracker':   { id: 'feedback-tracker', label: 'Feedback Tracker', description: 'Track supervisor comments', icon: ListChecks, link: '/app/feedback-tracker', matchPrefix: '/app/feedback-tracker', badge: 'Beta' },
   'citation-generator': { id: 'citation-generator', label: 'Citation Generator', description: 'Format your references', icon: BookMarked, link: '/app/citations' },
   'proposal-studio':    { id: 'proposal-studio', label: 'Proposal Studio', description: 'Draft a research proposal', icon: ScrollText, link: '/app/proposal-studio', matchPrefix: '/app/research-agent' },
+  'thesis-studio':      { id: 'thesis-studio', label: 'Thesis Studio', description: 'Write your thesis chapters', icon: GraduationCap, link: '/app/thesis-studio' },
   'systematic-review':  { id: 'systematic-review', label: 'Systematic Review', description: 'Structured literature review', icon: ClipboardList, link: '/app/systematic-review', matchPrefix: '/app/systematic-review' },
   'research-agent':     { id: 'research-agent', label: 'Research Agent', description: 'Build a project step by step', icon: GraduationCap, link: '/app/research-agent/new' },
-  'saved-sources':      { id: 'saved-sources', label: 'Saved Sources', description: 'Papers you saved', icon: Globe, link: '/app/web-library', matchPrefix: '/app/web-library' },
+  'saved-sources':      { id: 'saved-sources', label: 'Research Library', description: 'Find and save papers', icon: Globe, link: '/app/web-library', matchPrefix: '/app/web-library' },
+  // Under Research, after Research Library (Saved Sources): it is built from them. Its own prefix.
+  'literature-matrix':  { id: 'literature-matrix', label: 'Literature Matrix', description: 'Compare studies side by side', icon: Table2, link: '/app/literature-matrix', matchPrefix: '/app/literature-matrix', badge: 'Beta' },
   'deep-research':      { id: 'deep-research', label: 'Deep Research', description: 'Investigate across sources', icon: Telescope, link: '/app/deep-research' },
   'document-chat':      { id: 'document-chat', label: 'Document Chat', description: 'Ask questions about a file', icon: MessageSquare, link: '/app/document-chat' },
   'lecture-notes':      { id: 'lecture-notes', label: 'Lecture Notes', description: 'Turn lectures into notes', icon: Mic, link: '/app/lecture' },
@@ -64,13 +67,15 @@ const pick = (...ids: ToolId[]): NavItem[] => ids.map(id => TOOLS[id])
 
 // Sections whose tools are all hidden render nothing, so the Phase 2 groups reappear on their own
 // once their flags are on.
+// Grouped by the student's task (2026-11-16). Verify and Improve stay as the launch groups; the
+// studios are long-form writing, so they sit under Write.
 export const NAV_SECTIONS: NavSection[] = [
-  { section: 'Write',    items: pick('documents', 'editor', 'citation-generator') },
-  { section: 'Verify',   items: pick('verify-citations', 'ai-content-check', 'similarity-check', 'reviewer', 'feedback-tracker') },
-  { section: 'Improve',  items: pick('humanise', 'paraphraser', 'grammar', 'summariser') },
-  { section: 'Studios',  items: pick('proposal-studio', 'systematic-review') },
-  { section: 'Research', items: pick('saved-sources', 'deep-research', 'document-chat', 'lecture-notes', 'flashcards') },
-  { section: 'Analyze',  items: pick('study-design', 'qualitative-analysis', 'data-analyst') },
+  { section: 'Write',        items: pick('documents', 'editor', 'proposal-studio', 'thesis-studio', 'systematic-review', 'citation-generator') },
+  { section: 'Find sources', items: pick('saved-sources', 'literature-matrix', 'deep-research') },
+  { section: 'Verify',       items: pick('verify-citations', 'ai-content-check', 'similarity-check', 'reviewer', 'feedback-tracker') },
+  { section: 'Improve',      items: pick('humanise', 'paraphraser', 'grammar', 'summariser') },
+  { section: 'Analyse',      items: pick('study-design', 'qualitative-analysis', 'data-analyst') },
+  { section: 'Study',        items: pick('document-chat', 'lecture-notes', 'flashcards') },
 ]
 
 export const NAV_ITEMS: NavItem[] = NAV_SECTIONS.flatMap(s => s.items)
@@ -109,6 +114,21 @@ export function isNavItemActive(item: ToolDef, pathname: string): boolean {
 /** The tool a pathname belongs to, or null for non-tool pages (account, billing, history…). */
 export function toolForPath(pathname: string): ToolDef | null {
   return NAV_ITEMS.find(item => isNavItemActive(item, pathname)) ?? null
+}
+
+// Research Library tabs: what the current tab is for. Only these routes get a header subtitle, because
+// for every other page the sidebar already shows the tool's one-line description next to the title.
+const WEB_LIBRARY_SUBTITLES: { prefix: string; subtitle: string }[] = [
+  { prefix: '/app/web-library/find',        subtitle: 'Search scholarly databases and save papers' },
+  { prefix: '/app/web-library/collections', subtitle: 'Organise papers by topic or project' },
+  { prefix: '/app/web-library/packages',    subtitle: 'Verified evidence from Deep Research sessions' },
+  { prefix: '/app/web-library/papers',      subtitle: 'Read a saved paper' },
+  { prefix: '/app/web-library',             subtitle: 'Every paper you have saved or imported' },
+]
+
+/** A tab-specific subtitle for the page header, or null when the sidebar description is enough. */
+export function resolvePageSubtitle(pathname: string): string | null {
+  return WEB_LIBRARY_SUBTITLES.find(s => pathname === s.prefix || pathname.startsWith(`${s.prefix}/`))?.subtitle ?? null
 }
 
 // Resolves a pathname to the single display name shared by the page header

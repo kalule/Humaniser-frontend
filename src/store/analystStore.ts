@@ -5,8 +5,11 @@ import type {
   AnalystMessage,
   WorkbenchMode,
   DataHealthReport,
+  CleaningLogEntry,
+  QualityState,
   PreparationBlueprint,
   AcademicLevel,
+  AnalyticalMethod,
 } from '../types/analyst'
 
 type WizardStep = 'objectives' | 'variables' | 'blueprint' | null
@@ -27,6 +30,17 @@ interface AnalystStore {
   mode:          WorkbenchMode
   healthReport:  DataHealthReport | null
   isProfiling:   boolean
+  profileError:  string | null
+  // Confirmed cleaning steps applied to the working copy (the original upload is kept server-side).
+  cleaningLog:   CleaningLogEntry[]
+  // issue id -> user's explicit decision for high-severity issues (blocks the wizard's Continue until set)
+  issueDecisions: Record<string, 'ignore'>
+  // Variables the user picked for their analysis; used to tag issues as affecting it or not.
+  analysisFocus: string[]
+  // Research objective chosen in the wizard; the chat page uses it to order its suggestions.
+  analysisObjective: AnalyticalMethod | null
+  // A column name waiting to be inserted into the prompt box at the cursor (nonce makes repeats distinct).
+  promptInsert: { text: string; nonce: number } | null
   isCleaning:    boolean
   isCleaned:     boolean
   isExporting:   boolean
@@ -44,13 +58,20 @@ interface AnalystStore {
   addDataset:            (id: string, schema: DatasetSchema) => void
   toggleDatasetSelected: (id: string) => void
   setPrimaryDataset:     (id: string) => void
-  addMessage:            (msg: AnalystMessage) => void
+  removeDataset:         (id: string) => void
+  addMessage:           (msg: AnalystMessage) => void
   updateMessage:         (id: string, patch: Partial<AnalystMessage>) => void
   setUploading:          (v: boolean) => void
   setQuerying:           (v: boolean) => void
   setMode:               (mode: WorkbenchMode) => void
   setHealthReport:       (report: DataHealthReport | null) => void
   setProfiling:          (v: boolean) => void
+  setProfileError:       (msg: string | null) => void
+  setAnalysisFocus:      (columns: string[]) => void
+  setAnalysisObjective:  (objective: AnalyticalMethod | null) => void
+  insertIntoPrompt:      (text: string) => void
+  applyQualityState:     (state: QualityState) => void
+  setIssueDecision:      (issueId: string, decision: 'ignore' | null) => void
   setCleaning:           (v: boolean) => void
   setExporting:          (v: boolean) => void
   applyCleanResult:      (schema: DatasetSchema) => void
@@ -78,6 +99,12 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
   mode:         'student',
   healthReport: null,
   isProfiling:  false,
+  profileError: null,
+  cleaningLog: [],
+  issueDecisions: {},
+  analysisFocus: [],
+  analysisObjective: null,
+  promptInsert: null,
   isCleaning:   false,
   isCleaned:    false,
   isExporting:  false,
@@ -98,8 +125,8 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
       datasets: [...s.datasets.filter((d) => d.datasetId !== datasetId), schema],
       selectedDatasetIds: [datasetId],
       datasetId, schema, messages: [],
-      healthReport: null, isCleaned: false,
-      wizardStep: 'objectives', blueprint: null,
+      healthReport: null, profileError: null, cleaningLog: [], issueDecisions: {}, isCleaned: false,
+      wizardStep: 'objectives', blueprint: null, analysisObjective: null,
       sessionId: null, stepCount: 0,
     })),
 
@@ -137,7 +164,40 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
         datasetId: id,
         schema,
         // Stale for whichever dataset was previously primary — recomputed on demand.
-        healthReport: null, isCleaned: false,
+        healthReport: null, profileError: null, cleaningLog: [], issueDecisions: {}, isCleaned: false,
+        wizardStep: null, blueprint: null,
+      }
+    }),
+
+  // Removes one dataset and keeps the chat/session. Removing the last one is a full
+  // reset (callers confirm that separately). If the removed dataset was primary, the
+  // next selected (or first remaining) one takes over and its per-dataset state is
+  // cleared for re-fetch, exactly as setPrimaryDataset does.
+  removeDataset: (id) =>
+    set((s) => {
+      if (!s.datasets.some((d) => d.datasetId === id)) return s
+      const remaining = s.datasets.filter((d) => d.datasetId !== id)
+      if (remaining.length === 0) {
+        return {
+          datasets: [], selectedDatasetIds: [],
+          datasetId: null, schema: null, messages: [],
+          healthReport: null, profileError: null, cleaningLog: [], issueDecisions: {}, isCleaned: false,
+          wizardStep: null, blueprint: null, isGeneratingBlueprint: false,
+          sessionId: null, stepCount: 0,
+        }
+      }
+
+      const kept = s.selectedDatasetIds.filter((d) => d !== id)
+      const nextSelected = kept.length > 0 ? kept : [remaining[0].datasetId]
+      if (s.datasetId !== id) return { datasets: remaining, selectedDatasetIds: nextSelected }
+
+      const primaryId = nextSelected[0]
+      return {
+        datasets: remaining,
+        selectedDatasetIds: nextSelected,
+        datasetId: primaryId,
+        schema: remaining.find((d) => d.datasetId === primaryId) ?? null,
+        healthReport: null, profileError: null, cleaningLog: [], issueDecisions: {}, isCleaned: false,
         wizardStep: null, blueprint: null,
       }
     }),
@@ -153,14 +213,39 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
   setUploading:    (isUploading) => set({ isUploading }),
   setQuerying:     (isQuerying)  => set({ isQuerying }),
   setMode:         (mode)        => set({ mode }),
-  setHealthReport: (healthReport) => set({ healthReport }),
+  setHealthReport: (healthReport) => set({ healthReport, profileError: null, issueDecisions: {} }),
   setProfiling:    (isProfiling) => set({ isProfiling }),
+  setProfileError: (profileError) => set({ profileError }),
+  setAnalysisFocus: (analysisFocus) => set({ analysisFocus }),
+  setAnalysisObjective: (analysisObjective) => set({ analysisObjective }),
+  insertIntoPrompt: (text) => set((s) => ({ promptInsert: { text, nonce: (s.promptInsert?.nonce ?? 0) + 1 } })),
+  // One atomic update after a check, a fix or an undo: schema, report and log always agree.
+  applyQualityState: ({ schema, report, log }) =>
+    set((s) => {
+      const liveIds = new Set((report.issues ?? []).map((i) => i.id))
+      const issueDecisions = Object.fromEntries(
+        Object.entries(s.issueDecisions).filter(([id]) => liveIds.has(id)),
+      ) as Record<string, 'ignore'>
+      // The upload response carries the data dictionary; the quality endpoints do not.
+      const merged = { ...schema, dataDictionary: schema.dataDictionary ?? s.schema?.dataDictionary }
+      return {
+        schema: merged, healthReport: report, cleaningLog: log, profileError: null,
+        isCleaned: log.length > 0, issueDecisions,
+        datasets: s.datasets.map((d) => (d.datasetId === s.datasetId ? merged : d)),
+      }
+    }),
+  setIssueDecision: (issueId, decision) =>
+    set((s) => {
+      const next = { ...s.issueDecisions }
+      if (decision) next[issueId] = decision; else delete next[issueId]
+      return { issueDecisions: next }
+    }),
   setCleaning:     (isCleaning)  => set({ isCleaning }),
   setExporting:    (isExporting) => set({ isExporting }),
 
   applyCleanResult: (schema) =>
     set((s) => ({
-      schema, isCleaned: true, healthReport: null,
+      schema, isCleaned: true, healthReport: null, profileError: null, issueDecisions: {},
       datasets: s.datasets.map((d) => (d.datasetId === s.datasetId ? schema : d)),
     })),
 
@@ -188,7 +273,7 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
   reset: () => set({
     datasets: [], selectedDatasetIds: [],
     datasetId: null, schema: null, messages: [],
-    healthReport: null, isCleaned: false,
+    healthReport: null, profileError: null, cleaningLog: [], issueDecisions: {}, isCleaned: false,
     wizardStep: null, blueprint: null, isGeneratingBlueprint: false,
     sessionId: null, stepCount: 0,
   }),

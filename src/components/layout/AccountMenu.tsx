@@ -5,6 +5,7 @@ import { Sparkles, Settings, CreditCard, LogOut, History, ChevronDown, ShieldChe
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { authApi } from '../../api/auth';
+import { isPlanUnlimited } from '../../lib/usageMeter';
 
 function getInitials(name?: string, email?: string): string {
   if (name && name.trim()) {
@@ -17,7 +18,8 @@ function getInitials(name?: string, email?: string): string {
   return 'U';
 }
 
-// Plan badge + upgrade button + avatar dropdown — extracted out of AppNavbar so the
+// The single account entry point in the app shell (the sidebar no longer has its own account row):
+// plan badge + upgrade button + avatar dropdown — extracted out of AppNavbar so the
 // document editor's own header row can render it directly once AppNavbar hides itself
 // on that route (desktop), instead of a second, divergent copy of this same menu.
 export function AccountMenu({ className }: { className?: string }) {
@@ -25,6 +27,7 @@ export function AccountMenu({ className }: { className?: string }) {
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -32,8 +35,19 @@ export function AccountMenu({ className }: { className?: string }) {
         setDropdownOpen(false);
       }
     };
+    // Escape closes the menu and returns focus to the avatar button.
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && dropdownRef.current?.contains(document.activeElement)) {
+        setDropdownOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -45,7 +59,7 @@ export function AccountMenu({ className }: { className?: string }) {
   const plan = user?.plan ?? 'Free';
   const wordsUsed = user?.wordsUsed ?? 0;
   const wordsLimit = user?.wordsLimit ?? 1;
-  const isUnlimited = plan === 'Unlimited' || wordsLimit >= 1_000_000;
+  const isUnlimited = isPlanUnlimited(plan, wordsLimit);
   const usagePct = isUnlimited ? 0 : Math.min((wordsUsed / wordsLimit) * 100, 100);
 
   const creditsUsed = user?.creditsUsed ?? 0;
@@ -91,9 +105,12 @@ export function AccountMenu({ className }: { className?: string }) {
       {/* Avatar Dropdown */}
       <div className="relative" ref={dropdownRef}>
         <button
+          ref={triggerRef}
           onClick={() => setDropdownOpen((prev) => !prev)}
-          className="flex items-center gap-1.5 p-1 rounded-full pr-2 transition-colors"
-          style={{ color: 'var(--text-muted)' }}
+          aria-haspopup="menu"
+          aria-expanded={dropdownOpen}
+          aria-controls="account-menu"
+          className="flex items-center gap-1.5 p-1 rounded-full pr-2 transition-colors text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-purple)]"
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-rail)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           aria-label="User menu"
@@ -104,12 +121,13 @@ export function AccountMenu({ className }: { className?: string }) {
           >
             {getInitials(user?.name, user?.email)}
           </div>
-          <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
+          <ChevronDown size={14} className={cn('transition-transform duration-200', dropdownOpen && 'rotate-180')} />
         </button>
 
         <AnimatePresence>
           {dropdownOpen && (
             <motion.div
+              id="account-menu"
               initial={{ opacity: 0, y: 6, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 6, scale: 0.96 }}
@@ -125,23 +143,23 @@ export function AccountMenu({ className }: { className?: string }) {
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                   {user?.name ?? 'User'}
                 </p>
-                <p className="text-xs truncate mb-1" style={{ color: 'var(--text-muted)' }}>{user?.email}</p>
-                <p className="text-xs font-medium" style={{ color: 'var(--color-purple)' }}>{plan} Plan</p>
+                <p className="text-xs truncate mb-1 text-slate-500">{user?.email}</p>
+                <p className="text-xs font-medium" style={{ color: 'var(--color-purple-text)' }}>{plan} Plan</p>
               </div>
 
               {/* Menu items */}
               <div className="py-1">
                 {[
-                  { to: '/app/account', icon: Settings, label: '⚙️ Account Settings' },
-                  { to: '/app/billing', icon: CreditCard, label: '💳 Billing' },
-                  { to: '/app/history', icon: History, label: '🕐 History' },
-                  ...(user?.role === 'Admin' ? [{ to: '/admin', icon: ShieldCheck, label: '🛡️ Admin' }] : []),
+                  { to: '/app/account', icon: Settings, label: 'Account Settings' },
+                  { to: '/app/billing', icon: CreditCard, label: 'Billing' },
+                  { to: '/app/history', icon: History, label: 'History' },
+                  ...(user?.role === 'Admin' ? [{ to: '/admin', icon: ShieldCheck, label: 'Admin' }] : []),
                 ].map(({ to, icon: Icon, label }) => (
                   <Link
                     key={to}
                     to={to}
                     onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2 text-sm transition-colors"
+                    className="flex items-center gap-2.5 px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:bg-[var(--surface-rail)]"
                     style={{ color: 'var(--text-secondary)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-rail)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -157,13 +175,13 @@ export function AccountMenu({ className }: { className?: string }) {
                   <Link
                     to="/app/billing"
                     onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2 text-sm transition-colors"
+                    className="flex items-center gap-2.5 px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:bg-[var(--surface-rail)]"
                     style={{ color: 'var(--color-purple)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-purple-tint)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <Sparkles size={16} />
-                    ✨ Upgrade to Pro
+                    Upgrade to Pro
                   </Link>
                 </div>
               )}
@@ -171,13 +189,13 @@ export function AccountMenu({ className }: { className?: string }) {
               <div style={{ borderTop: '0.5px solid var(--border-hairline)' }} className="py-1">
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left"
-                  style={{ color: 'var(--color-red)' }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left focus-visible:outline-none focus-visible:bg-[var(--color-red-tint)]"
+                  style={{ color: 'var(--color-red-text)' }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-red-tint)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <LogOut size={16} />
-                  🚪 Sign Out
+                  Sign Out
                 </button>
               </div>
             </motion.div>

@@ -1,0 +1,369 @@
+{
+  "protocol": "frozen-retrieval-live-models-v1",
+  "repetitionsPerModeAndCase": 1,
+  "cacheConditions": "Preparation cache disabled; identical frozen retrieval data; upstream verification HTTP caches uncontrolled. Baseline first. No causal speedup claim or tail/median estimate.",
+  "records": [
+    {
+      "Name": "argumentative",
+      "compact": false,
+      "status": "failed",
+      "elapsedMs": 155040,
+      "exceptionType": "InvalidOperationException"
+    },
+    {
+      "Name": "argumentative",
+      "compact": true,
+      "status": "Incomplete",
+      "elapsedMs": 46353,
+      "initialPlanning": null,
+      "pipeline": {
+        "CorrelationId": "bd433e99ea4f4199bdc50965a173a671",
+        "Counts": {
+          "assessment_candidates": 10,
+          "assessed_sources": 10
+        },
+        "TotalMs": 46352,
+        "StagesMs": {
+          "starting": 0,
+          "planning-question": 5161,
+          "searching-sources": 79,
+          "assessing-evidence": 16361,
+          "building-outline": 16271,
+          "drafting": 8480,
+          "incomplete": 0
+        },
+        "ModelCalls": 5,
+        "InputTokens": 28600,
+        "OutputTokens": 8527,
+        "ProviderRetries": 0,
+        "CancelledModelCalls": 0,
+        "FailedModelCalls": 0,
+        "ModelElapsedMs": 45972,
+        "TokenUsageComplete": true
+      },
+      "WordCount": 0,
+      "sources": 0,
+      "frozenSources": 12,
+      "flags": [
+        "SingleSourceReliance",
+        "EssayStructureGap",
+        "EssayIncomplete"
+      ],
+      "claimAudit": null,
+      "diagnostics": [
+        "assessment_ranked:10:10",
+        "assessment_window:10/10",
+        "model_calls:4",
+        "recovery_calls:0"
+      ]
+    },
+    {
+      "Name": "empirical",
+      "compact": false,
+      "status": "Incomplete",
+      "elapsedMs": 30926,
+      "initialPlanning": {
+        "CorrelationId": "fa7f4870bdf24d1aad488215ec07aaef",
+        "Counts": {},
+        "TotalMs": 7736,
+        "StagesMs": {
+          "starting": 7736
+        },
+        "ModelCalls": 1,
+        "InputTokens": 693,
+        "OutputTokens": 1141,
+        "ProviderRetries": 0,
+        "CancelledModelCalls": 0,
+        "FailedModelCalls": 0,
+        "ModelElapsedMs": 7720,
+        "TokenUsageComplete": true
+      },
+      "pipeline": {
+        "CorrelationId": "d05cbe7085ed41a996fba4644325b744",
+        "Counts": {
+          "assessment_candidates": 12,
+          "assessed_sources": 12
+        },
+        "TotalMs": 23189,
+        "StagesMs": {
+          "starting": 0,
+          "planning-question": 3896,
+          "searching-sources": 41,
+          "assessing-evidence": 19211,
+          "searching-gaps": 41,
+          "incomplete": 0
+        },
+        "ModelCalls": 2,
+        "InputTokens": 6755,
+        "OutputTokens": 4868,
+        "ProviderRetries": 0,
+        "CancelledModelCalls": 0,
+        "FailedModelCalls": 0,
+        "ModelElapsedMs": 23083,
+        "TokenUsageComplete": true
+      },
+      "WordCount": 0,
+      "sources": 0,
+      "frozenSources": 12,
+      "flags": [
+        "EssayIncomplete",
+        "QuestionComponentCoverage"
+      ],
+      "claimAudit": {
+        "AuditAvailable": false,
+        "AuditWarning": "Last available claim findings are from an earlier draft; final wording has not been fully audited. The sources found do not yet support a complete answer to every required part. Usable sources have been kept; add evidence or retry.",
+        "AtomicClaims": 0,
+        "EvidenceRequiring": 0,
+        "NonEvidenceClaims": 0,
+        "Cited": 0,
+        "Uncited": 0,
+        "Supported": 0,
+        "SupportedCanonical": 0,
+        "SupportedTrustedEvidence": 0,
+        "Unsupported": 0,
+        "Unverifiable": 0,
+        "Misaligned": 0,
+        "Rewritten": 0,
+        "Removed": 0,
+        "CoveragePercent": 100,
+        "VerifiedCoveragePercent": 100,
+        "VerifiedCoverageCanonical": 100,
+        "VerifiedCoverageAnyTrusted": 100,
+        "CoverageBeforeRepair": 0,
+        "UniqueSourcesBeforeRepair": 0,
+        "UniqueSourcesAfterRepair": 0,
+        "ExistingCorpusRepairs": 0,
+        "ExternalGapQueries": 0,
+        "NewSourcesAdded": 0,
+        "AuditLatencyMs": 0,
+        "VerificationLatencyMs": 0,
+        "RepairLatencyMs": 0
+      },
+      "diagnostics": [
+        "assessment_ranked:12:12",
+        "assessment_window:12/12",
+        "recovery:1:C1",
+        "recovery:1:C2",
+        "recovery:1:C3",
+        "recovery:1:C4",
+        "model_calls:2",
+        "recovery_calls:4"
+      ]
+    },
+    {
+      "Name": "empirical",
+      "compact": true,
+      "status": "Incomplete",
+      "elapsedMs": 35710,
+      "initialPlanning": null,
+      "pipeline": {
+        "CorrelationId": "5fa8bc14ab7a4cd88217260416ef5951",
+        "Counts": {
+          "assessment_candidates": 11,
+          "assessed_sources": 11
+        },
+        "TotalMs": 35710,
+        "StagesMs": {
+          "starting": 0,
+          "planning-question": 7984,
+          "searching-sources": 117,
+          "assessing-evidence": 11901,
+          "building-outline": 8827,
+          "drafting": 6881,
+          "incomplete": 0
+        },
+        "ModelCalls": 6,
+        "InputTokens": 25312,
+        "OutputTokens": 6062,
+        "ProviderRetries": 0,
+        "CancelledModelCalls": 0,
+        "FailedModelCalls": 0,
+        "ModelElapsedMs": 35539,
+        "TokenUsageComplete": true
+      },
+      "WordCount": 0,
+      "sources": 0,
+      "frozenSources": 12,
+      "flags": [
+        "EssayStructureGap",
+        "EssayIncomplete"
+      ],
+      "claimAudit": null,
+      "diagnostics": [
+        "assessment_ranked:11:11",
+        "assessment_window:11/11",
+        "model_calls:5",
+        "recovery_calls:0"
+      ]
+    },
+    {
+      "Name": "jurisdiction",
+      "compact": false,
+      "status": "Incomplete",
+      "elapsedMs": 25216,
+      "initialPlanning": {
+        "CorrelationId": "77db4d5903074ea48988027eec3d0ec8",
+        "Counts": {},
+        "TotalMs": 8820,
+        "StagesMs": {
+          "starting": 8820
+        },
+        "ModelCalls": 1,
+        "InputTokens": 697,
+        "OutputTokens": 1398,
+        "ProviderRetries": 0,
+        "CancelledModelCalls": 0,
+        "FailedModelCalls": 0,
+        "ModelElapsedMs": 8793,
+        "TokenUsageComplete": true
+      },
+      "pipeline": {
+        "CorrelationId": "890806fbbd6e4eccace2a523da6863f1",
+        "Counts": {
+          "assessment_candidates": 9,
+          "assessed_sources": 9
+        },
+        "TotalMs": 16395,
+        "StagesMs": {
+          "starting": 0,
+          "planning-question": 3933,
+          "searching-sources": 23,
+          "assessing-evidence": 12425,
+          "searching-gaps": 14,
+          "incomplete": 0
+        },
+        "ModelCalls": 3,
+        "InputTokens": 10416,
+        "OutputTokens": 2965,
+        "ProviderRetries": 0,
+        "CancelledModelCalls": 0,
+        "FailedModelCalls": 0,
+        "ModelElapsedMs": 16310,
+        "TokenUsageComplete": true
+      },
+      "WordCount": 0,
+      "sources": 0,
+      "frozenSources": 12,
+      "flags": [
+        "EssayIncomplete",
+        "QuestionComponentCoverage"
+      ],
+      "claimAudit": {
+        "AuditAvailable": false,
+        "AuditWarning": "Last available claim findings are from an earlier draft; final wording has not been fully audited. The sources found do not yet support a complete answer to every required part. Usable sources have been kept; add evidence or retry.",
+        "AtomicClaims": 0,
+        "EvidenceRequiring": 0,
+        "NonEvidenceClaims": 0,
+        "Cited": 0,
+        "Uncited": 0,
+        "Supported": 0,
+        "SupportedCanonical": 0,
+        "SupportedTrustedEvidence": 0,
+        "Unsupported": 0,
+        "Unverifiable": 0,
+        "Misaligned": 0,
+        "Rewritten": 0,
+        "Removed": 0,
+        "CoveragePercent": 100,
+        "VerifiedCoveragePercent": 100,
+        "VerifiedCoverageCanonical": 100,
+        "VerifiedCoverageAnyTrusted": 100,
+        "CoverageBeforeRepair": 0,
+        "UniqueSourcesBeforeRepair": 0,
+        "UniqueSourcesAfterRepair": 0,
+        "ExistingCorpusRepairs": 0,
+        "ExternalGapQueries": 0,
+        "NewSourcesAdded": 0,
+        "AuditLatencyMs": 0,
+        "VerificationLatencyMs": 0,
+        "RepairLatencyMs": 0
+      },
+      "diagnostics": [
+        "assessment_ranked:9:9",
+        "assessment_window:9/9",
+        "recovery:1:C1",
+        "recovery:1:C2",
+        "recovery:1:C3",
+        "assessment_delta:3/3:unmet=3",
+        "model_calls:3",
+        "recovery_calls:6"
+      ]
+    },
+    {
+      "Name": "jurisdiction",
+      "compact": true,
+      "status": "Incomplete",
+      "elapsedMs": 14822,
+      "initialPlanning": null,
+      "pipeline": {
+        "CorrelationId": "0645ea6fa52e4e51a49fb3e190727184",
+        "Counts": {
+          "assessment_candidates": 12,
+          "assessed_sources": 12,
+          "recovery_searches": 3
+        },
+        "TotalMs": 14822,
+        "StagesMs": {
+          "starting": 0,
+          "planning-question": 4844,
+          "searching-sources": 25,
+          "assessing-evidence": 9941,
+          "searching-gaps": 10,
+          "incomplete": 0
+        },
+        "ModelCalls": 2,
+        "InputTokens": 6808,
+        "OutputTokens": 2848,
+        "ProviderRetries": 0,
+        "CancelledModelCalls": 0,
+        "FailedModelCalls": 0,
+        "ModelElapsedMs": 14772,
+        "TokenUsageComplete": true
+      },
+      "WordCount": 0,
+      "sources": 0,
+      "frozenSources": 12,
+      "flags": [
+        "EssayIncomplete",
+        "QuestionComponentCoverage"
+      ],
+      "claimAudit": {
+        "AuditAvailable": false,
+        "AuditWarning": "Last available claim findings are from an earlier draft; final wording has not been fully audited. The sources found do not yet support a complete answer to every required part. Usable sources have been kept; add evidence or retry.",
+        "AtomicClaims": 0,
+        "EvidenceRequiring": 0,
+        "NonEvidenceClaims": 0,
+        "Cited": 0,
+        "Uncited": 0,
+        "Supported": 0,
+        "SupportedCanonical": 0,
+        "SupportedTrustedEvidence": 0,
+        "Unsupported": 0,
+        "Unverifiable": 0,
+        "Misaligned": 0,
+        "Rewritten": 0,
+        "Removed": 0,
+        "CoveragePercent": 100,
+        "VerifiedCoveragePercent": 100,
+        "VerifiedCoverageCanonical": 100,
+        "VerifiedCoverageAnyTrusted": 100,
+        "CoverageBeforeRepair": 0,
+        "UniqueSourcesBeforeRepair": 0,
+        "UniqueSourcesAfterRepair": 0,
+        "ExistingCorpusRepairs": 0,
+        "ExternalGapQueries": 0,
+        "NewSourcesAdded": 0,
+        "AuditLatencyMs": 0,
+        "VerificationLatencyMs": 0,
+        "RepairLatencyMs": 0
+      },
+      "diagnostics": [
+        "assessment_ranked:12:12",
+        "assessment_window:12/12",
+        "recovery_trigger:essential_gaps=5:minimum_sources=0:queries=3",
+        "model_calls:2",
+        "recovery_calls:3"
+      ]
+    }
+  ]
+}

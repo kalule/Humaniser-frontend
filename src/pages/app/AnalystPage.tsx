@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, lazy, Suspense } from 'react'
+import { useRef, useState, useEffect, useCallback, useMemo, lazy, Suspense, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -13,9 +13,9 @@ import {
   TrendingUp, Clipboard, ShieldAlert, CheckCircle,
   HelpCircle, ArrowUpRight, SlidersHorizontal,
   ClipboardList, Download, Table,
-  Activity, Wand2, Trash2, Type, BadgeCheck,
+  Activity, Wand2, BadgeCheck,
   PieChart, FlaskConical, Lightbulb, ChevronLeft, ChevronRight, Shield,
-  Loader2, Plus,
+  Loader2, Plus, Square, Search, Info, Trash2,
 } from 'lucide-react'
 import { AnalystErrorCard } from '../../components/ui/AnalystErrorCard'
 import { cn } from '../../lib/utils'
@@ -23,17 +23,22 @@ import { useAnalystStore } from '../../store/analystStore'
 import { useAuthStore } from '../../store/authStore'
 import { CREDIT_COSTS } from '../../config/creditCosts'
 import { useAnalyst } from '../../hooks/useAnalyst'
-import { useSuggestedQuestions } from '../../hooks/useSuggestedQuestions'
 import { useWorkbench } from '../../hooks/useWorkbench'
 import { analystApi } from '../../api/analyst'
+import {
+  firstUnmet, gateChecklist, issueRelevance, penaltyPoints, scoreGains, suggestObjective, unresolvedHighIssues,
+} from '../../lib/analystQuality'
+import {
+  RUN_STAGES, cleaningMethodsText, describeRun, dtypeLabel, formatElapsed, suggestQuestions, terminalLines,
+} from '../../lib/analystRun'
 import { researchApi } from '../../api/research'
 import type {
   AnalystResult, ColumnSchema, WorkbenchMode,
   AcademicStyleGuide, RegressionTelemetry, FormattedCitations,
   LiteratureCitation, LiteratureAlignment,
-  DataAnomaly, CleanDatasetConfig,
   AnalyticalMethod, PreparationBlueprint,
-  DiagnosticSampleRow, AcademicSynthesis,
+  AcademicSynthesis,
+  QualityIssue, QualityIssueType, QualitySeverity, QualityFixAction, CleaningLogEntry, AnalystMessage,
 } from '../../types/analyst'
 
 const MonacoEditor = lazy(() => import('@monaco-editor/react'))
@@ -41,17 +46,21 @@ const MonacoEditor = lazy(() => import('@monaco-editor/react'))
 // ── Dtype badge ───────────────────────────────────────────────────────────────
 
 function DtypeBadge({ dtype }: { dtype: string }) {
+  const mode = useAnalystStore((s) => s.mode)
   const map: Record<string, string> = {
-    int64:      'bg-blue-100 text-blue-700',
-    float64:    'bg-indigo-100 text-indigo-700',
-    object:     'bg-violet-100 text-violet-700',
-    datetime64: 'bg-emerald-100 text-emerald-700',
-    bool:       'bg-amber-100 text-amber-700',
+    int64:      'bg-blue-100 text-blue-800',
+    float64:    'bg-indigo-100 text-indigo-800',
+    object:     'bg-violet-100 text-violet-800',
+    datetime64: 'bg-emerald-100 text-emerald-800',
+    bool:       'bg-amber-100 text-amber-800',
   }
   const base = dtype.startsWith('datetime') ? 'datetime64' : dtype
   return (
-    <span className={cn('text-[10px] font-mono px-1.5 py-0.5 rounded font-semibold', map[base] ?? 'bg-slate-100 text-slate-600')}>
-      {dtype.startsWith('datetime') ? 'date' : dtype}
+    <span
+      title={mode === 'developer' ? undefined : `Stored type: ${dtype}`}
+      className={cn('text-[10px] px-1.5 py-0.5 rounded font-semibold shrink-0', mode === 'developer' && 'font-mono', map[base] ?? 'bg-slate-100 text-slate-700')}
+    >
+      {dtypeLabel(dtype, mode)}
     </span>
   )
 }
@@ -77,85 +86,279 @@ function NullBadge({ pct }: { pct: number }) {
   )
 }
 
-// ── Severity chip ─────────────────────────────────────────────────────────────
+// ── Health report panel ───────────────────────────────────────────────────────
 
-function SeverityChip({ severity }: { severity: string }) {
-  return severity === 'critical' ? (
-    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
-      Critical
-    </span>
-  ) : (
-    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-      Warning
-    </span>
-  )
+const SEVERITY_STYLE: Record<QualitySeverity, { chip: string; label: string; dot: string }> = {
+  high:   { chip: 'bg-red-100 text-red-700',     label: 'High',   dot: 'bg-red-500' },
+  medium: { chip: 'bg-amber-100 text-amber-700', label: 'Medium', dot: 'bg-amber-500' },
+  low:    { chip: 'bg-slate-100 text-slate-600', label: 'Low',    dot: 'bg-slate-400' },
 }
 
-// ── Diagnostic evidence table ─────────────────────────────────────────────────
+const ISSUE_TITLE: Record<QualityIssueType, string> = {
+  duplicate_rows:     'Duplicate rows',
+  duplicate_ids:      'Repeated IDs',
+  missing_values:     'Missing values',
+  numeric_with_text:  'Text in a numeric column',
+  out_of_range:       'Values outside the scale',
+  implausible_value:  'Impossible values',
+  outliers:           'Extreme values',
+  label_variants:     'Label variants',
+  mixed_date_formats: 'Mixed date formats',
+  reverse_coded_item: 'Possible reverse-coded item',
+}
 
-function DiagnosticEvidenceTable({ rows, issueType }: { rows: DiagnosticSampleRow[]; issueType: string }) {
-  const [expanded, setExpanded] = useState(false)
-  const hasCountry = rows.some((r) => r.country !== undefined)
-  const hasYear    = rows.some((r) => r.year    !== undefined)
+function issueHeadline(i: QualityIssue): string {
+  if (i.type === 'duplicate_rows') return `${i.count} of ${i.totalRows} rows are exact copies`
+  if (i.type === 'reverse_coded_item') return 'Negatively correlated with its scale'
+  if (i.type === 'missing_values') return `${i.count} of ${i.totalRows} values missing`
+  return `${i.count} of ${i.totalRows} values affected`
+}
 
-  const valueClass = (v: DiagnosticSampleRow['value']) => {
-    if (v === null || v === 'NaN' || v === '') return 'text-slate-400 italic'
-    if (typeof v === 'string' && v.startsWith('DUPLICATE')) return 'text-amber-600'
-    if (typeof v === 'string' && (v.startsWith('<') || v === 'N/A')) return 'text-orange-600 font-semibold'
-    return 'text-slate-700'
+const FIXABLE: ReadonlySet<QualityIssueType> = new Set<QualityIssueType>([
+  'duplicate_rows', 'missing_values', 'numeric_with_text', 'out_of_range',
+  'implausible_value', 'label_variants', 'mixed_date_formats', 'reverse_coded_item',
+])
+
+/** Label for the proposed fix, or null when this issue has no automatic fix. */
+function fixLabel(i: QualityIssue): string | null {
+  if (!FIXABLE.has(i.type)) return null
+  switch (i.type) {
+    case 'duplicate_rows':     return `Remove ${i.count} duplicate rows`
+    case 'label_variants':     return `Standardise ${i.column} labels`
+    case 'mixed_date_formats': return 'Convert dates to YYYY-MM-DD'
+    case 'reverse_coded_item': return `Reverse-code ${i.column}`
+    case 'missing_values': {
+      const placeholders = (i.breakdown ?? []).filter((b) => b.label !== '(blank)').reduce((n, b) => n + b.count, 0)
+      return placeholders > 0 ? `Treat ${placeholders} placeholders as blank` : null
+    }
+    default: return `Set ${i.count} values to missing`
   }
+}
 
-  const displayValue = (v: DiagnosticSampleRow['value']) => {
-    if (v === null) return 'null'
-    if (v === '') return '(empty)'
-    return String(v)
-  }
+function excludeLabel(i: QualityIssue): string | null {
+  if (i.type === 'reverse_coded_item' || i.type === 'duplicate_rows' || i.affectedRowTotal === 0) return null
+  return `Exclude ${i.affectedRowTotal} rows`
+}
+
+function IssueRow({ issue }: { issue: QualityIssue }) {
+  const [open, setOpen] = useState(false)
+  const [pending, setPending] = useState<{ action: QualityFixAction; label: string } | null>(null)
+  const isCleaning = useAnalystStore((s) => s.isCleaning)
+  const { applyQualityFix, editQualityCell } = useAnalyst()
+  const [editing, setEditing] = useState<{ row: number; value: string } | null>(null)
+  const cells = issue.affectedCells ?? []
+  const fix = fixLabel(issue)
+  const exclude = excludeLabel(issue)
+  const [showAllRows, setShowAllRows] = useState(false)
+  const relevance = issueRelevance(issue, useAnalystStore((s) => s.analysisFocus))
+  const shownRows = showAllRows ? issue.affectedRows : issue.affectedRows.slice(0, 10)
+  const shownCells = showAllRows ? cells : cells.slice(0, 10)
+  const decided = useAnalystStore((s) => s.issueDecisions[issue.id])
+  const setDecision = useAnalystStore((s) => s.setIssueDecision)
+  const sev = SEVERITY_STYLE[issue.severity]
+  const col = issue.column === '__row__' ? 'Whole rows' : issue.column
 
   return (
-    <div className="mt-1.5 rounded-lg border overflow-hidden" style={{ borderColor: '#e0e0da' }}>
+    <div className="rounded-lg border" style={{ borderColor: '#ebebea', background: '#ffffff' }}>
       <button
-        onClick={() => setExpanded((p) => !p)}
-        className="w-full flex items-center justify-between px-2.5 py-1.5 transition-colors"
-        style={{ background: '#f8f9fa' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f1f5f9' }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f8f9fa' }}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full flex items-start gap-2 px-2.5 py-2 text-left"
       >
-        <span className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-          <Table size={9} /> Evidence preview
-          <span className="normal-case text-slate-400 font-normal tracking-normal">({rows.length} sample rows)</span>
+        <span className={cn('mt-1 w-1.5 h-1.5 rounded-full shrink-0', sev.dot)} aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <span className="text-[11px] font-semibold text-slate-700 truncate">{ISSUE_TITLE[issue.type]}</span>
+            <span className={cn('text-[9px] font-bold px-1.5 py-px rounded-full shrink-0', sev.chip)}>{sev.label}</span>
+            {relevance === 'affects' && <span className="text-[9px] font-bold px-1.5 py-px rounded-full shrink-0 bg-violet-100 text-violet-800">Affects your analysis</span>}
+            {relevance === 'minor' && <span className="text-[9px] font-semibold px-1.5 py-px rounded-full shrink-0 bg-slate-100 text-slate-600">Minor for this analysis</span>}
+            {decided && <span className="text-[9px] font-semibold text-emerald-700 shrink-0">· kept as is</span>}
+          </span>
+          <span className="block text-[10px] text-slate-500 truncate">
+            <span className="font-mono">{col}</span> · {issueHeadline(issue)}
+          </span>
         </span>
-        {expanded ? <ChevronUp size={9} className="text-slate-400" /> : <ChevronDown size={9} className="text-slate-400" />}
+        {open ? <ChevronUp size={11} className="mt-1 text-slate-400 shrink-0" /> : <ChevronDown size={11} className="mt-1 text-slate-400 shrink-0" />}
       </button>
 
-      {expanded && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-[10px] border-collapse">
-            <thead>
-              <tr style={{ background: '#f8f9fa' }}>
-                <th className="text-left px-2.5 py-1.5 text-slate-500 font-semibold w-12" style={{ borderBottom: '0.5px solid #e0e0da' }}>Row</th>
-                {hasCountry && <th className="text-left px-2.5 py-1.5 text-slate-500 font-semibold" style={{ borderBottom: '0.5px solid #e0e0da' }}>Country</th>}
-                {hasYear    && <th className="text-left px-2.5 py-1.5 text-slate-500 font-semibold w-12" style={{ borderBottom: '0.5px solid #e0e0da' }}>Year</th>}
-                <th className="text-left px-2.5 py-1.5 text-slate-500 font-semibold" style={{ borderBottom: '0.5px solid #e0e0da' }}>Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <tr
-                  key={i}
-                  style={{ borderBottom: '0.5px solid #f1f5f9', background: i % 2 === 0 ? '#ffffff' : '#fafafa' }}
-                >
-                  <td className="px-2.5 py-1 text-slate-400 font-mono tabular-nums">{row.row_index}</td>
-                  {hasCountry && <td className="px-2.5 py-1 text-slate-600 truncate max-w-[90px]">{row.country ?? '—'}</td>}
-                  {hasYear    && <td className="px-2.5 py-1 text-slate-600 font-mono tabular-nums">{row.year ?? '—'}</td>}
-                  <td className={cn('px-2.5 py-1 font-mono', valueClass(row.value))}>{displayValue(row.value)}</td>
-                </tr>
+      {open && (
+        <div className="px-2.5 pb-2.5 space-y-2 text-[11px] text-slate-600" style={{ borderTop: '0.5px solid #f1f1ee' }}>
+          <p className="pt-2">{issue.description}</p>
+
+          {issue.breakdown && issue.breakdown.length > 0 && (
+            <ul className="space-y-0.5">
+              {issue.breakdown.slice(0, 8).map((b) => (
+                <li key={b.label} className="flex justify-between gap-2 font-mono text-[10px]">
+                  <span className="truncate">{b.label}{b.canonical ? ` → "${b.canonical}"` : ''}</span>
+                  <span className="shrink-0 tabular-nums">{b.count}</span>
+                </li>
               ))}
-            </tbody>
-          </table>
-          {issueType === 'missing_values' && (
-            <p className="px-2.5 py-1.5 text-[9px] text-slate-400" style={{ background: '#f8f9fa', borderTop: '0.5px solid #ebebea' }}>
-              Showing temporal pattern — nulls follow a year-based boundary, not random
-            </p>
+              {issue.breakdown.length > 8 && <li className="text-[10px] text-slate-400">+{issue.breakdown.length - 8} more</li>}
+            </ul>
+          )}
+
+          {issue.examples.length > 0 && (
+            <p><span className="font-semibold text-slate-500">Examples: </span><span className="font-mono">{issue.examples.join('  ·  ')}</span></p>
+          )}
+
+          {cells.length > 0 && (
+            <div className="space-y-1">
+              <table className="w-full text-[11px]">
+                <caption className="text-left font-semibold text-slate-600 pb-1">
+                  Affected values in <span className="font-mono">{col}</span>
+                </caption>
+                <thead>
+                  <tr className="text-left text-[10px] text-slate-500">
+                    <th scope="col" className="font-semibold pr-2 w-10">Row</th>
+                    <th scope="col" className="font-semibold">Value</th>
+                    <th scope="col" className="sr-only">Edit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shownCells.map((c) => (
+                    <tr key={c.row} style={{ borderTop: '0.5px solid #f1f1ee' }}>
+                      <td className="font-mono text-slate-500 pr-2 py-1 align-middle">{c.row}</td>
+                      {editing?.row === c.row ? (
+                        <td colSpan={2} className="py-1">
+                          <form
+                            className="flex items-center gap-1"
+                            onSubmit={(e) => {
+                              e.preventDefault()
+                              void editQualityCell(issue.column, c.row, editing.value).then((ok) => { if (ok) setEditing(null) })
+                            }}
+                          >
+                            <input
+                              autoFocus
+                              value={editing.value}
+                              onChange={(e) => setEditing({ row: c.row, value: e.target.value })}
+                              onKeyDown={(e) => { if (e.key === 'Escape') setEditing(null) }}
+                              aria-label={`New value for ${col}, row ${c.row}. Leave empty for blank.`}
+                              placeholder="empty = blank"
+                              disabled={isCleaning}
+                              className="min-w-0 flex-1 rounded-md px-1.5 py-1 font-mono text-[11px] text-slate-800 outline-none focus:ring-2 focus:ring-violet-500"
+                              style={{ border: '1px solid #c4b5fd', background: '#ffffff' }}
+                            />
+                            <button type="submit" disabled={isCleaning} className="shrink-0 text-[11px] font-semibold px-2 py-1 rounded-md text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-50">Save</button>
+                            <button type="button" disabled={isCleaning} onClick={() => setEditing(null)} className="shrink-0 text-[11px] font-semibold px-1.5 py-1 text-slate-600">Cancel</button>
+                          </form>
+                        </td>
+                      ) : (
+                        <>
+                          <td className="font-mono text-slate-800 py-1 align-middle break-all">
+                            {c.value === null || c.value === '' ? <span className="text-slate-500">(blank)</span> : `"${c.value}"`}
+                          </td>
+                          <td className="py-1 text-right align-middle">
+                            <button
+                              onClick={() => setEditing({ row: c.row, value: c.value ?? '' })}
+                              aria-label={`Edit ${col} in row ${c.row}`}
+                              className="text-[11px] font-semibold text-violet-700 hover:text-violet-900 px-1"
+                            >
+                              Edit
+                            </button>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!showAllRows && cells.length > shownCells.length && (
+                <button
+                  onClick={() => setShowAllRows(true)}
+                  className="text-[11px] font-semibold text-violet-700 hover:text-violet-900 underline underline-offset-2"
+                >
+                  Show all {issue.affectedRowTotal} rows
+                </button>
+              )}
+              {showAllRows && issue.affectedRowTotal > cells.length && (
+                <p className="text-[10px] text-slate-500">Showing the first {cells.length} of {issue.affectedRowTotal} rows.</p>
+              )}
+              <p className="text-[10px] text-slate-500">Row numbers match your spreadsheet (header = row 1). Edits go to the working copy and the cleaning log.</p>
+            </div>
+          )}
+
+          {cells.length === 0 && issue.affectedRows.length > 0 && (
+            <div>
+              <p>
+                <span className="font-semibold text-slate-600">Affected rows in </span>
+                <span className="font-mono">{col}</span>
+                <span className="font-semibold text-slate-600">: </span>
+                <span className="font-mono">{shownRows.join(', ')}</span>
+                {showAllRows && issue.affectedRowTotal > issue.affectedRows.length &&
+                  ` … and ${issue.affectedRowTotal - issue.affectedRows.length} more (the first ${issue.affectedRows.length} are listed)`}
+              </p>
+              {!showAllRows && issue.affectedRowTotal > shownRows.length && (
+                <button
+                  onClick={() => setShowAllRows(true)}
+                  className="text-[11px] font-semibold text-violet-700 hover:text-violet-900 underline underline-offset-2"
+                >
+                  Show all {issue.affectedRowTotal} rows
+                </button>
+              )}
+              <p className="text-[10px] text-slate-500">Row numbers match your spreadsheet (header = row 1).</p>
+            </div>
+          )}
+
+          {issue.rule && <p className="text-[10px] text-slate-400">Rule: {issue.rule}</p>}
+
+          <p className="rounded-md px-2 py-1.5" style={{ background: '#f8f9fa' }}>
+            <span className="font-semibold text-slate-500">Suggested fix (not applied): </span>{issue.suggestedFix}
+          </p>
+
+          {pending ? (
+            <div className="rounded-lg border px-2.5 py-2 space-y-1.5" style={{ borderColor: '#c4b5fd', background: '#f5f3ff' }} role="alertdialog" aria-label="Confirm change">
+              <p className="font-semibold text-violet-900">{pending.label}?</p>
+              <p className="text-[10px] text-violet-800">
+                This changes your working copy only. The original upload is kept, the step is added to the cleaning log, and you can undo it.
+              </p>
+              <div className="flex gap-1.5">
+                <button
+                  disabled={isCleaning}
+                  onClick={() => { void applyQualityFix(issue.id, pending.action).then(() => setPending(null)) }}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-50"
+                >
+                  {isCleaning ? 'Applying…' : 'Confirm'}
+                </button>
+                <button
+                  disabled={isCleaning}
+                  onClick={() => setPending(null)}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border bg-white text-slate-600"
+                  style={{ borderColor: '#e0e0da' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {fix && (
+                <button
+                  onClick={() => setPending({ action: 'fix', label: fix })}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-colors"
+                  style={{ borderColor: '#7c3aed', color: '#5b21b6', background: '#f5f3ff' }}
+                >
+                  {fix}
+                </button>
+              )}
+              {exclude && (
+                <button
+                  onClick={() => setPending({ action: 'exclude', label: exclude })}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border bg-white text-slate-600 transition-colors"
+                  style={{ borderColor: '#e0e0da' }}
+                >
+                  {exclude}
+                </button>
+              )}
+              {issue.severity === 'high' && (
+                <button
+                  onClick={() => setDecision(issue.id, decided ? null : 'ignore')}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border bg-white text-slate-600 transition-colors"
+                  style={{ borderColor: '#e0e0da' }}
+                >
+                  {decided ? 'Undo keep as is' : 'Keep as is'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -163,121 +366,190 @@ function DiagnosticEvidenceTable({ rows, issueType }: { rows: DiagnosticSampleRo
   )
 }
 
-// ── Health report panel ───────────────────────────────────────────────────────
-
-const FIX_ACTION_LABELS: Record<string, string> = {
-  drop_rows:     'Drop rows',
-  impute_median: 'Impute median',
-  strip_symbols: 'Strip symbols',
-  drop_column:   'Drop column',
+function downloadCleaningLog(fileName: string, log: CleaningLogEntry[]) {
+  const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`
+  const lines = [
+    ['step', 'action', 'issue', 'summary', 'cells_changed', 'rows_removed', 'applied_at'].join(','),
+    ...log.map((e) => [e.step, e.action, e.issueId, e.summary, e.cellsChanged, e.rowsRemoved, e.appliedAt].map(esc).join(',')),
+  ]
+  const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${fileName.replace(/\.[^.]+$/, '')}-cleaning-log.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
-const ISSUE_ICONS: Record<string, React.ReactNode> = {
-  missing_values: <AlertTriangle size={11} />,
-  type_mismatch:  <Type size={11} />,
-  high_outliers:  <TrendingUp size={11} />,
-  invariant_value:<Trash2 size={11} />,
-}
+/** The cleaning audit trail for the current dataset, with a methods-section paragraph to copy. */
+function CleaningLogModal({ onClose }: { onClose: () => void }) {
+  const log    = useAnalystStore((s) => s.cleaningLog)
+  const schema = useAnalystStore((s) => s.schema)
+  const [copied, setCopied] = useState(false)
+  const fileName = schema?.fileName ?? 'dataset'
+  const methods  = cleaningMethodsText(fileName, log, schema?.rowCount ?? 0)
 
-function buildAutoFixConfig(
-  datasetId: string,
-  anomalies: DataAnomaly[],
-  duplicateRowsCount: number,
-): CleanDatasetConfig {
-  const missingValueStrategies = anomalies
-    .filter((a) => ['drop_rows', 'impute_median', 'drop_column'].includes(a.recommendedFixAction))
-    .map((a) => ({
-      columnName: a.columnName,
-      action: a.recommendedFixAction === 'drop_rows'     ? 'drop'        as const
-             : a.recommendedFixAction === 'impute_median' ? 'fill_median' as const
-             : 'drop_column' as const,
-    }))
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
-  const typeConversions = anomalies
-    .filter((a) => a.recommendedFixAction === 'strip_symbols')
-    .map((a) => ({
-      columnName:      a.columnName,
-      targetType:      'float' as const,
-      stripCharacters: ['$', ',', '£', '€', '%'],
-    }))
-
-  return {
-    datasetId,
-    dropDuplicates:        duplicateRowsCount > 0,
-    stripWhitespace:       true,
-    missingValueStrategies: missingValueStrategies.length > 0 ? missingValueStrategies : undefined,
-    typeConversions:        typeConversions.length        > 0 ? typeConversions        : undefined,
-  }
-}
-
-function AnomalyCard({ anomaly: a }: { anomaly: DataAnomaly }) {
-  const isCritical = a.severity === 'critical'
   return (
-    <div className={cn(
-      'rounded-lg border p-2 space-y-1',
-      isCritical ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200',
-    )}>
-      {/* Header row */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <span className={cn('text-[10px]', isCritical ? 'text-red-600' : 'text-amber-600')}>
-          {ISSUE_ICONS[a.issueType] ?? <AlertTriangle size={11} />}
-        </span>
-        <span className="text-[11px] font-semibold text-slate-700 font-mono truncate flex-1 min-w-0">
-          {a.columnName === '__row__' ? 'Duplicate rows' : a.columnName}
-        </span>
-        {a.nullPercent !== undefined && a.nullPercent > 0 && (
-          <span className={cn(
-            'text-[9px] font-mono font-bold shrink-0 tabular-nums',
-            a.nullPercent === 100 ? 'text-red-600' : 'text-amber-600',
-          )}>
-            {a.nullPercent === 100 ? '100%' : `${a.nullPercent.toFixed(1)}%`} null
-          </span>
-        )}
-        {a.totalAffectedRows !== undefined && (
-          <span className="text-[9px] text-slate-400 shrink-0 tabular-nums">
-            {a.totalAffectedRows.toLocaleString()} rows
-          </span>
-        )}
-        <SeverityChip severity={a.severity} />
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.45)' }} onClick={onClose}>
+      <div
+        role="dialog" aria-modal="true" aria-labelledby="cleaning-log-title"
+        className="w-full max-w-xl max-h-[85vh] flex flex-col rounded-2xl bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 px-5 py-4" style={{ borderBottom: '0.5px solid #e0e0da' }}>
+          <div>
+            <h2 id="cleaning-log-title" className="text-base font-semibold text-slate-900">Cleaning applied</h2>
+            <p className="text-[13px] text-slate-600 mt-0.5">
+              Cleaned working copy of <span className="font-mono">{fileName}</span>. The original upload is kept unchanged.
+            </p>
+          </div>
+          <button autoFocus onClick={onClose} aria-label="Close" className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100"><X size={16} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {log.length === 0 ? (
+            <p className="text-sm text-slate-700">No cleaning steps have been applied. The data is being analysed as uploaded.</p>
+          ) : (
+            <ol className="space-y-2">
+              {log.map((e) => (
+                <li key={e.step} className="flex gap-3 text-sm text-slate-800">
+                  <span className="font-mono text-slate-500 shrink-0">{e.step}.</span>
+                  <span className="flex-1">
+                    {e.summary}
+                    <span className="block text-[12px] text-slate-600">
+                      {e.action === 'fix' ? 'Fix you confirmed' : e.action === 'exclude' ? 'Rows you chose to exclude' : e.action === 'edit' ? 'Value you edited' : 'Preparation step you applied'}
+                      {' · '}{e.rowsRemoved} row{e.rowsRemoved !== 1 ? 's' : ''} removed · {e.cellsChanged} value{e.cellsChanged !== 1 ? 's' : ''} changed
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          <div className="rounded-xl p-3 space-y-2" style={{ background: '#f8f9fa', border: '0.5px solid #e0e0da' }}>
+            <p className="text-[12px] font-semibold text-slate-700 uppercase tracking-wider">Methods text</p>
+            <p className="text-sm text-slate-800 leading-relaxed">{methods}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 px-5 py-3" style={{ borderTop: '0.5px solid #e0e0da' }}>
+          <button
+            onClick={() => { void navigator.clipboard.writeText(methods).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 2000) }) }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500"
+          >
+            {copied ? <><Check size={14} /> Copied</> : <><Clipboard size={14} /> Copy as methods text</>}
+          </button>
+          {log.length > 0 && (
+            <button
+              onClick={() => downloadCleaningLog(fileName, log)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border bg-white text-slate-700"
+              style={{ borderColor: '#d1d5db' }}
+            >
+              <Download size={14} /> Download log (CSV)
+            </button>
+          )}
+          <span className="sr-only" role="status">{copied ? 'Methods text copied' : ''}</span>
+        </div>
       </div>
+    </div>
+  )
+}
 
-      {/* Description */}
-      <p className="text-[10px] text-slate-600 leading-snug">{a.description}</p>
+/** The editable record of every confirmed change: undo a step, restore the original, or export it. */
+function CleaningLog() {
+  const log        = useAnalystStore((s) => s.cleaningLog)
+  const schema     = useAnalystStore((s) => s.schema)
+  const isCleaning = useAnalystStore((s) => s.isCleaning)
+  const { undoCleaning } = useAnalyst()
+  const [confirmRestore, setConfirmRestore] = useState(false)
 
-      {/* Fix label */}
-      <p className="text-[9px] text-slate-400">
-        Fix: {FIX_ACTION_LABELS[a.recommendedFixAction] ?? a.recommendedFixAction}
-      </p>
+  if (log.length === 0) {
+    return <p className="text-[10px] text-slate-400">Detection only so far: your data has not been changed.</p>
+  }
+  const hasCustom = log.some((e) => e.action === 'custom')
 
-      {/* Inline evidence table */}
-      {a.diagnosticSample && a.diagnosticSample.length > 0 && (
-        <DiagnosticEvidenceTable rows={a.diagnosticSample} issueType={a.issueType} />
+  return (
+    <div className="rounded-lg border px-2.5 py-2 space-y-1.5" style={{ borderColor: '#ebebea', background: '#f8f9fa' }}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Cleaning log · {log.length} step{log.length !== 1 ? 's' : ''}</p>
+        <button
+          onClick={() => downloadCleaningLog(schema?.fileName ?? 'dataset', log)}
+          className="text-[10px] font-semibold text-violet-700 hover:text-violet-900 flex items-center gap-1"
+        >
+          <Download size={10} /> Export
+        </button>
+      </div>
+      <ol className="space-y-1">
+        {log.map((e) => (
+          <li key={e.step} className="flex items-start gap-2 text-[11px] text-slate-600">
+            <span className="font-mono text-slate-400 shrink-0">{e.step}.</span>
+            <span className="flex-1 min-w-0">{e.summary}</span>
+            {!hasCustom && (
+              <button
+                disabled={isCleaning}
+                onClick={() => void undoCleaning(e.step)}
+                className="shrink-0 text-[10px] font-semibold text-slate-500 hover:text-slate-800 disabled:opacity-40"
+                aria-label={`Undo step ${e.step}`}
+              >
+                Undo
+              </button>
+            )}
+          </li>
+        ))}
+      </ol>
+      {confirmRestore ? (
+        <div className="flex items-center gap-1.5 text-[11px]">
+          <span className="text-slate-600">Discard all {log.length} steps?</span>
+          <button disabled={isCleaning} onClick={() => { void undoCleaning().then(() => setConfirmRestore(false)) }} className="font-semibold px-2 py-0.5 rounded-md text-white bg-violet-600 disabled:opacity-50">Restore</button>
+          <button disabled={isCleaning} onClick={() => setConfirmRestore(false)} className="font-semibold px-2 py-0.5 rounded-md border bg-white text-slate-600" style={{ borderColor: '#e0e0da' }}>Cancel</button>
+        </div>
+      ) : (
+        <button onClick={() => setConfirmRestore(true)} className="text-[10px] font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1">
+          <RotateCcw size={10} /> Restore original upload
+        </button>
       )}
+      <p className="text-[10px] text-slate-400">Analyses use this cleaned working copy. Your original upload is kept unchanged.</p>
     </div>
   )
 }
 
 function HealthReportPanel() {
-  const [open, setOpen]       = useState(true)
   const [nlText, setNlText]   = useState('')
-  const report      = useAnalystStore((s) => s.healthReport)
-  const datasetId   = useAnalystStore((s) => s.datasetId)
-  const isProfiling = useAnalystStore((s) => s.isProfiling)
-  const isCleaning  = useAnalystStore((s) => s.isCleaning)
-  const { cleanDataset, parseAndApplyCleaningInstruction } = useAnalyst()
+  const report        = useAnalystStore((s) => s.healthReport)
+  const profileError  = useAnalystStore((s) => s.profileError)
+  const schema        = useAnalystStore((s) => s.schema)
+  const isProfiling   = useAnalystStore((s) => s.isProfiling)
+  const isCleaning    = useAnalystStore((s) => s.isCleaning)
+  const { parseAndApplyCleaningInstruction, profileDataset } = useAnalyst()
+
+  // Progress: never show zeros while a check is running.
+  if (isProfiling) {
+    return (
+      <div className="mb-3 rounded-xl border px-3 py-3 flex items-center gap-2 text-[11px] text-slate-600" style={{ borderColor: '#e0e0da', background: '#ffffff' }} role="status">
+        <span className="w-3 h-3 rounded-full border-2 border-violet-400/60 border-t-transparent animate-spin" />
+        Checking {schema ? schema.rowCount.toLocaleString() : ''} rows…
+      </div>
+    )
+  }
+
+  if (profileError) {
+    return (
+      <div className="mb-3 rounded-xl border px-3 py-3 space-y-2" style={{ borderColor: '#fecaca', background: '#fef2f2' }} role="alert">
+        <p className="text-[11px] text-red-700 font-semibold flex items-center gap-1.5"><AlertTriangle size={11} /> {profileError}</p>
+        <p className="text-[10px] text-red-600">No result was produced, so nothing is reported as clean.</p>
+        <button onClick={() => void profileDataset()} className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-red-300 text-red-700 bg-white">Retry</button>
+      </div>
+    )
+  }
 
   if (!report) return null
 
-  const criticalCount  = report.anomalies.filter((a) => a.severity === 'critical').length
-  const warningCount   = report.anomalies.filter((a) => a.severity === 'warning').length
-  const typeMismatches = report.anomalies.filter((a) => a.issueType === 'type_mismatch').length
-  const missingCols    = report.anomalies.filter((a) => a.issueType === 'missing_values').length
-
-  const handleAutoFix = () => {
-    if (!datasetId) return
-    const config = buildAutoFixConfig(datasetId, report.anomalies, report.duplicateRowsCount)
-    void cleanDataset(config)
-  }
+  const issues = report.issues ?? []
 
   const handleNlClean = () => {
     if (!nlText.trim() || isCleaning) return
@@ -286,117 +558,72 @@ function HealthReportPanel() {
   }
 
   return (
-    <div className="mb-3 rounded-xl border overflow-hidden" style={{ borderColor: '#e0e0da', background: '#ffffff' }}>
-      {/* Header */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 transition-colors"
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f8f9fa' }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '' }}
-      >
-        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
-          <Activity size={11} className="text-violet-600" />
-          Data quality report
-        </span>
-        <div className="flex items-center gap-1.5">
-          {criticalCount > 0 && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
-              {criticalCount} critical
-            </span>
-          )}
-          {warningCount > 0 && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
-              {warningCount} warn
-            </span>
-          )}
-          {open ? <ChevronUp size={10} className="text-slate-400" /> : <ChevronDown size={10} className="text-slate-400" />}
+    <div className="mb-3 space-y-2">
+      <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+        <Activity size={11} className="text-violet-600" /> Issues ({issues.length})
+      </p>
+
+      {issues.length > 0 ? (
+        <div className="space-y-1.5">
+          {issues.map((i) => <IssueRow key={i.id} issue={i} />)}
         </div>
-      </button>
-
-      {open && (
-        <div className="px-3 pb-3 space-y-2.5">
-          {/* Summary stats */}
-          <div className="grid grid-cols-2 gap-1.5">
-            {([
-              { label: 'Duplicates',     value: report.duplicateRowsCount, accent: report.duplicateRowsCount > 0 ? 'text-amber-600' : 'text-emerald-600' },
-              { label: 'Missing cols',   value: missingCols,               accent: missingCols   > 0 ? 'text-red-600' : 'text-emerald-600' },
-              { label: 'Type mismatches',value: typeMismatches,            accent: typeMismatches > 0 ? 'text-amber-600' : 'text-emerald-600' },
-              { label: 'Issues total',   value: report.anomalies.length,   accent: report.anomalies.length > 0 ? 'text-orange-600' : 'text-emerald-600' },
-            ]).map(({ label, value, accent }) => (
-              <div key={label} className="border rounded-lg px-2 py-1.5 text-center" style={{ background: '#f8f9fa', borderColor: '#ebebea' }}>
-                <p className={cn('text-base font-bold tabular-nums leading-none', accent)}>{value}</p>
-                <p className="text-[9px] text-slate-400 mt-0.5 leading-none">{label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Anomaly list */}
-          {report.anomalies.length > 0 && (
-            <div className="space-y-1.5 max-h-[28rem] overflow-y-auto scrollbar-none pr-0.5">
-              {report.anomalies.map((a, i) => (
-                <AnomalyCard key={i} anomaly={a} />
-              ))}
-            </div>
-          )}
-
-          {report.anomalies.length === 0 && (
-            <p className="text-[11px] text-emerald-600 flex items-center gap-1.5 py-1">
-              <Check size={11} /> No anomalies detected
-            </p>
-          )}
-
-          {/* Auto-Fix All button */}
-          {report.anomalies.length > 0 && (
-            <button
-              onClick={handleAutoFix}
-              disabled={isCleaning || isProfiling}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[12px] font-semibold border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              style={{ borderColor: '#7c3aed', background: '#f5f3ff', color: '#5b21b6' }}
-            >
-              {isCleaning ? (
-                <><span className="w-3 h-3 rounded-full border-2 border-violet-500/60 border-t-transparent animate-spin" /> Cleaning…</>
-              ) : (
-                <><Wand2 size={11} /> Auto-fix all issues</>
-              )}
-            </button>
-          )}
-
-          {/* NL cleaning input */}
-          <div className="flex gap-1.5">
-            <input
-              value={nlText}
-              onChange={(e) => setNlText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleNlClean() }}
-              placeholder="e.g. Fix the salary column…"
-              disabled={isCleaning}
-              className="flex-1 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-700 placeholder-slate-400 outline-none disabled:opacity-40"
-              style={{ background: '#f8f9fa', border: '0.5px solid #e0e0da' }}
-            />
-            <button
-              onClick={handleNlClean}
-              disabled={!nlText.trim() || isCleaning}
-              className="shrink-0 w-7 h-7 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-            >
-              <Send size={11} className="text-white" />
-            </button>
-          </div>
-        </div>
+      ) : (
+        <p className="text-[11px] text-emerald-700 flex items-center gap-1.5 py-1">
+          <Check size={11} /> Checked {report.totalRows.toLocaleString()} rows — no issues found
+        </p>
       )}
+
+      <CleaningLog />
+
+      <div className="flex gap-1.5">
+        <input
+          value={nlText}
+          onChange={(e) => setNlText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleNlClean() }}
+          placeholder="e.g. Fix the salary column…"
+          aria-label="Describe a cleaning step in your own words"
+          disabled={isCleaning}
+          className="flex-1 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-700 placeholder-slate-500 outline-none disabled:opacity-40"
+          style={{ background: '#f8f9fa', border: '0.5px solid #e0e0da' }}
+        />
+        <button
+          onClick={handleNlClean}
+          disabled={!nlText.trim() || isCleaning}
+          aria-label="Apply cleaning step"
+          className="shrink-0 w-7 h-7 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+        >
+          <Send size={11} className="text-white" />
+        </button>
+      </div>
     </div>
   )
 }
 
 // ── Schema panel ──────────────────────────────────────────────────────────────
 
-const MAX_DEDUCTION_PILLS = 5
-
 function SchemaPanel({ onReset, showHeader = true }: { onReset: () => void; showHeader?: boolean }) {
   const schema      = useAnalystStore((s) => s.schema)
   const isCleaned   = useAnalystStore((s) => s.isCleaned)
   const isProfiling = useAnalystStore((s) => s.isProfiling)
+  const report      = useAnalystStore((s) => s.healthReport)
+  const profileError = useAnalystStore((s) => s.profileError)
+  const datasetId   = useAnalystStore((s) => s.datasetId)
   const { profileDataset } = useAnalyst()
 
+  // The check is deterministic and free, so run it once per dataset instead of leaving a misleading default.
+  const autoRanFor = useRef<string | null>(null)
+  useEffect(() => {
+    if (!datasetId || report || isProfiling || profileError || autoRanFor.current === datasetId) return
+    autoRanFor.current = datasetId
+    void profileDataset()
+  }, [datasetId, report, isProfiling, profileError, profileDataset])
+
   const [highlightedCol,    setHighlightedCol]    = useState<string | null>(null)
+  const [showCleaningLog,   setShowCleaningLog]   = useState(false)
+  const [columnFilter,      setColumnFilter]      = useState('')
+  const cleaningSteps    = useAnalystStore((s) => s.cleaningLog.length)
+  const insertIntoPrompt = useAnalystStore((s) => s.insertIntoPrompt)
+  const chatReady        = useAnalystStore((s) => s.wizardStep === null)
   const [showHealthTooltip, setShowHealthTooltip] = useState(false)
   const colRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
@@ -408,40 +635,22 @@ function SchemaPanel({ onReset, showHeader = true }: { onReset: () => void; show
 
   if (!schema) return null
 
-  const colsWithPct = schema.columns.filter((c) => c.nullPercent !== undefined)
-  const healthScore = colsWithPct.length > 0
-    ? Math.round(100 - colsWithPct.reduce((sum, c) => sum + (c.nullPercent ?? 0), 0) / colsWithPct.length)
-    : null
-
-  const criticalCols = schema.columns.filter((c) => (c.nullPercent ?? 0) === 100)
-  const warnCols     = schema.columns
-    .filter((c) => { const p = c.nullPercent ?? 0; return p > 0 && p < 100 })
-    .sort((a, b) => (b.nullPercent ?? 0) - (a.nullPercent ?? 0))
-
-  const deductionList = [
-    ...criticalCols.map((c) => ({ col: c, severity: 'critical' as const })),
-    ...warnCols.map((c)     => ({ col: c, severity: 'warning'  as const })),
-  ]
-  const visibleDeductions = deductionList.slice(0, MAX_DEDUCTION_PILLS)
-  const hiddenCount       = deductionList.length - visibleDeductions.length
-
+  const healthScore = report?.healthScore ?? null
   const scoreColor = healthScore === null ? 'text-slate-500'
     : healthScore >= 90 ? 'text-emerald-600'
     : healthScore >= 75 ? 'text-amber-600'
     : 'text-red-600'
-
   const barColor = healthScore === null ? 'bg-slate-400'
     : healthScore >= 90 ? 'bg-emerald-500'
     : healthScore >= 75 ? 'bg-amber-500'
     : 'bg-red-500'
-
-  const scrollToCol = (name: string) => {
-    const el = colRefs.current[name]
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-      setHighlightedCol(name)
-    }
-  }
+  const reportIssues = report?.issues ?? []
+  const nHigh = reportIssues.filter((i) => i.severity === 'high').length
+  const nMed  = reportIssues.filter((i) => i.severity === 'medium').length
+  const nLow  = reportIssues.filter((i) => i.severity === 'low').length
+  const dupRowCount = reportIssues.filter((i) => i.type === 'duplicate_rows').reduce((n, i) => n + i.count, 0)
+  const points = penaltyPoints(reportIssues)
+  const gains  = scoreGains(reportIssues)
 
   return (
     <div className="flex flex-col h-full">
@@ -471,161 +680,152 @@ function SchemaPanel({ onReset, showHeader = true }: { onReset: () => void; show
         </div>
       )}
       {!showHeader && isCleaned && (
-        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 mb-2 self-start">
-          <BadgeCheck size={9} /> Cleaned
-        </span>
-      )}
-
-      {/* Data health card */}
-      {healthScore !== null && (
-        <div className="mb-3 p-2.5 rounded-xl border space-y-2" style={{ background: '#ffffff', borderColor: '#e0e0da' }}>
-
-          {/* Score row + tooltip anchor */}
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Data health</span>
-            <div
-              className="relative"
-              onMouseEnter={() => setShowHealthTooltip(true)}
-              onMouseLeave={() => setShowHealthTooltip(false)}
-            >
-              <span className={cn('text-[13px] font-bold cursor-default select-none', scoreColor)}>
-                {healthScore}%
-              </span>
-
-              {/* Hover breakdown tooltip */}
-              {showHealthTooltip && deductionList.length > 0 && (
-                <div className="absolute right-0 bottom-full mb-2 w-64 z-50 rounded-xl shadow-2xl p-3 space-y-2 pointer-events-none" style={{ background: '#ffffff', border: '0.5px solid #e0e0da' }}>
-                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Score breakdown</p>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-[11px] pb-1" style={{ borderBottom: '0.5px solid #ebebea' }}>
-                      <span className="text-slate-500">Base score</span>
-                      <span className="text-slate-700 font-mono font-semibold">100%</span>
-                    </div>
-                    {criticalCols.slice(0, 3).map((c) => (
-                      <div key={c.name} className="flex items-center justify-between gap-2 text-[11px]">
-                        <span className="text-red-600 font-mono truncate">{c.name}</span>
-                        <span className="text-red-600 font-mono shrink-0 text-[10px]">100% null</span>
-                      </div>
-                    ))}
-                    {warnCols.slice(0, 3).map((c) => (
-                      <div key={c.name} className="flex items-center justify-between gap-2 text-[11px]">
-                        <span className="text-amber-600 font-mono truncate">{c.name}</span>
-                        <span className="text-amber-600 font-mono shrink-0 text-[10px]">{Math.round(c.nullPercent ?? 0)}% null</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between text-[11px] pt-1" style={{ borderTop: '0.5px solid #ebebea' }}>
-                      <span className="text-slate-500">Net score</span>
-                      <span className={cn('font-bold font-mono', scoreColor)}>{healthScore}%</span>
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-slate-400 pt-0.5">
-                    Run "Analyse data quality" for actionable fixes
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Progress bar */}
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#f1f5f9' }}>
-            <div
-              className={cn('h-full rounded-full transition-all duration-500', barColor)}
-              style={{ width: `${healthScore}%` }}
-            />
-          </div>
-
-          {/* Deduction pills — named, clickable, scroll-to-highlight */}
-          {visibleDeductions.length > 0 && (
-            <div className="space-y-1 pt-0.5">
-              {visibleDeductions.map(({ col, severity }) => (
-                <button
-                  key={col.name}
-                  onClick={() => scrollToCol(col.name)}
-                  title={`Jump to ${col.name} in schema`}
-                  className={cn(
-                    'w-full flex items-center gap-1.5 px-2 py-1 rounded-lg text-left transition-colors group',
-                    severity === 'critical'
-                      ? 'bg-red-50 hover:bg-red-100 border border-red-200'
-                      : 'bg-amber-50 hover:bg-amber-100 border border-amber-200',
-                  )}
-                >
-                  {severity === 'critical'
-                    ? <X size={9} className="shrink-0 text-red-600" />
-                    : <AlertTriangle size={9} className="shrink-0 text-amber-600" />
-                  }
-                  <span className={cn(
-                    'text-[10px] font-mono flex-1 truncate',
-                    severity === 'critical' ? 'text-red-700' : 'text-amber-700',
-                  )}>
-                    {col.name}
-                  </span>
-                  <span className={cn(
-                    'text-[9px] shrink-0 tabular-nums font-semibold',
-                    severity === 'critical' ? 'text-red-600' : 'text-amber-600',
-                  )}>
-                    {Math.round(col.nullPercent ?? 0)}% null
-                  </span>
-                  <ChevronRight size={9} className="shrink-0 text-slate-400 group-hover:text-slate-600 transition-colors" />
-                </button>
-              ))}
-              {hiddenCount > 0 && (
-                <p className="text-[10px] text-slate-400 pl-1.5">
-                  +{hiddenCount} more issue{hiddenCount !== 1 ? 's' : ''} — run analysis to view all
-                </p>
-              )}
-            </div>
-          )}
+        <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-700">
+          <span className="inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+            <BadgeCheck size={10} /> Cleaned
+          </span>
+          <span className="min-w-0 truncate">working copy of {schema.fileName}</span>
+          <button
+            onClick={() => setShowCleaningLog(true)}
+            className="font-semibold text-violet-700 hover:text-violet-900 underline underline-offset-2"
+          >
+            Cleaning applied ({cleaningSteps})
+          </button>
         </div>
       )}
+      {showCleaningLog && <CleaningLogModal onClose={() => setShowCleaningLog(false)} />}
 
-      {/* Claude health report (after profiling) */}
-      <HealthReportPanel />
+      {/* One scroll region for the summary, the issues and the columns; the analyse button stays pinned below. */}
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-none pr-0.5">
+        <div id="analyst-quality-report" className="rounded-xl transition-shadow duration-300">
+          {/* Single summary: score, counts and how the score is worked out */}
+          <div className="mb-3 p-2.5 rounded-xl border space-y-2" style={{ background: '#ffffff', borderColor: '#e0e0da' }}>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-slate-600 font-semibold uppercase tracking-wider">Data health</span>
+              <span
+                className={cn('text-[13px] font-bold tabular-nums', scoreColor)}
+                aria-label={healthScore !== null ? `Data health ${healthScore} percent` : isProfiling ? 'Checking data quality' : 'Not analysed yet'}
+              >
+                {healthScore !== null ? `${healthScore}%` : isProfiling ? 'Checking…' : '—'}
+              </span>
+            </div>
 
-      {/* Analyse Data Quality trigger */}
+            {healthScore !== null ? (
+              <>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#f1f5f9' }}>
+                  <div className={cn('h-full rounded-full transition-all duration-500', barColor)} style={{ width: `${healthScore}%` }} />
+                </div>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  <span className="font-semibold text-red-700">{nHigh} high</span> · <span className="font-semibold text-amber-700">{nMed} medium</span> · {nLow} low
+                  {' · '}{dupRowCount} duplicate row{dupRowCount !== 1 ? 's' : ''} · {report?.missingValueCount ?? 0} missing values
+                </p>
+                <button
+                  onClick={() => setShowHealthTooltip((v) => !v)}
+                  aria-expanded={showHealthTooltip}
+                  aria-controls="analyst-score-explainer"
+                  className="text-[11px] font-semibold text-violet-700 hover:text-violet-900 flex items-center gap-1"
+                >
+                  <HelpCircle size={11} /> How is this scored?
+                </button>
+                {showHealthTooltip && (
+                  <div id="analyst-score-explainer" className="rounded-lg px-2.5 py-2 space-y-1.5 text-[11px] text-slate-700" style={{ background: '#f8f9fa' }}>
+                    <p>The score starts at 100 and loses 12 points for each high-severity issue, 5 for each medium and 1 for each low. It cannot go below 0.</p>
+                    <p>This dataset has {points} penalty point{points !== 1 ? 's' : ''}.
+                      {points > 100 && ` The score stays at 0% until fewer than 100 points remain, so the first fixes will not move it yet.`}
+                    </p>
+                    {gains.length > 0 && (
+                      <>
+                        <p className="font-semibold text-slate-600">Biggest improvements</p>
+                        <ul className="space-y-0.5">
+                          {gains.slice(0, 3).map((g) => (
+                            <li key={g.issue.id} className="flex justify-between gap-2">
+                              <span className="truncate">{ISSUE_TITLE[g.issue.type]}{g.issue.column !== '__row__' ? ` (${g.issue.column})` : ''}</span>
+                              <span className="shrink-0 font-mono">{g.delta > 0 ? `+${g.delta}%` : `−${g.points} points`}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-[11px] text-slate-600">
+                {isProfiling
+                  ? 'Checking duplicates, missing values, ranges, labels and dates…'
+                  : 'Not analysed yet. Run the quality check to see duplicates, missing values, out-of-range values and label variants.'}
+              </p>
+            )}
+          </div>
+
+          <HealthReportPanel />
+        </div>
+
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">Columns ({schema.columns.length})</p>
+          {chatReady && <p className="text-[10px] text-slate-600">Click a column to add it to your question</p>}
+        </div>
+        <label className="flex items-center gap-1.5 mb-1.5 rounded-lg px-2 py-1.5 focus-within:ring-2 focus-within:ring-violet-500" style={{ background: '#f8f9fa', border: '0.5px solid #d1d5db' }}>
+          <Search size={12} className="text-slate-500 shrink-0" aria-hidden />
+          <span className="sr-only">Filter columns</span>
+          <input
+            value={columnFilter}
+            onChange={(e) => setColumnFilter(e.target.value)}
+            placeholder="Filter columns"
+            className="min-w-0 flex-1 bg-transparent text-[12px] text-slate-800 placeholder-slate-500 outline-none"
+          />
+        </label>
+        <ul className="space-y-px">
+          {schema.columns
+            .filter((col) => col.name.toLowerCase().includes(columnFilter.trim().toLowerCase()))
+            .map((col: ColumnSchema) => (
+            <li key={col.name} ref={(el) => { colRefs.current[col.name] = el as unknown as HTMLDivElement | null }}>
+              <button
+                type="button"
+                disabled={!chatReady}
+                onClick={() => insertIntoPrompt(col.name)}
+                title={chatReady ? `Add "${col.name}" to your question` : undefined}
+                className={cn(
+                  'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-left transition-all duration-300',
+                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-600',
+                  chatReady && 'hover:border-violet-500 hover:bg-violet-50 cursor-pointer',
+                  highlightedCol === col.name
+                    ? 'bg-violet-50 border-violet-300'
+                    : (col.nullPercent ?? 0) === 100
+                    ? 'bg-red-50 border-red-200'
+                    : (col.nullPercent ?? 0) > 0
+                    ? 'bg-amber-50 border-amber-200'
+                    : 'bg-white border-[#ebebea]',
+                )}
+              >
+                <span className="flex-1 text-[12px] text-slate-800 truncate font-mono">{col.name}</span>
+                <DtypeBadge dtype={col.dtype} />
+                {col.nullPercent !== undefined
+                  ? <NullBadge pct={col.nullPercent} />
+                  : col.nullable && <span className="text-[10px] text-slate-600">has blanks</span>
+                }
+              </button>
+            </li>
+          ))}
+        </ul>
+        {columnFilter.trim() !== '' && !schema.columns.some((c) => c.name.toLowerCase().includes(columnFilter.trim().toLowerCase())) && (
+          <p className="text-[12px] text-slate-600 py-2">No column matches "{columnFilter.trim()}".</p>
+        )}
+      </div>
+
+      {/* Pinned: run or re-run the quality check */}
       <button
         onClick={() => void profileDataset()}
         disabled={isProfiling}
-        className="mb-3 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        style={{ borderColor: '#e0e0da', color: '#6b7280' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#7c3aed'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#7c3aed'; (e.currentTarget as HTMLButtonElement).style.background = '#f5f3ff' }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6b7280'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#e0e0da'; (e.currentTarget as HTMLButtonElement).style.background = '' }}
+        className="mt-2 shrink-0 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-semibold border text-slate-700 hover:text-violet-800 hover:border-violet-600 hover:bg-violet-50 disabled:cursor-not-allowed transition-colors"
+        style={{ borderColor: '#d1d5db' }}
       >
         {isProfiling ? (
-          <><span className="w-3 h-3 rounded-full border-2 border-violet-400/60 border-t-transparent animate-spin" /> Analysing…</>
+          <><span className="w-3 h-3 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" /> Analysing…</>
         ) : (
-          <><Activity size={11} /> Analyse Data Quality</>
+          <><Activity size={12} /> {report ? 'Re-analyse' : 'Analyse data quality'}</>
         )}
       </button>
-
-      {/* Column list — receives highlight refs */}
-      <div className="flex-1 overflow-y-auto space-y-px pr-1 scrollbar-none">
-        {schema.columns.map((col: ColumnSchema) => (
-          <div
-            key={col.name}
-            ref={(el) => { colRefs.current[col.name] = el }}
-            className={cn(
-              'flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-all duration-500',
-              highlightedCol === col.name
-                ? 'bg-violet-50 border-violet-300'
-                : (col.nullPercent ?? 0) === 100
-                ? 'bg-red-50 border-red-200'
-                : (col.nullPercent ?? 0) > 0
-                ? 'bg-amber-50 border-amber-200'
-                : 'bg-white border-[#ebebea]',
-            )}
-          >
-            {highlightedCol === col.name && (
-              <span className="shrink-0 w-0.5 h-3.5 rounded-full bg-violet-500 animate-pulse" />
-            )}
-            <span className="flex-1 text-[12px] text-slate-700 truncate font-mono">{col.name}</span>
-            <DtypeBadge dtype={col.dtype} />
-            {col.nullPercent !== undefined
-              ? <NullBadge pct={col.nullPercent} />
-              : col.nullable && <span className="text-[10px] text-slate-400">null</span>
-            }
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
@@ -662,6 +862,15 @@ function ModeToggle() {
   )
 }
 
+function ToggleLabel({ text, hint, children }: { text: string; hint: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5" title={hint}>
+      <span style={{ fontSize: 12, color: '#374151' }}>{text}</span>
+      {children}
+    </div>
+  )
+}
+
 // ── Academic level toggle (tab group) ─────────────────────────────────────────
 
 function AcademicLevelToggle() {
@@ -692,40 +901,122 @@ function AcademicLevelToggle() {
 
 // ── Live terminal ─────────────────────────────────────────────────────────────
 
-function LiveTerminal({ lines, retryCount }: { lines: string[]; retryCount?: number }) {
+function LiveTerminal({ lines, retryCount, statusText, live = false }: {
+  lines: string[]; retryCount?: number; statusText?: string; live?: boolean
+}) {
+  const mode = useAnalystStore((s) => s.mode)
   const endRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [lines])
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }, [lines])
   if (!lines.length) return null
+  const shown = terminalLines(lines, mode)
   return (
-    <div className="mt-2 rounded-xl border border-slate-700/60 bg-[#0d1117] overflow-hidden">
-      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 border-b border-slate-700/60">
-        <Terminal size={11} className="text-slate-500" />
-        <span className="text-[10px] text-slate-500 font-mono">Sandbox Terminal</span>
+    <div className="mt-2 rounded-xl border border-slate-700 bg-[#0d1117] overflow-hidden">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 border-b border-slate-700">
+        <Terminal size={12} className="text-slate-300" />
+        <span className="text-[12px] text-slate-200 font-mono">Sandbox Terminal{statusText ? ` · ${statusText}` : ''}</span>
         {retryCount !== undefined && retryCount > 0 && (
-          <span className="ml-auto flex items-center gap-1 text-[10px] text-amber-400">
-            <RotateCcw size={9} /> Self-healed ×{retryCount}
+          <span className="ml-auto flex items-center gap-1 text-[12px] text-amber-300">
+            <RotateCcw size={10} /> {mode === 'developer' ? `Self-healed ×${retryCount}` : 'Adjusted and re-run'}
           </span>
         )}
       </div>
-      <div className="p-3 max-h-40 overflow-y-auto scrollbar-none font-mono text-[11px] leading-relaxed">
-        {lines.map((line, i) => (
+      <div className="p-3 max-h-40 overflow-y-auto scrollbar-none font-mono text-[12px] leading-relaxed">
+        {shown.map((line, i) => (
           <div
             key={i}
             className={cn(
-              line.startsWith('[✓]') ? 'text-emerald-400'
-              : line.startsWith('⚠') || line.startsWith('[!]') ? 'text-amber-400'
-              : line.includes('ERROR') || line.includes('Traceback') ? 'text-red-400'
-              : line.startsWith('[*]') ? 'text-violet-300'
-              : 'text-slate-400'
+              line.startsWith('[✓]') ? 'text-emerald-300'
+              : line.startsWith('⚠') || line.startsWith('[!]') ? 'text-amber-300'
+              : line.includes('ERROR') || line.includes('Traceback') ? 'text-red-300'
+              : line.startsWith('[*]') ? 'text-violet-200'
+              : 'text-slate-200'
             )}
           >
             {line}
           </div>
         ))}
         <div ref={endRef} className="flex items-center gap-1 mt-1">
-          <span className="w-1.5 h-3 bg-slate-400 animate-pulse rounded-sm" />
+          {live && <span className="w-1.5 h-3 bg-slate-300 animate-pulse motion-reduce:animate-none rounded-sm" />}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── Run progress: status line, stage list and terminal all read one RunView ──
+
+function RunProgress({ msg }: { msg: AnalystMessage }) {
+  const mode = useAnalystStore((s) => s.mode)
+  const [now, setNow] = useState(() => Date.now())
+  const [showDetails, setShowDetails] = useState(false)
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(t)
+  }, [])
+
+  const view = describeRun(msg.status === 'pending' ? 'pending' : 'running', msg.logStream, mode, msg.retryCount)
+  const elapsed = formatElapsed(now - new Date(msg.createdAt).getTime())
+  const lines = msg.logStream ?? []
+  const terminal = <LiveTerminal lines={lines} retryCount={msg.retryCount} statusText={view.statusText} live />
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm py-1">
+        <div className="flex gap-1" aria-hidden>
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-bounce motion-reduce:animate-none"
+              style={{ animationDelay: `${i * 0.15}s` }}
+            />
+          ))}
+        </div>
+        {/* Only the stage sentence is announced; the ticking clock is not. */}
+        <span role="status" aria-live="polite" className="font-medium text-slate-800">{view.statusText}</span>
+        <span className="text-slate-600 tabular-nums" aria-hidden>{elapsed}</span>
+      </div>
+
+      {mode === 'student' ? (
+        <div className="rounded-xl p-3 space-y-2" style={{ background: '#f8f9fa', border: '0.5px solid #e0e0da' }}>
+          <ol className="space-y-1.5" aria-label="Progress">
+            {RUN_STAGES.map((stage, i) => {
+              const done = i < view.stageIndex
+              const current = i === view.stageIndex
+              return (
+                <li key={stage.id} aria-current={current ? 'step' : undefined} className="flex items-center gap-2 text-sm">
+                  <span
+                    className={cn('w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0',
+                      done ? 'bg-emerald-600 text-white' : current ? 'bg-violet-700 text-white' : 'bg-slate-200 text-slate-700')}
+                    aria-hidden
+                  >
+                    {done ? <Check size={11} /> : i + 1}
+                  </span>
+                  <span className={current ? 'font-semibold text-slate-900' : done ? 'text-slate-600' : 'text-slate-600'}>
+                    {current && view.retrying && (view.stage === 'generating' || view.stage === 'running') ? 'Refining the analysis' : stage.label}
+                  </span>
+                  <span className="sr-only">{done ? '(done)' : current ? '(in progress)' : '(not started)'}</span>
+                </li>
+              )
+            })}
+          </ol>
+          <p className="text-[13px] text-slate-700">{view.description}</p>
+          {lines.length > 0 && (
+            <button
+              onClick={() => setShowDetails((v) => !v)}
+              aria-expanded={showDetails}
+              className="text-[12px] font-semibold text-violet-700 hover:text-violet-900 underline underline-offset-2"
+            >
+              {showDetails ? 'Hide details' : 'Show details'}
+            </button>
+          )}
+          {showDetails && terminal}
+        </div>
+      ) : (
+        <>
+          <p className="text-[13px] text-slate-700">{view.description}</p>
+          {terminal}
+        </>
+      )}
     </div>
   )
 }
@@ -1848,9 +2139,11 @@ function LiteraturePanel({ citations }: { citations: LiteratureCitation[] }) {
 function MessageBubble({
   msg,
   onPin,
+  onRetry,
 }: {
   msg: import('../../types/analyst').AnalystMessage
   onPin?: (result: AnalystResult, prompt: string) => void
+  onRetry?: (prompt: string) => void
 }) {
   const mode            = useAnalystStore((s) => s.mode)
   const { findLiterature, generateSynthesis } = useAnalyst()
@@ -1876,24 +2169,41 @@ function MessageBubble({
       </div>
       <div className="flex-1 min-w-0">
         {/* Pending / Running states */}
-        {(msg.status === 'pending' || msg.status === 'running') && (
-          <>
-            <div className="flex items-center gap-2 text-slate-400 text-sm py-1">
-              <div className="flex gap-1">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-bounce"
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                  />
-                ))}
-              </div>
-              {msg.status === 'running' ? 'Executing in sandbox…' : 'Preparing…'}
-            </div>
-            {msg.status === 'running' && msg.logStream && msg.logStream.length > 0 && (
-              <LiveTerminal lines={msg.logStream} retryCount={msg.retryCount} />
+        {(msg.status === 'pending' || msg.status === 'running') && <RunProgress msg={msg} />}
+
+        {/* Stopped by the user */}
+        {msg.status === 'stopped' && (
+          <div className="rounded-xl px-4 py-3 space-y-2" style={{ background: '#f8f9fa', border: '0.5px solid #d1d5db' }} role="status">
+            <p className="text-sm font-semibold text-slate-900 flex items-center gap-1.5"><Square size={13} /> Stopped</p>
+            <p className="text-[13px] text-slate-700">
+              {msg.stopConfirmed === true
+                ? 'You stopped this analysis. No result was saved, it was not added to this session, and no credits were used.'
+                : msg.stopConfirmed === false
+                  ? 'You stopped waiting for this analysis, but the server could not be told to stop it. It may still finish there and count towards your credits and this session.'
+                  : 'Stopping this analysis…'}
+            </p>
+            {msg.prompt && onRetry && (
+              <button onClick={() => onRetry(msg.prompt!)} className="text-[13px] font-semibold px-3 py-1.5 rounded-lg border bg-white text-slate-800" style={{ borderColor: '#d1d5db' }}>
+                Ask again
+              </button>
             )}
-          </>
+          </div>
+        )}
+
+        {/* Gave up waiting */}
+        {msg.status === 'timeout' && (
+          <div className="rounded-xl px-4 py-3 space-y-2" style={{ background: '#fffbeb', border: '0.5px solid #fcd34d' }} role="alert">
+            <p className="text-sm font-semibold text-amber-900 flex items-center gap-1.5"><AlertTriangle size={14} /> This is taking too long</p>
+            <p className="text-[13px] text-amber-900">
+              The analysis did not finish within 5 minutes, so we stopped waiting. Your data has not changed.
+              You can try again, or ask a narrower question (for example, about fewer columns).
+            </p>
+            {msg.prompt && onRetry && (
+              <button onClick={() => onRetry(msg.prompt!)} className="text-[13px] font-semibold px-3 py-1.5 rounded-lg text-white bg-amber-700 hover:bg-amber-800">
+                Retry
+              </button>
+            )}
+          </div>
         )}
 
         {/* Error state */}
@@ -2053,7 +2363,7 @@ function ConversationPanel({
 }: {
   onPin: (result: AnalystResult, prompt: string) => void
 }) {
-  const { query, exportSessionDocx } = useAnalyst()
+  const { query, stopQuery, exportSessionDocx } = useAnalyst()
   const isQuerying  = useAnalystStore((s) => s.isQuerying)
   const isExporting = useAnalystStore((s) => s.isExporting)
   const messages    = useAnalystStore((s) => s.messages)
@@ -2075,7 +2385,25 @@ function ConversationPanel({
   const textareaRef        = useRef<HTMLTextAreaElement>(null)
   const threadRef          = useRef<HTMLDivElement>(null)
 
-  const suggestions = useSuggestedQuestions(schema)
+  const objective    = useAnalystStore((s) => s.analysisObjective)
+  const promptInsert = useAnalystStore((s) => s.promptInsert)
+  const suggestions  = useMemo(() => suggestQuestions(schema, objective), [schema, objective])
+
+  // A column clicked in the left panel lands at the cursor, with spaces so it does not glue to a word.
+  const handledInsert = useRef(0)
+  useEffect(() => {
+    if (!promptInsert || promptInsert.nonce === handledInsert.current) return
+    handledInsert.current = promptInsert.nonce
+    const el = textareaRef.current
+    const start = el?.selectionStart ?? text.length
+    const end   = el?.selectionEnd ?? text.length
+    const before = text.slice(0, start)
+    const after  = text.slice(end)
+    const insert = `${before && !/\s$/.test(before) ? ' ' : ''}${promptInsert.text}${after && !/^\s/.test(after) ? ' ' : ''}`
+    setText(before + insert + after)
+    const caret = before.length + insert.length
+    window.setTimeout(() => { el?.focus(); el?.setSelectionRange(caret, caret) }, 0)
+  }, [promptInsert, text])
 
   const lastUserPrompt = [...messages].reverse().find((m) => m.role === 'user')?.content ?? ''
 
@@ -2147,6 +2475,7 @@ function ConversationPanel({
               key={msg.id}
               msg={msg}
               onPin={(result) => onPin(result, lastUserPrompt)}
+              onRetry={(prompt) => { if (!isQuerying) void query(prompt) }}
             />
           ))
         )}
@@ -2155,7 +2484,7 @@ function ConversationPanel({
       {/* Compact suggestion pills — visible after first message */}
       {hasMessages && suggestions.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pt-3 pb-2 mt-3" style={{ borderTop: '0.5px solid #ebebea' }}>
-          <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider self-center pr-1 shrink-0">
+          <span className="text-[11px] text-slate-600 font-semibold uppercase tracking-wider self-center pr-1 shrink-0">
             Suggest:
           </span>
           {suggestions.slice(0, 4).map((s) => (
@@ -2163,11 +2492,8 @@ function ConversationPanel({
               key={s}
               onClick={() => fillSuggestion(s)}
               disabled={isQuerying}
-              title={s}
-              className="px-2.5 py-1 rounded-lg text-[11px] transition-colors disabled:opacity-40 truncate max-w-[220px]"
-              style={{ background: '#f8f9fa', border: '0.5px solid #e0e0da', color: '#6b7280' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#7c3aed'; (e.currentTarget as HTMLButtonElement).style.color = '#7c3aed' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#e0e0da'; (e.currentTarget as HTMLButtonElement).style.color = '#6b7280' }}
+              className="px-2.5 py-1 rounded-lg text-[12px] text-left leading-snug text-slate-700 hover:text-violet-800 hover:border-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-600 max-w-[320px]"
+              style={{ background: '#f8f9fa', border: '0.5px solid #d1d5db' }}
             >
               {s}
             </button>
@@ -2194,13 +2520,13 @@ function ConversationPanel({
             disabled={isQuerying}
             className="flex-1 bg-transparent text-slate-700 placeholder-slate-400 text-sm resize-none outline-none leading-relaxed disabled:opacity-50"
           />
-          {sessionId && (
+          {(
             <button
               onClick={() => void exportSessionDocx()}
-              disabled={isQuerying || isExporting}
-              title="Export full session as .docx"
-              className="shrink-0 flex items-center gap-1.5 px-3 h-8 rounded-xl border disabled:opacity-40 disabled:cursor-not-allowed text-xs transition-colors"
-              style={{ background: '#ffffff', borderColor: '#e0e0da', color: '#6b7280' }}
+              disabled={!sessionId || isQuerying || isExporting}
+              title={!sessionId ? 'Available after your first result' : 'Export the full session as a Word document'}
+              className="shrink-0 flex items-center gap-1.5 px-3 h-8 rounded-xl border disabled:opacity-60 disabled:cursor-not-allowed text-xs transition-colors"
+              style={{ background: '#ffffff', borderColor: '#d1d5db', color: '#374151' }}
             >
               {isExporting ? (
                 <>
@@ -2217,10 +2543,20 @@ function ConversationPanel({
               )}
             </button>
           )}
+          {isQuerying ? (
+            <button
+              onClick={stopQuery}
+              aria-label="Stop this analysis"
+              className="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-800"
+            >
+              <Square size={11} fill="currentColor" /> Stop
+            </button>
+          ) : (
           <button
             onClick={submit}
             disabled={!text.trim() || isQuerying}
-            title={hasEnoughCredits ? `Uses ${queryCost} credits` : 'Not enough credits — click to see plans'}
+            aria-label="Send question"
+            title={user?.plan === 'Unlimited' ? 'Send' : hasEnoughCredits ? `Uses ${queryCost} credits` : 'Not enough credits — click to see plans'}
             className={cn(
               'shrink-0 w-8 h-8 rounded-xl hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors',
               hasEnoughCredits ? 'bg-violet-600' : 'bg-amber-500 hover:bg-amber-400',
@@ -2228,9 +2564,10 @@ function ConversationPanel({
           >
             <Send size={14} className="text-white" />
           </button>
+          )}
         </div>
-        <p className="text-xs text-slate-400 mt-2 text-center">
-          Press Enter to send · Shift+Enter for new line · {queryCost} credits per question
+        <p className="text-xs text-slate-600 mt-2 text-center">
+          Press Enter to send · Shift+Enter for new line{user?.plan === 'Unlimited' ? '' : ` · ${queryCost} credits per question`}
           {!hasEnoughCredits && <span className="text-amber-600 font-medium"> · Not enough credits</span>}
         </p>
       </div>
@@ -2248,10 +2585,10 @@ const OBJECTIVE_CARDS: {
   accent: string
   selectedCls: string
 }[] = [
-  { id: 'descriptive',       label: 'Descriptive summary',  sub: 'Frequencies, means, distributions',   icon: PieChart,      accent: 'text-sky-600',     selectedCls: 'border-sky-400 bg-sky-50'     },
+  { id: 'descriptive',       label: 'Descriptive summary',  sub: 'Frequencies, means, distributions',   icon: PieChart,      accent: 'text-violet-600', selectedCls: 'border-sky-400 bg-sky-50'     },
   { id: 'regression',        label: 'Predictive modeling',  sub: 'Regression, machine learning',        icon: TrendingUp,    accent: 'text-violet-600',  selectedCls: 'border-violet-400 bg-violet-50' },
-  { id: 'hypothesis_testing',label: 'Hypothesis testing',   sub: 'ANOVA, T-test, Chi-Square',           icon: FlaskConical,  accent: 'text-emerald-600', selectedCls: 'border-emerald-400 bg-emerald-50' },
-  { id: 'custom',            label: 'Custom intent',        sub: 'Describe your own research goal',     icon: Lightbulb,     accent: 'text-amber-600',   selectedCls: 'border-amber-400 bg-amber-50'  },
+  { id: 'hypothesis_testing',label: 'Hypothesis testing',   sub: 'ANOVA, T-test, Chi-Square',           icon: FlaskConical,  accent: 'text-violet-600', selectedCls: 'border-emerald-400 bg-emerald-50' },
+  { id: 'custom',            label: 'Custom intent',        sub: 'Describe your own research goal',     icon: Lightbulb,     accent: 'text-violet-600', selectedCls: 'border-amber-400 bg-amber-50'  },
 ]
 
 function ObjectivesWizard() {
@@ -2261,6 +2598,15 @@ function ObjectivesWizard() {
   const isCleaning            = useAnalystStore((s) => s.isCleaning)
   const schema                = useAnalystStore((s) => s.schema)
   const setWizardStep         = useAnalystStore((s) => s.setWizardStep)
+  const healthReport          = useAnalystStore((s) => s.healthReport)
+  const issueDecisions        = useAnalystStore((s) => s.issueDecisions)
+
+  const addMessage       = useAnalystStore((s) => s.addMessage)
+  const setAnalysisFocus = useAnalystStore((s) => s.setAnalysisFocus)
+
+  // High-severity data problems need an explicit decision before the analysis is planned.
+  const openHigh       = unresolvedHighIssues(healthReport?.issues ?? [], issueDecisions)
+  const unresolvedHigh = openHigh.length
 
   const { generateBlueprint, applyBlueprint, skipWizard } = useAnalyst()
 
@@ -2270,10 +2616,66 @@ function ObjectivesWizard() {
   const [predictorVariables,  setPredictorVariables]   = useState<string[]>([])
   const [groupingVariable,    setGroupingVariable]     = useState('')
 
+  const [confirmSkip, setConfirmSkip] = useState(false)
+  const cardRefs = useRef<(HTMLButtonElement | null)[]>([])
+
   const columns   = schema?.columns.map((c) => c.name) ?? []
   const needsVars = selectedObjective === 'regression' || selectedObjective === 'hypothesis_testing'
-  const totalSteps = needsVars ? 3 : 2
-  const stepNum   = wizardStep === 'objectives' ? 1 : wizardStep === 'variables' ? 2 : totalSteps
+
+  // Continue waits for exactly these two things; the same list drives the checklist, the stepper and the gate.
+  const gate = gateChecklist({ hasReport: !!healthReport, objective: selectedObjective, customIntent, unresolvedHigh })
+  const objectiveDone = gate[0].done
+  const issuesDone    = gate[1].done
+  const gateBlocked   = !issuesDone
+  const suggestion    = suggestObjective(schema?.columns ?? [])
+
+  const steps = [
+    { label: 'Choose objective',    done: objectiveDone },
+    { label: 'Resolve issues',      done: issuesDone },
+    { label: 'Prepare and analyse', done: false },
+  ]
+  const currentStep = !objectiveDone ? 0 : !issuesDone ? 1 : 2
+
+  // Tell the issue list which variables matter, so it can tag issues that affect this analysis.
+  useEffect(() => {
+    setAnalysisFocus([targetVariable, groupingVariable, ...predictorVariables].filter(Boolean))
+  }, [targetVariable, groupingVariable, predictorVariables, setAnalysisFocus])
+  useEffect(() => () => setAnalysisFocus([]), [setAnalysisFocus])
+  const setAnalysisObjective = useAnalystStore((s) => s.setAnalysisObjective)
+  useEffect(() => { if (selectedObjective) setAnalysisObjective(selectedObjective) }, [selectedObjective, setAnalysisObjective])
+
+  /** Scroll to the first thing still blocking Continue and make it obvious. */
+  const showFirstUnmet = () => {
+    const unmet = firstUnmet(gate)
+    if (!unmet) return false
+    const el = document.getElementById(unmet.id === 'objective' ? 'analyst-objective-cards' : 'analyst-quality-report')
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.style.boxShadow = '0 0 0 3px #7c3aed'
+      window.setTimeout(() => { el.style.boxShadow = '' }, 2000)
+      el.querySelector<HTMLElement>('button, [tabindex="0"]')?.focus({ preventScroll: true })
+    }
+    return true
+  }
+
+  /** Skip = analyse the data as uploaded. Unresolved problems are written into the analysis as a note. */
+  const handleSkipConfirmed = () => {
+    setConfirmSkip(false)
+    skipWizard()
+    const lines = openHigh.map((i) =>
+      `- ${ISSUE_TITLE[i.type]}${i.column !== '__row__' ? ` in \`${i.column}\`` : ''}: ${i.count} of ${i.totalRows} ${i.type === 'duplicate_rows' ? 'rows' : 'values'}`)
+    addMessage({
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      status: 'complete',
+      createdAt: new Date().toISOString(),
+      content: !healthReport
+        ? '**Cleaning was skipped.** The data quality check had not completed, so this data is being analysed as uploaded and any problems in it are unknown.'
+        : openHigh.length > 0
+          ? `**Cleaning was skipped.** The data is being analysed as uploaded, with ${openHigh.length} high-severity issue${openHigh.length !== 1 ? 's' : ''} left unresolved. Read the results with these in mind:\n\n${lines.join('\n')}`
+          : '**Cleaning was skipped.** The data is being analysed as uploaded. No high-severity issues were left unresolved.',
+    })
+  }
 
   const togglePredictor = (col: string) =>
     setPredictorVariables((prev) =>
@@ -2281,6 +2683,7 @@ function ObjectivesWizard() {
     )
 
   const handleContinue = () => {
+    if (showFirstUnmet()) return
     if (!selectedObjective) return
     if (needsVars) {
       setWizardStep('variables')
@@ -2318,23 +2721,62 @@ function ObjectivesWizard() {
 
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-5 py-3 shrink-0" style={{ borderBottom: '0.5px solid #e0e0da', background: '#ffffff' }}>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-800">Prepare your dataset</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Step {stepNum} of {totalSteps}</p>
+          <ol className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1" aria-label="Steps">
+            {steps.map((st, i) => (
+              <li
+                key={st.label}
+                aria-current={i === currentStep ? 'step' : undefined}
+                className={cn('flex items-center gap-1.5 text-[12px]',
+                  i === currentStep ? 'font-semibold text-violet-800' : st.done ? 'text-emerald-700' : 'text-slate-600')}
+              >
+                <span
+                  className={cn('w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold',
+                    st.done ? 'bg-emerald-600 text-white' : i === currentStep ? 'bg-violet-700 text-white' : 'bg-slate-200 text-slate-700')}
+                  aria-hidden
+                >
+                  {st.done ? <Check size={10} /> : i + 1}
+                </span>
+                {st.label}
+                <span className="sr-only">{st.done ? ' (done)' : i === currentStep ? ' (current step)' : ''}</span>
+              </li>
+            ))}
+          </ol>
         </div>
         <button
-          onClick={skipWizard}
-          className="flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-800 transition-colors shrink-0"
+          onClick={() => setConfirmSkip(true)}
+          className="flex items-center gap-1 text-[12px] font-medium text-violet-700 hover:text-violet-900 underline underline-offset-2 transition-colors shrink-0 px-2 py-1.5"
         >
-          Skip — start directly <ChevronRight size={11} />
+          Skip cleaning, analyse as-is <ChevronRight size={12} />
         </button>
       </div>
+
+      {confirmSkip && (
+        <div className="px-5 py-3 shrink-0 space-y-2" style={{ background: '#fffbeb', borderBottom: '0.5px solid #fcd34d' }} role="alertdialog" aria-labelledby="analyst-skip-title" aria-describedby="analyst-skip-body">
+          <p id="analyst-skip-title" className="text-sm font-semibold text-amber-900 flex items-center gap-1.5">
+            <AlertTriangle size={15} /> Skip cleaning and analyse the data as it is?
+          </p>
+          <p id="analyst-skip-body" className="text-[13px] text-amber-900">
+            {!healthReport
+              ? 'The data quality check has not completed, so any problems in this data are unknown.'
+              : unresolvedHigh > 0
+                ? `${unresolvedHigh} high-severity issue${unresolvedHigh !== 1 ? 's' : ''} will be left unresolved.`
+                : 'No high-severity issues are open.'}
+            {' '}Nothing is cleaned or prepared. A note listing what was left unresolved is added at the top of your analysis.
+          </p>
+          <div className="flex gap-2">
+            <button autoFocus onClick={handleSkipConfirmed} className="text-[13px] font-semibold px-3 py-1.5 rounded-lg text-white bg-amber-700 hover:bg-amber-800">Skip cleaning</button>
+            <button onClick={() => setConfirmSkip(false)} className="text-[13px] font-semibold px-3 py-1.5 rounded-lg border bg-white text-slate-700" style={{ borderColor: '#d1d5db' }}>Go back</button>
+          </div>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div className="h-0.5 shrink-0" style={{ background: '#f1f5f9' }}>
         <div
           className="h-full bg-violet-500 transition-all duration-500"
-          style={{ width: `${(stepNum / totalSteps) * 100}%` }}
+          style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
         />
       </div>
 
@@ -2351,29 +2793,59 @@ function ObjectivesWizard() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {OBJECTIVE_CARDS.map(({ id, label, sub, icon: Icon, accent }) => {
+            <div
+              id="analyst-objective-cards"
+              role="radiogroup"
+              aria-label="Research objective"
+              className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl transition-shadow duration-300"
+            >
+              {OBJECTIVE_CARDS.map(({ id, label, sub, icon: Icon, accent }, idx) => {
                 const isSel = selectedObjective === id
+                const isSuggested = suggestion?.id === id
+                const move = (delta: number) => {
+                  const next = (idx + delta + OBJECTIVE_CARDS.length) % OBJECTIVE_CARDS.length
+                  setSelectedObjective(OBJECTIVE_CARDS[next].id)
+                  cardRefs.current[next]?.focus()
+                }
                 return (
                   <button
                     key={id}
+                    ref={(el) => { cardRefs.current[idx] = el }}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSel}
+                    tabIndex={isSel || (!selectedObjective && idx === 0) ? 0 : -1}
                     onClick={() => setSelectedObjective(id)}
-                    className="flex items-start gap-3 p-4 rounded-xl text-left transition-all"
-                    style={{
-                      background: '#ffffff',
-                      border: isSel ? '1.5px solid #7c3aed' : '0.5px solid #e0e0da',
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); move(1) }
+                      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp')   { e.preventDefault(); move(-1) }
                     }}
-                    onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLButtonElement).style.borderColor = '#7c3aed' }}
-                    onMouseLeave={e => { if (!isSel) (e.currentTarget as HTMLButtonElement).style.borderColor = '#e0e0da' }}
+                    className="flex items-start gap-3 p-4 rounded-xl text-left transition-all hover:border-violet-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600"
+                    style={{
+                      background: isSel ? '#f5f3ff' : '#ffffff',
+                      border: isSel ? '2px solid #7c3aed' : '1px solid #d1d5db',
+                    }}
                   >
                     <span className={cn('shrink-0 mt-0.5', accent)}>
                       <Icon size={18} />
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 leading-snug">{label}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{sub}</p>
+                      <p className="text-sm font-semibold text-slate-800 leading-snug flex flex-wrap items-center gap-2">
+                        {label}
+                        {isSuggested && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-800">Suggested for this data</span>
+                        )}
+                      </p>
+                      <p className="text-[12px] text-slate-600 mt-0.5">{sub}</p>
+                      {isSuggested && <p className="text-[12px] text-violet-800 mt-1">{suggestion.reason}</p>}
                     </div>
-                    {isSel && <Check size={13} className="text-violet-600 shrink-0 mt-0.5" />}
+                    <span
+                      className={cn('shrink-0 mt-0.5 w-5 h-5 rounded-full flex items-center justify-center',
+                        isSel ? 'bg-violet-600 text-white' : 'border border-slate-400')}
+                      aria-hidden
+                    >
+                      {isSel && <Check size={12} />}
+                    </span>
                   </button>
                 )
               })}
@@ -2559,22 +3031,37 @@ function ObjectivesWizard() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
+          <ul id="analyst-gate-checklist" aria-label="Before you continue" className="space-y-1">
+            {gate.filter((item) => wizardStep === 'objectives' || item.id === 'issues').map((item) => (
+              <li key={item.id} className="flex items-center gap-2 text-sm">
+                {item.done
+                  ? <CheckCircle size={16} className="text-emerald-600 shrink-0" aria-hidden />
+                  : <AlertTriangle size={16} className="text-amber-600 shrink-0" aria-hidden />}
+                <span className={item.done ? 'text-slate-600' : 'text-slate-900 font-medium'}>{item.label}</span>
+                <span className="sr-only">{item.done ? '(done)' : '(still to do)'}</span>
+              </li>
+            ))}
+          </ul>
           {wizardStep === 'objectives' && (
             <button
               onClick={handleContinue}
-              disabled={!selectedObjective || (selectedObjective === 'custom' && !customIntent.trim())}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-[13px] font-semibold transition-colors disabled:cursor-not-allowed"
-              style={{ background: !selectedObjective || (selectedObjective === 'custom' && !customIntent.trim()) ? '#c4b5fd' : '#7c3aed' }}
+              aria-disabled={firstUnmet(gate) !== null}
+              aria-describedby="analyst-gate-checklist"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+              style={firstUnmet(gate) !== null
+                ? { background: '#ede9fe', color: '#5b21b6', border: '1px solid #c4b5fd' }
+                : { background: '#7c3aed', color: '#ffffff', border: '1px solid #7c3aed' }}
             >
-              Continue <ChevronRight size={13} />
+              Continue <ChevronRight size={14} />
             </button>
           )}
 
           {wizardStep === 'variables' && (
             <button
               onClick={handleGenerateBlueprint}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-[13px] font-semibold transition-colors"
+              disabled={gateBlocked}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-[13px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: '#7c3aed' }}
             >
               <Wand2 size={13} /> Generate blueprint
@@ -2584,7 +3071,7 @@ function ObjectivesWizard() {
           {wizardStep === 'blueprint' && !isGeneratingBlueprint && blueprint && (
             <button
               onClick={() => void applyBlueprint(blueprint as PreparationBlueprint, selectedObjective ?? 'descriptive')}
-              disabled={isCleaning}
+              disabled={isCleaning || gateBlocked}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-[13px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: '#059669' }}
             >
@@ -2696,6 +3183,11 @@ function DatasetSidebar() {
   const toggleDatasetSelected = useAnalystStore((s) => s.toggleDatasetSelected)
   const setPrimaryDataset     = useAnalystStore((s) => s.setPrimaryDataset)
   const inputRef            = useRef<HTMLInputElement>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
+  const removeDataset       = useAnalystStore((s) => s.removeDataset)
+  const isQuerying          = useAnalystStore((s) => s.isQuerying)
+  // Dataset id whose card is showing its inline "Remove?" confirmation.
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
 
   const handleFiles = (files: FileList | null) => {
     if (files && files.length > 0) void upload(files)
@@ -2707,8 +3199,40 @@ function DatasetSidebar() {
       <div className="px-4 py-3 shrink-0" style={{ borderBottom: '0.5px solid #e0e0da' }}>
         <div className="flex items-center gap-2 mb-3">
           <BarChart2 size={13} className="text-violet-600" />
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Datasets</span>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+            Datasets{datasets.length > 0 ? ` (${datasets.length})` : ''}
+          </span>
+          {/* List-level destructive action: findable (dark text, bordered) but quiet until
+              hover/focus, so it never competes with Upload Dataset. */}
+          {datasets.length > 1 && !confirmClear && (
+            <button
+              onClick={() => setConfirmClear(true)}
+              aria-label={datasets.length === 1 ? 'Remove dataset' : `Remove all ${datasets.length} datasets`}
+              className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-gray-300 bg-white text-[12px] font-medium text-gray-600 hover:text-red-600 hover:border-red-300 hover:bg-red-50 focus-visible:text-red-600 focus-visible:border-red-300 focus-visible:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 transition-colors"
+            >
+              <Trash2 size={12} /> {datasets.length === 1 ? 'Remove' : 'Remove all'}
+            </button>
+          )}
         </div>
+        {confirmClear && (
+          <div
+            className="rounded-lg px-2.5 py-2 mb-3 space-y-1.5"
+            style={{ background: '#fef2f2', border: '0.5px solid #fecaca' }}
+            role="alertdialog"
+            aria-label="Confirm remove datasets"
+            onKeyDown={(e) => { if (e.key === 'Escape') setConfirmClear(false) }}
+          >
+            <p className="text-[12px] text-red-800">
+              Remove {datasets.length === 1 ? 'this dataset' : `all ${datasets.length} datasets`}, any cleaned copy and the current analysis from this page?
+            </p>
+            <div className="flex gap-1.5">
+              <button autoFocus onClick={() => { setConfirmClear(false); reset() }} className="text-[12px] font-semibold px-2.5 py-1 rounded-md text-white bg-red-700 hover:bg-red-800">
+                {datasets.length === 1 ? 'Remove dataset' : 'Remove all'}
+              </button>
+              <button onClick={() => setConfirmClear(false)} className="text-[12px] font-semibold px-2.5 py-1 rounded-md border bg-white text-slate-700" style={{ borderColor: '#d1d5db' }}>Cancel</button>
+            </div>
+          </div>
+        )}
         <button
           onClick={() => !isUploading && inputRef.current?.click()}
           disabled={isUploading}
@@ -2772,7 +3296,48 @@ function DatasetSidebar() {
                       <p className="text-[10px] mt-0.5 tabular-nums" style={{ color: isPrimary ? '#5b21b6' : '#94a3b8' }}>
                         {ds.rowCount.toLocaleString()} rows · {ds.columnCount} cols
                       </p>
+                      {pendingRemoveId === ds.datasetId && (
+                        <div
+                          className="flex items-center gap-1.5 mt-1.5"
+                          role="alertdialog"
+                          aria-label={`Confirm remove ${ds.fileName}`}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => { if (e.key === 'Escape') setPendingRemoveId(null) }}
+                        >
+                          <button
+                            autoFocus
+                            onClick={() => { setPendingRemoveId(null); removeDataset(ds.datasetId) }}
+                            className="text-[11px] font-semibold px-2 py-0.5 rounded-md text-white bg-red-700 hover:bg-red-800"
+                          >
+                            Remove
+                          </button>
+                          <button
+                            onClick={() => setPendingRemoveId(null)}
+                            className="text-[11px] font-semibold px-2 py-0.5 rounded-md border bg-white text-slate-700"
+                            style={{ borderColor: '#d1d5db' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
+                    {pendingRemoveId !== ds.datasetId && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          // The last dataset takes the chat and session with it, so it
+                          // goes through the full confirmation in the header.
+                          if (datasets.length === 1) setConfirmClear(true)
+                          else setPendingRemoveId(ds.datasetId)
+                        }}
+                        disabled={isQuerying}
+                        aria-label={`Remove ${ds.fileName}`}
+                        title={isQuerying ? 'Wait for the analysis to finish, or stop it, before removing a dataset' : `Remove ${ds.fileName}`}
+                        className="shrink-0 -mr-1 p-1 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 focus-visible:text-red-600 focus-visible:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-500 disabled:hover:bg-transparent transition-colors"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
                   </div>
                 )
               })}
@@ -2783,16 +3348,6 @@ function DatasetSidebar() {
                 Joint analysis: {selectedDatasetIds.length} datasets selected
               </div>
             )}
-
-            <div className="mx-3 mb-2 shrink-0">
-              <button
-                onClick={reset}
-                title="Clear all datasets"
-                className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <RefreshCcw size={10} /> Clear all
-              </button>
-            </div>
 
             {/* Schema detail for the primary dataset — schema panel already shows
                 filename/reset; hide its header since the list above covers it. */}
@@ -2824,6 +3379,7 @@ export default function AnalystPage() {
   const [researchProjects, setResearchProjects] = useState<Array<{ id: string; title: string }>>([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [linkedProjectId, setLinkedProjectId] = useState('')
+  const [confirmNewSession, setConfirmNewSession] = useState(false)
   const [loadingProjects, setLoadingProjects] = useState(false)
   const [linkingProject, setLinkingProject] = useState(false)
 
@@ -2941,13 +3497,16 @@ export default function AnalystPage() {
         gap: 12,
         flexShrink: 0,
       }}>
-        <span style={{ fontSize: 14, fontWeight: 500, color: '#1a1a18' }}>Data Analyst</span>
-        <span style={{ fontSize: 12, color: '#6b7280' }}>Upload a dataset and analyse it with natural language</span>
+        {/* Page title and subtitle come from the app shell header — not repeated here. */}
         <div style={{ flex: 1 }} />
         {schema && (
           <div className="flex items-center gap-2">
-            <AcademicLevelToggle />
-            <ModeToggle />
+            <ToggleLabel text="Explanation level" hint="How technical the generated analysis and its explanations are: UG keeps computations simple and explains like a tutor, Masters and Doctoral add methods, assumptions and rigour.">
+              <AcademicLevelToggle />
+            </ToggleLabel>
+            <ToggleLabel text="Mode" hint="Student shows a step-by-step guide to each result. Developer shows the generated Python code editor and the sandbox terminal.">
+              <ModeToggle />
+            </ToggleLabel>
           </div>
         )}
       </div>
@@ -3019,8 +3578,17 @@ export default function AnalystPage() {
                 {sessionId && (
                   <div className="mx-4 mt-3 flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-violet-700 shrink-0" style={{ background: '#f5f3ff', border: '0.5px solid #ddd6fe' }}>
                     <GraduationCap size={12} className="shrink-0 text-violet-600" />
-                    <span className="flex-1">
-                      Session active — <span className="font-semibold text-violet-800">{stepCount}</span> {stepCount === 1 ? 'analysis' : 'analyses'} in context
+                    <span className="flex-1 flex items-center gap-1.5 text-violet-900">
+                      This session: <span className="font-semibold">{stepCount}</span> {stepCount === 1 ? 'analysis' : 'analyses'}
+                      <span
+                        tabIndex={0}
+                        role="note"
+                        aria-label="What is a session?"
+                        title="A session is one line of work on this dataset. Each new question can build on the analyses already in the session, and Export saves them together. Starting a new session keeps your data but stops building on the earlier analyses."
+                        className="inline-flex rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-600"
+                      >
+                        <Info size={13} className="text-violet-700" />
+                      </span>
                     </span>
                     {stepCount > 0 && !linkedProjectId && <>
                       <select
@@ -3048,13 +3616,23 @@ export default function AnalystPage() {
                     >
                       <Check size={10} /> Linked · Open project
                     </button>}
-                    <button
-                      onClick={clearSession}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-violet-600 hover:text-violet-800 hover:bg-violet-100 transition-colors"
-                      style={{ border: '0.5px solid #ddd6fe' }}
-                    >
-                      <RefreshCcw size={9} /> New session
-                    </button>
+                    {confirmNewSession ? (
+                      <span className="flex flex-wrap items-center gap-1.5" role="alertdialog" aria-label="Confirm new session">
+                        <span className="text-violet-900">
+                          Start a new session? The next question will no longer build on these {stepCount} {stepCount === 1 ? 'analysis' : 'analyses'}, and they will not be in the next export. Your data and the chat stay.
+                        </span>
+                        <button autoFocus onClick={() => { setConfirmNewSession(false); clearSession() }} className="px-2 py-1 rounded-lg text-white bg-violet-700 hover:bg-violet-800 font-semibold">Start new session</button>
+                        <button onClick={() => setConfirmNewSession(false)} className="px-2 py-1 rounded-lg border bg-white text-slate-700 font-semibold" style={{ borderColor: '#d1d5db' }}>Cancel</button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => (stepCount > 0 ? setConfirmNewSession(true) : clearSession())}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-violet-800 hover:bg-violet-100 transition-colors"
+                        style={{ border: '0.5px solid #c4b5fd' }}
+                      >
+                        <RefreshCcw size={10} /> New session
+                      </button>
+                    )}
                   </div>
                 )}
 

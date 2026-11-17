@@ -1,0 +1,56 @@
+{
+  "protocol": "frozen-retrieval-live-models-v1",
+  "repetitionsPerModeAndCase": 1,
+  "cacheConditions": "Preparation cache disabled; identical frozen retrieval data; upstream verification HTTP caches uncontrolled. Baseline first. No causal speedup claim or tail/median estimate.",
+  "records": [
+    {
+      "Name": "argumentative",
+      "compact": true,
+      "status": "Incomplete",
+      "elapsedMs": 34435,
+      "reason": "The draft used a citation outside the validated evidence registry.",
+      "initialPlanning": null,
+      "pipeline": {
+        "CorrelationId": "0bdb8eb12def4a138744c4532a59e0d1",
+        "Counts": {
+          "assessment_raw_candidates": 10,
+          "assessment_candidates": 10,
+          "assessed_sources": 10
+        },
+        "TotalMs": 34420,
+        "StagesMs": {
+          "starting": 60,
+          "planning-question": 9030,
+          "searching-sources": 135,
+          "assessing-evidence": 11295,
+          "building-outline": 7098,
+          "drafting": 6796,
+          "incomplete": 5
+        },
+        "ModelCalls": 4,
+        "InputTokens": 22390,
+        "OutputTokens": 5636,
+        "ProviderRetries": 0,
+        "CancelledModelCalls": 0,
+        "FailedModelCalls": 0,
+        "ModelElapsedMs": 33805,
+        "TokenUsageComplete": true
+      },
+      "WordCount": 0,
+      "sources": 0,
+      "frozenSources": 12,
+      "flags": [
+        "EssayStructureGap",
+        "EssayIncomplete"
+      ],
+      "claimAudit": null,
+      "diagnostics": [
+        "assessment_ranked:10:10",
+        "assessment_window:10/10",
+        "draft_schema:unknown_source_alias",
+        "model_calls:3",
+        "recovery_calls:0"
+      ]
+    }
+  ]
+}

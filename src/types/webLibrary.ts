@@ -86,6 +86,27 @@ export interface PaperSearchResult {
   isSaved:         boolean
   savedDocumentId?: string
   collectionIds:   string[]
+  /** Provider work type as given, e.g. "article", "book-chapter". */
+  workType?:       string
+  /** Provider the record came from (OpenAlex, Semantic Scholar, CORE, PubMed, ...). */
+  sourceEngine?:   string
+  /** What the record carries. "pdf" is a provider PDF link nobody has checked, not verified full text. */
+  contentLevel?:   'pdf' | 'abstract' | 'metadata'
+  /** Set when the record is probably not the work its title suggests. */
+  caution?:        'book-review' | 'erratum' | 'paratext'
+}
+
+export type PaperTypeFilter = 'article' | 'review' | 'book' | 'conference' | 'preprint' | 'thesis'
+
+/** Find Papers filters. They narrow the server's fetched pool (the ~100 most relevant matches). */
+export interface PaperSearchFilters {
+  yearFrom?:     number
+  yearTo?:       number
+  openAccess?:   boolean
+  type?:         PaperTypeFilter
+  minCitations?: number
+  /** Subject text matched against provider concept tags (OpenAlex records only). */
+  field?:        string
 }
 
 // ── Research Collections ─────────────────────────────────────────────────────
@@ -97,6 +118,11 @@ export interface Collection {
   paperCount:  number
   createdAt:   string
   updatedAt:   string
+  /** Up to three titles, most recently added first (trashed papers left out). */
+  previewTitles?: string[]
+  /** Publication-year range of papers that have a year. */
+  yearFrom?:   number | null
+  yearTo?:     number | null
 }
 
 export interface CollectionDetail {

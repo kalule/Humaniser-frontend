@@ -873,6 +873,17 @@ export interface ExternalProposalJobResult {
   result?: UploadExternalProposalResult
 }
 
+/** Result of adding papers from Saved Sources to a project. */
+export interface SavedSourceProjectImportResult {
+  added: number
+  /** Already in the project but not yet included; now included. */
+  included: number
+  alreadyIncluded: number
+  /** Titles left out because the saved record has no abstract. */
+  withoutAbstract: string[]
+  notFound: number
+}
+
 export interface LiteratureCsvImportResult {
   imported:  number
   skipped:   number

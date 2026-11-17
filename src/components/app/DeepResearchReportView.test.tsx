@@ -55,8 +55,8 @@ describe('DeepResearchReportView', () => {
     expect(html).not.toContain('Only uncited claims here')
   })
 
-  it('has sections for conflicting evidence, gaps and numbered references', () => {
-    expect(html).toContain('Conflicting evidence')
+  it('has sections for contradicting evidence, gaps and numbered references', () => {
+    expect(html).toContain('Contradicting evidence')
     expect(html).toContain('No significant relationship was found.')
     expect(html).toContain('Gaps')
     expect(html).toContain('Not reached before the research stopped.')

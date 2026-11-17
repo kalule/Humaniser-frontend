@@ -47,6 +47,27 @@ export const libraryApi = {
     await client.delete(`/api/v1/library/${id}`)
   },
 
+  // Real .docx / PDF. The server reads the body from the DB for the authenticated owner (404 for
+  // anyone else's id); only the formatted reference-list entries come from the client.
+  exportDocument: async (id: string, format: 'docx' | 'pdf', references: string[]): Promise<Blob> => {
+    try {
+      const res = await client.post<Blob>(`/api/v1/library/${id}/export`, { format, references }, { responseType: 'blob' })
+      return res.data
+    } catch (err) {
+      // With responseType 'blob' an error body arrives as a Blob — read the server's message out of it.
+      const data = (err as { response?: { data?: unknown } })?.response?.data
+      if (data instanceof Blob) {
+        let message: string | undefined
+        try {
+          const body = JSON.parse(await data.text()) as { error?: { message?: string } | string; message?: string }
+          message = typeof body.error === 'string' ? body.error : body.error?.message ?? body.message
+        } catch { /* not JSON — fall through to the original error */ }
+        if (message) throw new Error(message)
+      }
+      throw err
+    }
+  },
+
   importDocuments: async (documents: ImportDocumentItem[]): Promise<{ importedCount: number }> => {
     const res = await client.post<{ success: boolean; data: { importedCount: number } }>(
       '/api/v1/library/import',

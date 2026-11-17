@@ -45,10 +45,18 @@ import { orderEssayReferences } from '../../lib/essayReferenceOrder'
 import { appendGeneratedReferenceSection, renderGeneratedEssay } from '../../lib/generatedEssay'
 import { EssayCitationNode, CitationReferenceNode } from '../../components/app/EssayCitationNode'
 import { EssayCitationPopover } from '../../components/app/EssayCitationPopover'
+import { SavedSourcePicker } from '../../components/webLibrary/SavedSourcePicker'
+import { editorSourceFromSaved } from '../../lib/savedSources'
+import type { ResearchDocument } from '../../types/webLibrary'
 import { citationItems, sourceFromCitation, formatCitationGroup, essayStyle, sourceOrder, refreshCitationLabels, interactiveCitationTokens, referenceHtml, upgradeLegacyCitations, type EditorSource } from '../../lib/editorCitations'
 import { renderCaseStudyParagraphs } from '../../lib/caseStudyTableFormat'
-import { exportAsWord } from '../../lib/wordExport'
+import { renderLiteratureReviewParagraphs } from '../../lib/literatureReviewFormat'
+import { ResearchPaperRecovery } from '../../components/app/ResearchPaperRecovery'
+import { DownloadMenu } from '../../components/app/DownloadMenu'
+import { useDocumentDownload } from '../../hooks/useDocumentDownload'
+import { buildExportReferences, type ExportFormat } from '../../lib/documentExport'
 import toast from 'react-hot-toast'
+import { useConfirm } from '../../components/ui/ConfirmDialog'
 
 // ── Citation TipTap Node ──────────────────────────────────────────────────────
 
@@ -253,14 +261,17 @@ function ColorMenu({
 // ── Cite Panel (right sidebar) ────────────────────────────────────────────────
 
 function CitePicker({
-  citations, style, onInsert, onClose,
+  citations, style, onInsert, onInsertSaved, onClose,
 }: {
   citations:  CitationDto[]
   style:      FormatStyle
   onInsert:   (cit: CitationDto) => void
+  onInsertSaved: (doc: ResearchDocument) => void
   onClose:    () => void
 }) {
   const [search, setSearch] = useState('')
+  // Saved Sources is the library students fill from Find Papers; "Citations" is the older list from the Citations tool.
+  const [tab, setTab] = useState<'saved' | 'citations'>('saved')
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     return q
@@ -283,8 +294,25 @@ function CitePicker({
         </button>
       </div>
 
+      <div className="flex border-b border-slate-100 shrink-0" role="tablist" aria-label="Reference source">
+        {([['saved', 'Saved sources'], ['citations', 'Citations']] as const).map(([id, label]) => (
+          <button
+            key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+            className={`flex-1 border-b-2 px-3 py-2 text-[12px] font-medium transition-colors ${tab === id ? 'border-violet-500 text-violet-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'saved' && (
+        <div className="flex-1 overflow-y-auto p-3">
+          <SavedSourcePicker onPick={onInsertSaved} pickLabel="Insert" listClassName="max-h-[calc(100vh-18rem)]" />
+        </div>
+      )}
+
       {/* Search */}
-      <div className="px-3 py-2 border-b border-slate-100 shrink-0">
+      {tab === 'citations' && <div className="px-3 py-2 border-b border-slate-100 shrink-0">
         <div className="relative">
           <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -293,10 +321,10 @@ function CitePicker({
             className="w-full pl-7 pr-3 py-1.5 text-[12px] rounded-lg bg-slate-50 border border-slate-200 outline-none focus:border-violet-300 text-slate-700 placeholder-slate-400"
           />
         </div>
-      </div>
+      </div>}
 
       {/* Citation list */}
-      <div className="flex-1 overflow-y-auto py-1">
+      {tab === 'citations' && <div className="flex-1 overflow-y-auto py-1">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 gap-2 text-center px-4">
             <p className="text-[12px] text-slate-500">
@@ -334,12 +362,14 @@ function CitePicker({
             )
           })
         )}
-      </div>
+      </div>}
 
       {/* Footer hint */}
       <div className="px-3 py-2 border-t border-slate-100 shrink-0">
         <p className="text-[10px] text-slate-400 text-center">
-          Click a citation to insert it at your cursor. Add new citations from the Citations page.
+          {tab === 'saved'
+            ? 'Insert puts the citation at your cursor. The paper stays in Saved Sources if you remove the citation later.'
+            : 'Click a citation to insert it at your cursor. Add new citations from the Citations page.'}
         </p>
       </div>
     </div>
@@ -355,6 +385,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
   const { documents, createDocument, updateDocument, hasLoaded: libraryLoaded } = useLibraryStore()
   const { citations } = useCitationStore()
   useCitation() // ensure citations are fetched from API on editor mount
+  const { confirm: ask, dialog: confirmDialog } = useConfirm()
 
   const [syncState,      setSyncState]      = useState<SyncState>('saved')
   const [creatingNew,    setCreatingNew]    = useState(false)
@@ -663,6 +694,27 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
     toast.success(`Citation inserted: ${label}`)
   }, [editor, citationStyle])
 
+  const insertSavedSource = useCallback((doc: ResearchDocument) => {
+    if (!editor) return
+    const fresh = editorSourceFromSaved(doc)
+    // A paper already cited in this document keeps the details the document holds for it, so one source never
+    // carries two different sets of metadata here.
+    let source: EditorSource = fresh
+    editor.state.doc.descendants(node => {
+      if (node.type.name !== 'citation') return
+      const existing = citationItems(node.attrs).find(item => item.sourceId === fresh.id)?.source
+      if (existing) source = existing
+    })
+    const order = sourceOrder(editor.state.doc)
+    const item = { sourceId: source.id, source }
+    const label = formatCitationGroup([item], citationStyle, order.includes(source.id) ? order : [...order, source.id])
+    editor.chain().focus().insertContent({
+      type: 'citation',
+      attrs: { citationId: null, occurrenceId: crypto.randomUUID(), items: [item], label },
+    }).run()
+    toast.success(`Citation inserted: ${label}`)
+  }, [editor, citationStyle])
+
   // Uppercase to match every other section heading (INTRODUCTION, CASE BACKGROUND, MAIN BODY, …).
   const REFERENCES_HEADING = '<h2>REFERENCES</h2>'
 
@@ -775,7 +827,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
         : result.isResearchPaper && result.researchPaperSectionResults?.length
           ? result.researchPaperSectionResults
               .map(section => section.status === 'Generated' && section.content
-                ? `<h2>${section.heading}</h2>${renderEssayParagraphs(resolveCitations(section.content), false)}`
+                ? `<h2>${section.heading}</h2>${renderLiteratureReviewParagraphs(resolveCitations(section.content))}`
                 : section.status === 'EvidenceRequired'
                   ? `<h2>${section.heading}</h2><p><em>Evidence required: ${section.reason ?? 'Required research evidence is unavailable.'} ${section.requiredAction ?? ''}</em></p>`
                   : '')
@@ -791,12 +843,12 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
               ['Conclusion', result.researchPaperSections.conclusion],
             ] as [string, string | null | undefined][])
               .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
-              .map(([heading, text]) => `<h2>${heading}</h2>${renderEssayParagraphs(resolveCitations(text), false)}`)
+              .map(([heading, text]) => `<h2>${heading}</h2>${renderLiteratureReviewParagraphs(resolveCitations(text))}`)
               .join('')
         : result.isLiteratureReview && result.literatureReviewSections?.length
           ? result.literatureReviewSections
               .filter(section => section.content.trim().length > 0)
-              .map(section => `<h2>${section.heading}</h2>${renderEssayParagraphs(resolveCitations(section.content), false)}`)
+              .map(section => `<h2>${section.heading}</h2>${renderLiteratureReviewParagraphs(resolveCitations(section.content))}`)
               .join('')
         : renderEssayParagraphs(resolveCitations(result.content), false)
     const titledBody = result.isEssay || result.isCaseStudy || result.isResearchPaper || result.isLiteratureReview ? `<h1>${result.title}</h1>${bodyHtml}` : bodyHtml
@@ -846,7 +898,16 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
           if (cancelled) return
           if (out.status === 'complete') {
             finish()
-            if (!editor.isEmpty && !window.confirm('Your literature review finished while you were away. Replace the current document with it?')) break
+            if (!editor.isEmpty) {
+              const ok = await ask({
+                title: 'Your literature review is ready',
+                message: 'It finished while you were away. Replace the current document with it?',
+                confirmLabel: 'Replace document',
+                cancelLabel: 'Keep current',
+                tone: 'warning',
+              })
+              if (cancelled || !ok) break
+            }
             handleAiGeneratedRef.current(out.result, pending.citationStyle as EssayCitationStyle)
             break
           }
@@ -862,7 +923,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
       if (!cancelled) setRecovering(null)
     })()
     return () => { cancelled = true; controller.abort(); setRecovering(null) }
-  }, [documentId, editor, aiBusy.busy])
+  }, [documentId, editor, aiBusy.busy, ask])
 
   // A new essay replaces the previous draft on its first acceptance. Later sections append.
   const coWriteInsert = useCallback((html: string) => {
@@ -889,16 +950,18 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
 
   // Full generation replaces existing prose and references. Warn before opening the
   // generator when there is a draft to replace.
-  const handleOpenWriteAiModal = useCallback(() => {
+  const handleOpenWriteAiModal = useCallback(async () => {
     if (editor && !editor.isEmpty) {
-      const proceed = window.confirm(
-        'This will replace the entire document, including its existing content and references, ' +
-        'with a newly generated draft. Continue?',
-      )
+      const proceed = await ask({
+        title: 'Replace this document?',
+        message: 'A newly generated draft will replace the entire document, including its existing content and references.',
+        confirmLabel: 'Continue',
+        tone: 'warning',
+      })
       if (!proceed) return
     }
     setShowWriteAiModal(true)
-  }, [editor])
+  }, [editor, ask])
 
   const handleWriteOn = useCallback(async () => {
     if (!editor || writeOnLoading) return
@@ -949,15 +1012,20 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
     }
   }, [editor, reviewLoading])
 
-  const handleExport = () => {
-    if (!editor) return
-    const refs = citedRefs.map((c, i) => ({
-      label: formatCitationGroup([{ sourceId: c.id, source: c }], citationStyle, sourceOrder(editor.state.doc)),
-      text: formatEssayReferenceListEntry(c, essayStyle(citationStyle), i),
-    }))
-    exportAsWord(docTitle, editor.getHTML(), refs)
-    toast.success('Exported as Word document')
+  // Download (Word / PDF): the server renders the SAVED document, so any pending edit is flushed
+  // first, and the reference list is formatted here from the same citation library the editor uses.
+  const { download, busyFormat } = useDocumentDownload()
+  const handleDownload = (format: ExportFormat) => {
+    if (!editor || documentId === 'new') return
+    const json = JSON.stringify(editor.getJSON())
+    void download(
+      { id: documentId, title: docTitle },
+      format,
+      buildExportReferences(json, citations, citationStyle),
+      flushPendingSave,
+    )
   }
+  const downloadDisabled = !editor || documentId === 'new' || wordCount === 0
 
   const MAX_IMAGE_BYTES = 3 * 1024 * 1024 // documents are stored in localStorage — keep embedded images small
 
@@ -1049,12 +1117,12 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
           <span className="text-[12px] text-slate-400 shrink-0">{wordCount.toLocaleString()} words</span>
 
           {/* Export */}
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-[12px] font-medium hover:bg-slate-50 transition-colors shrink-0"
-          >
-            <Download size={13} /> Export
-          </button>
+          <DownloadMenu
+            busyFormat={busyFormat}
+            disabled={downloadDisabled}
+            disabledReason="Nothing to download yet — this document is empty"
+            onDownload={handleDownload}
+          />
 
           {/* AI actions (prompt #5, Phase A) — one primary purple action ("Write with AI", the
               full generation wizard) and one secondary action ("Review", renamed from "Review
@@ -1129,7 +1197,10 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
                   {[
                     { label: 'New document',  shortcut: '',       action: () => { setFileMenuOpen(false); handleNewDocument() },                                                                          icon: <FilePlus size={13} /> },
                     { label: 'Save now',       shortcut: 'Ctrl+S', action: () => { setFileMenuOpen(false); if (editor) save(JSON.stringify(editor.getJSON())) },                                          icon: <Cloud size={13} /> },
-                    { label: 'Export as Word', shortcut: '',       action: () => { setFileMenuOpen(false); handleExport() },                                                                               icon: <Download size={13} /> },
+                    ...(downloadDisabled || busyFormat ? [] : [
+                      { label: 'Download as Word', shortcut: '', action: () => { setFileMenuOpen(false); handleDownload('docx') }, icon: <Download size={13} /> },
+                      { label: 'Download as PDF', shortcut: '', action: () => { setFileMenuOpen(false); handleDownload('pdf') }, icon: <Download size={13} /> },
+                    ]),
                     { label: 'Go to Library', shortcut: '',       action: () => { setFileMenuOpen(false); if (editor && syncState === 'unsaved') save(JSON.stringify(editor.getJSON())); navigate('/app/library') }, icon: <ChevronLeft size={13} /> },
                   ].map(({ label, shortcut, action, icon }) => (
                     <button key={label} onClick={action}
@@ -1414,6 +1485,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
             citations={citations}
             style={citationStyle}
             onInsert={insertCitation}
+            onInsertSaved={insertSavedSource}
             onClose={() => setShowCitePanel(false)}
           />
         )}
@@ -1454,11 +1526,16 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
           <button type="button" onClick={() => setShowWriteAiModal(true)} className="font-semibold text-purple-text hover:underline">Show progress</button>
         </div>
       )}
+      {confirmDialog}
+      {editor && <ResearchPaperRecovery documentId={documentId} busy={aiBusy.busy} onRecovered={async (result, style) => {
+        if (!editor.isEmpty && !(await ask({ title: 'Replace this document?', message: 'The recovered research paper will replace the current document.', confirmLabel: 'Replace document', cancelLabel: 'Keep current', tone: 'warning' }))) return false
+        handleAiGeneratedRef.current(result, style)
+        return true
+      }} />}
       <WriteWithAiModal
         isOpen={showWriteAiModal}
         onClose={() => setShowWriteAiModal(false)}
         onGenerated={handleAiGenerated}
-        onIncomplete={result => setAiWritingFailure({ documentId, message: result.completionReason ?? 'More evidence is needed before this essay can be drafted.' })}
         onFailure={message => setAiWritingFailure({ documentId, message })}
         onBusyChange={handleAiBusyChange}
         excludeDocumentId={documentId}

@@ -413,8 +413,8 @@ export default function PlagiarismPage() {
   const handleExport = () => {
     if (!result) return
     const lines = [
-      'Source Check Report',
-      '==================',
+      'Similarity Check Report',
+      '=======================',
       `Originality Score: ${result.originalityScore}%`,
       `Similarity Score: ${result.similarityScore}%`,
       `Verdict: ${result.verdict}`,
@@ -446,7 +446,7 @@ export default function PlagiarismPage() {
 
       {/* Page heading */}
       <div>
-        <h1 className="text-[22px] font-semibold text-gray-900">Source Check</h1>
+        <h1 className="text-[22px] font-semibold text-gray-900">Similarity Check</h1>
         <p className="text-sm text-gray-400 mt-1">
           Checks against web sources and academic databases for unacknowledged similarity.
         </p>

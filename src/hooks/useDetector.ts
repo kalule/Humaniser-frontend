@@ -27,7 +27,7 @@ export function useDetector() {
       const apiErr = err as { code?: string; message?: string; upgradeRequired?: boolean }
 
       if (apiErr?.code === 'DETECTOR_CAP_EXCEEDED') {
-        toast.error('Monthly AI Detector check limit reached. Upgrade your plan for more checks.', { duration: 5000 })
+        toast.error('Monthly AI Content Check limit reached. Upgrade your plan for more scans.', { duration: 5000 })
       } else if (apiErr?.code === 'CREDIT_LIMIT_EXCEEDED' || apiErr?.upgradeRequired) {
         toast.error('Credit limit reached. Upgrade your plan to continue.', { duration: 5000 })
       } else {

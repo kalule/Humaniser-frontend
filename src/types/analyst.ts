@@ -55,7 +55,8 @@ export type AnalystResult = ChartResult | TableResult | TextResult
 // ── Messages ──────────────────────────────────────────────────────────────────
 
 export type MessageRole   = 'user' | 'assistant'
-export type JobStatus     = 'pending' | 'running' | 'complete' | 'error'
+// 'stopped' and 'timeout' are client-side outcomes: the user stopped waiting, or the wait limit passed.
+export type JobStatus     = 'pending' | 'running' | 'complete' | 'error' | 'stopped' | 'timeout'
 export type WorkbenchMode = 'student' | 'developer'
 
 export interface AnalystMessage {
@@ -67,6 +68,9 @@ export interface AnalystMessage {
   status?: JobStatus
   createdAt: string
   error?: string
+  prompt?: string            // the question this answer belongs to (lets Retry re-ask it)
+  // After Stop: true once the server confirmed it will stop the run, false if it could not be reached.
+  stopConfirmed?: boolean
   errorKind?: import('../lib/classifyApiError').ApiErrorKind
   // Socratic Code Toggle fields
   pythonCode?: string        // Generated Python script (Developer mode)
@@ -195,11 +199,59 @@ export interface DataAnomaly {
   diagnosticSample?:    DiagnosticSampleRow[]
 }
 
+export type QualityIssueType =
+  | 'duplicate_rows' | 'duplicate_ids' | 'missing_values' | 'numeric_with_text' | 'out_of_range'
+  | 'implausible_value' | 'outliers' | 'label_variants' | 'mixed_date_formats' | 'reverse_coded_item'
+export type QualitySeverity = 'high' | 'medium' | 'low'
+
+export interface QualityBreakdown { label: string; count: number; canonical?: string | null }
+
+export interface QualityIssue {
+  id:               string
+  type:             QualityIssueType
+  column:           string          // "__row__" for row-level issues
+  severity:         QualitySeverity
+  count:            number
+  totalRows:        number
+  affectedRows:     number[]        // first 20 spreadsheet row numbers (header = row 1)
+  affectedRowTotal: number
+  examples:         string[]
+  description:      string
+  suggestedFix:     string          // proposal only
+  rule?:            string | null
+  breakdown?:       QualityBreakdown[] | null
+  /** First 200 affected cells with the value found there (null = blank). Absent for row-level issues. */
+  affectedCells?:   { row: number; value: string | null }[] | null
+}
+
+export type QualityFixAction = 'fix' | 'exclude'
+
+export interface CleaningLogEntry {
+  step:         number
+  issueId:      string
+  action:       QualityFixAction | 'custom' | 'edit'
+  summary:      string
+  cellsChanged: number
+  rowsRemoved:  number
+  appliedAt:    string
+}
+
+/** State of the working copy: schema, re-run report, and the cleaning log. */
+export interface QualityState {
+  schema:      DatasetSchema
+  report:      DataHealthReport
+  log:         CleaningLogEntry[]
+  hasOriginal: boolean
+}
+
 export interface DataHealthReport {
   totalRows:          number
   totalColumns:       number
   duplicateRowsCount: number
   anomalies:          DataAnomaly[]
+  issues?:            QualityIssue[]
+  healthScore?:       number
+  missingValueCount?: number
 }
 
 // ── Academic Synthesis ────────────────────────────────────────────────────────

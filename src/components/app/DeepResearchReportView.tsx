@@ -31,7 +31,7 @@ interface Props {
    * follow-up box. `document` is the answer, conflicts and gaps (the centre column); `followup` is only the question box.
    * `all` is the whole report in one piece. Each sentence appears in exactly one place.
    */
-  part?: 'all' | 'answer' | 'document' | 'followup' | 'rest'
+  part?: 'all' | 'answer' | 'document' | 'followup' | 'rest' | 'findings' | 'references'
 }
 
 /**
@@ -51,10 +51,10 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
       ))}
     </>
   )
-  const renderClaim = (claim: DeepResearchReportClaim, key: number, conflict = false) => (
+  const renderClaim = (claim: DeepResearchReportClaim, key: number, badge?: 'Contradicts' | 'Null') => (
     <div key={key} className="space-y-1">
-      <p className="text-[14px] leading-relaxed text-slate-800">
-        {conflict && <><DisagreesBadge /> </>}
+      <p className="max-w-[68ch] text-[16px] leading-[1.75] text-slate-800">
+        {badge && <><DisagreesBadge kind={badge} /> </>}
         {claim.text} {markers(claim)}
       </p>
       {/* A caveat is a sentence too, so it carries its claim's markers. */}
@@ -64,16 +64,20 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
 
   const bottom = citedOnly(report.bottomLine, numbers)
   const conflicts = citedOnly(report.conflicts, numbers)
+  const noEffect = citedOnly(report.noEffect ?? [], numbers)
   const askOk = followUp.trim().length >= MIN_QUESTION_CHARS
-  const showAnswer = part === 'all' || part === 'answer' || part === 'document'
-  const showConflicts = part === 'all' || part === 'rest' || part === 'document'
-  const showGaps = showConflicts
-  const showRefs = part === 'all' || part === 'rest'
+  const showBottom = part === 'all' || part === 'answer' || part === 'document'
+  const showFindings = showBottom || part === 'findings'
+  const showConflicts = part === 'all' || part === 'rest' || part === 'document' || part === 'findings'
+  const showGaps = part === 'all' || part === 'rest' || part === 'document'
+  const showRefs = part === 'all' || part === 'rest' || part === 'references'
+  // Suggestions come only from what this run left unanswered, never from invented topics.
+  const suggestions = report.gaps.slice(0, 3).map(g => g.question).filter(q => q.trim().length >= MIN_QUESTION_CHARS)
   const showFollowUp = part === 'all' || part === 'rest' || part === 'followup'
 
   return (
     <div className="space-y-6">
-      {showAnswer && (<>
+      {showBottom && (
       <section aria-labelledby="report-bottom" className="rounded-2xl border border-purple-200 bg-white p-5">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <h3 id="report-bottom" tabIndex={-1} className="scroll-mt-20 text-[12px] uppercase tracking-wider font-semibold text-slate-600 outline-none">Bottom line</h3>
@@ -91,8 +95,9 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
           </button>
         </div>}
       </section>
+      )}
 
-      {report.sections.some(s => citedOnly(s.claims, numbers).length > 0) && (
+      {showFindings && report.sections.some(s => citedOnly(s.claims, numbers).length > 0) && (
         <section aria-labelledby="report-findings" className="space-y-5">
           <h3 id="report-findings" tabIndex={-1} className="scroll-mt-20 text-[12px] uppercase tracking-wider font-semibold text-slate-600 outline-none">Key findings</h3>
           {report.sections.map(s => {
@@ -107,13 +112,20 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
           })}
         </section>
       )}
-      </>)}
 
       {showConflicts && conflicts.length > 0 && (
         <section aria-labelledby="report-conflicts" className="rounded-2xl border border-orange-200 bg-orange-50/50 p-5">
-          <h3 id="report-conflicts" tabIndex={-1} className="scroll-mt-20 outline-none font-serif text-[18px] font-semibold text-slate-900">Conflicting evidence</h3>
-          <p className="text-[13px] text-slate-700 mt-0.5 mb-2">Sources that disagree with the question, or found no effect.</p>
-          <div className="space-y-2">{conflicts.map((c, i) => renderClaim(c, i, true))}</div>
+          <h3 id="report-conflicts" tabIndex={-1} className="scroll-mt-20 outline-none font-serif text-[18px] font-semibold text-slate-900">Contradicting evidence</h3>
+          <p className="text-[13px] text-slate-700 mt-0.5 mb-2">Relevant sources whose findings go against the question.</p>
+          <div className="space-y-2">{conflicts.map((c, i) => renderClaim(c, i, 'Contradicts'))}</div>
+        </section>
+      )}
+
+      {showConflicts && noEffect.length > 0 && (
+        <section aria-labelledby="report-noeffect" className="rounded-2xl border border-sky-200 bg-sky-50/40 p-5">
+          <h3 id="report-noeffect" tabIndex={-1} className="scroll-mt-20 outline-none font-serif text-[18px] font-semibold text-slate-900">No effect found</h3>
+          <p className="text-[13px] text-slate-700 mt-0.5 mb-2">Relevant sources that studied this and found no effect. A finding in its own right, not a contradiction.</p>
+          <div className="space-y-2">{noEffect.map((c, i) => renderClaim(c, i, 'Null'))}</div>
         </section>
       )}
 
@@ -154,6 +166,16 @@ export function DeepResearchReportView({ report, onOpenSource, selectedId, onExp
       {showFollowUp && <section aria-labelledby="report-followup" className="rounded-2xl border border-slate-200 bg-white p-4">
         <h3 id="report-followup" className="text-[14px] font-semibold text-slate-900">Ask a follow-up</h3>
         <p className="text-[13px] text-slate-700 mt-0.5">It runs as a new research session, with your question filled in so you can edit it first.</p>
+        {suggestions.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Suggested follow-ups">
+            {suggestions.map(q => (
+              <button key={q} type="button" onClick={() => setFollowUp(q)} title={q}
+                className="max-w-full truncate rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[12px] text-slate-700 hover:border-purple-accent hover:text-purple-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40">
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
         <form className="mt-2 flex gap-2" onSubmit={e => { e.preventDefault(); if (askOk) onAsk(followUp.trim()) }}>
           <label htmlFor="report-followup-input" className="sr-only">Follow-up question</label>
           <input id="report-followup-input" value={followUp} onChange={e => setFollowUp(e.target.value)} maxLength={1500}

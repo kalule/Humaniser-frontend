@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Quote, Copy, ChevronDown } from 'lucide-react'
+import { Quote, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { Select } from '../ui/Select'
 import { FORMAT_LABELS, FORMAT_STYLES, type FormatStyle } from '../../types/citation'
 import { paperCitation, type CitablePaper } from '../../lib/csl/paperCitation'
 export type { CitablePaper } from '../../lib/csl/paperCitation'
 
 /** Deterministic citation from the paper's own canonical metadata — no LLM reconstruction. */
-export function CitePopover({ paper }: { paper: CitablePaper }) {
+export function CitePopover({ paper, warning }: { paper: CitablePaper; warning?: string | null }) {
   const [open, setOpen]   = useState(false)
   const [style, setStyle] = useState<FormatStyle>('harvard')
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -91,19 +92,15 @@ export function CitePopover({ paper }: { paper: CitablePaper }) {
             >
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Cite this paper</p>
-                <div className="relative">
-                  <select
-                    value={style}
-                    aria-label="Citation style"
-                    onChange={e => setStyle(e.target.value as FormatStyle)}
-                    className="text-[12px] border border-slate-200 rounded-lg pl-2 pr-6 py-1 text-slate-700 outline-none focus:border-purple-accent appearance-none bg-white"
-                  >
-                    {FORMAT_STYLES.map(s => <option key={s} value={s}>{FORMAT_LABELS[s]}</option>)}
-                  </select>
-                  <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
+                <Select value={style} aria-label="Citation style" wrapperClassName="w-auto" className="py-1 text-[12px]"
+                  onChange={e => setStyle(e.target.value as FormatStyle)}>
+                  {FORMAT_STYLES.map(s => <option key={s} value={s}>{FORMAT_LABELS[s]}</option>)}
+                </Select>
               </div>
 
+              {warning && (
+                <p role="note" className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[12px] leading-snug text-amber-800">{warning}</p>
+              )}
               <div className="space-y-2.5">
                 <div>
                   <p className="text-[10px] text-slate-400 mb-1">In-text</p>

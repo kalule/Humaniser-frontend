@@ -14,9 +14,13 @@ export interface SourceLink {
   decision: EvidenceSource['decision']
   exclusionReason: string | null
   quote: string | null
+  /** The server's stance for this link, after the relevance check. Absent on older responses. */
+  stance?: EvidenceSource['stance']
+  relevance?: EvidenceSource['relevance']
 }
 
-export type SourceBucket = 'used' | 'excluded' | 'unassessed'
+/** used = accepted for some question; offTopic = judged not about the question; excluded/unassessed = the rest. */
+export type SourceBucket = 'used' | 'offTopic' | 'excluded' | 'unassessed'
 
 export interface SourceGroup {
   id: string
@@ -35,6 +39,8 @@ export interface SourceGroup {
   exclusionReason: string | null
   /** Ids of other records of the same paper that were merged into this one. */
   aliases?: string[]
+  /** Why the relevance check judged it off-topic, when it did. */
+  relevanceReason?: string | null
 }
 
 /**
@@ -47,6 +53,7 @@ export function mergeSourceRows(rows: EvidenceSource[]): SourceGroup[] {
     const link: SourceLink = {
       questionId: r.questionId, polarity: r.polarity, strength: r.strength,
       decision: r.decision, exclusionReason: r.exclusionReason, quote: r.quote,
+      stance: r.stance, relevance: r.relevance,
     }
     const existing = byId.get(r.id)
     if (existing) {
@@ -55,6 +62,7 @@ export function mergeSourceRows(rows: EvidenceSource[]): SourceGroup[] {
       if (existing.geography === 'Unknown' && r.geography !== 'Unknown') existing.geography = r.geography
       if (r.decidedBy === 'You') existing.decidedBy = 'You'
       if (r.coverage === 'FullText' && r.decision === 'Accepted') { existing.coverage = 'FullText'; existing.studyDesign ??= r.studyDesign ?? null }
+      if (r.relevance === 'OffTopic' && r.relevanceReason) existing.relevanceReason ??= r.relevanceReason
     } else {
       byId.set(r.id, {
         id: r.id, title: r.title, authors: r.authors, year: r.year, journal: r.journal, doi: r.doi,
@@ -62,13 +70,16 @@ export function mergeSourceRows(rows: EvidenceSource[]): SourceGroup[] {
         coverage: r.coverage === 'FullText' && r.decision === 'Accepted' ? 'FullText' : 'Abstract',
         studyDesign: r.coverage === 'FullText' && r.decision === 'Accepted' ? (r.studyDesign ?? null) : null,
         links: [link], bucket: 'unassessed', exclusionReason: null,
+        relevanceReason: r.relevance === 'OffTopic' ? (r.relevanceReason ?? null) : null,
       })
     }
   }
   for (const g of byId.values()) {
     const accepted = g.links.some(l => l.decision === 'Accepted')
     const rejected = g.links.filter(l => l.decision === 'Rejected')
-    g.bucket = accepted ? 'used' : rejected.length > 0 ? 'excluded' : 'unassessed'
+    // Same rule as the server's counts: off-topic only when no link was judged relevant.
+    const offTopic = !accepted && g.links.some(l => l.relevance === 'OffTopic') && !g.links.some(l => l.relevance === 'Relevant')
+    g.bucket = accepted ? 'used' : offTopic ? 'offTopic' : rejected.length > 0 ? 'excluded' : 'unassessed'
     g.exclusionReason = g.bucket === 'excluded' ? (rejected.find(l => l.exclusionReason)?.exclusionReason ?? null) : null
   }
   return [...byId.values()]
@@ -92,7 +103,7 @@ export type SourceFilter = 'used' | 'excluded' | { questionId: string }
 /** The links of a source that matter for a filter: accepted ones when looking at a question. */
 export function applyFilter(groups: SourceGroup[], filter: SourceFilter): SourceGroup[] {
   if (filter === 'used') return groups.filter(g => g.bucket === 'used')
-  if (filter === 'excluded') return groups.filter(g => g.bucket !== 'used')
+  if (filter === 'excluded') return groups.filter(g => g.bucket !== 'used' && g.bucket !== 'offTopic')
   return groups.filter(g => g.links.some(l => l.questionId === filter.questionId && l.decision === 'Accepted'))
 }
 
@@ -273,6 +284,7 @@ export function sessionStatusChip(status: string): { label: string; tone: 'succe
   switch (status) {
     case 'Completed': return { label: 'Complete', tone: 'success' }
     case 'Stopped': return { label: 'Stopped at limit', tone: 'warning' }
+    case 'NeedsReview': return { label: 'Needs review: results off-topic', tone: 'danger' }
     case 'Cancelled': return { label: 'Stopped by you', tone: 'neutral' }
     case 'Failed': return { label: 'Could not finish', tone: 'danger' }
     default: return { label: 'Running', tone: 'neutral' }
@@ -532,7 +544,7 @@ export function sourceKey(g: Pick<SourceGroup, 'doi' | 'title' | 'year'>): strin
   return doi ? `doi:${doi}` : `title:${normTitle(g.title)}:${g.year ?? ''}`
 }
 
-const BUCKET_RANK: Record<SourceBucket, number> = { used: 2, excluded: 1, unassessed: 0 }
+const BUCKET_RANK: Record<SourceBucket, number> = { used: 3, offTopic: 2, excluded: 1, unassessed: 0 }
 
 /**
  * One entry per paper. The same paper found twice (two candidate ids, one DOI) used to be listed twice. The merged entry
@@ -563,21 +575,59 @@ export const idsOf = (g: Pick<SourceGroup, 'id' | 'aliases'>): string[] => [g.id
 export const findGroup = (groups: SourceGroup[], id: string | null | undefined): SourceGroup | undefined =>
   id ? groups.find(g => g.id === id || g.aliases?.includes(id)) : undefined
 
-export type SourceFilterId = 'cited' | 'all' | 'disagree' | 'left'
+export type SourceFilterId = 'cited' | 'all' | 'contradicts' | 'noEffect' | 'offTopic' | 'left'
 
-/** The sources for one filter chip: cited in the report, everything found, or those that disagree. */
+const acceptedWith = (g: SourceGroup, stance: 'Contradicts' | 'NoEffect', polarity: 'Contradicts' | 'Null') =>
+  g.links.some(l => l.decision === 'Accepted' && (l.stance ? l.stance === stance : l.polarity === polarity))
+
+/**
+ * The sources for one filter chip. Which bucket a source is in comes from the server (its stance and relevance); the chip
+ * counts come from the server's counts, never from re-counting here.
+ */
 export function filterSources(groups: SourceGroup[], filter: SourceFilterId, citedIds: Set<string>): SourceGroup[] {
-  if (filter === 'cited') return groups.filter(g => idsOf(g).some(id => citedIds.has(id)))
-  if (filter === 'disagree') return evidenceAgainst(groups)
-  if (filter === 'left') return groups.filter(g => g.bucket !== 'used').sort(bySourceYearDesc)
-  return groups
+  switch (filter) {
+    case 'cited': return groups.filter(g => idsOf(g).some(id => citedIds.has(id)))
+    case 'contradicts': return groups.filter(g => acceptedWith(g, 'Contradicts', 'Contradicts')).sort(bySourceYearDesc)
+    case 'noEffect': return groups.filter(g => acceptedWith(g, 'NoEffect', 'Null')).sort(bySourceYearDesc)
+    case 'offTopic': return groups.filter(g => g.bucket === 'offTopic').sort(bySourceYearDesc)
+    case 'left': return groups.filter(g => g.bucket === 'excluded' || g.bucket === 'unassessed').sort(bySourceYearDesc)
+    default: return groups
+  }
 }
+
+// ── the server's verdicts ───────────────────────────────────────────────────────────────────
+
+type Verdict = NonNullable<EvidenceQuestion['verdict']>
+
+/** The verdict the server decided for a question. Older responses without one read as "No relevant sources", never as support. */
+export const verdictOf = (q: Pick<EvidenceQuestion, 'verdict'>): Verdict => q.verdict ?? 'NoEvidence'
+
+const VERDICT_LABEL: Record<Verdict, string> = {
+  Answered: 'Answered', Partial: 'Partly answered', NoEvidence: 'No relevant sources', NotResearched: 'Not researched', OffTopic: 'Results off-topic',
+}
+export const verdictLabel = (q: Pick<EvidenceQuestion, 'verdict' | 'verdictLabel'>): string => q.verdictLabel ?? VERDICT_LABEL[verdictOf(q)]
+
+export type StepState = 'done' | 'partial' | 'pending' | 'failed'
+export function stepState(q: Pick<EvidenceQuestion, 'verdict'>): StepState {
+  switch (verdictOf(q)) {
+    case 'Answered': return 'done'
+    case 'Partial': return 'partial'
+    case 'OffTopic': return 'failed'
+    default: return 'pending'
+  }
+}
+
+/** Questions with accepted evidence get a card; the rest are listed together once, not one empty card each. */
+export const hasEvidence = (q: Pick<EvidenceQuestion, 'verdict'>): boolean => verdictOf(q) === 'Answered' || verdictOf(q) === 'Partial'
+
+/** The step label: the server's short title, else the question type. */
+export const stepTitle = (q: Pick<EvidenceQuestion, 'shortTitle' | 'type'>): string => q.shortTitle ?? q.type.replace(/([a-z])([A-Z])/g, '$1 $2')
 
 export interface OutlineItem { id: string; label: string; level: 1 | 2 }
 
 /** The report's headings, in reading order, as a jump list. Ids match the headings the report renders. */
 export function outlineItems(report: {
-  sections: { questionId: string; heading: string; claims: unknown[] }[]; conflicts: unknown[]; gaps: unknown[]; bottomLine?: unknown[]
+  sections: { questionId: string; heading: string; claims: unknown[] }[]; conflicts: unknown[]; gaps: unknown[]; bottomLine?: unknown[]; noEffect?: unknown[] | null
 }): OutlineItem[] {
   const items: OutlineItem[] = [{ id: 'report-bottom', label: 'Bottom line', level: 1 }]
   const withClaims = report.sections.filter(s => s.claims.length > 0)
@@ -585,7 +635,8 @@ export function outlineItems(report: {
     items.push({ id: 'report-findings', label: 'Key findings', level: 1 })
     for (const s of withClaims) items.push({ id: `report-section-${s.questionId}`, label: s.heading, level: 2 })
   }
-  if (report.conflicts.length > 0) items.push({ id: 'report-conflicts', label: 'Conflicting evidence', level: 1 })
+  if (report.conflicts.length > 0) items.push({ id: 'report-conflicts', label: 'Contradicting evidence', level: 1 })
+  if ((report.noEffect ?? []).length > 0) items.push({ id: 'report-noeffect', label: 'No effect found', level: 1 })
   if (report.gaps.length > 0) items.push({ id: 'report-gaps', label: 'Gaps', level: 1 })
   return items
 }
@@ -638,7 +689,7 @@ export function buildCitationIndex(
 
 // ── what a source card shows: stance, study type, sample, region ────────────────────────────────
 
-export type Stance = 'supports' | 'disagrees' | 'noEffect' | 'background'
+export type Stance = 'supports' | 'disagrees' | 'noEffect' | 'background' | 'offTopic' | 'notUsed'
 
 export interface SourceFacts {
   stance: Stance
@@ -676,12 +727,30 @@ const REGION_FACT: Record<string, SourceFacts['region']> = {
 export function sourceFacts(g: Pick<SourceGroup, 'links' | 'studyDesign' | 'geography'>, questionId?: string): SourceFacts {
   const own = g.links.filter(l => (questionId ? l.questionId === questionId : true))
   const link = own.find(l => l.decision === 'Accepted') ?? own[0] ?? g.links[0]
-  const stance: Stance = link?.polarity === 'Supports' ? 'supports' : link?.polarity === 'Contradicts' ? 'disagrees' : link?.polarity === 'Null' ? 'noEffect' : 'background'
+  // The server's stance when it sent one (decided after the relevance check); older responses fall back to the polarity.
+  const fromServer: Record<NonNullable<SourceLink['stance']>, Stance> = {
+    Supports: 'supports', Contradicts: 'disagrees', NoEffect: 'noEffect', Background: 'background', OffTopic: 'offTopic', NotUsed: 'notUsed',
+  }
+  const stance: Stance = link?.stance ? fromServer[link.stance]
+    : link?.polarity === 'Supports' ? 'supports' : link?.polarity === 'Contradicts' ? 'disagrees' : link?.polarity === 'Null' ? 'noEffect' : 'background'
   const text = g.links.map(l => l.quote).filter(Boolean).join(' ')
   return {
     stance,
     design: g.studyDesign ? (DESIGN_LABELS[g.studyDesign] ?? g.studyDesign) : null,
     sample: sampleSizeFrom(text),
-    region: REGION_FACT[g.geography] ?? { label: 'Region not stated', match: 'unknown' },
+    region: REGION_FACT[g.geography] ?? { label: '', match: 'unknown' },
   }
+}
+
+const SOURCE_CAP_NOTE = /^["“].+["”]\s+reached its share of the source limit \((\d+)\)/
+
+/** The run adds one "reached its share of the source limit" note per question; they say the same thing, so they are shown once. */
+export function groupLimitations(lines: string[]): string[] {
+  const capped = lines.filter(l => SOURCE_CAP_NOTE.test(l.trim()))
+  if (capped.length < 2) return lines
+  const limits = [...new Set(capped.map(l => SOURCE_CAP_NOTE.exec(l.trim())![1]))]
+  const each = limits.length === 1 ? ` (${limits[0]} each)` : ''
+  const merged = `${capped.length} questions reached their share of the source limit${each}; further results for them were not tracked.`
+  const first = lines.findIndex(l => SOURCE_CAP_NOTE.test(l.trim()))
+  return lines.flatMap((l, i) => (SOURCE_CAP_NOTE.test(l.trim()) ? (i === first ? [merged] : []) : [l]))
 }

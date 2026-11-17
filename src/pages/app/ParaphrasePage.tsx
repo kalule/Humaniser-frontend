@@ -2,8 +2,8 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   RefreshCw, ArrowLeftRight, Copy, Check, Download, Eye, EyeOff, MoreHorizontal, Loader2,
-  Upload, Clipboard, Pencil, Sparkles, Briefcase, GraduationCap, Wand2,
-  AlignLeft, Maximize2, Minimize2, Minus, AlertCircle, ChevronDown,
+  Upload, Clipboard, Pencil, GraduationCap, Wand2,
+  AlignLeft, AlertCircle, ChevronDown,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useParaphraseStore } from '../../store/paraphraseStore'
@@ -21,28 +21,18 @@ import { PanelFooterBar } from '../../components/ui/PanelFooterBar'
 import { ToolBottomActionRow } from '../../components/ui/ToolBottomActionRow'
 import { ToolWorkspaceCard } from '../../components/shared/ToolWorkspaceCard'
 import { useToolTransferStore } from '../../store/toolTransferStore'
-import type { ParaphraseMode, ParaphraseStrength, ParaphraseLength, SentencePair } from '../../types/paraphrase'
+import type { ParaphraseMode, ParaphraseStrength, SentencePair } from '../../types/paraphrase'
 import { cn, formatNumber } from '../../lib/utils'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-// Tone — the 5 register/voice modes. Length (below) is now a genuinely independent
-// backend parameter (ParaphrasePromptBuilder composes a tone system prompt with a
-// length instruction block), so any tone can be paired with any length.
+// Tone — three modes. Fluency and Formal overlapped Standard and Academic, and Expand/Shorten
+// contradict "keep the author's length", so the page no longer offers them (the API still accepts
+// them for old clients and history entries). Strength below controls how far the wording moves.
 const TONE_MODES: { id: ParaphraseMode; label: string; desc: string; Icon: React.ElementType }[] = [
-  { id: 'Standard', label: 'Standard', desc: 'Same meaning, different wording.',        Icon: RefreshCw     },
-  { id: 'Fluency',  label: 'Fluency',  desc: 'Smoother, more natural phrasing.',        Icon: Sparkles      },
-  { id: 'Formal',   label: 'Formal',   desc: 'Professional register and tone.',          Icon: Briefcase     },
-  { id: 'Academic', label: 'Academic', desc: 'Scholarly language, precise vocabulary.',  Icon: GraduationCap },
-  { id: 'Simple',   label: 'Simple',   desc: 'Shorter sentences, everyday words.',       Icon: AlignLeft     },
-]
-
-// Length — independent of Tone. "No change" is the default so length isn't a decision
-// the user has to make unless they want one.
-const LENGTH_OPTIONS: { id: ParaphraseLength; label: string; desc: string; Icon: React.ElementType }[] = [
-  { id: 'None',    label: 'No change', desc: 'Keeps the original length.',           Icon: Minus     },
-  { id: 'Expand',  label: 'Expand',    desc: 'Adds detail and elaboration.',         Icon: Maximize2 },
-  { id: 'Shorten', label: 'Shorten',   desc: 'Reduces length, keeps core meaning.',  Icon: Minimize2 },
+  { id: 'Standard', label: 'Standard', desc: 'Same meaning and length, different wording.', Icon: RefreshCw     },
+  { id: 'Academic', label: 'Academic', desc: 'Scholarly register, precise vocabulary.',     Icon: GraduationCap },
+  { id: 'Simple',   label: 'Simplify', desc: 'Shorter sentences, plainer words.',           Icon: AlignLeft     },
 ]
 
 const STRENGTHS: { id: ParaphraseStrength; label: string; desc: string }[] = [
@@ -178,7 +168,7 @@ function OutputEmptyState() {
 
 export default function ParaphrasePage() {
   const {
-    inputText, outputText, selectedMode, selectedStrength, selectedLength,
+    inputText, outputText, selectedMode, selectedStrength,
     isLoading, lastResponse, error,
     setInputText, setMode, setStrength, setLength, reset,
   } = useParaphraseStore()
@@ -282,6 +272,9 @@ export default function ParaphrasePage() {
   }, [overflowOpen])
 
   const activeMode      = TONE_MODES.find(m => m.id === selectedMode) ?? TONE_MODES[0]
+  // A mode left in the store from before the consolidation (Fluency, Formal, Expand, Shorten) is sent as
+  // the mode the control shows, never as a value the user cannot see.
+  const effectiveMode: ParaphraseMode = activeMode.id
 
   // Word diff — prefer backend tokens if available, fall back to client-side LCS
   const wordDiffTokens = outputText && !sentenceMap
@@ -296,11 +289,12 @@ export default function ParaphrasePage() {
 
   const handleParaphrase = useCallback(async () => {
     if (!canParaphrase) return
-    const result = await paraphrase(inputText, selectedMode, selectedStrength, true, selectedLength)
+    // Length is always 'None': the rewrite keeps the original length.
+    const result = await paraphrase(inputText, effectiveMode, selectedStrength, true, 'None')
     if (result) {
       setMobileView('paraphrased')
     }
-  }, [canParaphrase, paraphrase, inputText, selectedMode, selectedStrength, selectedLength])
+  }, [canParaphrase, paraphrase, inputText, effectiveMode, selectedStrength])
 
   const handleUseAsInput = useCallback(() => {
     const text = outputText
@@ -354,10 +348,8 @@ export default function ParaphrasePage() {
 
   // Same compact controls strip as the Humaniser: shown only once there is text to rewrite
   // (so the empty page stays quiet), purple-filled selected state, 13px labels. Tone is the one
-  // control with enough options for a dropdown; Length and Intensity have three options each, so
-  // they stay visible as pills with their descriptions in tooltips. Tone and Length are independent
-  // backend parameters (composed server-side by ParaphrasePromptBuilder), so picking one never
-  // deselects the other.
+  // control with enough options for a dropdown; Rewrite strength has three options, so it stays
+  // visible as pills with descriptions in tooltips. Length is not a control: the rewrite keeps it.
   const pillClass = (active: boolean) => cn(
     'px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 border whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed',
     active
@@ -380,7 +372,7 @@ export default function ParaphrasePage() {
             aria-haspopup="listbox"
             aria-expanded={toneMenuOpen}
             title={activeMode.desc}
-            className={cn(pillClass(selectedMode !== 'Standard'), 'inline-flex items-center gap-1.5')}
+            className={cn(pillClass(activeMode.id !== 'Standard'), 'inline-flex items-center gap-1.5')}
           >
             {activeMode.label}
             <ChevronDown size={14} className={cn('transition-transform duration-150', toneMenuOpen && 'rotate-180')} />
@@ -393,9 +385,9 @@ export default function ParaphrasePage() {
                   key={m.id}
                   type="button"
                   role="option"
-                  aria-selected={selectedMode === m.id}
+                  aria-selected={activeMode.id === m.id}
                   onClick={() => { setMode(m.id); setToneMenuOpen(false) }}
-                  className={cn('flex flex-col items-start w-full px-3 py-2 text-left transition-colors', selectedMode === m.id ? 'bg-purple-50' : 'hover:bg-gray-50')}
+                  className={cn('flex flex-col items-start w-full px-3 py-2 text-left transition-colors', activeMode.id === m.id ? 'bg-purple-50' : 'hover:bg-gray-50')}
                 >
                   <span className="text-[13px] font-medium text-gray-800">{m.label}</span>
                   <span className="text-[11px] text-gray-500">{m.desc}</span>
@@ -407,27 +399,6 @@ export default function ParaphrasePage() {
       </div>
 
       <div className="hidden sm:block w-px h-5 bg-neutral-200" />
-
-      {/* Length — pills */}
-      <div className="flex items-center gap-2">
-        <span className={groupLabelClass}>Length</span>
-        <div role="radiogroup" aria-label="Length" className="flex items-center gap-1.5 flex-wrap">
-          {LENGTH_OPTIONS.map(l => (
-            <button
-              key={l.id}
-              type="button"
-              role="radio"
-              aria-checked={selectedLength === l.id}
-              onClick={() => setLength(l.id)}
-              disabled={isLoading}
-              title={l.desc}
-              className={pillClass(selectedLength === l.id)}
-            >
-              {l.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div className="hidden sm:block w-px h-5 bg-neutral-200" />
 

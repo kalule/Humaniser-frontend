@@ -28,8 +28,8 @@ export const humaniseApi = {
       if (job && !['changed', 'unchanged'].includes(job.outcome)) {
         sessionStorage.setItem('humanise-review-job', job.jobId)
         throw new Error(job.outcome === 'partially_changed'
-          ? 'Some regions could not be rewritten safely. Open Humaniser to review the accepted suggestions.'
-          : 'No changes were applied. Open Humaniser to review the result.')
+          ? 'Some regions could not be rewritten safely. Open Humanise to review the accepted suggestions.'
+          : 'No changes were applied. Open Humanise to review the result.')
       }
       return response
     }),

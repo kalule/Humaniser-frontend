@@ -36,6 +36,23 @@ function drainQueue(token: string | null, error: unknown = null) {
   failedQueue = []
 }
 
+/**
+ * One refresh at a time, whoever asks. The axios interceptor below and the raw-fetch streams (which cannot use the interceptor)
+ * share this promise, so an expired token never produces two refresh calls racing over the same rotating refresh cookie.
+ */
+let sharedRefresh: Promise<string> | null = null
+export function refreshSession(): Promise<string> {
+  sharedRefresh ??= (async () => {
+    const { authApi } = await import('./auth')
+    const response = await authApi.refreshToken()
+    // login() writes to tokenRef and Zustand state
+    const { useAuthStore } = await import('../store/authStore')
+    useAuthStore.getState().login(response.data)
+    return response.data.accessToken
+  })().finally(() => { sharedRefresh = null })
+  return sharedRefresh
+}
+
 /** Requests a signed-out user makes: their 401 is the answer to the request itself and must reach the page that asked, never trigger a session refresh. */
 const CREDENTIAL_PATHS = ['/auth/login', '/auth/register', '/auth/google', '/auth/forgot-password', '/auth/reset-password', '/auth/send-otp', '/auth/verify-otp', '/auth/register-otp']
 export function isCredentialRequest(url: string | undefined): boolean {
@@ -95,13 +112,7 @@ client.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const { authApi } = await import('./auth')
-        const response = await authApi.refreshToken()
-        const newToken = response.data.accessToken
-
-        // login() writes to tokenRef and Zustand state
-        const { useAuthStore } = await import('../store/authStore')
-        useAuthStore.getState().login(response.data)
+        const newToken = await refreshSession()
 
         if (originalRequest.headers)
           originalRequest.headers.Authorization = `Bearer ${newToken}`

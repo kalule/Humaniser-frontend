@@ -9,6 +9,7 @@ import {
 import { cn, formatShortDate } from '../../lib/utils'
 import { DraftInput, EMPTY_DRAFT, draftError, type DraftValue } from './DraftInput'
 import { ItemCard } from './ItemCard'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 const FILTERS: { id: ItemFilter; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -28,6 +29,7 @@ export function ThreadView({ thread, onChange, onDeleted }: Props) {
   const [message, setMessage] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const { confirm: ask, dialog } = useConfirm()
   const [deleting, setDeleting] = useState(false)
 
   const [draft, setDraft] = useState<DraftValue>(EMPTY_DRAFT)
@@ -56,7 +58,13 @@ export function ThreadView({ thread, onChange, onDeleted }: Props) {
   }
 
   const removeItem = async (item: FeedbackItem) => {
-    if (!window.confirm(`Remove item ${item.ordinal} from the checklist? Use this for something that is not a request for a change.`)) return
+    const ok = await ask({
+      title: `Remove item ${item.ordinal}?`,
+      message: 'It comes off the checklist. Use this for something that is not a request for a change.',
+      confirmLabel: 'Remove item',
+      tone: 'danger',
+    })
+    if (!ok) return
     setBusyItem(item.id); setFailure(null); setMessage(null)
     try {
       onChange(await feedbackTrackerApi.deleteItem(item.id))
@@ -211,6 +219,7 @@ export function ThreadView({ thread, onChange, onDeleted }: Props) {
           <button type="button" onClick={() => setConfirmDelete(true)} className="mt-1.5 rounded font-semibold text-red-700 underline outline-none focus-visible:ring-2 focus-visible:ring-red-700/40">Delete this checklist now</button>
         )}
       </section>
+      {dialog}
     </div>
   )
 }

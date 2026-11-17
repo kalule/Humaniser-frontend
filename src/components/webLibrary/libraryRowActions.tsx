@@ -14,7 +14,9 @@ export interface RowAction {
 export interface RowActionHandlers {
   onOpenPdfViewer: (doc: ResearchDocument) => void
   onDownload:      (doc: ResearchDocument) => void
-  onChat:          (doc: ResearchDocument) => void
+  /** Library chat had no backend (it returned a canned placeholder answer), so no view passes this
+   *  today; the action only appears when a real handler is given. */
+  onChat?:         (doc: ResearchDocument) => void
   onAddToCollection: (doc: ResearchDocument) => void
   onDetails:       (doc: ResearchDocument) => void
   onMoveToFolder:  (doc: ResearchDocument) => void
@@ -58,10 +60,10 @@ export function getOverflowRowActions(doc: ResearchDocument, handlers: RowAction
       key: 'collection', icon: <FolderPlus size={14} />, label: 'Add to collection', disabled: false,
       onClick: () => handlers.onAddToCollection(doc),
     },
-    {
+    ...(handlers.onChat ? [{
       key: 'chat', icon: <MessageCircle size={14} />, label: 'Chat with this paper', disabled: false,
-      onClick: () => handlers.onChat(doc),
-    },
+      onClick: () => handlers.onChat!(doc),
+    }] : []),
     {
       key: 'download', icon: <Download size={14} />, label: 'Download', disabled: !hasFile,
       disabledReason: hasFile ? undefined : 'No file attached to this record',

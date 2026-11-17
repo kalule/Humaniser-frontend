@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { BookOpen, Check, Copy, ExternalLink, FileText, Loader2, X } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { AlertTriangle, BookOpen, Check, Copy, ExternalLink, FileText, Loader2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { researchLibraryApi } from '../../api/researchLibrary'
 import type { PaperDetails } from '../../types/researchLibrary'
@@ -8,9 +8,13 @@ interface Props {
   workId: string | null
   onClose: () => void
   onOpenPdf: (paper: PaperDetails) => void
+  /** Extra actions beside Open PDF / View source, e.g. Save from Find Papers. */
+  actions?: ReactNode
+  /** A plain warning shown above the title, e.g. "this looks like a book review". */
+  caution?: string | null
 }
 
-export function PaperDetailsDrawer({ workId, onClose, onOpenPdf }: Props) {
+export function PaperDetailsDrawer({ workId, onClose, onOpenPdf, actions, caution }: Props) {
   const [paper, setPaper] = useState<PaperDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -59,11 +63,13 @@ export function PaperDetailsDrawer({ workId, onClose, onOpenPdf }: Props) {
           {!paper && !error && <div className="flex justify-center py-24"><Loader2 className="animate-spin text-purple-accent" /></div>}
           {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
           {paper && <div className="space-y-6">
+            {caution && <p role="note" className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"><AlertTriangle size={15} className="mt-0.5 shrink-0" />{caution}</p>}
             <div><div className="mb-2 flex flex-wrap gap-2">{paper.type && <span className="rounded-full bg-purple-tint px-2.5 py-1 text-xs text-purple-text">{paper.type}</span>}{paper.openAccess?.isOpenAccess && <span className="rounded-full bg-green-tint px-2.5 py-1 text-xs text-green-text"><Check size={11} className="mr-1 inline" />Open access</span>}</div><h3 className="text-xl font-semibold leading-snug text-slate-900">{paper.title}</h3>{paper.subtitle && <p className="mt-1 text-sm text-slate-600">{paper.subtitle}</p>}<p className="mt-3 text-sm text-slate-600">{paper.authors.map(a => a.name).join(', ') || 'Author information unavailable'}</p></div>
             <div className="flex flex-wrap gap-2">
               {paper.fullText.canOpenInViewer && <button onClick={() => onOpenPdf(paper)} className="flex items-center gap-2 rounded-lg bg-purple-accent px-4 py-2 text-sm font-medium text-white hover:bg-purple-deep"><BookOpen size={15} />Open PDF</button>}
               {!paper.fullText.canOpenInViewer && paper.fullText.landingPageUrl && <a href={paper.fullText.landingPageUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><ExternalLink size={15} />View source</a>}
               {!paper.fullText.canOpenInViewer && !paper.fullText.landingPageUrl && <button disabled title="No lawful full text was found" className="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-400"><FileText size={15} />PDF unavailable</button>}
+              {actions}
             </div>
             <dl className="grid grid-cols-2 gap-x-5 gap-y-4 rounded-xl border border-slate-200 p-4 text-sm">
               {paper.publicationDate && <div><dt className="text-xs text-slate-400">Published</dt><dd className="mt-1 text-slate-700">{paper.publicationDate}</dd></div>}

@@ -4,7 +4,7 @@ import { Menu } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useLibraryStore } from '../../store/libraryStore';
 import { useEditorFlushStore } from '../../store/editorFlushStore';
-import { resolvePageTitle, toolForPath, matchEditorDocumentId, resolveEditorHeaderTitle } from '../../config/navigation';
+import { resolvePageTitle, resolvePageSubtitle, matchEditorDocumentId, resolveEditorHeaderTitle } from '../../config/navigation';
 import { AccountMenu } from './AccountMenu';
 
 export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => void }) {
@@ -19,7 +19,7 @@ export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => voi
     : null;
 
   const pageTitle = resolvePageTitle(location.pathname);
-  const pageDescription = toolForPath(location.pathname)?.description;
+  const pageSubtitle = resolvePageSubtitle(location.pathname);
   const tabTitle = editorTitle ? editorTitle.tabTitle : `${pageTitle} · HumaniseAI`;
 
   useEffect(() => {
@@ -51,14 +51,11 @@ export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => voi
       }}
     >
       {/* Left side */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 min-w-0">
         <button
           onClick={onMobileMenuClick}
           aria-label="Open menu"
-          className="md:hidden transition-colors"
-          style={{ color: 'var(--text-muted)' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+          className="md:hidden transition-colors text-slate-500 hover:text-[var(--text-primary)] rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-purple)]"
         >
           <Menu size={24} />
         </button>
@@ -67,12 +64,11 @@ export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => voi
             <a
               href="/app/library"
               onClick={handleDocumentsBreadcrumbClick}
-              className="shrink-0 hover:underline"
-              style={{ color: 'var(--text-muted)' }}
+              className="shrink-0 hover:underline text-slate-500"
             >
               Documents
             </a>
-            <span className="shrink-0" style={{ color: 'var(--text-muted)' }}>/</span>
+            <span className="shrink-0 text-slate-500">/</span>
             {editorTitle.breadcrumbTitle === null ? (
               <span
                 className="inline-block h-5 w-40 rounded animate-pulse"
@@ -86,13 +82,13 @@ export function AppNavbar({ onMobileMenuClick }: { onMobileMenuClick?: () => voi
             )}
           </h1>
         ) : (
+          // The tool's own description already sits beside it in the sidebar, so the header only adds a
+          // subtitle when it says something the sidebar doesn't (a tab within the tool).
           <div className="hidden sm:flex items-baseline gap-3 min-w-0">
-            <h1 className="font-semibold text-[22px] shrink-0" style={{ color: 'var(--text-primary)' }}>
+            <h1 className="font-semibold text-[22px] truncate shrink-0" style={{ color: 'var(--text-primary)' }}>
               {pageTitle}
             </h1>
-            {pageDescription && (
-              <p className="hidden lg:block text-[13px] truncate" style={{ color: 'var(--text-muted)' }}>{pageDescription}</p>
-            )}
+            {pageSubtitle && <p className="truncate text-[13.5px] text-slate-600">{pageSubtitle}</p>}
           </div>
         )}
       </div>
