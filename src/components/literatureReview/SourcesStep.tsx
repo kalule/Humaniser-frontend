@@ -195,7 +195,7 @@ function SearchTab({ review }: { review: Review }) {
       ) : null}
       {unavailable.length > 0 ? (
         <Notice tone="warning">
-          {unavailable.map(p => p.name).join(', ')} did not respond, so their results are missing, not empty.{' '}
+          {unavailable.map(p => p.name).join(', ')} did not answer every search, so some of their results are missing, not empty.{' '}
           <button type="button" onClick={() => void retry()} className={btn.link}>Try them again</button>
         </Notice>
       ) : null}
