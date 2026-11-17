@@ -190,7 +190,10 @@ function ExtractionPanel({ review, onChanged, onNext }: { review: Review; onChan
       setState(e)
       if (e.matrixId) setMatrix(await literatureMatrixApi.get(e.matrixId))
     } catch (err) { setError(errorMessage(err, 'The extraction status could not be loaded.')) }
-  }, [review.id])
+    // review.sourceCount is a deliberate dependency: adding the screened papers changes it, and without the reload this panel kept
+    // saying "0 sources in the review" (and 0 credits) until the page was refreshed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [review.id, review.sourceCount])
   useEffect(() => { void load() }, [load])
   useEffect(() => {
     if (!isRunActive(state?.run)) return
