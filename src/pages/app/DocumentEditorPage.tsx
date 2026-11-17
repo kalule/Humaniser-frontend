@@ -40,6 +40,7 @@ import { FORMAT_STYLE_OF, insertCoWriteSection } from '../../lib/essayCoWrite'
 import {
   PENDING_MAX_AGE_MS, clearPendingGeneration, fetchLiteratureReviewOutcome, loadPendingGeneration,
 } from '../../lib/literatureReviewRecovery'
+import { takeStudioHandOff } from '../../lib/literatureReview'
 import { ReviewResultsModal } from '../../components/app/ReviewResultsModal'
 import { workbenchApi } from '../../api/workbench'
 import { formatEssayReferenceListEntry, type EssayCitationStyleName } from '../../lib/citationFormat'
@@ -906,6 +907,14 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
   // Collect the finished review for this document instead of leaving it empty. Latest handler through a ref so polling never restarts on typing.
   const handleAiGeneratedRef = useRef(handleAiGenerated)
   handleAiGeneratedRef.current = handleAiGenerated
+
+  // A checked review opened from Literature Review Studio: applied once, through the same path as a generated review,
+  // so its citations become the editor's citation nodes tied to their sources.
+  useEffect(() => {
+    if (!documentId || documentId === 'new' || !editor) return
+    const handOff = takeStudioHandOff<WriteWithAiResponse>(documentId)
+    if (handOff) handleAiGeneratedRef.current(handOff.result, handOff.citationStyle as EssayCitationStyle)
+  }, [documentId, editor])
   useEffect(() => {
     if (!documentId || documentId === 'new' || !editor || aiBusy.busy) return
     const pending = loadPendingGeneration(documentId)
