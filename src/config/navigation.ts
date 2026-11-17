@@ -1,7 +1,7 @@
 import type { ElementType } from 'react'
 import {
   Sparkles, Shield, RefreshCw, Scissors, SpellCheck, ClipboardCheck, ClipboardList, Library, ScrollText,
-  BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, Ruler, ListChecks, Table2, Quote, FileClock,
+  BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, BookOpenCheck, Ruler, ListChecks, Table2, Quote, FileClock,
 } from 'lucide-react'
 import type { ToolId } from './features'
 
@@ -39,9 +39,12 @@ export const TOOLS: Record<ToolId, ToolDef> = {
   'proposal-studio':    { id: 'proposal-studio', label: 'Proposal Studio', description: 'Draft a research proposal', icon: ScrollText, link: '/app/proposal-studio', matchPrefix: '/app/research-agent' },
   'thesis-studio':      { id: 'thesis-studio', label: 'Thesis Studio', description: 'Write your thesis chapters', icon: GraduationCap, link: '/app/thesis-studio' },
   'systematic-review':  { id: 'systematic-review', label: 'Systematic Review', description: 'Structured literature review', icon: ClipboardList, link: '/app/systematic-review', matchPrefix: '/app/systematic-review' },
+  // One menu item for literature review (2026-11-17): the studio and the Literature Matrix pages both belong to it.
+  'literature-review':  { id: 'literature-review', label: 'Literature Review', description: 'Guided source-to-draft review', icon: BookOpenCheck, link: '/app/literature-review', matchPrefix: ['/app/literature-review', '/app/literature-matrix'], badge: 'Beta' },
   'research-agent':     { id: 'research-agent', label: 'Research Agent', description: 'Build a project step by step', icon: GraduationCap, link: '/app/research-agent/new' },
   'saved-sources':      { id: 'saved-sources', label: 'Research Library', description: 'Find and save papers', icon: Globe, link: '/app/web-library', matchPrefix: '/app/web-library' },
-  // Under Research, after Research Library (Saved Sources): it is built from them. Its own prefix.
+  // Not in the sidebar since 2026-11-17: reached from Literature Review (its Matrices tab and the review's extraction step).
+  // Kept as a tool for its own flag (ToolGate) and routes.
   'literature-matrix':  { id: 'literature-matrix', label: 'Literature Matrix', description: 'Compare studies side by side', icon: Table2, link: '/app/literature-matrix', matchPrefix: '/app/literature-matrix', badge: 'Beta' },
   'deep-research':      { id: 'deep-research', label: 'Deep Research', description: 'Investigate across sources', icon: Telescope, link: '/app/deep-research' },
   'document-chat':      { id: 'document-chat', label: 'Document Chat', description: 'Ask questions about a file', icon: MessageSquare, link: '/app/document-chat' },
@@ -71,8 +74,8 @@ const pick = (...ids: ToolId[]): NavItem[] => ids.map(id => TOOLS[id])
 // Grouped by the student's task (2026-11-16). Verify and Improve stay as the launch groups; the
 // studios are long-form writing, so they sit under Write.
 export const NAV_SECTIONS: NavSection[] = [
-  { section: 'Write',        items: pick('documents', 'editor', 'proposal-studio', 'thesis-studio', 'systematic-review', 'citation-generator') },
-  { section: 'Find sources', items: pick('saved-sources', 'literature-matrix', 'deep-research') },
+  { section: 'Write',        items: pick('documents', 'editor', 'proposal-studio', 'thesis-studio', 'systematic-review', 'literature-review', 'citation-generator') },
+  { section: 'Find sources', items: pick('saved-sources', 'deep-research') },
   { section: 'Verify',       items: pick('verify-citations', 'ai-content-check', 'similarity-check', 'reviewer', 'feedback-tracker', 'authorship-evidence') },
   { section: 'Improve',      items: pick('humanise', 'paraphraser', 'grammar', 'summariser') },
   { section: 'Analyse',      items: pick('study-design', 'qualitative-analysis', 'data-analyst') },

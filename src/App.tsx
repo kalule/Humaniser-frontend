@@ -77,7 +77,7 @@ const ProposalWorkflowPage = lazy(() => import('./pages/app/ProposalWorkflowPage
 const SystematicReviewPage          = lazy(() => import('./pages/app/SystematicReviewPage'))
 const SystematicReviewWorkspacePage = lazy(() => import('./pages/app/SystematicReviewWorkspacePage'))
 const SharedScreeningPage = lazy(() => import('./pages/app/SharedScreeningPage'))
-const LiteratureReviewPage          = lazy(() => import('./pages/app/LiteratureReviewPage'))
+const LiteratureReviewStudioPage    = lazy(() => import('./pages/app/LiteratureReviewStudioPage'))
 const LiteratureDiscoveryProgressPage = lazy(() => import('./pages/app/LiteratureDiscoveryProgressPage'))
 const ReviewerPage                  = lazy(() => import('./pages/app/ReviewerPage'))
 const ReviewerWorkspacePage         = lazy(() => import('./pages/app/ReviewerWorkspacePage'))
@@ -322,8 +322,11 @@ function AppInner() {
               <Route path="systematic-review/:id" element={<SystematicReviewWorkspacePage />} />
               <Route path="systematic-review/:id/screen" element={<SharedScreeningPage />} />
             </Route>
+            <Route element={<ToolGate tool="literature-review" />}>
+              <Route path="literature-review"     element={<LiteratureReviewStudioPage />} />
+              <Route path="literature-review/:id" element={<LiteratureReviewStudioPage />} />
+            </Route>
             <Route element={<ToolGate tool="research-agent" />}>
-              <Route path="literature-review"     element={<LiteratureReviewPage />} />
               <Route path="literature-review/discovery" element={<LiteratureDiscoveryProgressPage />} />
             </Route>
             <Route element={<ToolGate tool="reviewer" />}>

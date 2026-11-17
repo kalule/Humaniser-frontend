@@ -27,6 +27,9 @@ export default function LiteratureMatrixPage() {
   return id ? <MatrixRoute key={id} id={id} /> : <ListRoute />
 }
 
+/** The list of matrices and the form to create one; also shown as Literature Review's Matrices tab. */
+export function MatrixListPanel() { return <ListRoute /> }
+
 function ListRoute() {
   const navigate = useNavigate()
   const [list, setList] = useState<Load<{ matrices: MatrixSummary[]; presets: MatrixPreset[] }>>({ state: 'loading' })

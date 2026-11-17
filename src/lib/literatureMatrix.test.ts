@@ -163,16 +163,16 @@ describe('messages', () => {
 })
 
 describe('registration', () => {
-  it('sits under Find sources, after the Research Library, as a Beta tool hidden at launch', () => {
-    const research = NAV_SECTIONS.find(s => s.section === 'Find sources')!
-    expect(research.items.map(i => i.id).slice(0, 2)).toEqual(['saved-sources', 'literature-matrix'])
+  it('has no menu item of its own: it lives under Literature Review, and stays a Beta tool hidden at launch', () => {
+    expect(NAV_SECTIONS.flatMap(s => s.items).map(i => i.id)).not.toContain('literature-matrix')
+    expect(NAV_SECTIONS.find(s => s.section === 'Find sources')!.items.map(i => i.id)).toEqual(['saved-sources', 'deep-research'])
     expect(TOOLS['literature-matrix']).toMatchObject({ link: '/app/literature-matrix', badge: 'Beta', label: 'Literature Matrix' })
     expect(LAUNCH_TOOLS.has('literature-matrix')).toBe(false)
     expect(isToolEnabled('literature-matrix', true)).toBe(true)
   })
 
-  it('owns its own pages for the header title', () => {
-    expect(toolForPath('/app/literature-matrix/abc')?.id).toBe('literature-matrix')
-    expect(resolvePageTitle('/app/literature-matrix')).toBe('Literature Matrix')
+  it('its pages belong to Literature Review for the menu highlight and the header title', () => {
+    expect(toolForPath('/app/literature-matrix/abc')?.id).toBe('literature-review')
+    expect(resolvePageTitle('/app/literature-matrix')).toBe('Literature Review')
   })
 })
