@@ -61,6 +61,7 @@ const FindPapersPage      = lazy(() => import('./pages/app/FindPapersPage'))
 const DeepResearchPage    = lazy(() => import('./pages/app/DeepResearchPage'))
 const StudyDesignPage     = lazy(() => import('./pages/app/StudyDesignPage'))
 const FeedbackTrackerPage = lazy(() => import('./pages/app/FeedbackTrackerPage'))
+const AuthorshipEvidencePage = lazy(() => import('./pages/app/AuthorshipEvidencePage'))
 const CollectionsPage     = lazy(() => import('./pages/app/CollectionsPage'))
 const EvidencePackagesPage = lazy(() => import('./pages/app/EvidencePackagesPage'))
 const CollectionDetailPage = lazy(() => import('./pages/app/CollectionDetailPage'))
@@ -256,6 +257,10 @@ function AppInner() {
             <Route element={<ToolGate tool="feedback-tracker" />}>
               <Route path="feedback-tracker"      element={<FeedbackTrackerPage />} />
               <Route path="feedback-tracker/:id"  element={<FeedbackTrackerPage />} />
+            </Route>
+            <Route element={<ToolGate tool="authorship-evidence" />}>
+              <Route path="authorship-evidence"              element={<AuthorshipEvidencePage />} />
+              <Route path="authorship-evidence/:documentId"  element={<AuthorshipEvidencePage />} />
             </Route>
             <Route element={<ToolGate tool="document-chat" />}>
               <Route path="document-chat" element={<DocumentChatPage />} />

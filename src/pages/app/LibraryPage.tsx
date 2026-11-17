@@ -420,7 +420,7 @@ function ConfirmDeleteDialog({
           <Trash2 size={16} className="text-red-600" /> Delete this document?
         </h3>
         <p id="delete-doc-desc" className="text-[13px] text-[#555] mb-5 break-words">
-          “{title}” will be permanently deleted. This can’t be undone.
+          “{title}” will be permanently deleted, together with any writing history, AI use register, declaration and reports kept for it. This can’t be undone.
         </p>
         <div className="flex gap-2 justify-end">
           <button

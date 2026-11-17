@@ -10,8 +10,8 @@ interface LibraryStore {
   hasLoaded:  boolean
 
   loadDocuments: () => Promise<void>
-  createDocument: (patch?: Partial<WorkspaceDocument>) => Promise<WorkspaceDocument>
-  updateDocument: (id: string, patch: Partial<WorkspaceDocument>) => Promise<WorkspaceDocument>
+  createDocument: (patch?: Partial<WorkspaceDocument> & { importedFileName?: string }) => Promise<WorkspaceDocument>
+  updateDocument: (id: string, patch: Partial<WorkspaceDocument>, signals?: { pastedChars?: number }) => Promise<WorkspaceDocument>
   deleteDocument: (id: string) => Promise<void>
 
   createFolder: (name: string) => Promise<WorkspaceFolder>
@@ -65,6 +65,7 @@ export const useLibraryStore = create<LibraryStore>()((set, get) => ({
         // Lets the server collapse a double-clicked "New"/"Create" or a retried request onto the
         // same row instead of inserting a duplicate — see SaveDocumentPayload's doc comment.
         clientRequestId: crypto.randomUUID(),
+        importedFileName: patch.importedFileName,
       })
       set(s => ({ documents: [doc, ...s.documents] }))
       return doc
@@ -74,7 +75,7 @@ export const useLibraryStore = create<LibraryStore>()((set, get) => ({
     }
   },
 
-  updateDocument: async (id, patch) => {
+  updateDocument: async (id, patch, signals) => {
     const current = get().documents.find(d => d.id === id)
     if (!current) throw new Error(`updateDocument: document ${id} not found in local state`)
 
@@ -98,6 +99,7 @@ export const useLibraryStore = create<LibraryStore>()((set, get) => ({
         // merged just carries forward whatever current already had (undefined until
         // handleAiGenerated's one stamping call, its returned value from then on).
         workbenchGenerationAuditId: merged.workbenchGenerationAuditId,
+        pastedChars: signals?.pastedChars || undefined,
       })
       set(s => ({ documents: s.documents.map(d => (d.id === id ? doc : d)) }))
       return doc

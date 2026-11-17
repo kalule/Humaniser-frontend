@@ -6,13 +6,15 @@ import type { WorkspaceDocument } from '../types/library'
 // differing in which extra fields (documentType/citationStyle) they attach.
 export async function importDocumentFromFile(
   file: File,
-  createDocument: (patch: Partial<WorkspaceDocument>) => Promise<WorkspaceDocument>,
+  createDocument: (patch: Partial<WorkspaceDocument> & { importedFileName?: string }) => Promise<WorkspaceDocument>,
   extraPatch: Partial<WorkspaceDocument> = {},
 ): Promise<WorkspaceDocument> {
   const content = await extractTextFromFile(file)
   return createDocument({
     title: file.name.replace(/\.[^.]+$/, '') || 'Untitled document',
     content,
+    // So that, with recording on, this document's history says it was imported rather than typed here.
+    importedFileName: file.name,
     ...extraPatch,
   })
 }

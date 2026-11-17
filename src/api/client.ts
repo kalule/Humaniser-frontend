@@ -1,3 +1,4 @@
+import { authorshipHeader } from '../lib/authorshipDocument'
 import axios, { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import toast from 'react-hot-toast'
 import type { ApiError } from '../types'
@@ -18,6 +19,8 @@ client.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    // Authorship Evidence: the editor's AI calls name the open document (see lib/authorshipDocument).
+    for (const [name, value] of Object.entries(authorshipHeader(config.url))) config.headers?.set(name, value)
     // FormData uploads must carry a boundary in Content-Type; let the browser set it
     if (config.data instanceof FormData && config.headers) {
       config.headers.delete('Content-Type')

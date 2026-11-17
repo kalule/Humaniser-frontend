@@ -21,6 +21,11 @@ export interface SaveDocumentPayload {
   // write-once like workbenchGenerationAuditId above.
   citationStyle?: string
   documentType?: string
+  // Authorship Evidence — both optional, read by the server only while the student has recording on.
+  // Create-path only: the name of the file this document was imported from, so its history says "Imported".
+  importedFileName?: string
+  // Length of text pasted into the editor since the previous save. A length only, never the text.
+  pastedChars?: number
 }
 
 export interface ImportDocumentItem {

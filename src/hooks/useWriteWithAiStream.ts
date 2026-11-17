@@ -1,3 +1,4 @@
+import { authorshipHeader } from '../lib/authorshipDocument'
 import { useCallback, useState } from 'react'
 import { tokenRef } from '../lib/tokenRef'
 import type { WriteWithAiRequest, WriteWithAiResponse } from '../types/workbench'
@@ -96,6 +97,7 @@ export function useWriteWithAiStream(): UseWriteWithAiStreamResult {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...authorshipHeader(`/api/v1/workbench/${endpoint}`),
         },
         credentials: 'include',
         body: JSON.stringify(request),

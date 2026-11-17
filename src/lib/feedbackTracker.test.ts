@@ -143,7 +143,9 @@ describe('failureMessage', () => {
 
 describe('Feedback Tracker in the navigation', () => {
   it('has one entry, in Verify after Reviewer, hidden at launch', () => {
-    expect(NAV_SECTIONS.find(s => s.section === 'Verify')?.items.map(t => t.id).slice(-2)).toEqual(['reviewer', 'feedback-tracker'])
+    // Directly after Reviewer; other Verify tools (Authorship Evidence) may follow it.
+    const verify = NAV_SECTIONS.find(s => s.section === 'Verify')?.items.map(t => t.id) ?? []
+    expect(verify.indexOf('feedback-tracker')).toBe(verify.indexOf('reviewer') + 1)
     expect(NAV_SECTIONS.flatMap(s => s.items).filter(t => t.id === 'feedback-tracker')).toHaveLength(1)
     expect(LAUNCH_TOOLS.has('feedback-tracker')).toBe(false)
     expect(isToolEnabled('feedback-tracker', true)).toBe(true)

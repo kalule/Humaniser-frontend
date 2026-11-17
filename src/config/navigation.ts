@@ -1,7 +1,7 @@
 import type { ElementType } from 'react'
 import {
   Sparkles, Shield, RefreshCw, Scissors, SpellCheck, ClipboardCheck, ClipboardList, Library, ScrollText,
-  BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, Ruler, ListChecks,
+  BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, Ruler, ListChecks, FileClock,
 } from 'lucide-react'
 import type { ToolId } from './features'
 
@@ -33,6 +33,7 @@ export const TOOLS: Record<ToolId, ToolDef> = {
   'similarity-check':   { id: 'similarity-check', label: 'Similarity Check', description: 'Compare against sources', icon: BookOpen, link: '/app/plagiarism' },
   'reviewer':           { id: 'reviewer', label: 'Reviewer', description: 'Examiner-style feedback', icon: ClipboardCheck, link: '/app/reviewer', matchPrefix: '/app/reviewer' },
   // Sits next to Reviewer: Reviewer gives new feedback, this tracks the supervisor's. Its own prefix, so neither claims the other's pages.
+  'authorship-evidence': { id: 'authorship-evidence', label: 'Authorship Evidence', description: 'Document how your work was created', icon: FileClock, link: '/app/authorship-evidence', matchPrefix: '/app/authorship-evidence', badge: 'Beta' },
   'feedback-tracker':   { id: 'feedback-tracker', label: 'Feedback Tracker', description: 'Track supervisor comments', icon: ListChecks, link: '/app/feedback-tracker', matchPrefix: '/app/feedback-tracker', badge: 'Beta' },
   'citation-generator': { id: 'citation-generator', label: 'Citation Generator', description: 'Format your references', icon: BookMarked, link: '/app/citations' },
   'proposal-studio':    { id: 'proposal-studio', label: 'Proposal Studio', description: 'Draft a research proposal', icon: ScrollText, link: '/app/proposal-studio', matchPrefix: '/app/research-agent' },
@@ -64,7 +65,7 @@ const pick = (...ids: ToolId[]): NavItem[] => ids.map(id => TOOLS[id])
 // once their flags are on.
 export const NAV_SECTIONS: NavSection[] = [
   { section: 'Write',    items: pick('documents', 'editor', 'citation-generator') },
-  { section: 'Verify',   items: pick('verify-citations', 'ai-content-check', 'similarity-check', 'reviewer', 'feedback-tracker') },
+  { section: 'Verify',   items: pick('verify-citations', 'ai-content-check', 'similarity-check', 'reviewer', 'feedback-tracker', 'authorship-evidence') },
   { section: 'Improve',  items: pick('humanise', 'paraphraser', 'grammar', 'summariser') },
   { section: 'Studios',  items: pick('proposal-studio', 'systematic-review') },
   { section: 'Research', items: pick('saved-sources', 'deep-research', 'document-chat', 'lecture-notes', 'flashcards') },

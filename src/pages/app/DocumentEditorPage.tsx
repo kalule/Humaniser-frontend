@@ -33,6 +33,8 @@ import type { CoWriteSession, WriteWithAiResponse, WriteWithAiReference, EssayCi
 import { useDraftHandoffStore } from '../../store/draftHandoffStore'
 import { documentGenreToWriteWithAiDocumentType, formatStyleToEssayCitationStyle } from '../../lib/draftHandoffMapping'
 import { WriteWithAiModal } from '../../components/app/WriteWithAiModal'
+import { RecordingIndicator } from '../../components/authorshipEvidence/RecordingIndicator'
+import { setAuthorshipDocument } from '../../lib/authorshipDocument'
 import { EssayCoWritePanel } from '../../components/app/EssayCoWritePanel'
 import { FORMAT_STYLE_OF, insertCoWriteSection } from '../../lib/essayCoWrite'
 import {
@@ -466,11 +468,26 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
 
   // ── Save ──────────────────────────────────────────────────────────────────────
 
+  // Authorship Evidence: while this editor is open, its AI calls are recorded against this document.
+  useEffect(() => {
+    setAuthorshipDocument(documentId)
+    return () => setAuthorshipDocument(null)
+  }, [documentId])
+
+  // Authorship Evidence: only how much was pasted is counted, never what was pasted.
+  const pastedCharsRef = useRef(0)
+  // Counted only while this document is being recorded, so nothing about pasting is sent before consent.
+  const recordingRef = useRef(false)
+  const onRecordingChange = useCallback((recording: boolean) => { recordingRef.current = recording; if (!recording) pastedCharsRef.current = 0 }, [])
+
   const save = useCallback(async (content: string) => {
     if (!documentId) return
     setSyncState('saving')
     try {
-      await updateDocument(documentId, { content })
+      // The length of anything pasted since the last save goes with the save, then starts again from zero.
+      const pastedChars = pastedCharsRef.current
+      pastedCharsRef.current = 0
+      await updateDocument(documentId, { content }, { pastedChars })
       setSyncState('saved')
     } catch {
       setSyncState('error')
@@ -515,6 +532,12 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
     content: doc?.content
       ? (() => { try { return upgradeLegacyCitations(JSON.parse(doc.content!), citations, doc.citationStyle ?? citationStyle) } catch { return doc.content } })()
       : '',
+    editorProps: {
+      handlePaste: (_view, event) => {
+        if (recordingRef.current) pastedCharsRef.current += event.clipboardData?.getData('text/plain').length ?? 0
+        return false // the editor handles the paste itself as before
+      },
+    },
     onUpdate: ({ editor }) => {
       setSyncState('unsaved')
       debouncedSave(JSON.stringify(editor.getJSON()))
@@ -1042,6 +1065,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
           <div className={cn('flex items-center gap-1 text-[12px] font-medium shrink-0', sync.color)}>
             {sync.icon} {sync.label}
           </div>
+          <RecordingIndicator documentId={documentId} onRecordingChange={onRecordingChange} />
 
           <div className="flex-1" />
 
