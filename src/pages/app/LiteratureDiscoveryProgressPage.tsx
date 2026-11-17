@@ -7,8 +7,23 @@ import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
 import { researchApi } from '../../api/research'
 import { useResearchStore } from '../../store/researchStore'
-import { CITATION_LABELS, CITATION_STYLES, LR_STEPS } from './LiteratureReviewPage'
 import type { CitationStyle, DiscoveryConfig, DiscoveryStatus } from '../../types/research'
+
+const LR_STEPS: { id: string; label: string }[] = [
+  { id: 'brief',  label: 'Brief' },
+  { id: 'gather', label: 'Gather' },
+  { id: 'screen', label: 'Screen' },
+  { id: 'write',  label: 'Write' },
+  { id: 'finish', label: 'Finish' },
+]
+
+const CITATION_STYLES: CitationStyle[] = ['apa7', 'harvard', 'mla', 'ieee']
+const CITATION_LABELS: Record<CitationStyle, string> = {
+  apa7:    'APA 7',
+  harvard: 'Harvard',
+  mla:     'MLA',
+  ieee:    'IEEE',
+}
 
 const DISCOVERY_STAGES = [
   { index: 1, label: 'Strategy ready' },

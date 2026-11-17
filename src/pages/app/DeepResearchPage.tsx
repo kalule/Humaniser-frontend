@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Loader2, Square, ArrowLeft, History, Bell, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '../../lib/utils'
@@ -132,7 +132,7 @@ function StartForm({ projects, initialProjectId, prefill, sessions, onStarted, o
             <div className="min-w-0">
               <label htmlFor="dr-project" className="text-[12px] font-medium text-slate-700 mb-1.5 block">Project</label>
               {projects.length === 0 ? (
-                <p className="text-[13px] text-slate-600">Create a research project first — Deep Research saves what it finds against a project.</p>
+                <p className="text-[13px] text-slate-600">Deep Research saves what it finds against a project. <Link to="/app/proposal-studio" className="font-medium text-purple-700 underline underline-offset-2 hover:text-purple-800">Create one in Proposal Studio</Link> to get started.</p>
               ) : (
                 <>
                   <select id="dr-project" value={projectId} onChange={e => setProjectId(e.target.value)} title={project?.title || undefined}
