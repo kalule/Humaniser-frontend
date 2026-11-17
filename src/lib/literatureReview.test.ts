@@ -54,6 +54,7 @@ describe('workflow', () => {
     expect(readinessText({ ready: false, blockingOpen: 2, warningsOpen: 1, notDrafted: ['Conclusion'], notVerified: [] }))
       .toBe('Not ready to export: 1 section not written, 2 blocking issues.')
     expect(readinessText({ ready: true, blockingOpen: 0, warningsOpen: 3, notDrafted: [], notVerified: [] })).toBe('Ready to export. 3 warnings to consider.')
+    expect(readinessText({ ready: false, blockingOpen: 0, warningsOpen: 0, notDrafted: [], notVerified: [] })).toBe('Not ready to export: build the outline and draft the review first.')
   })
 
   it('summarises an import, including what was left out and why', () => {

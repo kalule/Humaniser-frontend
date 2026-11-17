@@ -191,6 +191,7 @@ export function readinessText(r: Readiness): string {
   if (r.notDrafted.length) parts.push(`${r.notDrafted.length} section${r.notDrafted.length === 1 ? '' : 's'} not written`)
   if (r.notVerified.length) parts.push(`${r.notVerified.length} section${r.notVerified.length === 1 ? '' : 's'} changed since the last check`)
   if (r.blockingOpen) parts.push(`${r.blockingOpen} blocking issue${r.blockingOpen === 1 ? '' : 's'}`)
+  if (parts.length === 0) return 'Not ready to export: build the outline and draft the review first.'
   return `Not ready to export: ${parts.join(', ')}.`
 }
 
