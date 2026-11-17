@@ -9,6 +9,8 @@ import type {
   WriteUpResponse,
   MethodologyAppendixResponse,
   DataHealthReport,
+  QualityState,
+  QualityFixAction,
   CleanDatasetConfig,
   CleanDatasetResponse,
   PreparationBlueprintRequest,
@@ -89,6 +91,38 @@ export const analystApi = {
     unwrap(await client.post<{ success: boolean; data: DataHealthReport }>(
       `/api/v1/analyst/datasets/${datasetId}/profile`,
       {},
+    )),
+
+  /** Ask the server to stop a run. Resolves with the job's status after the request. */
+  cancelJob: async (jobId: string): Promise<string> =>
+    unwrap(await client.post<{ success: boolean; data: { status: string } }>(
+      `/api/v1/analyst/jobs/${jobId}/cancel`,
+      {},
+    )).status,
+
+  getQualityState: async (datasetId: string): Promise<QualityState> =>
+    unwrap(await client.get<{ success: boolean; data: QualityState }>(
+      `/api/v1/analyst/datasets/${datasetId}/quality/log`,
+    )),
+
+  applyQualityFix: async (datasetId: string, issueId: string, action: QualityFixAction): Promise<QualityState> =>
+    unwrap(await client.post<{ success: boolean; data: QualityState }>(
+      `/api/v1/analyst/datasets/${datasetId}/quality/fix`,
+      { issueId, action },
+    )),
+
+  /** Change one cell of the working copy. `row` is the spreadsheet row number; an empty value clears the cell. */
+  editQualityCell: async (datasetId: string, column: string, row: number, value: string): Promise<QualityState> =>
+    unwrap(await client.post<{ success: boolean; data: QualityState }>(
+      `/api/v1/analyst/datasets/${datasetId}/quality/edit`,
+      { column, row, value },
+    )),
+
+  /** Undo one step (the rest are replayed from the original upload), or every step when `step` is omitted. */
+  undoCleaning: async (datasetId: string, step?: number): Promise<QualityState> =>
+    unwrap(await client.delete<{ success: boolean; data: QualityState }>(
+      `/api/v1/analyst/datasets/${datasetId}/quality/log`,
+      { params: step === undefined ? {} : { step } },
     )),
 
   cleanDataset: async (config: CleanDatasetConfig): Promise<CleanDatasetResponse> =>

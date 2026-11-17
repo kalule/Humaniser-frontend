@@ -5,7 +5,10 @@ import { renderCslDocument } from './render'
 
 const xml = (text: string) => text.replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
-}[character]!)).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
+}[character]!))
+  // Control characters are invalid in XML 1.0, so they are stripped on purpose.
+  // eslint-disable-next-line no-control-regex
+  .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
 
 /** A bibliography has no citation order. Numeric styles follow the supplied library order;
  * author/date styles sort and disambiguate the entire bibliography in one CSL registry. */

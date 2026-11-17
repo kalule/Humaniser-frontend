@@ -1,4 +1,4 @@
-import { tokenRef } from './tokenRef'
+import { fetchWithAuth } from './fetchWithAuth'
 import { parseWriteWithAiSseFrames } from '../hooks/useWriteWithAiStream'
 import type { WriteWithAiResponse } from '../types/workbench'
 
@@ -70,12 +70,7 @@ export function interpretOutcome(body: { status?: string; stage?: string | null;
 }
 
 export async function fetchLiteratureReviewOutcome(projectId: string, signal?: AbortSignal): Promise<LiteratureReviewOutcome> {
-  const token = tokenRef.current
-  const res = await fetch(`${API_BASE}/api/v1/workbench/write-with-ai/literature-review/${encodeURIComponent(projectId)}/outcome`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    credentials: 'include',
-    signal,
-  })
+  const res = await fetchWithAuth(`${API_BASE}/api/v1/workbench/write-with-ai/literature-review/${encodeURIComponent(projectId)}/outcome`, { signal })
   if (res.status === 404) return { status: 'unavailable' }
   if (!res.ok) throw new Error(`Could not check the literature review (${res.status})`)
   return interpretOutcome(await res.json())

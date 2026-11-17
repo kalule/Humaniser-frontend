@@ -2,9 +2,13 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import toast from 'react-hot-toast'
 import { webLibraryApi } from '../api/webLibrary'
-import type { ResearchDocument, LibraryFolder, ColumnKey, PaperSearchResult, Collection } from '../types/webLibrary'
+import type { ResearchDocument, LibraryFolder, ColumnKey, PaperSearchResult, PaperSearchFilters, Collection } from '../types/webLibrary'
 
 const TRASH = '__trash__'
+
+// Bumped by every new search (query or filters). A response whose number is no longer current is
+// dropped, so a slow earlier request can never overwrite a newer one.
+let searchSeq = 0
 
 interface WebLibraryStore {
   documents:  ResearchDocument[]
@@ -33,7 +37,16 @@ interface WebLibraryStore {
   searchResults: PaperSearchResult[]
   isSearching:   boolean
   searchError:   string | null
+  /** Last page loaded and the server's pool size for the query, so the page can offer "Load more". */
+  searchPage:    number
+  searchTotal:   number
+  isLoadingMore: boolean
+  searchFilters: PaperSearchFilters
+  /** Replaces the filters and, if a search is showing, re-runs it from page 1. */
+  setSearchFilters: (filters: PaperSearchFilters) => void
   searchPapers:  (query: string) => Promise<void>
+  /** Appends the next page of the current query. A failure keeps what is already shown. */
+  loadMoreResults: () => Promise<void>
   clearSearch:   () => void
   /** Optimistic: flips isSaved on the matching search result immediately, rolls back on failure. */
   saveFromSearch: (result: PaperSearchResult) => Promise<ResearchDocument>
@@ -48,6 +61,8 @@ interface WebLibraryStore {
   createCollection:    (name: string, description?: string) => Promise<Collection>
   updateCollection:    (id: string, name: string, description?: string) => Promise<Collection>
   deleteCollection:    (id: string) => Promise<void>
+  /** Copies the collection on the server, then reloads the list so the copy has its preview. */
+  duplicateCollection: (id: string) => Promise<Collection>
   addToCollection:     (collectionId: string, documentId: string) => Promise<void>
   removeFromCollection: (collectionId: string, documentId: string) => Promise<void>
 
@@ -98,6 +113,10 @@ export const useWebLibraryStore = create<WebLibraryStore>()(
       searchResults: [],
       isSearching:   false,
       searchError:   null,
+      searchPage:    0,
+      searchTotal:   0,
+      isLoadingMore: false,
+      searchFilters: {},
 
       collections:       [],
       collectionsLoaded: false,
@@ -206,17 +225,51 @@ export const useWebLibraryStore = create<WebLibraryStore>()(
       // ── Find Papers (search) ─────────────────────────────────────────────────
 
       searchPapers: async (query) => {
-        set({ isSearching: true, searchError: null, searchQuery: query })
+        const seq = ++searchSeq
+        const filters = get().searchFilters
+        set({ isSearching: true, searchError: null, searchQuery: query, searchPage: 0, searchTotal: 0, isLoadingMore: false })
         try {
-          const response = await webLibraryApi.searchPapers(query)
-          set({ searchResults: response.results, isSearching: false })
+          const response = await webLibraryApi.searchPapers(query, 1, 20, filters)
+          if (seq !== searchSeq) return
+          set({ searchResults: response.results, isSearching: false, searchPage: 1, searchTotal: response.totalReturned ?? response.results.length })
         } catch (err) {
+          if (seq !== searchSeq) return
           const message = err instanceof Error ? err.message : 'Search failed — please try again.'
           set({ isSearching: false, searchResults: [], searchError: message })
         }
       },
 
-      clearSearch: () => set({ searchQuery: '', searchResults: [], searchError: null }),
+      setSearchFilters: (filters) => {
+        set({ searchFilters: filters })
+        const { searchQuery } = get()
+        if (searchQuery) void get().searchPapers(searchQuery)
+      },
+
+      loadMoreResults: async () => {
+        const { searchQuery: query, searchPage, searchResults, searchTotal, isLoadingMore, isSearching, searchFilters } = get()
+        if (!query || isLoadingMore || isSearching || searchResults.length >= searchTotal) return
+        const seq = searchSeq
+        set({ isLoadingMore: true })
+        try {
+          const response = await webLibraryApi.searchPapers(query, searchPage + 1, 20, searchFilters)
+          if (seq !== searchSeq) return
+          set(s => {
+            const seen = new Set(s.searchResults.map(r => r.canonicalId))
+            return {
+              searchResults: [...s.searchResults, ...response.results.filter(r => !seen.has(r.canonicalId))],
+              searchPage: searchPage + 1,
+              // An empty page means the pool ran out early; stop offering more.
+              searchTotal: response.results.length === 0 ? s.searchResults.length : (response.totalReturned ?? s.searchTotal),
+              isLoadingMore: false,
+            }
+          })
+        } catch {
+          if (seq === searchSeq) set({ isLoadingMore: false })
+          toast.error('Could not load more results. Try again.')
+        }
+      },
+
+      clearSearch: () => { searchSeq++; set({ searchQuery: '', searchResults: [], searchError: null, searchPage: 0, searchTotal: 0, isLoadingMore: false, isSearching: false }) },
 
       setSearchResultCollections: (canonicalId, collectionIds) =>
         set(s => ({
@@ -290,6 +343,18 @@ export const useWebLibraryStore = create<WebLibraryStore>()(
         }
       },
 
+      duplicateCollection: async (id) => {
+        try {
+          const copy = await webLibraryApi.duplicateCollection(id)
+          set(s => ({ collections: [copy, ...s.collections] }))
+          void get().loadCollections()
+          return copy
+        } catch (err) {
+          toast.error('Could not duplicate the collection — please try again.')
+          throw err
+        }
+      },
+
       deleteCollection: async (id) => {
         try {
           await webLibraryApi.deleteCollection(id)
@@ -329,6 +394,7 @@ export const useWebLibraryStore = create<WebLibraryStore>()(
       clear: () => set({
         documents: [], folders: [], isLoading: false, hasLoaded: false,
         searchQuery: '', searchResults: [], isSearching: false, searchError: null,
+        searchPage: 0, searchTotal: 0, isLoadingMore: false, searchFilters: {},
         collections: [], collectionsLoaded: false,
       }),
     }),

@@ -7,9 +7,10 @@ import {
   Copy, Trash2, Plus, Upload, Search, ShieldCheck, BookMarked, StickyNote, AlertTriangle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { AddSavedSourcesToProject } from '../../components/webLibrary/AddSavedSourcesToProject'
 import type { ApiError } from '../../types'
 import { cn } from '../../lib/utils'
-import { Modal } from '../../components/ui/Modal'
+import { ConfirmDialog, type ConfirmTone } from '../../components/ui/ConfirmDialog'
 import { Skeleton } from '../../components/ui/Skeleton'
 import { researchApi } from '../../api/research'
 import { useResearchStore } from '../../store/researchStore'
@@ -34,45 +35,30 @@ import type {
 const extractErrorMessage = (err: unknown): string | undefined =>
   err instanceof Error ? err.message : (err as { message?: string } | undefined)?.message
 
-// A proper in-app confirmation dialog — replaces window.confirm(), which renders as an
-// unbranded "localhost:3000 says" native browser prompt.
+// The shared in-app confirmation dialog, kept behind the controlled isOpen API these call sites already use.
 function ConfirmModal({
-  isOpen, onClose, onConfirm, title, message, confirmLabel = 'OK', cancelLabel = 'Cancel', danger = false, confirmClassName,
+  isOpen, onClose, onConfirm, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', tone = 'warning',
 }: {
   isOpen: boolean
   onClose: () => void
   onConfirm: () => void
-  title?: string
+  title: string
   message: React.ReactNode
   confirmLabel?: string
   cancelLabel?: string
-  danger?: boolean
-  // Overrides the default danger/orange confirm-button color — for actions that are neither
-  // destructive nor the "regenerate" warning tone, e.g. regenerate-section uses the app's own
-  // purple primary-action color instead of the generic orange.
-  confirmClassName?: string
+  tone?: ConfirmTone
 }) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
-      <div className="text-[13px] text-slate-600 mb-5">{message}</div>
-      <div className="flex items-center justify-end gap-2">
-        <button
-          onClick={onClose}
-          className="px-4 py-1.5 rounded-lg border border-slate-200 text-[12px] text-slate-600 hover:bg-slate-50 transition-colors"
-        >
-          {cancelLabel}
-        </button>
-        <button
-          onClick={() => { onConfirm(); onClose() }}
-          className={cn(
-            'px-4 py-1.5 rounded-lg text-white text-[12px] font-semibold transition-colors',
-            confirmClassName ?? (danger ? 'bg-red-500 hover:bg-red-600' : 'bg-orange-500 hover:bg-orange-600'),
-          )}
-        >
-          {confirmLabel}
-        </button>
-      </div>
-    </Modal>
+    <ConfirmDialog
+      isOpen={isOpen}
+      onCancel={onClose}
+      onConfirm={() => { onConfirm(); onClose() }}
+      title={title}
+      message={message}
+      confirmLabel={confirmLabel}
+      cancelLabel={cancelLabel}
+      tone={tone}
+    />
   )
 }
 
@@ -832,7 +818,7 @@ function ResearchGatherTab({ project }: { project: ResearchProject }) {
         <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
           <FolderOpen size={28} className="text-slate-300 mx-auto mb-2" />
           <p className="text-[13px] font-medium text-slate-500 mb-1">No documents yet</p>
-          <p className="text-[12px] text-slate-400">Upload PDFs or documents in My Library, then come back to select them.</p>
+          <p className="text-[12px] text-slate-400">Upload PDFs or documents in Documents, then come back to select them.</p>
         </div>
       ) : (
         <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
@@ -923,7 +909,7 @@ function ResearchGatherTab({ project }: { project: ResearchProject }) {
       {mode === 'hybrid'    && (
         <div className="space-y-6">
           <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">From My Library</p>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">From Documents</p>
             <DocsBrowser />
           </div>
           <div className="border-t border-slate-100 pt-6">
@@ -932,6 +918,9 @@ function ResearchGatherTab({ project }: { project: ResearchProject }) {
           </div>
         </div>
       )}
+
+      {/* Saved Sources: papers the student already saved, reused here without searching again */}
+      <div className="mt-6"><AddSavedSourcesToProject projectId={project.id} /></div>
 
       <div className="flex items-center gap-1.5 mt-6">
         <div className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -1456,17 +1445,18 @@ function ResearchLiteratureDiscoveryTab({ project }: { project: ResearchProject 
         isOpen={confirmRegenerateQueries}
         onClose={() => setConfirmRegenerateQueries(false)}
         onConfirm={handleRegenerateQueries}
-        title="Regenerate search queries"
-        message="Regenerate all search queries? This replaces every query below."
+        title="Regenerate search queries?"
+        message="Every query below will be replaced with a newly generated set."
+        confirmLabel="Regenerate queries"
       />
       <ConfirmModal
         isOpen={confirmDeleteQueryId !== null}
         onClose={() => setConfirmDeleteQueryId(null)}
         onConfirm={() => { if (confirmDeleteQueryId) handleDeleteQuery(confirmDeleteQueryId) }}
-        title="Delete search query"
-        message="Delete this search query?"
-        confirmLabel="Delete"
-        danger
+        title="Delete this search query?"
+        message="It will be removed from the list and will not be used in discovery."
+        confirmLabel="Delete query"
+        tone="danger"
       />
     </div>
   )
@@ -2062,7 +2052,9 @@ function ResearchScreeningTab({
         onClose={() => setShowLowCoverageModal(false)}
         onConfirm={handleConfirmLowCoverage}
         title="Evidence coverage is limited"
-        message="Continue with this explicitly acknowledged limitation? You can instead return to discovery or switch to Hybrid/Web to gather more evidence before approving."
+        message="You can continue and acknowledge this limitation, or go back to discovery or switch to Hybrid/Web to gather more evidence before approving."
+        confirmLabel="Continue anyway"
+        cancelLabel="Go back"
       />
     </div>
   )
@@ -2743,8 +2735,7 @@ function WriteWorkspaceTab({ project, approvedSourcesCount }: { project: Researc
                   </p>
                 </>
               }
-              confirmLabel="Regenerate"
-              confirmClassName="bg-[#7c3aed] hover:bg-[#6d28d9]"
+              confirmLabel="Regenerate section"
             />
             <DocumentSurface
               ref={documentSurfaceRef}

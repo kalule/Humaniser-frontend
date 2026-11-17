@@ -13,12 +13,12 @@ export const RESEARCH_STAGE_OPTIONS: ReadonlyArray<{
 }> = [
   {
     value: 'PlanningOrDesigning',
-    label: 'Planning or designing the study',
+    label: 'Research proposal / protocol',
     backendState: 'Proposal',
   },
   {
     value: 'CollectingOrReadyForAnalysis',
-    label: 'Collecting data or ready for analysis',
+    label: 'Study in progress ? data collection or analysis pending',
     backendState: 'DataAvailable',
   },
   {
@@ -28,7 +28,7 @@ export const RESEARCH_STAGE_OPTIONS: ReadonlyArray<{
   },
   {
     value: 'LiteratureReviewOnly',
-    label: 'Literature review only',
+    label: 'Literature-based paper ? synthesize published research',
     backendState: 'LiteratureOnly',
   },
 ]

@@ -78,7 +78,6 @@ export default function CollectionDetailPage() {
       a.download = `${doc.title}.pdf`
       a.click()
     },
-    onChat: () => toast('Open this paper from My Library to chat with it.'),
     onAddToCollection: (doc) => setCollectionModalDocIds([doc.id]),
     onDetails: (doc) => {
       if (!doc.canonicalWorkId) return

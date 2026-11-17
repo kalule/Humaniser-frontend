@@ -69,7 +69,7 @@ export function ProductionHumaniser() {
   }
   const active = !!view && !view.result
   return <main className="max-w-6xl mx-auto p-6 space-y-5">
-    <div><h1 className="text-2xl font-semibold">Humaniser</h1><p className="text-sm text-text-sec">Improve clarity and flow while preserving meaning. Review suggestions before applying them.</p></div>
+    <div><p className="text-sm text-text-sec">Improve clarity and flow while preserving meaning. Review suggestions before applying them.</p></div>
     <div className="flex flex-wrap gap-4">
       {(['strength', 'genre', 'voice', 'englishVariant'] as const).map(key => <label key={key} className="text-sm space-x-2">
         <span>{({ strength: 'Editing', genre: 'Genre', voice: 'Voice', englishVariant: 'English' })[key]}</span>

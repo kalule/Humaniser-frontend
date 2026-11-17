@@ -123,7 +123,7 @@ describe('calculator definitions', () => {
 
 describe('Study Design in the navigation', () => {
   it('is one entry in the Analyze group, before Data Analyst, and hidden at launch', () => {
-    expect(NAV_SECTIONS.find(s => s.section === 'Analyze')?.items.map(t => t.id)).toEqual(['study-design', 'data-analyst'])
+    expect(NAV_SECTIONS.find(s => s.section === 'Analyse')?.items.map(t => t.id)).toEqual(['study-design', 'qualitative-analysis', 'data-analyst'])
     expect(NAV_SECTIONS.flatMap(s => s.items).filter(t => t.id === 'study-design')).toHaveLength(1)
     expect(LAUNCH_TOOLS.has('study-design')).toBe(false)
     expect(isToolEnabled('study-design')).toBe(import.meta.env.VITE_ENABLE_ALL_TOOLS === 'true')

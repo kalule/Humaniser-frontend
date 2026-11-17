@@ -2,16 +2,18 @@ import { describe, expect, it } from 'vitest'
 
 // Numbers are formatted for the user's locale ("3,706" or "3 706"), so expectations use the same formatter.
 const f = (v: number) => v.toLocaleString()
-import { isDetectorMeterVisible, showUsageBar, usagePercent, usageSummaryText } from './usageMeter'
+import { isDetectorMeterVisible, isPlanUnlimited, showUsageBar, usagePercent, usageSummaryText } from './usageMeter'
 
 describe('usageSummaryText', () => {
   it('shows "used / limit words" when the plan has a limit', () => {
     expect(usageSummaryText({ key: 'words', used: 3706, limit: 20000, unlimited: false }, false)).toBe(`${f(3706)} / ${f(20000)} words`)
   })
 
-  it('shows "Words used this month" with no cap when unlimited', () => {
+  it('labels unlimited usage as usage with no limit, without a cap number', () => {
     const text = usageSummaryText({ key: 'words', used: 3706, limit: 1_000_000, unlimited: true }, true)
-    expect(text).toBe(`Words used this month: ${f(3706)}`)
+    expect(text).toBe(`${f(3706)} words used this month · no limit`)
+    expect(usageSummaryText({ key: 'credits', used: 12, limit: 1_000_000, unlimited: true }, true))
+      .toBe(`${f(12)} credits used this month · no limit`)
     expect(text).not.toContain(f(1_000_000))
     expect(text).not.toContain('/')
   })
@@ -29,6 +31,16 @@ describe('usageSummaryText', () => {
         expect(text).not.toMatch(/unlimited/i)
       }
     }
+  })
+})
+
+describe('isPlanUnlimited', () => {
+  it('is true for the Unlimited plan or a no-cap sized limit, false otherwise', () => {
+    expect(isPlanUnlimited('Unlimited', 500)).toBe(true)
+    expect(isPlanUnlimited('Pro', 1_000_000)).toBe(true)
+    expect(isPlanUnlimited('Pro', 20_000)).toBe(false)
+    expect(isPlanUnlimited('Free', undefined)).toBe(false)
+    expect(isPlanUnlimited(undefined, null)).toBe(false)
   })
 })
 

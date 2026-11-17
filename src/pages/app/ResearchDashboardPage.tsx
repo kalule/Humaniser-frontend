@@ -342,7 +342,7 @@ function LegacyLiteratureTab({ projectId }: { projectId: string }) {
       <EmptyPlaceholder
         icon={BookOpen}
         title="No literature gathered yet"
-        subtitle="Sources are collected during the Literature Gathering step of the chapter editor, or drawn from your Research Library."
+        subtitle="Sources are collected during the Literature Gathering step of the chapter editor, or drawn from your Saved Sources."
       />
     )
   }

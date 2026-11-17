@@ -3,9 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { DeepResearchReport, DeepResearchSession, EvidenceSource } from '../../api/deepResearch'
 import { DeepResearchResults, SourceDetail, SourceRow } from './DeepResearchResults'
 import { DeepResearchReportView } from './DeepResearchReportView'
-import { CitationPreview, ClampedTitle, DisagreesBadge, QuestionProgress, SourcesSummary, StrengthMeter } from './deepResearchParts'
+import { CitationPreview, ClampedTitle, CountsLine, DisagreesBadge, ProgressSteps, StrengthMeter } from './deepResearchParts'
 import {
-  currentSection, dedupeByDoi, filterSources, findGroup, mergeSourceRows, outlineItems, previewQuote, savableSources, sourceStrength, sourcesSummaryLine, strengthLevel,
+  currentSection, dedupeByDoi, filterSources, findGroup, mergeSourceRows, outlineItems, previewQuote, savableSources, sourceStrength, strengthLevel,
 } from '../../lib/deepResearchView'
 
 const row = (over: Partial<EvidenceSource>): EvidenceSource => ({
@@ -20,10 +20,12 @@ const session: DeepResearchSession = {
   progress: { phase: 'Complete', message: '', evidenceQuestions: 3, questionsAnswered: 1, sourcesDiscovered: 3, sourcesRelevant: 1, sourcesVerified: 3, searchesRun: 2 },
   result: {
     evidenceStrength: 'Moderate', keyFindings: [], gapCandidates: [], limitations: [], evidenceGaps: [], providerCoverage: [], acceptedSources: 2, contradictorySources: 1,
+    verdict: 'Partial', verdictLabel: 'Partly answered',
+    counts: { found: 3, relevant: 2, accepted: 2, cited: 2, supports: 1, contradicts: 1, noEffect: 0, background: 0, offTopic: 0, leftOut: 1, relevanceUnknown: 0 },
     questions: [
-      { id: 'q1', type: 'Definition', question: 'How is usability defined?', status: 'Resolved', sufficiency: 'Sufficient', reasons: [] },
-      { id: 'q2', type: 'Gap', question: 'Is there South African evidence?', status: 'Researching', sufficiency: 'Insufficient', reasons: [] },
-      { id: 'q3', type: 'Context', question: 'What platforms are common?', status: 'Open', sufficiency: 'Insufficient', reasons: [] },
+      { id: 'q1', type: 'Definition', question: 'How is usability defined?', status: 'Resolved', sufficiency: 'Sufficient', reasons: [], verdict: 'Answered', verdictLabel: 'Answered', shortTitle: 'Definition', acceptedSources: 2 },
+      { id: 'q2', type: 'Gap', question: 'Is there South African evidence?', status: 'Researching', sufficiency: 'Insufficient', reasons: [], verdict: 'NoEvidence', verdictLabel: 'No relevant sources', shortTitle: 'Gaps' },
+      { id: 'q3', type: 'Context', question: 'What platforms are common?', status: 'Open', sufficiency: 'Insufficient', reasons: [], verdict: 'NotResearched', verdictLabel: 'Not researched', shortTitle: 'Context' },
     ],
   },
 }
@@ -55,41 +57,52 @@ const primaryButtons = (html: string) => [...html.matchAll(/<button[^>]*data-pri
 
 describe('layout: the report is the centre column, the panel is on the right', () => {
   const html = page(withReport)
-  it('puts the question and status first, then the one-line sources summary, then the report', () => {
-    const status = at(html, 'aria-label="Status"')
-    const summary = at(html, 'aria-label="Where the sources went"')
-    const bottom = at(html, 'Bottom line')
+  it('orders the page: header, verdict, findings, progress steps, evidence by question, action bar, follow-up', () => {
+    const header = at(html, 'Your question')
+    const verdict = at(html, 'id="verdict-heading"')
+    const steps = at(html, '<ol aria-label="Questions"')
+    const byQuestion = at(html, 'id="questions-heading"')
     const findings = at(html, 'Key findings')
-    const gaps = at(html, 'id="report-gaps"')
-    expect(status).toBeLessThan(summary)
-    expect(summary).toBeLessThan(bottom)
-    expect(bottom).toBeLessThan(findings)
-    expect(findings).toBeLessThan(gaps)
+    const bar = at(html, 'aria-label="Next steps"')
+    const followUp = at(html, 'id="report-followup"')
+    expect(header).toBeLessThan(verdict)
+    expect(verdict).toBeLessThan(findings)
+    expect(findings).toBeLessThan(steps)
+    expect(steps).toBeLessThan(byQuestion)
+    expect(byQuestion).toBeLessThan(bar)
+    expect(bar).toBeLessThan(followUp)
   })
-  it('puts the panel after the centre column, and the next-step chips under the report', () => {
-    const chips = at(html, 'aria-label="Next steps"')
-    expect(at(html, 'id="report-gaps"')).toBeLessThan(chips)
-    expect(chips).toBeLessThan(at(html, 'aria-label="Research panel"'))
+  it('puts the panel after the centre column, and makes the action bar sticky', () => {
+    expect(at(html, 'aria-label="Next steps"')).toBeLessThan(at(html, 'aria-label="Research panel"'))
+    expect(html).toMatch(/data-testid="action-bar"[^>]*class="[^"]*sticky bottom-0/)
   })
-  it('says the sources in one line above the report, opening into the funnel', () => {
-    expect(sourcesSummaryLine({ found: 150, used: 86 }, 12)).toBe('150 found · 86 accepted · 12 disagree')
-    expect(sourcesSummaryLine({ found: 5, used: 2 }, 9)).toBe('5 found · 2 accepted · 2 disagree')
-    expect(html).toContain('aria-expanded="false"')
-    expect(renderToStaticMarkup(<SourcesSummary counts={{ found: 150, used: 86 }} against={12} defaultOpen />)).toContain('of which disagree with you')
+  it('shows the verdict and the caveats together, and the server\u2019s counts in one line', () => {
+    expect(html).toContain('>Partly answered</h3>')
+    expect(html).toContain('Evidence strength: Moderate evidence')
+    const line = renderToStaticMarkup(<CountsLine counts={session.result!.counts!} />)
+    expect(line).toContain('3 found · 2 accepted · 2 cited · 1 contradict · 1 left out')
+    expect(html).toContain('3 found · 2 accepted')
   })
   it('shows each sentence of the report once', () => {
     expect(html.match(/Usability tracks satisfaction\./g)).toHaveLength(1)
     expect(html.match(/Key findings/g)).toHaveLength(1)
   })
-  it('leaves references to the Sources tab, and keeps the follow-up box under the chips', () => {
-    expect(html).not.toContain('id="report-refs"')
-    expect(at(html, 'aria-label="Next steps"')).toBeLessThan(at(html, 'id="report-followup"'))
+  it('lists the references once under the report, and keeps the follow-up box below them', () => {
+    expect(html.match(/id="report-refs"/g)).toHaveLength(1)
+    expect(at(html, 'aria-label="Next steps"')).toBeLessThan(at(html, 'id="report-refs"'))
+    expect(at(html, 'id="report-refs"')).toBeLessThan(at(html, 'id="report-followup"'))
   })
 })
 
-describe('the question is clamped to two lines with "show more"', () => {
-  const long = 'Does generative AI tool usage influence academic writing Self-Efficacy among postgraduate students at selected public universities in Gauteng'
-  it('clamps a long question and offers the rest', () => {
+describe('the question is shown in full, and only an extreme one is clamped with "show more"', () => {
+  const medium = 'Does generative AI tool usage influence academic writing Self-Efficacy among postgraduate students at selected public universities in Gauteng'
+  const long = `${medium}, and does that influence differ between full-time and part-time students, between disciplines, and across the first and final years of study?`
+  it('shows a normal-length question in full', () => {
+    const html = renderToStaticMarkup(<ClampedTitle text={medium} />)
+    expect(html).not.toContain('line-clamp-2')
+    expect(html).toContain(medium)
+  })
+  it('clamps an extreme question and offers the rest', () => {
     const html = renderToStaticMarkup(<ClampedTitle text={long} />)
     expect(html).toContain('line-clamp-2')
     expect(html).toContain('Show more')
@@ -112,25 +125,25 @@ describe('the panel has Sources / Outline / Activity; Questions are in the main 
     expect(html).toMatch(/id="ptab-outline"[^>]*tabindex="-1"/)
     expect(html).not.toContain('Evidence against')
   })
-  it('shows Questions on the page itself, with every question, its label and its sources', () => {
-    expect(html).toContain('id="questions-heading"')
-    expect(html).toContain('Questions (3)')
-    expect(html).toContain('QUESTION 1 · DEFINITION')
-    expect(html).toContain('QUESTION 2 · GAP')
-    expect(html).toContain('1 question still to research')
-    expect(html).toContain('Planned, not yet researched')
-    expect(at(html, 'aria-label="Next steps"')).toBeLessThan(at(html, 'id="questions-heading"'))
+  it('shows a collapsible card for each question with evidence, and one block for the rest', () => {
+    expect(html).toContain('Evidence by question')
+    expect(html.match(/<details/g)).toHaveLength(1)                                   // only Definition has accepted evidence
+    expect(html).toMatch(/<details[^>]*id="question-q1"[^>]*open/)
+    expect(html).toContain('2 questions not researched')
+    expect(html.match(/No source has been accepted for this question/g)).toBeNull()  // no empty state per card
+    expect(html).toContain('No relevant sources')
+    expect(html).toContain('Not researched')
   })
   it('Left out is a filter inside Sources and still lists what was left out, with the reason', () => {
     const l = page({ ...withReport, initialSourceFilter: 'left' })
-    expect(l).toContain('>Left out 1<')
+    expect(l).toMatch(/Left out <span class="tabular-nums">1</)
     expect(l).toContain('Off topic paper')
     expect(l).toContain('Left out: off topic')
   })
-  it('Disagree is a filter inside Sources and lists the disagreeing sources', () => {
-    const a = page({ ...withReport, initialSourceFilter: 'disagree' })
+  it('Contradicts is a filter inside Sources and lists the contradicting sources', () => {
+    const a = page({ ...withReport, initialSourceFilter: 'contradicts' })
     expect(a).toContain('Disagreeing paper')
-    expect(a).toContain('Disagrees')
+    expect(a).toContain('Contradicts')
   })
   it('Activity is the search log', () => {
     expect(page({ ...withReport, initialPanelView: 'activity' })).toContain('id="ppanel-activity"')
@@ -139,11 +152,14 @@ describe('the panel has Sources / Outline / Activity; Questions are in the main 
 
 describe('Sources tab: filter chips, de-duplication, what each card shows', () => {
   const html = page(withReport)
-  it('has Cited / All / Disagree / Left out chips with counts, Cited selected when something is cited', () => {
-    expect(html).toMatch(/aria-pressed="true"[^>]*>Cited 2</)
-    expect(html).toContain('>All 3<')
-    expect(html).toContain('>Disagree 1<')
-    expect(html).toContain('>Left out 1<')
+  it('has Cited / Contradicts / No effect / Off-topic / Left out / All chips with the server\u2019s counts, Cited selected when something is cited', () => {
+    const chip = (label: string, n: number) => new RegExp(`>${label} <span class="tabular-nums">${n}<`)
+    expect(html).toMatch(/aria-pressed="true"[^>]*>Cited <span class="tabular-nums">2</)
+    expect(html).toMatch(chip('Contradicts', 1))
+    expect(html).toMatch(chip('No effect', 0))
+    expect(html).toMatch(chip('Off-topic', 0))
+    expect(html).toMatch(chip('Left out', 1))
+    expect(html).toMatch(chip('All', 3))
   })
   it('lists only the cited sources under Cited, and numbers them as the report does', () => {
     expect(html).toContain('[1]')
@@ -151,14 +167,15 @@ describe('Sources tab: filter chips, de-duplication, what each card shows', () =
     expect(html).not.toContain('Off topic paper')
   })
   it('starts on All when nothing is cited', () => {
-    expect(page({}, { ...session, result: { ...session.result!, keyFindings: [] } })).toMatch(/aria-pressed="true"[^>]*>All 3</)
+    expect(page({}, { ...session, result: { ...session.result!, keyFindings: [] } })).toMatch(/aria-pressed="true"[^>]*>All <span class="tabular-nums">3</)
   })
   it('filters by chip', () => {
     const groups = dedupeByDoi(mergeSourceRows(rows))
     const cited = new Set(['a', 'c'])
     expect(filterSources(groups, 'cited', cited).map(g => g.id)).toEqual(['a', 'c'])
     expect(filterSources(groups, 'all', cited)).toHaveLength(3)
-    expect(filterSources(groups, 'disagree', cited).map(g => g.id)).toEqual(['c'])
+    expect(filterSources(groups, 'contradicts', cited).map(g => g.id)).toEqual(['c'])
+    expect(filterSources(groups, 'noEffect', cited)).toEqual([])
     expect(filterSources(groups, 'left', cited).map(g => g.id)).toEqual(['b'])
   })
   it('de-duplicates by DOI, keeping every link and every id, and prefers a verified, accepted copy', () => {
@@ -180,7 +197,7 @@ describe('Sources tab: filter chips, de-duplication, what each card shows', () =
   })
   it('counts the merged paper once on the page', () => {
     const twice = [...rows, row({ id: 'a2', doi: '10.1/a', title: 'Shared source', questionId: 'q2' })]
-    expect(page(withReport, session, twice)).toContain('>All 3<')
+    expect(page(withReport, session, twice)).toMatch(/>All <span class="tabular-nums">3</)
     expect(page(withReport, session, twice)).toContain('3 found')
   })
   it('a card says supports or disagrees, the study type, the sample when stated, and the region match', () => {
@@ -195,15 +212,17 @@ describe('Sources tab: filter chips, de-duplication, what each card shows', () =
     expect(r).not.toContain('h-2 w-3')
     expect(r).not.toContain('DOI matched')
   })
-  it('says so when the design was not seen, nothing about a sample that is not stated, and a disagreeing source is marked', () => {
+  it('leaves out an unknown design, region or sample, and shows one stance badge', () => {
     const [plain] = mergeSourceRows([row({ id: 'p', geography: 'Unknown', quote: 'Usability matters.' })])
     const r = renderToStaticMarkup(<ul><SourceRow source={plain} selected={false} onSelect={() => {}} /></ul>)
-    expect(r).toContain('Design not seen')
-    expect(r).toContain('Region not stated')
+    expect(r).not.toContain('Design not seen')
+    expect(r).not.toContain('Region not stated')
     expect(r).not.toContain('n =')
     const [bad] = mergeSourceRows([row({ id: 'd', polarity: 'Contradicts', geography: 'International' })])
     const d = renderToStaticMarkup(<ul><SourceRow source={bad} selected={false} onSelect={() => {}} /></ul>)
-    expect(d).toContain('Disagrees')
+    expect(d).toContain('Contradicts')
+    const [off] = mergeSourceRows([row({ id: 'o', decision: 'Rejected', stance: 'OffTopic', relevance: 'OffTopic' })])
+    expect(renderToStaticMarkup(<ul><SourceRow source={off} selected={false} onSelect={() => {}} /></ul>)).toContain('Off-topic')
     expect(d).toContain('Elsewhere')
     expect(['Strong', 'Moderate', 'Weak', 'Insufficient', 'Conflicting', ''].map(x => strengthLevel(x).level)).toEqual([4, 3, 2, 1, 2, 0])
     expect(renderToStaticMarkup(<StrengthMeter strength="Weak" />)).toContain('Limited evidence')
@@ -238,14 +257,14 @@ describe('the verification card (opened from a row or a citation marker)', () =>
 describe('Outline tab: the report headings as a jump list', () => {
   it('lists the headings in reading order, matching the ids the report renders', () => {
     const items = outlineItems(report)
-    expect(items.map(i => i.label)).toEqual(['Bottom line', 'Key findings', 'How is usability defined?', 'Conflicting evidence', 'Gaps'])
+    expect(items.map(i => i.label)).toEqual(['Bottom line', 'Key findings', 'How is usability defined?', 'Contradicting evidence', 'Gaps'])
     const doc = renderToStaticMarkup(<DeepResearchReportView report={report} part="document" onOpenSource={() => {}} selectedId={null} onExport={() => {}} exporting={false} onAsk={() => {}} />)
     for (const i of items) expect(doc, i.id).toContain(`id="${i.id}"`)
   })
   it('renders as a navigation list with the section buttons', () => {
     const html = page({ ...withReport, initialPanelView: 'outline' })
     expect(html).toContain('aria-label="Report outline"')
-    for (const l of ['Bottom line', 'Key findings', 'Conflicting evidence', 'Gaps']) expect(html).toContain(`>${l}</button>`)
+    for (const l of ['Bottom line', 'Key findings', 'Contradicting evidence', 'Gaps']) expect(html).toContain(`>${l}</button>`)
   })
   it('highlights the section the reader is in: the last heading that has reached the reading line', () => {
     const tops = [{ id: 'a', top: -300 }, { id: 'b', top: 40 }, { id: 'c', top: 600 }]
@@ -260,17 +279,18 @@ describe('next steps under the report', () => {
   const quote = { canContinue: true, reason: null, answeredQuestions: 1, unansweredQuestions: 2, freshCredits: 14, followUpCredits: 7, depth: 'standard' }
   const html = page({ ...withReport, followUpQuote: quote, onContinue: () => {} }, stopped)
 
-  it('offers the four chips: research the rest, find gaps, export, save sources', () => {
-    expect(html).toContain('Research remaining 2 questions · 7 credits')
-    expect(html).toContain('Find gaps (1)')
-    expect(html).toContain('Export report (Word)')
+  it('offers the four actions: research the rest, find gaps, export, save sources, with the cost in plain words', () => {
+    expect(html).toContain('Research remaining 2 questions')
+    expect(html).toContain('Uses 7 credits; unused credits are returned.')
+    expect(html).toContain('Find gaps (2)')
+    expect(html).toContain('Export report')
     expect(html).toMatch(/Save sources \(\d+\)/)
   })
   it('makes only "Research remaining" the filled chip when it is available', () => {
-    expect(primaryButtons(html)).toEqual(['Research remaining 2 questions · 7 credits'])
+    expect(primaryButtons(html)).toEqual(['Research remaining 2 questions'])
   })
-  it('makes the Word export the filled chip when nothing can be continued', () => {
-    expect(primaryButtons(page(withReport))).toEqual(['Export report (Word)'])
+  it('makes the export the filled chip when nothing can be continued', () => {
+    expect(primaryButtons(page(withReport))).toEqual(['Export report'])
   })
   it('counts the sources it would save: accepted, verified, not yet saved; and says when all are saved', () => {
     const groups = dedupeByDoi(mergeSourceRows(rows))
@@ -281,14 +301,15 @@ describe('next steps under the report', () => {
     expect(renderToStaticMarkup(<DeepResearchResults session={session} rows={rows} busyId={null} addedIds={new Set(['a', 'c'])} onDecide={noop} onAdd={noop} onUse={() => {}}
       onExport={() => {}} exporting={false} onFollowUp={() => {}} onNew={() => {}} {...withReport} />)).toContain('Sources saved')
   })
-  it('disables Find gaps when the report found none', () => {
-    const none = page({ ...withReport, report: { ...report, gaps: [] } })
+  it('disables Find gaps when every question is answered and the report lists no gaps', () => {
+    const answered = { ...session, result: { ...session.result!, questions: session.result!.questions.map(q => ({ ...q, verdict: 'Answered' as const })) } }
+    const none = page({ ...withReport, report: { ...report, gaps: [] } }, answered)
     expect(none).toMatch(/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>).)*Find gaps/s)
     expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>).)*Find gaps/s)
   })
   it('keeps Edit question and New research as real, secondary buttons', () => {
     expect(html).toMatch(/<button[^>]*border border-slate-300[^>]*>Edit question<\/button>/)
-    expect(html).toMatch(/<button[^>]*border border-slate-300[^>]*>Blank new research<\/button>/)
+    expect(html).toMatch(/<button[^>]*border border-slate-300[^>]*>New research<\/button>/)
   })
 })
 
@@ -296,7 +317,7 @@ describe('narrow screens: the panel is a bottom sheet', () => {
   const html = page(withReport)
   it('is hidden below lg until opened, and opened from a floating Sources button', () => {
     expect(html).toMatch(/<aside id="selected-source-panel"[^>]*class="[^"]*max-lg:hidden/)
-    expect(html).toMatch(/<button[^>]*class="[^"]*fixed bottom-4 right-4[^"]*lg:hidden[^>]*>Sources \(3\)/)
+    expect(html).toMatch(/<button[^>]*class="[^"]*fixed bottom-20 right-4[^"]*lg:hidden[^>]*>Sources \(3\)/)
   })
   it('is a side panel from lg up, sticky beside the report', () => {
     expect(html).toMatch(/<aside[^>]*class="[^"]*lg:sticky/)
@@ -305,15 +326,16 @@ describe('narrow screens: the panel is a bottom sheet', () => {
 })
 
 describe('progress, citations and conflicts', () => {
-  const progress = renderToStaticMarkup(<QuestionProgress segments={['done', 'partial', 'pending']} summary="1 strongly supported \u00b7 1 partly supported \u00b7 1 not reached" onSelect={() => {}} />)
-  it('progress has a legend in the same three words as the headline, button segments, symbols and a non-colour cue', () => {
-    expect(progress).toContain('Strongly supported')
-    expect(progress).toContain('Partly supported')
-    expect(progress).toContain('Not reached')
-    expect(progress.match(/<button/g)).toHaveLength(3)
-    expect(progress).toContain('aria-label="Question 2: partly supported. Go to this question."')
-    expect(progress).toContain('✓'); expect(progress).toContain('◐'); expect(progress).toContain('○')
-    expect(progress).toContain('border-dashed')
+  const progress = renderToStaticMarkup(<ProgressSteps onSelect={() => {}} steps={[
+    { title: 'Definition', state: 'done', verdict: 'Answered' }, { title: 'Mechanisms', state: 'partial', verdict: 'Partly answered' },
+    { title: 'Effect', state: 'pending', verdict: 'Not researched' }, { title: 'South Africa', state: 'failed', verdict: 'Results off-topic' }]} />)
+  it('progress steps are named by question, not numbered, with symbols, and there is no legend that looks clickable', () => {
+    for (const t of ['Definition', 'Mechanisms', 'Effect', 'South Africa']) expect(progress).toContain(`>${t}</span>`)
+    expect(progress.match(/<button/g)).toHaveLength(4)
+    expect(progress).toContain('aria-label="Mechanisms: Partly answered. Go to this question."')
+    expect(progress).toContain('✓'); expect(progress).toContain('◐'); expect(progress).toContain('○'); expect(progress).toContain('!')
+    expect(progress).not.toContain('Legend')
+    expect(page(withReport)).not.toContain('aria-label="Legend"')
   })
   it('a citation preview shows the title and the quote, or says there is none', () => {
     const p = renderToStaticMarkup(<CitationPreview id="t" title="Shared source" quote="Usability is the ease of use of a system." />)
@@ -321,9 +343,11 @@ describe('progress, citations and conflicts', () => {
     expect(renderToStaticMarkup(<CitationPreview id="t" title="X" quote={null} />)).toContain('No supporting sentence was kept')
     expect(previewQuote(mergeSourceRows(rows)[0])).toBe('Usability is the ease of use of a system.')
   })
-  it('"Disagrees" is one badge: icon and word, in the report and in the panel', () => {
-    expect(renderToStaticMarkup(<DisagreesBadge />)).toMatch(/<svg.*Disagrees/s)
-    expect(page(withReport)).toContain('Disagrees')
+  it('"Contradicts" and "No effect found" are different badges: a null result is not shown as a contradiction', () => {
+    expect(renderToStaticMarkup(<DisagreesBadge />)).toMatch(/<svg.*Contradicts/s)
+    expect(renderToStaticMarkup(<DisagreesBadge kind="Null" />)).toContain('No effect found')
+    expect(renderToStaticMarkup(<DisagreesBadge kind="Null" />)).not.toContain('orange')
+    expect(page(withReport)).toContain('Contradicts')
   })
 })
 

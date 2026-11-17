@@ -5,10 +5,10 @@ import { cn } from '../../lib/utils'
 import { useToolTransferStore } from '../../store/toolTransferStore'
 
 const DESTINATIONS = [
-  { label: 'Rewrite',    path: '/app/humaniser',  Icon: Sparkles  },
-  { label: 'AI Detector',   path: '/app/detector',   Icon: Shield     },
+  { label: 'Humanise',   path: '/app/humaniser',  Icon: Sparkles  },
+  { label: 'AI Content Check', path: '/app/detector',   Icon: Shield     },
   { label: 'Paraphraser',   path: '/app/paraphrase', Icon: RefreshCw  },
-  { label: 'Grammar',       path: '/app/grammar',    Icon: SpellCheck },
+  { label: 'Grammar & Style', path: '/app/grammar',    Icon: SpellCheck },
   { label: 'Summariser',    path: '/app/summarise',  Icon: Scissors   },
 ] as const
 

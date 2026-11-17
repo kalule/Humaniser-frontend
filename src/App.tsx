@@ -21,7 +21,6 @@ const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'))
 const EditorPage = lazy(() => import('./pages/app/EditorPage'))
-const QualitativeAnalysisPage = lazy(() => import('./pages/app/QualitativeAnalysisPage'))
 const HistoryPage = lazy(() => import('./pages/app/HistoryPage'))
 const AccountPage = lazy(() => import('./pages/app/AccountPage'))
 const BillingPage = lazy(() => import('./pages/app/BillingPage'))
@@ -61,8 +60,10 @@ const WebLibraryPage      = lazy(() => import('./pages/app/WebLibraryPage'))
 const FindPapersPage      = lazy(() => import('./pages/app/FindPapersPage'))
 const DeepResearchPage    = lazy(() => import('./pages/app/DeepResearchPage'))
 const StudyDesignPage     = lazy(() => import('./pages/app/StudyDesignPage'))
+const QualitativeAnalysisPage = lazy(() => import('./pages/app/QualitativeAnalysisPage'))
 const FeedbackTrackerPage = lazy(() => import('./pages/app/FeedbackTrackerPage'))
 const AuthorshipEvidencePage = lazy(() => import('./pages/app/AuthorshipEvidencePage'))
+const LiteratureMatrixPage = lazy(() => import('./pages/app/LiteratureMatrixPage'))
 const CollectionsPage     = lazy(() => import('./pages/app/CollectionsPage'))
 const EvidencePackagesPage = lazy(() => import('./pages/app/EvidencePackagesPage'))
 const CollectionDetailPage = lazy(() => import('./pages/app/CollectionDetailPage'))
@@ -81,6 +82,7 @@ const LiteratureDiscoveryProgressPage = lazy(() => import('./pages/app/Literatur
 const ReviewerPage                  = lazy(() => import('./pages/app/ReviewerPage'))
 const ReviewerWorkspacePage         = lazy(() => import('./pages/app/ReviewerWorkspacePage'))
 const CitationIntegrityPage         = lazy(() => import('./pages/app/CitationIntegrityPage'))
+const CitationCheckPage             = lazy(() => import('./pages/app/CitationCheckPage'))
 
 class ChunkErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false }
@@ -252,13 +254,13 @@ function AppInner() {
             <Route element={<ToolGate tool="data-analyst" />}>
               <Route path="analyst"       element={<AnalystPage />} />
             </Route>
+            <Route element={<ToolGate tool="study-design" />}>
+              <Route path="study-design"  element={<StudyDesignPage />} />
+            </Route>
             <Route element={<ToolGate tool="qualitative-analysis" />}>
               <Route path="qualitative-analysis"                                      element={<QualitativeAnalysisPage />} />
               <Route path="qualitative-analysis/:studyId"                             element={<QualitativeAnalysisPage />} />
               <Route path="qualitative-analysis/:studyId/transcripts/:transcriptId"   element={<QualitativeAnalysisPage />} />
-            </Route>
-            <Route element={<ToolGate tool="study-design" />}>
-              <Route path="study-design"  element={<StudyDesignPage />} />
             </Route>
             <Route element={<ToolGate tool="feedback-tracker" />}>
               <Route path="feedback-tracker"      element={<FeedbackTrackerPage />} />
@@ -267,6 +269,10 @@ function AppInner() {
             <Route element={<ToolGate tool="authorship-evidence" />}>
               <Route path="authorship-evidence"              element={<AuthorshipEvidencePage />} />
               <Route path="authorship-evidence/:documentId"  element={<AuthorshipEvidencePage />} />
+            </Route>
+            <Route element={<ToolGate tool="literature-matrix" />}>
+              <Route path="literature-matrix"      element={<LiteratureMatrixPage />} />
+              <Route path="literature-matrix/:id"  element={<LiteratureMatrixPage />} />
             </Route>
             <Route element={<ToolGate tool="document-chat" />}>
               <Route path="document-chat" element={<DocumentChatPage />} />
@@ -302,8 +308,8 @@ function AppInner() {
             <Route element={<ToolGate tool="proposal-studio" />}>
               <Route path="proposal-studio"           element={<ProposalStudioPage />} />
             </Route>
-            <Route element={<ToolGate tool="proposal-studio" />}>
-              <Route path="thesis-studio"              element={<ThesisStudioPage />} />
+            <Route element={<ToolGate tool="thesis-studio" />}>
+              <Route path="thesis-studio"             element={<ThesisStudioPage />} />
             </Route>
             <Route element={<ToolGate tool="research-agent" />}>
               <Route path="research-agent/:projectId" element={<ResearchAgentPage />} />
@@ -326,8 +332,7 @@ function AppInner() {
             </Route>
             <Route element={<ToolGate tool="verify-citations" />}>
               <Route path="citation-integrity" element={<CitationIntegrityPage />} />
-              {/* Bridge until the Citation Check page is committed: the menu entry points here. */}
-              <Route path="citation-check" element={<Navigate to="/app/citation-integrity" replace />} />
+              <Route path="citation-check" element={<CitationCheckPage />} />
             </Route>
           </Route>
         </Route>

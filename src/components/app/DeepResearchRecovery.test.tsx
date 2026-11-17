@@ -67,7 +67,7 @@ describe('1. report load failure: the cause is explained and there is always a w
     const html = errorPage()
     expect(html).toContain('Retry')
     expect(html).toContain('Generate report')
-    expect(html).toContain('Export report (Word)')
+    expect(html).toContain('Export report')
     expect(html).toMatch(/Research remaining 3 questions/)                      // visible even with no price, as a disabled chip that says why
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*title="The server could not price a follow-up[^>]*>/)
     expect(html).toContain('Download evidence package')
@@ -82,7 +82,8 @@ describe('1. report load failure: the cause is explained and there is always a w
   it('offers the paid-for follow-up as the filled chip once the server prices it', () => {
     const quote = { canContinue: true, reason: null, answeredQuestions: 1, unansweredQuestions: 2, freshCredits: 14, followUpCredits: 7, depth: 'standard' }
     const html = errorPage({ followUpQuote: quote, onContinue: () => {} })
-    expect(html).toContain('Research remaining 2 questions · 7 credits')
+    expect(html).toContain('Research remaining 2 questions')
+    expect(html).toContain('Uses 7 credits; unused credits are returned.')
     expect(html.match(/data-primary="true"/g)).toHaveLength(1)
   })
 })
@@ -114,8 +115,8 @@ describe('2. Cited N comes from one shared index, never 0 when findings cite sou
       <DeepResearchResults session={session({}, [finding({ supportingSourceIds: ['a'], contradictingSourceIds: ['c'] })])} rows={rows} busyId={null} addedIds={new Set()}
         onDecide={async () => {}} onAdd={async () => {}} onUse={() => {}} onExport={() => {}} exporting={false} onFollowUp={() => {}} onNew={() => {}} />,
     )
-    expect(html).toContain('>Cited 2<')
-    expect(html).not.toContain('>Cited 0<')
+    expect(html).toMatch(/>Cited <span class="tabular-nums">2</)
+    expect(html).not.toMatch(/>Cited <span class="tabular-nums">0</)
     expect(html).toMatch(/aria-label="Source 1: AI and writing self-efficacy\./)
     expect(html).toMatch(/aria-label="Source 2: A null result\./)
   })
@@ -175,6 +176,6 @@ describe('6. what a source card shows is only what the data states', () => {
     const [g] = mergeSourceRows([row({ id: 'z', polarity: 'Contradicts', geography: 'Regional', coverage: 'FullText', studyDesign: 'Longitudinal', quote: 'No effect (n = 90).' })])
     expect(sourceFacts(g)).toEqual({ stance: 'disagrees', design: 'longitudinal study', sample: 90, region: { label: 'Nearby region', match: 'near' } })
     const [h] = mergeSourceRows([row({ id: 'y' })])
-    expect(sourceFacts(h)).toEqual({ stance: 'supports', design: null, sample: null, region: { label: 'Region not stated', match: 'unknown' } })
+    expect(sourceFacts(h)).toEqual({ stance: 'supports', design: null, sample: null, region: { label: '', match: 'unknown' } })
   })
 })

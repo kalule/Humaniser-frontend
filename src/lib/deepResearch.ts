@@ -1,4 +1,5 @@
 import type { DeepResearchMode, DeepResearchSession, EvidenceSource } from '../api/deepResearch'
+import { labelText } from './researchLabels'
 
 export interface DeepResearchModeInfo {
   value: DeepResearchMode
@@ -63,28 +64,10 @@ export function progressPercent(session: DeepResearchSession): number {
   return Math.min(92, 10 + Math.round((questionsAnswered / evidenceQuestions) * 82))
 }
 
-const STRENGTH_LABELS: Record<string, string> = {
-  Insufficient: 'Not enough evidence',
-  Weak: 'Limited evidence',
-  Conflicting: 'Conflicting evidence',
-  Moderate: 'Moderate evidence',
-  Strong: 'Strong evidence',
-}
-const SUFFICIENCY_LABELS: Record<string, string> = {
-  Insufficient: 'Needs more evidence',
-  PartiallySufficient: 'Partly answered',
-  Sufficient: 'Well supported',
-}
-export const sufficiencyLabel = (s: string): string => SUFFICIENCY_LABELS[s] ?? s
-export const strengthLabel = (s: string): string => STRENGTH_LABELS[s] ?? s
-
-const GEOGRAPHY_LABELS: Record<string, string> = {
-  Target: 'From your study region',
-  Regional: 'From a neighbouring region',
-  International: 'International',
-  Unknown: 'Region unclear',
-}
-export const geographyLabel = (g: string): string => GEOGRAPHY_LABELS[g] ?? g
+// Wording lives in researchLabels, shared with the Research Library's evidence packages.
+export const sufficiencyLabel = (s: string): string => labelText('sufficiency', s)
+export const strengthLabel = (s: string): string => labelText('strength', s)
+export const geographyLabel = (g: string): string => labelText('geography', g)
 
 export function authorLine(s: Pick<EvidenceSource, 'authors' | 'year'>): string {
   const names = s.authors.length === 0 ? 'Unknown authors'

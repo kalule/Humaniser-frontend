@@ -1,0 +1,55 @@
+{
+  "protocol": "frozen-retrieval-live-models-v1",
+  "repetitionsPerModeAndCase": 1,
+  "cacheConditions": "Preparation cache disabled; identical frozen retrieval data; upstream verification HTTP caches uncontrolled. Baseline first. No causal speedup claim or tail/median estimate.",
+  "records": [
+    {
+      "Name": "argumentative",
+      "compact": true,
+      "status": "Incomplete",
+      "elapsedMs": 46836,
+      "reason": "Generation could not finish its validation. Any available draft is incomplete.",
+      "initialPlanning": null,
+      "pipeline": {
+        "CorrelationId": "d0683c6cde844793b284247e151881a7",
+        "Counts": {
+          "assessment_raw_candidates": 10,
+          "assessment_candidates": 10,
+          "assessed_sources": 10
+        },
+        "TotalMs": 46828,
+        "StagesMs": {
+          "starting": 100,
+          "planning-question": 9049,
+          "searching-sources": 160,
+          "assessing-evidence": 16239,
+          "building-outline": 13481,
+          "drafting": 7795,
+          "incomplete": 3
+        },
+        "ModelCalls": 5,
+        "InputTokens": 31387,
+        "OutputTokens": 7942,
+        "ProviderRetries": 0,
+        "CancelledModelCalls": 0,
+        "FailedModelCalls": 0,
+        "ModelElapsedMs": 46199,
+        "TokenUsageComplete": true
+      },
+      "WordCount": 0,
+      "sources": 0,
+      "frozenSources": 12,
+      "flags": [
+        "EssayStructureGap",
+        "EssayIncomplete"
+      ],
+      "claimAudit": null,
+      "diagnostics": [
+        "assessment_ranked:10:10",
+        "assessment_window:10/10",
+        "model_calls:4",
+        "recovery_calls:0"
+      ]
+    }
+  ]
+}

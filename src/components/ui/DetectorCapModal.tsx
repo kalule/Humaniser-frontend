@@ -58,10 +58,10 @@ export function DetectorCapModal() {
               <ShieldAlert size={24} className="text-rose-400" />
             </div>
 
-            <h2 className="text-lg font-bold text-white mb-1">Monthly AI Detector limit reached</h2>
+            <h2 className="text-lg font-bold text-white mb-1">Monthly AI Content Check limit reached</h2>
             <p className="text-slate-400 text-sm mb-5">
               You've used <span className="text-white font-semibold">{used.toLocaleString()}</span> of{' '}
-              <span className="text-white font-semibold">{limit.toLocaleString()}</span> AI Detector checks on
+              <span className="text-white font-semibold">{limit.toLocaleString()}</span> AI Content Check scans on
               your <span className="text-indigo-400 font-semibold">{user?.plan ?? 'Free'}</span> plan. This cap
               is separate from your shared credit balance.
             </p>

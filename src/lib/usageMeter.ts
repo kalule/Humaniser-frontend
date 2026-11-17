@@ -18,6 +18,16 @@ export const DETECTOR_METER_THRESHOLD_PCT = 70
 export const usagePercent = (m: Pick<UsageMetric, 'used' | 'limit' | 'unlimited'>) =>
   m.unlimited || m.limit <= 0 ? 0 : (m.used / m.limit) * 100
 
+/** Limits at or above this are the backend's stand-in for "no cap". */
+export const UNLIMITED_LIMIT_THRESHOLD = 1_000_000
+
+/**
+ * Whether the account has no word/credit cap. Driven by the signed-in user's `plan` (from the auth
+ * store's UserDto) with the limit as a fallback, since the backend encodes "no cap" as a huge limit.
+ */
+export const isPlanUnlimited = (plan: string | undefined | null, limit: number | undefined | null) =>
+  plan === 'Unlimited' || (limit ?? 0) >= UNLIMITED_LIMIT_THRESHOLD
+
 export const isDetectorMeterVisible = (used: number, limit: number) =>
   limit > 0 && (used / limit) * 100 > DETECTOR_METER_THRESHOLD_PCT
 
@@ -26,7 +36,7 @@ const n = (v: number) => v.toLocaleString()
 /**
  * One-line summary.
  *  - limited:    "3,706 / 20,000 words"
- *  - unlimited:  "Words used this month: 3,706"   (no bar, no cap)
+ *  - unlimited:  "3,706 words used this month · no limit"   (no bar, no cap)
  *  - AI Content Check (always capped): "AI Content Check scans this month: 640 / 750", plus
  *    " (fair-use limit)" when the plan badge says Unlimited so a numeric cap never sits next to
  *    "Unlimited" without saying why.
@@ -37,7 +47,7 @@ export function usageSummaryText(m: UsageMetric, planIsUnlimited: boolean): stri
     return `AI Content Check scans this month${suffix}: ${n(m.used)} / ${n(m.limit)}`
   }
   const noun = m.key === 'words' ? 'words' : 'credits'
-  if (m.unlimited) return `${m.key === 'words' ? 'Words' : 'Credits'} used this month: ${n(m.used)}`
+  if (m.unlimited) return `${n(m.used)} ${noun} used this month · no limit`
   return `${n(m.used)} / ${n(m.limit)} ${noun}`
 }
 

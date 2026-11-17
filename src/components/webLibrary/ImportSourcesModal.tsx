@@ -62,7 +62,7 @@ export function ImportSourcesModal({ open, collections: destinations, onClose, o
 
   return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" aria-labelledby="import-sources-title">
     <div className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-      <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4"><div><h2 id="import-sources-title" className="text-base font-semibold text-slate-900">Import sources</h2><p className="mt-0.5 text-xs text-slate-500">Bring references into your HumaniserAI Research Library.</p></div><button onClick={onClose} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X size={18}/></button></header>
+      <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4"><div><h2 id="import-sources-title" className="text-base font-semibold text-slate-900">Import sources</h2><p className="mt-0.5 text-xs text-slate-500">Bring references into your Saved Sources.</p></div><button onClick={onClose} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X size={18}/></button></header>
       <nav className="flex border-b border-slate-200 px-5" aria-label="Import source">
         {([['upload','Upload PDFs'],['zotero','Zotero'],['mendeley','Mendeley']] as [Tab,string][]).map(([id,label]) => <button key={id} onClick={() => { setTab(id); setJob(null) }} className={`border-b-2 px-4 py-3 text-sm font-medium ${tab === id ? 'border-purple-accent text-purple-text' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>{label}</button>)}
       </nav>

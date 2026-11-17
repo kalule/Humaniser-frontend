@@ -1,6 +1,7 @@
 import { authorshipHeader } from '../lib/authorshipDocument'
 import { useCallback, useState } from 'react'
-import { tokenRef } from '../lib/tokenRef'
+import { fetchWithAuth } from '../lib/fetchWithAuth'
+import { generateResearchPaper } from '../lib/researchPaperRuns'
 import type { WriteWithAiRequest, WriteWithAiResponse } from '../types/workbench'
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
@@ -82,7 +83,10 @@ export function useWriteWithAiStream(): UseWriteWithAiStreamResult {
   const generate = useCallback(async (request: WriteWithAiRequest, signal?: AbortSignal, onStarted?: (projectId: string) => void, documentId?: string): Promise<WriteWithAiResponse> => {
     setStage(null)
     try {
-      const token = tokenRef.current
+      if (request.documentType === 'ResearchPaper') {
+        if (!documentId) throw new Error('Save your document before starting a research paper.')
+        return await generateResearchPaper(request, documentId, setStage, signal)
+      }
       // Literature Review runs as a durable Hangfire job relayed through a broker (see the
       // backend's WriteWithAiLiteratureReviewStream doc comment) rather than synchronously in
       // this request like every other document type — a separate route, same SSE frame shapes
@@ -92,14 +96,9 @@ export function useWriteWithAiStream(): UseWriteWithAiStreamResult {
         : 'write-with-ai/stream'
       // The server remembers which document a literature review was started from, so a refused second start can say where the first will appear.
       const query = request.documentType === 'LiteratureReview' && documentId ? `?documentId=${encodeURIComponent(documentId)}` : ''
-      const res = await fetch(`${API_BASE}/api/v1/workbench/${endpoint}${query}`, {
+      const res = await fetchWithAuth(`${API_BASE}/api/v1/workbench/${endpoint}${query}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...authorshipHeader(`/api/v1/workbench/${endpoint}`),
-        },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...authorshipHeader(`/api/v1/workbench/${endpoint}`) },
         body: JSON.stringify(request),
         // Defect group H (essay audit 2026-09-28): Cancel in WriteWithAiModal was disabled for the
         // entire duration of a generation, so a student who opened the dialog by mistake — or

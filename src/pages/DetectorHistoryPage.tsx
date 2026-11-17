@@ -175,7 +175,7 @@ export default function DetectorHistoryPage() {
             className="flex items-center gap-2 text-slate-400 hover:text-slate-100 transition-colors text-sm"
           >
             <ArrowLeft size={16} />
-            Back to Detector
+            Back to AI Content Check
           </button>
           <div className="flex-1" />
           <h1 className="text-xl font-bold text-slate-100">Detection History</h1>

@@ -133,7 +133,7 @@ function ThesisUploadModal({
           <p className="text-[13px] text-slate-500 mt-1">
             {result
               ? 'Confirm the extracted structure before continuing. Citations remain unverified until the integrity checks complete.'
-              : <>For a proposal written or approved outside Humaniser. We'll extract what we can and
+              : <>For a proposal written or approved outside HumaniseAI. We'll extract what we can and
                 flag it as unverified until you confirm the details — nothing here overwrites your
                 existing Proposal Studio work.</>}
           </p>

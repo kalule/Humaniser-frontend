@@ -257,7 +257,7 @@ export default function ReviewerWorkspacePage() {
           onClick={() => navigate('/app/reviewer')}
           className="text-[12px] font-medium text-[#7c3aed] hover:text-[#4c1d95] transition-colors"
         >
-          Back to Document Reviewer
+          Back to Reviewer
         </button>
       </div>
     )

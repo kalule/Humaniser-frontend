@@ -31,7 +31,7 @@ const ABBREVIATIONS = new Set([
 ])
 
 function startsSentence(text: string, at: number): boolean {
-  return /^["'“‘(\[]*[A-Z0-9À-ÖØ-Þ]/.test(text.slice(at, at + 6))
+  return /^["'“‘([]*[A-Z0-9À-ÖØ-Þ]/.test(text.slice(at, at + 6))
 }
 
 function endsWithAbbreviation(soFar: string): boolean {

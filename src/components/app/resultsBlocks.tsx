@@ -7,7 +7,7 @@ import { StanceMarker } from './deepResearchParts'
 import { dedupeQuotes } from '../../lib/deepResearchReport'
 import { authorLine, strengthLabel } from '../../lib/deepResearch'
 import {
-  coverageChip, joinMeta, regionLabel, relationshipTag, shortQuestion, sourceFacts, verificationChecks, type Chip, type SourceGroup,
+  coverageChip, joinMeta, previewQuote, regionLabel, relationshipTag, shortQuestion, sourceFacts, stepTitle, verificationChecks, type Chip, type SourceGroup,
 } from '../../lib/deepResearchView'
 
 // ── small building blocks ───────────────────────────────────────────────────────────────────
@@ -63,6 +63,7 @@ export function SourceRow({ source, questionId, selected, onSelect, cite, note }
   note?: string
 }) {
   const f = sourceFacts(source, questionId)
+  const quote = previewQuote(source)
   const regionMark = f.region.match === 'match' ? '✓ ' : f.region.match === 'near' ? '≈ ' : f.region.match === 'far' ? '↗ ' : ''
   return (
     <li data-source-id={source.id}>
@@ -75,14 +76,18 @@ export function SourceRow({ source, questionId, selected, onSelect, cite, note }
       >
         <span className="block text-[13px] font-semibold leading-snug text-slate-900">{cite ? <span className="mr-1.5 rounded bg-purple-tint px-1 text-[12px] font-semibold tabular-nums text-purple-deep" title="Its number in the report">[{cite}]</span> : null}{source.title}</span>
         <span className="block text-[12px] text-slate-600 mt-0.5">{source.year ?? 'n.d.'}{source.journal ? ` · ${source.journal}` : ''}</span>
-        {/* What the source is, not a score: whether it supports or disagrees, what kind of study, how big, and where. */}
+        {/* One badge (its stance), then only facts that are actually known: design, sample, region. Unknowns are left out. */}
         <span className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-slate-700">
           <StanceMarker stance={f.stance} />
-          <span>{f.design ?? 'Design not seen'}</span>
+          {f.design && <span>{f.design}</span>}
           {f.sample !== null && <span className="tabular-nums">n = {f.sample.toLocaleString('en-US')}</span>}
-          <span>{regionMark}{f.region.label}</span>
+          {f.region.label && <span>{regionMark}{f.region.label}</span>}
         </span>
         {note && <span className="mt-1 block text-[12px] text-slate-600">{note}</span>}
+        {/* Only a cited source shows its quote: that is the passage the report's sentence rests on. */}
+        {cite && quote && (
+          <span className="mt-2 block rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[12px] italic text-slate-600 line-clamp-3">&ldquo;{quote}&rdquo;</span>
+        )}
       </button>
     </li>
   )
@@ -108,6 +113,7 @@ export function SourceDetail({ source, questions, busy, added, onAdd, onUse, onE
   const checks = verificationChecks(source.verification, passages.length > 0, source.coverage)
   const read = coverageChip(source.coverage, source.studyDesign)
   const region = regionLabel(source.geography)
+  const offTopicReason = source.relevanceReason ?? null
 
   const copyDoi = async () => {
     try { await navigator.clipboard.writeText(source.doi ?? ''); toast.success('DOI copied') }
@@ -130,7 +136,8 @@ export function SourceDetail({ source, questions, busy, added, onAdd, onUse, onE
 
       {!used && (
         <p className="rounded-xl bg-slate-50 p-3 text-[12px] text-slate-600">
-          {source.bucket === 'unassessed' ? 'Not reviewed before the research stopped.' : `Left out${source.exclusionReason ? `: ${source.exclusionReason}` : '.'}`}
+          {source.bucket === 'offTopic' ? `Off-topic: not about your question, so it is not used as evidence or counted.${offTopicReason ? ` ${offTopicReason}` : ''}`
+            : source.bucket === 'unassessed' ? 'Not reviewed before the research stopped.' : `Left out${source.exclusionReason ? `: ${source.exclusionReason}` : '.'}`}
         </p>
       )}
 
@@ -179,9 +186,8 @@ export function SourceDetail({ source, questions, busy, added, onAdd, onUse, onE
           <p className="text-[12px] font-semibold text-slate-800 mb-1.5">Used for</p>
           <div className="flex flex-wrap gap-1.5">
             {[...new Set(links.map(l => l.questionId))].map(id => {
-              const n = questions.findIndex(q => q.id === id) + 1
               const q = questions.find(x => x.id === id)
-              return <span key={id} title={q?.question} className="px-2.5 py-0.5 rounded-full bg-purple-tint text-purple-deep text-[12px] font-medium">Question {n || '?'}</span>
+              return <span key={id} title={q?.question} className="px-2.5 py-0.5 rounded-full bg-purple-tint text-purple-deep text-[12px] font-medium">{q ? stepTitle(q) : 'Question'}</span>
             })}
           </div>
         </div>

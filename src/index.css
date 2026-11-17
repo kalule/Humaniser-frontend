@@ -255,3 +255,25 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Verify Citations: highlights in the checked draft ─────────────────────────────────────────────
+   Colour is never the only signal: each state has its own underline style AND a leading icon. */
+.cc-para { content-visibility: auto; contain-intrinsic-size: auto 28px; }
+.cc-mark { cursor: pointer; border-radius: 3px; padding: 0 2px; text-underline-offset: 3px; text-decoration-thickness: 2px; transition: background-color .15s; }
+.cc-mark::before { font-weight: 700; font-size: .8em; margin-right: 2px; }
+.cc-mark--ok { text-decoration-line: underline; text-decoration-style: solid; text-decoration-color: #059669; background-color: rgba(16,185,129,.10) !important; }
+.cc-mark--ok::before { content: '✓'; color: #047857; }
+.cc-mark--attention { text-decoration-line: underline; text-decoration-style: wavy; text-decoration-color: #dc2626; background-color: rgba(245,158,11,.20) !important; }
+.cc-mark--attention::before { content: '!'; color: #b91c1c; }
+.cc-mark--unverified { text-decoration-line: underline; text-decoration-style: dotted; text-decoration-color: #475569; background-color: rgba(100,116,139,.12) !important; }
+.cc-mark--unverified::before { content: '?'; color: #475569; }
+.cc-mark--pending { text-decoration-line: underline; text-decoration-style: dashed; text-decoration-color: #64748b; }
+.cc-mark--pending::before { content: '…'; color: #475569; }
+.cc-mark--locked { border-bottom: 1px solid #94a3b8; }
+.cc-mark--locked::before { content: '•'; color: #475569; }
+.cc-mark:hover, .cc-mark--hover { background-color: rgba(124,58,237,.20) !important; }
+.cc-mark:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }
+.cc-flash { animation: cc-flash 1.4s ease-out; }
+@keyframes cc-flash { 0% { box-shadow: 0 0 0 4px rgba(124,58,237,.55); } 100% { box-shadow: 0 0 0 4px rgba(124,58,237,0); } }
+@media (prefers-reduced-motion: reduce) { .cc-flash { animation: none; outline: 2px solid #7c3aed; outline-offset: 2px; } }
+.cc-card-wrap { content-visibility: auto; contain-intrinsic-size: auto 140px; }

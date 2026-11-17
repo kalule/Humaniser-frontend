@@ -1,68 +1,225 @@
-import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { Download, RefreshCw, Search } from 'lucide-react'
-import { deepResearchApi, type DeepResearchSessionSummary, type EvidenceSource, type VerifiedEvidencePackage } from '../../api/deepResearch'
-import { apiErrorMessage } from '../../lib/deepResearch'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, ChevronDown, Download, FileJson, Loader2, RotateCcw, Search, X } from 'lucide-react'
+import toast from 'react-hot-toast'
+import {
+  deepResearchApi, type DeepResearchMode, type DeepResearchSessionSummary, type EvidenceSource, type VerifiedEvidencePackage,
+} from '../../api/deepResearch'
+import { apiErrorMessage, authorLine } from '../../lib/deepResearch'
 import { WebLibraryTabBar } from '../../components/webLibrary/WebLibraryTabBar'
+import { StatusChip } from '../../components/webLibrary/StatusChip'
+import { Select } from '../../components/ui/Select'
 import { researchApi } from '../../api/research'
+import { useAuthStore } from '../../store/authStore'
+import { cn } from '../../lib/utils'
+import { formatLibraryDate, formatLibraryDateTime, humaniseReason, label, labelText, nextStep } from '../../lib/researchLabels'
+import { groupPackages, isInProgress, questionSummary, scopeDetails, type PackageGroup } from '../../lib/evidencePackagesView'
 
-const button = 'rounded-lg border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50'
+const LIST_POLL_MS = 5000
+const secondary = 'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50'
+const primary = 'inline-flex items-center gap-1.5 rounded-lg bg-purple-accent px-3.5 py-1.5 text-[13px] font-medium text-white hover:bg-purple-deep disabled:opacity-60'
 const uniqueSources = (sources: EvidenceSource[]) => [...new Map(sources.map(source => [source.id, source])).values()]
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 function SourceList({ sources }: { sources: EvidenceSource[] }) {
-  return <ul className="space-y-3">{uniqueSources(sources).map(source => <li key={source.id} className="rounded-lg border border-slate-200 p-3">
-    <p className="font-medium">{source.title}</p>
-    <p className="text-sm text-slate-500">{source.authors.join(', ')} · {source.year ?? 'Year unknown'}</p>
-    <p className="text-sm">{source.polarity} · {source.strength} · {source.verification} · {source.geography}</p>
-    {source.doi && <p className="break-all text-sm text-slate-500">DOI: {source.doi}</p>}
-    {source.quote && <blockquote className="mt-2 border-l-2 border-purple-200 pl-3 text-sm">{source.quote}</blockquote>}
+  return <ul className="space-y-2.5">{uniqueSources(sources).map(source => <li key={source.id} className="rounded-lg border border-slate-200 bg-white p-3">
+    <p className="text-[13.5px] font-medium text-slate-900">{source.title}</p>
+    <p className="mt-0.5 text-[12.5px] text-slate-600">{authorLine(source)}{source.journal ? ` · ${source.journal}` : ''}</p>
+    <div className="mt-1.5 flex flex-wrap gap-1">
+      <StatusChip kind="polarity" value={source.polarity} />
+      <StatusChip kind="strength" value={source.strength} />
+      <StatusChip kind="verification" value={source.verification} />
+      <StatusChip kind="geography" value={source.geography} />
+    </div>
+    {source.doi && <p className="mt-1.5 break-all text-[12px] text-slate-600">DOI {source.doi}</p>}
+    {source.quote && <blockquote className="mt-2 border-l-2 border-purple-200 pl-3 text-[13px] text-slate-700">{source.quote}</blockquote>}
   </li>)}</ul>
 }
 
-function PackageDetails({ evidence }: { evidence: VerifiedEvidencePackage }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section><h3 className="mb-2 text-[14px] font-semibold text-slate-900">{title}</h3>{children}</section>
+}
+
+/** Failed, off-topic, stopped or partial: say why, what to do next, and offer the one action that helps. */
+function OutcomeBanner({ summary, evidence }: { summary: DeepResearchSessionSummary; evidence: VerifiedEvidencePackage | null }) {
+  const navigate = useNavigate()
+  const [busy, setBusy] = useState(false)
+  const [canRetryFree, setCanRetryFree] = useState<boolean | null>(null)
+  const offTopic = summary.status === 'NeedsReview' || evidence?.completionReason === 'OffTopicResults'
+
+  useEffect(() => {
+    if (!offTopic) return
+    let live = true
+    deepResearchApi.followUpQuote(summary.id).then(q => { if (live) setCanRetryFree(!!q.canRetryFree) }).catch(() => { if (live) setCanRetryFree(false) })
+    return () => { live = false }
+  }, [offTopic, summary.id])
+
+  const step = nextStep(summary.status, evidence?.completionReason)
+  if (evidence?.evidenceSufficient && !offTopic) return null
+  if (!step && !offTopic) return null
+
+  const go = (id: string) => navigate(`/app/deep-research?session=${encodeURIComponent(id)}`)
+  const retryFree = async () => {
+    setBusy(true)
+    try {
+      // Same request the Deep Research page sends: same question and depth, marked as a retry, so no credits are held.
+      const session = await deepResearchApi.get(summary.id)
+      const next = await deepResearchApi.start({
+        projectId: session.projectId, researchQuestion: session.researchQuestion, mode: session.mode as DeepResearchMode,
+        depth: (session.depth as 'summary' | 'standard' | 'deep' | null | undefined) ?? undefined, retryOfSessionId: session.id,
+      })
+      go(next.id)
+    } catch (err) { toast.error(apiErrorMessage(err, 'Could not retry the search.')) } finally { setBusy(false) }
+  }
+  const resume = async () => {
+    setBusy(true)
+    try { go((await deepResearchApi.resume(summary.id)).id) }
+    catch (err) { toast.error(apiErrorMessage(err, 'Could not resume the research.')) } finally { setBusy(false) }
+  }
+
+  // Off-topic is decided at session level, so it wins over the stored completion reason
+  // (a run can end "SearchesExhausted" and then be marked off-topic on review).
+  const reason = offTopic ? label('completionReason', 'OffTopicResults')
+    : evidence ? label('completionReason', evidence.completionReason) : label('sessionStatus', summary.status)
+  const danger = offTopic || summary.status === 'Failed'
+  return (
+    <div role="status" className={cn('rounded-lg border p-3', danger ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50')}>
+      <p className={cn('text-[13.5px] font-medium', danger ? 'text-red-800' : 'text-amber-900')}>
+        {evidence && !evidence.evidenceSufficient && !danger ? 'Partial evidence. ' : ''}{reason.text}.
+      </p>
+      {step && <p className={cn('mt-0.5 text-[13px]', danger ? 'text-red-800' : 'text-amber-900')}>{step}</p>}
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        {offTopic && canRetryFree && <button type="button" className={primary} disabled={busy} onClick={() => void retryFree()}>{busy ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Retry for free</button>}
+        {offTopic && canRetryFree === false && <span className="text-[12.5px] text-red-800">This run has already been retried once.</span>}
+        {!offTopic && summary.canResume && <button type="button" className={primary} disabled={busy} onClick={() => void resume()}>{busy ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Resume</button>}
+        <button type="button" className={offTopic || summary.canResume ? secondary : primary} onClick={() => go(summary.id)}>Continue in Deep Research <ArrowRight size={13} /></button>
+      </div>
+    </div>
+  )
+}
+
+function PackageDetails({ evidence, summary, group, onSelectRun }: {
+  evidence: VerifiedEvidencePackage
+  /** Null when the package was opened by link and its session isn't in the loaded list. */
+  summary: DeepResearchSessionSummary | null
+  group: PackageGroup | null
+  onSelectRun: (id: string) => void
+}) {
+  const isAdmin = useAuthStore(s => s.user?.role === 'Admin')
   const sources = new Map(evidence.acceptedEvidence.map(source => [source.id, source]))
+  const sourceCount = uniqueSources(evidence.acceptedEvidence).length
   const question = (id: string) => evidence.evidenceQuestions.find(item => item.id === id)?.question ?? 'Evidence question'
-  function download() {
+  const qs = questionSummary(evidence.evidenceQuestions)
+  const scope = scopeDetails(evidence)
+  const [downloading, setDownloading] = useState(false)
+
+  const downloadJson = () => {
     const url = URL.createObjectURL(new Blob([JSON.stringify(evidence, null, 2)], { type: 'application/json' }))
     const anchor = document.createElement('a')
     anchor.href = url; anchor.download = `evidence-package-${evidence.sessionId}.json`; anchor.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
-  return <article className="min-w-0 space-y-5 rounded-xl border border-slate-200 bg-white p-5">
-    <header className="space-y-3">
-      <h2 className="break-words text-xl font-semibold">{evidence.researchQuestion}</h2>
-      <p className={`rounded-lg p-3 text-sm ${evidence.evidenceSufficient ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}>
-        {evidence.evidenceSufficient ? 'Evidence sufficiency criteria met' : 'Partial evidence — sufficiency not established'} · {evidence.completionReason}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <button className={button} onClick={download}><Download size={14} className="mr-2 inline" />Download package</button>
-        <Link className={button} to={`/app/research-agent/${evidence.projectId}/proposal-workflow?package=${evidence.sessionId}`}>Reuse in Proposal Studio</Link>
-        <Link className={button} to={`/app/deep-research?session=${encodeURIComponent(evidence.sessionId)}`}>Open research session</Link>
+  const downloadReport = async () => {
+    setDownloading(true)
+    try { await deepResearchApi.exportReportDocx(evidence.sessionId) }
+    catch (err) { toast.error(apiErrorMessage(err, 'The Word report could not be made. Open the session in Deep Research to download it.')) }
+    finally { setDownloading(false) }
+  }
+
+  return <article className="min-w-0">
+    {/* Sticky: the question, its runs and the actions stay in view while the evidence scrolls. */}
+    <header className="sticky top-0 z-10 space-y-3 border-b border-slate-200 bg-white/95 px-5 pb-4 pt-5 backdrop-blur">
+      <h2 className="line-clamp-3 break-words text-[17px] font-semibold leading-snug text-slate-900">{evidence.researchQuestion}</h2>
+      <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-slate-600">
+        {summary && <StatusChip kind="sessionStatus" value={summary.status} />}
+        <span>{plural(sourceCount, 'source')}</span><span aria-hidden>·</span>
+        <span>{plural(evidence.usage.searches, 'search', 'searches')}</span>
+        {summary && <><span aria-hidden>·</span><span>{formatLibraryDate(summary.createdAt)}</span></>}
+        {summary && group && group.runs.length > 1 && (
+          <Select aria-label="Run of this question" wrapperClassName="ml-auto w-auto" value={summary.id} onChange={e => onSelectRun(e.target.value)}>
+            {[...group.runs].reverse().map(r => (
+              <option key={r.session.id} value={r.session.id}>
+                Run {r.runNumber} of {group.runs.length} · {formatLibraryDateTime(r.session.createdAt)} · {labelText('sessionStatus', r.session.status)}
+              </option>
+            ))}
+          </Select>
+        )}
       </div>
-      <p className="text-sm text-slate-500">{uniqueSources(evidence.acceptedEvidence).length} verified accepted sources · {evidence.usage.searches} searches · {Math.round(evidence.usage.elapsedSeconds)} seconds · estimated LLM cost ${evidence.usage.estimatedLlmCostUsd.toFixed(4)}</p>
+      <div className="flex flex-wrap gap-2">
+        <Link className={primary} to={`/app/research-agent/${evidence.projectId}/proposal-workflow?package=${evidence.sessionId}`}>Reuse in Proposal Studio <ArrowRight size={13} /></Link>
+        <button type="button" className={secondary} disabled={downloading} onClick={() => void downloadReport()}>{downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Download report (Word)</button>
+        <button type="button" className={secondary} onClick={downloadJson}><FileJson size={13} /> Download data (JSON)</button>
+        <Link className={secondary} to={`/app/deep-research?session=${encodeURIComponent(evidence.sessionId)}`}>Open in Deep Research</Link>
+      </div>
     </header>
-    <section><h3 className="mb-2 font-semibold">Scope</h3>{evidence.scope ? <p className="text-sm">{[evidence.scope.topic, evidence.scope.relationship, evidence.scope.academicField, evidence.scope.population.join(', '), evidence.scope.geography.join(', '), evidence.scope.timePeriod].filter(Boolean).join(' · ')}</p> : <p className="text-sm text-slate-500">Scope was not established.</p>}</section>
-    <section><h3 className="mb-2 font-semibold">Evidence questions</h3><ul className="space-y-2">{evidence.evidenceQuestions.map(item => <li key={item.id} className="text-sm"><p className="font-medium">{item.question}</p><p>{item.sufficiency} · {item.status}</p>{item.reasons.map((reason, index) => <p key={index} className="text-slate-500">{reason}</p>)}</li>)}</ul></section>
-    <section><h3 className="mb-2 font-semibold">Key findings</h3>{!evidence.keyFindings.length && <p className="text-sm text-slate-500">No supported findings recorded.</p>}
-      <ul className="space-y-4">{evidence.keyFindings.map((finding, index) => <li key={index} className="rounded-lg bg-slate-50 p-3 text-sm">
-        <p className="font-medium">{finding.statement}</p><p className="text-slate-500">{finding.strength} · {finding.scope}</p>
-        {(['supportingSourceIds', 'contradictingSourceIds'] as const).map(key => <div key={key} className="mt-2"><p className="font-medium">{key === 'supportingSourceIds' ? 'Supporting sources' : 'Contradicting sources'}</p><ul>{finding[key].map(id => <li key={id}>{sources.get(id)?.title ?? 'Source unavailable in this package'}</li>)}</ul>{!finding[key].length && <p className="text-slate-500">None recorded</p>}</div>)}
-        {finding.caveats.map((caveat, i) => <p key={i} className="mt-2 text-amber-800">{caveat}</p>)}
-      </li>)}</ul>
-    </section>
-    <details><summary className="cursor-pointer font-semibold">Accepted evidence ({uniqueSources(evidence.acceptedEvidence).length})</summary><div className="mt-3"><SourceList sources={evidence.acceptedEvidence} /></div></details>
-    <details><summary className="cursor-pointer font-semibold">Contradictory and null evidence ({uniqueSources(evidence.contradictions).length})</summary><div className="mt-3"><SourceList sources={evidence.contradictions} /></div></details>
-    <section><h3 className="mb-2 font-semibold">Potential research gaps</h3><p className="mb-2 text-sm text-slate-500">Candidates require validation. Empty or failed searches do not establish a research gap.</p>
-      {!evidence.potentialResearchGaps.length && <p className="text-sm">No potential gaps established.</p>}
-      {evidence.potentialResearchGaps.map((gap, index) => <div key={index} className="mb-3 text-sm"><p className="font-medium">{question(gap.questionId)}</p><p>{gap.type} · {gap.confidence}</p>{gap.reasons.map((reason, i) => <p key={i}>{reason}</p>)}</div>)}
-    </section>
-    <section><h3 className="mb-2 font-semibold">Insufficient evidence</h3>{!evidence.insufficientEvidence.length && <p className="text-sm text-slate-500">None recorded.</p>}{evidence.insufficientEvidence.map((gap, index) => <div key={index} className="mb-3 text-sm"><p className="font-medium">{gap.question}</p>{gap.reasons.map((reason, i) => <p key={i}>{reason}</p>)}</div>)}</section>
-    <section><h3 className="mb-2 font-semibold">Limitations</h3><ul className="list-disc space-y-1 pl-5 text-sm">{evidence.limitations.map((limitation, index) => <li key={index}>{limitation}</li>)}</ul></section>
-    <details><summary className="cursor-pointer font-semibold">Search and provider coverage</summary><div className="mt-3 space-y-3 text-sm">
-      {evidence.providerCoverage.map((provider, index) => <p key={index}>{provider.provider}: {provider.searches} searches; {provider.withResults} with results; {provider.empty} empty; {provider.unavailable} unavailable; {provider.rateLimited} rate limited; {provider.unconfirmed} unconfirmed</p>)}
-      {evidence.searchCoverage.map((search, index) => <div key={index} className="rounded-lg border p-3"><p className="break-words font-medium">{search.query}</p><p>{search.intent} · {search.newCandidates} new · {search.duplicates} duplicates</p>{search.providers.map((provider, i) => <p key={i}>{provider.provider}: {provider.outcome} ({provider.results} results){provider.detail ? ` — ${provider.detail}` : ''}</p>)}</div>)}
-    </div></details>
-    <details className="text-sm text-slate-500"><summary className="cursor-pointer">Package provenance</summary><p>Project: {evidence.projectId}</p><p>Schema: {evidence.schemaVersion}</p><p className="break-all">Content hash: {evidence.contentHash}</p><p>{evidence.usage.inputTokens + evidence.usage.outputTokens} LLM tokens · {evidence.usage.providerCalls} provider calls</p><p className="mt-2">This snapshot preserves the evidence at completion. Later source decisions appear in the research session.</p></details>
+
+    <div className="space-y-6 px-5 py-5">
+      {summary && <OutcomeBanner summary={summary} evidence={evidence} />}
+
+      {scope.length > 0 && (
+        <Section title="Scope">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
+            {scope.map(s => <div key={s.label} className="contents"><dt className="text-slate-600">{s.label}</dt><dd className="text-slate-900">{s.value}</dd></div>)}
+          </dl>
+        </Section>
+      )}
+
+      <Section title="Evidence questions">
+        {qs.total > 0 && (
+          <div className="mb-3">
+            <p className="text-[13px] text-slate-700"><span className="font-semibold text-slate-900">{qs.answered} of {qs.total}</span> questions answered{qs.partly ? `, ${qs.partly} partly` : ''}</p>
+            <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-slate-100" role="img" aria-label={`${qs.answered} of ${qs.total} answered, ${qs.partly} partly`}>
+              <div className="bg-green-500" style={{ width: `${(qs.answered / qs.total) * 100}%` }} />
+              <div className="bg-amber-400" style={{ width: `${(qs.partly / qs.total) * 100}%` }} />
+            </div>
+          </div>
+        )}
+        <ul className="space-y-2.5">{evidence.evidenceQuestions.map(item => <li key={item.id} className="rounded-lg border border-slate-200 bg-white p-3 text-[13px]">
+          <div className="flex flex-wrap items-start gap-2">
+            <p className="min-w-0 flex-1 font-medium text-slate-900">{item.question}</p>
+            <StatusChip kind="sufficiency" value={item.sufficiency} />
+          </div>
+          {item.status === 'Exhausted' && item.sufficiency !== 'Sufficient' && <p className="mt-1 text-[12.5px] text-slate-600">{labelText('questionStatus', item.status)}.</p>}
+          {item.reasons.length > 0 && <ul className="mt-1 space-y-0.5 text-[12.5px] text-slate-600">{item.reasons.map((reason, index) => <li key={index}>{humaniseReason(reason)}</li>)}</ul>}
+        </li>)}</ul>
+      </Section>
+
+      <Section title="Key findings">{!evidence.keyFindings.length && <p className="text-[13px] text-slate-600">No supported findings recorded.</p>}
+        <ul className="space-y-3">{evidence.keyFindings.map((finding, index) => <li key={index} className="rounded-lg bg-slate-50 p-3 text-[13px]">
+          <p className="font-medium text-slate-900">{finding.statement}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5"><StatusChip kind="strength" value={finding.strength} />{finding.scope && <span className="text-[12.5px] text-slate-600">{finding.scope}</span>}</div>
+          {(['supportingSourceIds', 'contradictingSourceIds'] as const).map(key => finding[key].length > 0 && <div key={key} className="mt-2"><p className="text-[12.5px] font-medium text-slate-700">{key === 'supportingSourceIds' ? 'Supporting sources' : 'Contradicting sources'}</p><ul className="list-disc pl-5 text-slate-700">{finding[key].map(id => <li key={id}>{sources.get(id)?.title ?? 'Source unavailable in this package'}</li>)}</ul></div>)}
+          {finding.caveats.map((caveat, i) => <p key={i} className="mt-2 text-amber-800">{caveat}</p>)}
+        </li>)}</ul>
+      </Section>
+
+      <details className="group/acc"><summary className="cursor-pointer text-[14px] font-semibold text-slate-900">Sources ({sourceCount})</summary><div className="mt-3"><SourceList sources={evidence.acceptedEvidence} /></div></details>
+      <details><summary className="cursor-pointer text-[14px] font-semibold text-slate-900">Contradicting and no-effect sources ({uniqueSources(evidence.contradictions).length})</summary><div className="mt-3"><SourceList sources={evidence.contradictions} /></div></details>
+
+      <Section title="Possible research gaps"><p className="mb-2 text-[12.5px] text-slate-600">These are candidates to check, not conclusions. Empty or failed searches don't show a gap.</p>
+        {!evidence.potentialResearchGaps.length && <p className="text-[13px] text-slate-600">No possible gaps found.</p>}
+        {evidence.potentialResearchGaps.map((gap, index) => <div key={index} className="mb-3 text-[13px]"><p className="font-medium text-slate-900">{question(gap.questionId)}</p>
+          <div className="mt-1 flex flex-wrap gap-1.5">{gap.type && <StatusChip kind="gapType" value={gap.type} />}{gap.confidence && <StatusChip kind="gapConfidence" value={gap.confidence} />}</div>
+          {gap.reasons.map((reason, i) => <p key={i} className="mt-1 text-slate-700">{humaniseReason(reason)}</p>)}</div>)}
+      </Section>
+
+      {evidence.insufficientEvidence.length > 0 && <Section title="Questions still needing evidence">{evidence.insufficientEvidence.map((gap, index) => <div key={index} className="mb-3 text-[13px]"><p className="font-medium text-slate-900">{gap.question}</p>{gap.reasons.map((reason, i) => <p key={i} className="text-slate-600">{humaniseReason(reason)}</p>)}</div>)}</Section>}
+
+      {evidence.limitations.length > 0 && <Section title="Limitations"><ul className="list-disc space-y-1 pl-5 text-[13px] text-slate-700">{evidence.limitations.map((limitation, index) => <li key={index}>{limitation}</li>)}</ul></Section>}
+
+      <details className="text-[13px]"><summary className="cursor-pointer text-[14px] font-semibold text-slate-900">Search coverage</summary><div className="mt-3 space-y-3">
+        {evidence.providerCoverage.map((provider, index) => <p key={index} className="text-slate-700"><span className="font-medium text-slate-900">{provider.provider}</span>: {plural(provider.searches, 'search', 'searches')}, {provider.withResults} with results, {provider.empty} empty{provider.unavailable ? `, ${provider.unavailable} unavailable` : ''}{provider.rateLimited ? `, ${provider.rateLimited} rate limited` : ''}</p>)}
+        {evidence.searchCoverage.map((search, index) => <div key={index} className="rounded-lg border border-slate-200 p-3"><p className="break-words font-medium text-slate-900">{search.query}</p><p className="text-slate-600">{search.newCandidates} new · {search.duplicates} already found</p>
+          <div className="mt-1 flex flex-wrap gap-1">{search.providers.map((provider, i) => <span key={i} className="inline-flex items-center gap-1 text-[12px] text-slate-700">{provider.provider} <StatusChip kind="providerOutcome" value={provider.outcome} /></span>)}</div></div>)}
+      </div></details>
+
+      <details className="text-[12.5px] text-slate-600"><summary className="cursor-pointer text-[13px] font-medium text-slate-700">Technical details</summary><div className="mt-2 space-y-0.5">
+        <p>Took {Math.round(evidence.usage.elapsedSeconds)} seconds · {evidence.usage.providerCalls} provider calls · {(evidence.usage.inputTokens + evidence.usage.outputTokens).toLocaleString()} model tokens</p>
+        {isAdmin && <p>Estimated model cost ${evidence.usage.estimatedLlmCostUsd.toFixed(4)} (admins only)</p>}
+        <p>Schema {evidence.schemaVersion}</p><p className="break-all">Content hash {evidence.contentHash}</p>
+        <p className="mt-1">This snapshot keeps the evidence as it was when the run finished. Later source decisions appear in the research session.</p>
+      </div></details>
+    </div>
   </article>
 }
 
@@ -77,52 +234,149 @@ export default function EvidencePackagesPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [listError, setListError] = useState('')
   const [detailError, setDetailError] = useState('')
-  const [refresh, setRefresh] = useState(0)
+  const [detailAttempt, setDetailAttempt] = useState(0)
+  const [expanded, setExpanded] = useState<string | null>(null)
   const [projects, setProjects] = useState<{ id: string; title: string }[]>([])
   const [projectError, setProjectError] = useState('')
+
   useEffect(() => {
     let current = true
-    setProjectError('')
     researchApi.list().then(items => { if (current) setProjects(items) })
-      .catch(() => { if (current) setProjectError('Project filters could not be loaded. You can still browse packages.') })
+      .catch(() => { if (current) setProjectError('Project names could not be loaded. You can still browse packages.') })
     return () => { current = false }
-  }, [refresh])
+  }, [])
+
+  // Loads the list; later loads are silent so a running session can update without the list flashing.
+  const loadList = useCallback(async (silent: boolean) => {
+    if (!silent) { setLoading(true); setListError('') }
+    try {
+      setSessions(await deepResearchApi.list(projectId || undefined, 100))
+      setListError('')
+    } catch (error) {
+      if (!silent) setListError(apiErrorMessage(error, 'Could not load evidence packages.'))
+    } finally { if (!silent) setLoading(false) }
+  }, [projectId])
+
+  useEffect(() => { void loadList(false) }, [loadList])
+
+  // Auto-update while anything is still running; stops by itself once every run has finished.
+  const anyRunning = sessions.some(isInProgress)
+  useEffect(() => {
+    if (!anyRunning) return
+    const timer = setInterval(() => { if (document.visibilityState !== 'hidden') void loadList(true) }, LIST_POLL_MS)
+    return () => clearInterval(timer)
+  }, [anyRunning, loadList])
+
+  const summary = sessions.find(s => s.id === sessionId) ?? null
+  // Wait for the list: until it loads we can't tell a running session (no package yet) from a finished one.
+  // A session missing from the list (opened by link, older than the latest 100) is fetched directly.
+  const canLoadPackage = !!sessionId && !loading && (summary ? !isInProgress(summary) : true)
   useEffect(() => {
     let current = true
-    setLoading(true); setListError(''); setSessions([])
-    deepResearchApi.list(projectId || undefined, 100).then(items => { if (current) setSessions(items) })
-      .catch(error => { if (current) setListError(apiErrorMessage(error, 'Could not load evidence packages.')) })
-      .finally(() => { if (current) setLoading(false) })
-    return () => { current = false }
-  }, [projectId, refresh])
-  useEffect(() => {
-    let current = true
-    setEvidence(null); setDetailError(''); setDetailLoading(Boolean(sessionId))
-    if (sessionId) deepResearchApi.evidencePackage(sessionId).then(item => { if (current) setEvidence(item) })
+    setEvidence(null); setDetailError('')
+    if (!canLoadPackage) { setDetailLoading(false); return }
+    setDetailLoading(true)
+    deepResearchApi.evidencePackage(sessionId).then(item => { if (current) setEvidence(item) })
       .catch(error => { if (current) setDetailError(apiErrorMessage(error, 'Could not load this evidence package.')) })
       .finally(() => { if (current) setDetailLoading(false) })
     return () => { current = false }
-  }, [sessionId, refresh])
-  const finished = sessions.filter(item => item.isFinished)
-  const filtered = finished.filter(item => item.researchQuestion.toLowerCase().includes(query.trim().toLowerCase()))
-  return <div className="flex h-full min-h-0 flex-col bg-slate-50">
+  }, [sessionId, canLoadPackage, detailAttempt])
+
+  const groups = useMemo(() => groupPackages(sessions), [sessions])
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return q ? groups.filter(g => g.question.toLowerCase().includes(q)) : groups
+  }, [groups, query])
+  const selectedGroup = groups.find(g => g.runs.some(r => r.session.id === sessionId)) ?? null
+  const projectName = (id: string) => projects.find(p => p.id === id)?.title || null
+
+  const select = (id: string) => { const next = new URLSearchParams(params); next.set('session', id); setParams(next) }
+  const closePackage = () => { const next = new URLSearchParams(params); next.delete('session'); setParams(next) }
+  const setProject = (id: string) => { const next = new URLSearchParams(params); next.delete('session'); if (id) next.set('projectId', id); else next.delete('projectId'); setParams(next) }
+
+  return <div className="flex h-full min-h-0 flex-col bg-white">
     <WebLibraryTabBar active="packages" />
-    <main className="overflow-y-auto p-4 md:p-6">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold">Evidence packages</h1><p className="mt-1 text-sm text-slate-500">Browse saved Deep Research evidence for your projects.</p></div><button className={button} onClick={() => setRefresh(value => value + 1)}><RefreshCw size={14} className="mr-2 inline" />Refresh</button></header>
-      <div className="grid items-start gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="space-y-3">
-          <select aria-label="Filter packages by project" value={projectId} onChange={event => { const next = new URLSearchParams(params); next.delete('session'); if (event.target.value) next.set('projectId', event.target.value); else next.delete('projectId'); setParams(next) }} className="w-full rounded-lg border bg-white p-2 text-sm"><option value="">All projects</option>{projectId && !projects.some(project => project.id === projectId) && <option value={projectId}>Selected project</option>}{projects.map(project => <option key={project.id} value={project.id}>{project.title || 'Untitled project'}</option>)}</select>
-          {projectError && <p role="status" className="text-xs text-amber-800">{projectError}</p>}
-          <label className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2"><Search size={16} /><input aria-label="Search evidence packages" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search packages…" className="min-w-0 flex-1 bg-transparent text-sm outline-none" /></label>
-          {projectId && <button className={button} onClick={() => { const next = new URLSearchParams(params); next.delete('projectId'); setParams(next) }}>Show all projects</button>}
-          {loading ? <p role="status" className="text-sm">Loading packages…</p> : listError ? <p role="alert" className="text-sm text-red-700">{listError} Use Refresh to try again.</p> : <>
-            <p className="text-xs text-slate-500">{finished.length} finished sessions in the latest {sessions.length} research sessions{sessions.length === 100 ? ' (limited to 100; filter by project for older sessions)' : ''}.</p>
-            {!filtered.length && <div className="rounded-xl border bg-white p-4 text-sm"><p>{finished.length ? 'No packages match your search.' : 'No finished research packages yet.'}</p><Link className="mt-2 inline-block text-purple-700" to={`/app/deep-research${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`}>Open Deep Research</Link></div>}
-            {filtered.map(item => <button key={item.id} onClick={() => { const next = new URLSearchParams(params); next.set('session', item.id); setParams(next) }} aria-pressed={sessionId === item.id} className={`w-full rounded-xl border p-4 text-left ${sessionId === item.id ? 'border-purple-400 bg-purple-50' : 'border-slate-200 bg-white hover:border-purple-200'}`}><p className="break-words text-sm font-medium">{item.researchQuestion}</p><p className="mt-2 text-xs text-slate-500">{item.status} · {new Date(item.updatedAt).toLocaleDateString()}</p><p className="mt-1 text-xs text-slate-500">{item.message}</p></button>)}
-          </>}
-        </aside>
-        {detailLoading ? <p role="status">Loading evidence package…</p> : detailError ? <div role="alert" className="rounded-xl border bg-white p-5 text-red-700">{detailError}<button className={`${button} ml-3`} onClick={() => setRefresh(value => value + 1)}>Retry</button></div> : evidence ? <PackageDetails evidence={evidence} /> : <div className="rounded-xl border border-dashed border-slate-300 p-8 text-sm text-slate-500">Select a package to inspect its evidence, findings, and coverage.</div>}
+
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-100 px-5 py-3">
+      <div className="relative min-w-[12rem] max-w-sm flex-1">
+        <Search size={14} aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+        <input aria-label="Search evidence packages" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search by question…"
+          className="w-full rounded-lg border border-slate-200 py-1.5 pl-9 pr-8 text-[13px] text-slate-800 placeholder-slate-500 outline-none focus:border-purple-accent focus:ring-2 focus:ring-purple-accent/20" />
+        {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-500 hover:text-slate-800"><X size={13} /></button>}
       </div>
-    </main>
+      <Select aria-label="Filter packages by project" wrapperClassName="w-56" value={projectId} onChange={event => setProject(event.target.value)}>
+        <option value="">All projects</option>
+        {projectId && !projects.some(project => project.id === projectId) && <option value={projectId}>Selected project</option>}
+        {projects.map(project => <option key={project.id} value={project.id}>{project.title || 'Untitled project'}</option>)}
+      </Select>
+      {anyRunning && <span className="inline-flex items-center gap-1.5 text-[12.5px] text-slate-600" role="status"><Loader2 size={13} className="animate-spin text-purple-accent" /> Updating while research runs…</span>}
+      <div className="flex-1" />
+      <Link to={`/app/deep-research${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`} className={primary}>New research</Link>
+    </div>
+
+    <div className="grid min-h-0 flex-1 lg:grid-cols-[340px_minmax(0,1fr)]">
+      {/* List and detail scroll independently. Below lg there is room for one: the list, or the open package. */}
+      <aside className={cn('min-h-0 overflow-y-auto border-slate-200 p-4 lg:block lg:border-r', sessionId && 'hidden')}>
+        <p className="mb-3 text-[13px] text-slate-600">Saved Deep Research results: each package keeps the sources it found and its verdict on every question.</p>
+        {projectError && <p role="status" className="mb-2 text-[12px] text-amber-800">{projectError}</p>}
+        {loading ? <div className="space-y-2" aria-label="Loading packages">{[0, 1, 2].map(i => <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-100" />)}</div>
+          : listError ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-700">{listError} <button type="button" className="ml-1 font-medium underline" onClick={() => void loadList(false)}>Try again</button></div>
+          : <>
+            <p className="mb-2 text-[12px] text-slate-600">
+              {plural(groups.length, 'package')} from {plural(sessions.length, 'session')}{sessions.length === 100 ? ' (latest 100; filter by project for older ones)' : ''}
+            </p>
+            {!filtered.length && <div className="rounded-xl border border-slate-200 p-4 text-[13px] text-slate-700"><p>{groups.length ? 'No packages match your search.' : 'No research packages yet. Run Deep Research on a question and its results are saved here.'}</p></div>}
+            <ul className="space-y-2">{filtered.map(group => {
+              const latest = group.latest.session
+              const active = group.runs.some(r => r.session.id === sessionId)
+              const isOpen = expanded === group.key
+              return <li key={group.key} className={cn('rounded-xl border bg-white transition-colors', active ? 'border-purple-accent/50 bg-purple-tint/30' : 'border-slate-200 hover:border-purple-accent/30')}>
+                <button type="button" onClick={() => select(latest.id)} aria-current={active && sessionId === latest.id ? 'true' : undefined} className="w-full p-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-purple-accent/40 rounded-xl">
+                  <p className="line-clamp-2 break-words text-[13.5px] font-medium leading-snug text-slate-900" title={group.question}>{group.question}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[12px] text-slate-600">
+                    <StatusChip kind="sessionStatus" value={latest.status} />
+                    {!isInProgress(latest) && <span>{plural(latest.acceptedSources, 'source')}</span>}
+                    <span aria-hidden>·</span><span>{formatLibraryDate(latest.createdAt)}</span>
+                  </div>
+                  {!projectId && projectName(group.projectId) && <p className="mt-1 truncate text-[12px] text-slate-600">{projectName(group.projectId)}</p>}
+                </button>
+                {group.runs.length > 1 && <>
+                  <button type="button" onClick={() => setExpanded(isOpen ? null : group.key)} aria-expanded={isOpen}
+                    className="flex w-full items-center gap-1 border-t border-slate-100 px-3.5 py-1.5 text-[12px] font-medium text-slate-700 hover:bg-slate-50">
+                    <ChevronDown size={13} className={cn('transition-transform', isOpen && 'rotate-180')} /> {group.runs.length} runs of this question
+                  </button>
+                  {isOpen && <ol className="border-t border-slate-100 px-2 py-1.5">{[...group.runs].reverse().map(r => <li key={r.session.id}>
+                    <button type="button" onClick={() => select(r.session.id)} aria-current={sessionId === r.session.id ? 'true' : undefined}
+                      className={cn('flex w-full flex-wrap items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-left text-[12px] text-slate-700 hover:bg-slate-50', sessionId === r.session.id && 'bg-purple-tint/50')}>
+                      <span className="font-medium text-slate-900">Run {r.runNumber}</span><span>{formatLibraryDateTime(r.session.createdAt)}</span>
+                      <StatusChip kind="sessionStatus" value={r.session.status} />
+                      {!isInProgress(r.session) && <span>{plural(r.session.acceptedSources, 'source')}</span>}
+                    </button></li>)}</ol>}
+                </>}
+              </li>
+            })}</ul>
+          </>}
+      </aside>
+
+      <main className={cn('min-h-0 overflow-y-auto bg-slate-50/40 lg:block', !sessionId && 'hidden')}>
+        {sessionId && <button type="button" onClick={closePackage} className="flex items-center gap-1 px-5 pt-3 text-[13px] font-medium text-purple-accent hover:underline lg:hidden">
+          <ArrowLeft size={14} /> Back to packages
+        </button>}
+        {!sessionId ? <div className="m-5 rounded-xl border border-dashed border-slate-300 p-8 text-[13px] text-slate-600">Select a package to see its findings, sources and coverage.</div>
+          : summary && isInProgress(summary) ? <div className="m-5 space-y-3 rounded-xl border border-slate-200 bg-white p-5">
+              <h2 className="text-[17px] font-semibold text-slate-900">{summary.researchQuestion}</h2>
+              <StatusChip kind="sessionStatus" value={summary.status} />
+              <p className="text-[13px] text-slate-600">{summary.message || 'This research is still running.'} The package appears here when it finishes; this page updates by itself.</p>
+              <Link className={secondary} to={`/app/deep-research?session=${encodeURIComponent(summary.id)}`}>Watch it in Deep Research <ArrowRight size={13} /></Link>
+            </div>
+          : detailLoading || loading ? <div className="flex justify-center p-12" role="status" aria-label="Loading evidence package"><Loader2 className="animate-spin text-purple-accent" /></div>
+          : detailError ? <div className="m-5 space-y-3">
+              {summary && <OutcomeBanner summary={summary} evidence={null} />}
+              <div role="alert" className="rounded-xl border border-slate-200 bg-white p-5 text-[13px] text-red-700">{detailError}<button type="button" className={`${secondary} ml-3`} onClick={() => setDetailAttempt(n => n + 1)}>Try again</button></div>
+            </div>
+          : evidence ? <PackageDetails evidence={evidence} summary={summary} group={selectedGroup} onSelectRun={select} />
+          : null}
+      </main>
+    </div>
   </div>
 }

@@ -1,0 +1,2934 @@
+{
+  "documentId": "0ede96bf-1330-45ff-9743-a9fc9af2800a",
+  "runId": "8247c607-8607-4754-a2f2-b1b00ca52969",
+  "mode": "LiteratureOnly",
+  "events": [
+    {
+      "status": "Running",
+      "stage": "drafting:Introduction",
+      "completedSections": 0
+    },
+    {
+      "status": "Running",
+      "stage": "verifying:Introduction",
+      "completedSections": 0
+    },
+    {
+      "status": "Running",
+      "stage": "drafting:ReviewMethod",
+      "completedSections": 1
+    },
+    {
+      "status": "Running",
+      "stage": "drafting:LiteratureReview",
+      "completedSections": 2
+    },
+    {
+      "status": "Running",
+      "stage": "verifying:LiteratureReview",
+      "completedSections": 2
+    },
+    {
+      "status": "Running",
+      "stage": "drafting:Discussion",
+      "completedSections": 3
+    },
+    {
+      "status": "Running",
+      "stage": "verifying:Discussion",
+      "completedSections": 3
+    },
+    {
+      "status": "Running",
+      "stage": "drafting:ResearchGaps",
+      "completedSections": 4
+    },
+    {
+      "status": "Running",
+      "stage": "verifying:ResearchGaps",
+      "completedSections": 4
+    },
+    {
+      "status": "Running",
+      "stage": "drafting:Conclusion",
+      "completedSections": 5
+    },
+    {
+      "status": "Running",
+      "stage": "validating-paper",
+      "completedSections": 7
+    },
+    {
+      "status": "Completed",
+      "stage": "ready",
+      "completedSections": 7
+    }
+  ],
+  "outcome": {
+    "runId": "8247c607-8607-4754-a2f2-b1b00ca52969",
+    "documentId": "0ede96bf-1330-45ff-9743-a9fc9af2800a",
+    "status": "Completed",
+    "stage": "ready",
+    "createdAt": "2026-10-30T10:47:59.4006915Z",
+    "updatedAt": "2026-10-30T10:51:55.8728217Z",
+    "error": "",
+    "completedSections": 7,
+    "result": {
+      "pipelineMetrics": null,
+      "completionStatus": "Complete",
+      "completionReason": null,
+      "questionCoverage": null,
+      "coWrite": null,
+      "evidencePlan": null,
+      "evidenceIssues": [],
+      "isEssay": false,
+      "title": "The relationship between social media use, time management, and academic performance among university students.",
+      "content": "This literature synthesis examines the complex relationship between social media use, time management, and academic performance among university students. It characterizes prevalent patterns of social media engagement, analyzes its documented effects on time management practices, and evaluates its overall impact on academic performance.\n\nThe review reveals that while moderate, academic-oriented social media use can facilitate collaborative learning and information sharing, excessive and non-academic engagement is consistently linked to poor time management, reduced concentration, and lower academic achievement. Key themes include the dual nature of social media's impact depending on usage patterns, and the crucial role of digital self-discipline and effective time management in mediating these effects. Limitations in the existing literature include a reliance on self-reported data, a scarcity of longitudinal studies to infer causality, and a geographical imbalance in research, with limited representation from the Global South. The synthesis concludes that the influence of social media is primarily determined by how students utilize it, underscoring the need for targeted interventions to foster responsible digital engagement.\n\nUniversity students today navigate a complex academic landscape significantly influenced by pervasive digital technologies, particularly social media platforms [S1][S4][S14]. These platforms offer diverse functionalities, from entertainment and communication to collaborative learning and information sharing [S1][S2][S4][S14]. While social media presents opportunities for enhanced peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], its widespread adoption also introduces challenges related to distraction, time management, and academic performance [S1][S2][S4][S5][S6][S13][S14][S17].\n\nNumerous studies have explored the impact of social media on academic outcomes, often revealing a nuanced relationship. Research consistently indicates that excessive and non-academic social media use can lead to decreased concentration, poor time management, reduced study efficiency, and lower academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S18][S19][S20][S22]. For instance, a moderate negative correlation between social media usage and academic performance has been observed among undergraduate students, with younger and lower-level students being particularly susceptible to negative outcomes [S2][S5]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. The impact of social media thus appears to depend less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].\n\nDespite the growing body of literature examining social media use, time management, and academic performance, there remains a need for a comprehensive synthesis that delineates the specific pathways through which these variables interact and how these interactions manifest across diverse student populations. Previous research has often focused on specific aspects, such as social media addiction [S9][S15][S20] or the influence of particular platforms [S17]. While some studies acknowledge the role of time management [S3][S4][S5], a detailed exploration of its moderating or mediating role in the social media-academic performance relationship, drawing on a broader range of evidence, will be beneficial.\n\nThis paper will therefore synthesize existing literature to systematically examine the relationship between social media use, time management, and academic performance among university students. Specifically, it will aim to characterize prevalent patterns of social media use among university students, analyze the documented effects of social media use on students' time management practices, and evaluate the overall impact of social media use and time management on academic performance.\n\nA comprehensive literature synthesis will be conducted to address the research aims. The review will systematically examine existing academic publications focusing on the interplay between social media use, time management, and academic performance among university students.\n\nThe search strategy will involve identifying key terms related to \"social media use,\" \"time management,\" \"academic performance,\" and \"university students.\" These terms, along with their synonyms and related phrases, will be used to search relevant academic databases.\n\nThe identified literature will be synthesized to achieve the stated objectives. First, common patterns of social media use among university students will be characterized, drawing from studies that describe frequency, duration, purpose (academic vs. non-academic), and platforms used. Second, the documented effects of social media use on students' time management practices will be analyzed, focusing on how social media influences study efficiency, concentration, procrastination, and overall allocation of academic time. Finally, the overall impact of social media use and time management on academic performance will be evaluated, considering both direct and indirect relationships and identifying potential mediating or moderating roles of time management skills. The synthesis will also consider varying contexts, such as student demographics and types of social media engagement (e.g., problematic versus productive use).\n\nSocial media platforms have become ubiquitous in the lives of university students, influencing their academic experiences in complex ways [S1][S4][S14]. The prevailing literature indicates a nuanced relationship, where both beneficial and detrimental impacts are observed depending on the nature and extent of social media engagement.\n\n### Patterns of Social Media Use\nUniversity students frequently engage with social media for a variety of purposes, including entertainment, communication, and information sharing [S1][S2][S4][S14]. WhatsApp, Facebook, and YouTube are consistently identified as popular platforms [S7][S8][S10][S13]. While these platforms can facilitate peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], a significant proportion of students admit to using them primarily for non-academic reasons [S13]. Studies also suggest that younger and lower-level students may be more susceptible to negative outcomes associated with social media use [S2][S5]. The highest average time spent on social media is often for social purposes, followed by online gaming [S10]. The pervasive nature of these platforms means that their influence on student life is a growing area of concern [S4].\n\n### Impact on Time Management\nThe literature consistently highlights a strong link between social media use and time management practices among university students. Excessive and non-academic social media engagement is frequently associated with poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. This can manifest as procrastination and inconsistency in study habits [S13][S18]. For instance, students who consciously manage their social media time tend to perform better academically [S4][S5]. The constant drive to remain digitally connected, fueled by phenomena like the Fear of Missing Out (FoMO), can impair cognitive focus and redirect study time [S18]. While some students exhibit resilience and effective time management despite considerable social media use, sleep deprivation due to prolonged engagement is also a concern [S10][S14].\n\n### Effects on Academic Performance\nThe relationship between social media use and academic performance is multifaceted. Several studies indicate a negative correlation between excessive or non-academic social media use and academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. For example, higher social media overuse has been linked to increased psychological distress and a deterioration in academic performance [S15]. Daily social media hours often have a significant negative effect on students' Grade Point Averages (GPAs) [S4][S5][S8]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. Academic-oriented use of platforms like YouTube and WhatsApp for research and collaborative learning can improve academic outcomes [S16][S25]. The impact of social media, therefore, depends less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].\n\nThe reviewed literature consistently highlights a complex and often contradictory relationship between social media use, time management, and academic performance among university students. A prominent pattern indicates that excessive and non-academic social media engagement generally correlates with negative academic outcomes [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. This is often linked to poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. For example, studies reveal a significant negative effect of daily social media hours on Grade Point Averages (GPAs) [S4][S5][S8]. The constant drive for digital connection, exacerbated by phenomena like the Fear of Missing Out (FoMO), is identified as a factor impairing cognitive focus and diverting study time [S18].\n\nHowever, the literature also presents a significant contradiction: moderate and academic-oriented social media use can positively influence academic performance [S2][S4][S7][S8][S12][S13][S16][S21]. Platforms like WhatsApp and YouTube, while often used for social purposes [S7][S8][S10][S13], can facilitate collaborative learning, discussion, and knowledge sharing when employed purposefully [S2][S4][S7][S8][S12][S13][S16][S21]. This suggests that the impact of social media is not inherent to the platforms themselves, but rather depends on how students choose to utilize them [S4][S5][S6][S13][S15][S17].\n\nA key limitation across many studies is the reliance on self-reported data for social media use and academic performance [S15][S17], which may introduce biases. While some research acknowledges the moderating role of time management skills [S3][S4][S5], a comprehensive exploration of its specific pathways in the social media-academic performance relationship is still developing. Furthermore, studies often focus on specific platforms [S17] or contexts, such as social media addiction [S9][S15][S20], rather than a holistic view. There is also limited research from the Global South, with most studies originating from the United States and the United Kingdom [S29], which may limit the generalizability of findings across diverse educational systems and student populations. The absence of longitudinal designs in much of the existing quantitative research also restricts the ability to infer causal relationships between variables [S11].\n\nDespite the extensive literature on social media use, time management, and academic performance, several research gaps remain. Many existing studies rely predominantly on self-reported data for social media use and academic performance, which can introduce response biases and limit the objectivity of findings [S15][S17]. Furthermore, a significant portion of research originates from the United States and the United Kingdom, with limited representation from the Global South [S29], which restricts the generalizability of conclusions across diverse cultural and educational contexts.\n\nWhile some literature acknowledges the role of time management [S3][S4][S5], a comprehensive and detailed exploration of its specific moderating or mediating pathways within the social media-academic performance relationship is not fully established across a broad spectrum of evidence. Most quantitative research in this area also employs cross-sectional designs, which prevents the inference of causal relationships between variables [S11]. Future research could benefit from longitudinal designs to better understand the temporal dynamics and causal influences among these factors [S11][S21]. Additionally, studies often concentrate on specific social media platforms or narrow aspects such as social media addiction [S9][S15][S17][S20], rather than offering a holistic view of the interplay between diverse usage patterns, time management strategies, and academic outcomes.\n\nThis synthesis of existing literature establishes a multifaceted relationship between social media use, time management, and academic performance among university students. Characterized by diverse engagement patterns, social media can either hinder or enhance academic outcomes, largely depending on the purpose and extent of use. Non-academic and excessive social media engagement is consistently linked to poor time management, reduced concentration, and lower academic achievement. Conversely, purposeful, academic-oriented social media use can positively influence learning through collaborative engagement and information sharing.\n\nThe literature review highlights a crucial role for time management skills and digital self-discipline in moderating these impacts. While self-reported data limitations and a geographical imbalance in existing studies present challenges, the overall evidence underscores that the influence of social media is not inherent to the platforms themselves but rather to students' usage patterns. Future research could benefit from longitudinal designs to explore causal relationships more definitively and from expanded geographical representation to enhance generalizability.",
+      "sections": null,
+      "references": [
+        {
+          "sourceId": "S1",
+          "canonicalId": "50c0f715-5ed4-66e3-96d9-0b8fb9aa09d6",
+          "openAlexWorkId": "W7168081275",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7168081275",
+          "title": "Time Spent on Social Media and its Impact on Academic Performance: Evidence from University Students in Sargodha, Pakistan",
+          "url": "https://ojs.pssr.org.pk/journal/article/download/1159/947",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.35484/pssr.2025(9-iv)22",
+          "authors": "Halema Sadia, Muhammad Hassan Babar, Zunaira Ghaffar",
+          "authorDetails": [
+            {
+              "family": "Sadia",
+              "given": "Halema",
+              "name": "Halema Sadia",
+              "orcid": "https://orcid.org/0009-0008-4477-3319",
+              "affiliations": [
+                "University of Sargodha"
+              ]
+            },
+            {
+              "family": "Babar",
+              "given": "Muhammad Hassan",
+              "name": "Muhammad Hassan Babar",
+              "orcid": null,
+              "affiliations": [
+                "University of Lahore"
+              ]
+            },
+            {
+              "family": "Ghaffar",
+              "given": "Zunaira",
+              "name": "Zunaira Ghaffar",
+              "orcid": null,
+              "affiliations": [
+                "University of Sargodha"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Pakistan Social Sciences Review",
+          "volume": "9",
+          "issue": "IV",
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S2",
+          "canonicalId": "28ce1149-4303-2730-e196-a95a7770bb92",
+          "openAlexWorkId": "W7160121679",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7160121679",
+          "title": "EFFECTS OF SOCIAL MEDIA ON SCHOOL PERFORMANCE: AN INVESTIGATIVE STUDY OF UNDERGRADUATE STUDENTS IN EDO STATE",
+          "url": "https://doi.org/10.54922/ijehss.2026.1251",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.54922/ijehss.2026.1251",
+          "authors": "OMI UJUANBI, Gloria Omolegho",
+          "authorDetails": [
+            {
+              "family": "OMI UJUANBI",
+              "given": null,
+              "name": "OMI UJUANBI",
+              "orcid": null,
+              "affiliations": [
+                "Ambrose Alli University"
+              ]
+            },
+            {
+              "family": "Omolegho",
+              "given": "Gloria",
+              "name": "Gloria Omolegho",
+              "orcid": null,
+              "affiliations": [
+                "Ambrose Alli University"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "International Journal of Education Humanities and Social Science",
+          "volume": "09",
+          "issue": "02",
+          "pages": "398-410",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S3",
+          "canonicalId": "b61186cc-2965-3b5d-70e0-de17b70d7e2d",
+          "openAlexWorkId": "W7129271745",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7129271745",
+          "title": "Productive and Problematic Social Media Use and Students\u2019 Academic Outcomes: Mediation by Parent/Teacher Support and Moderation by Time Management Skills (Evidence from Higher Education Institutions in Punjab and Khyber Pakhtunkhwa, Pakistan)",
+          "url": "https://rjsaonline.com/journals/index.php/rjsa/article/download/715/893",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.71317/rjsa.003.06.0715",
+          "authors": "Najma Tauheed, Muhammad Aslam Khan, Muhammad Siddique, Hafiz Safi Ullah, Haji Irfan Haider, Mahesh Kumar Oad",
+          "authorDetails": [
+            {
+              "family": "Tauheed",
+              "given": "Najma",
+              "name": "Najma Tauheed",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Khan",
+              "given": "Muhammad Aslam",
+              "name": "Muhammad Aslam Khan",
+              "orcid": "https://orcid.org/0000-0001-6219-3918",
+              "affiliations": [
+                "University of Haripur"
+              ]
+            },
+            {
+              "family": "Siddique",
+              "given": "Muhammad",
+              "name": "Muhammad Siddique",
+              "orcid": null,
+              "affiliations": [
+                "Gomal University"
+              ]
+            },
+            {
+              "family": "Ullah",
+              "given": "Hafiz Safi",
+              "name": "Hafiz Safi Ullah",
+              "orcid": null,
+              "affiliations": [
+                "Gomal University"
+              ]
+            },
+            {
+              "family": "Haider",
+              "given": "Haji Irfan",
+              "name": "Haji Irfan Haider",
+              "orcid": null,
+              "affiliations": [
+                "Gomal University"
+              ]
+            },
+            {
+              "family": "Oad",
+              "given": "Mahesh Kumar",
+              "name": "Mahesh Kumar Oad",
+              "orcid": null,
+              "affiliations": [
+                "University of Sindh"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Research Journal for Social Affairs",
+          "volume": "3",
+          "issue": "6",
+          "pages": "1847-1856",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S4",
+          "canonicalId": "4286b9f9-2462-9531-fc7d-9ff6094dcb6c",
+          "openAlexWorkId": "W7164532107",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7164532107",
+          "title": "The Influence of Social Media Usage on Students' Academic Performance and Study Habits",
+          "url": "https://doi.org/10.5281/zenodo.20669918",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.5281/zenodo.20669918",
+          "authors": "Saroj Chaudhary",
+          "authorDetails": [
+            {
+              "family": "Chaudhary",
+              "given": "Saroj",
+              "name": "Saroj Chaudhary",
+              "orcid": null,
+              "affiliations": []
+            }
+          ],
+          "year": 2026,
+          "venue": "Zenodo (CERN European Organization for Nuclear Research)",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": "European Organization for Nuclear Research",
+          "language": "en"
+        },
+        {
+          "sourceId": "S5",
+          "canonicalId": "40107c2c-646d-7872-050b-107a4a66b1e9",
+          "openAlexWorkId": "W2992858501",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W2992858501",
+          "title": "Revealing the Relationship between Smartphone Addiction and Academic Performance of Students: Evidences from Higher Educational Institutes of Pakistan",
+          "url": "https://openalex.org/W2992858501",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Arooba Azam Khan, Asma Khalid, Rimsha Iqbal",
+          "authorDetails": [
+            {
+              "family": "Khan",
+              "given": "Arooba Azam",
+              "name": "Arooba Azam Khan",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Khalid",
+              "given": "Asma",
+              "name": "Asma Khalid",
+              "orcid": "https://orcid.org/0000-0003-3919-2487",
+              "affiliations": []
+            },
+            {
+              "family": "Iqbal",
+              "given": "Rimsha",
+              "name": "Rimsha Iqbal",
+              "orcid": "https://orcid.org/0000-0003-4685-2834",
+              "affiliations": []
+            }
+          ],
+          "year": 2019,
+          "venue": "Social Science Open Access Repository (GESIS \u2013 Leibniz Institute for the Social Sciences)",
+          "volume": "3",
+          "issue": "2",
+          "pages": "74-83",
+          "workType": "article",
+          "publisher": "GESIS - Leibniz Institute for the Social Sciences",
+          "language": "en"
+        },
+        {
+          "sourceId": "S6",
+          "canonicalId": "72f1aa6d-fb39-a505-5a73-267dd9bd3c35",
+          "openAlexWorkId": "W7108663441",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7108663441",
+          "title": "THE IMPACT OF SOCIAL MEDIA ON STUDENTS' ACADEMIC PERFORMANCE IN UNIVERSITY DEGREE COLLEGES: A STUDY OF KUMAUN UNIVERSITY NAINITAL",
+          "url": "https://doi.org/10.5281/zenodo.17811611",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.5281/zenodo.17811610",
+          "authors": "Meeta Joshi, Manu Singh",
+          "authorDetails": [
+            {
+              "family": "Joshi",
+              "given": "Meeta",
+              "name": "Meeta Joshi",
+              "orcid": null,
+              "affiliations": [
+                "Shri Venkateshwara University",
+                "Sri Venkateswara University"
+              ]
+            },
+            {
+              "family": "Singh",
+              "given": "Manu",
+              "name": "Manu Singh",
+              "orcid": null,
+              "affiliations": [
+                "Shri Venkateshwara University",
+                "Sri Venkateswara University"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Zenodo (CERN European Organization for Nuclear Research)",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": "European Organization for Nuclear Research",
+          "language": "en"
+        },
+        {
+          "sourceId": "S7",
+          "canonicalId": "8fb42fd7-cbdd-db81-7b9b-ca7b33d000fb",
+          "openAlexWorkId": "W7215165637",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7215165637",
+          "title": "INFLUENCE OF SOCIAL MEDIA PLATFORM USE ON ACADEMIC PERFORMANCE OF COOPERATIVE ECONOMICS AND MANAGEMENT STUDENTS AT NNAMDI AZIKIWE UNIVERSITY, AWKA",
+          "url": "https://ijmsspcs.com/index.php/IJMSSPCS/article/download/870/943",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Lovelyn Chinwendu Ajubiga, Obianuju Chekwube-Aziekwe, Chinyere Chigozie Akpunonu, Stephanie Chidiogo Akonu",
+          "authorDetails": [
+            {
+              "family": "Ajubiga",
+              "given": "Lovelyn Chinwendu",
+              "name": "Lovelyn Chinwendu Ajubiga",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Chekwube-Aziekwe",
+              "given": "Obianuju",
+              "name": "Obianuju Chekwube-Aziekwe",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Akpunonu",
+              "given": "Chinyere Chigozie",
+              "name": "Chinyere Chigozie Akpunonu",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Akonu",
+              "given": "Stephanie Chidiogo",
+              "name": "Stephanie Chidiogo Akonu",
+              "orcid": null,
+              "affiliations": []
+            }
+          ],
+          "year": 2026,
+          "venue": "INTERNATIONAL JOURNAL OF MANAGEMENT, SOCIAL SCIENCES, PEACE AND CONFLICT STUDIES",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S8",
+          "canonicalId": "591d68c3-f2a6-ea66-e088-d0c38c03bb5f",
+          "openAlexWorkId": "W4411615407",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4411615407",
+          "title": "Perspektif Mahasiswa terhadap Pengunaan Medsos dan Prestasi Belajar Mahasiswa",
+          "url": "https://ejournal-fia.unkris.ac.id/index.php/antasena/article/download/335/230",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.61332/antasena.v3i1.335",
+          "authors": "Diah Pita Sari, Andini Tiara Diva, Fani Kusuma Styaningrum, Akin Witri Gaoma, Nabila Olga Fawnia, Joko Tri Nugraha",
+          "authorDetails": [
+            {
+              "family": "Sari",
+              "given": "Diah Pita",
+              "name": "Diah Pita Sari",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            },
+            {
+              "family": "Diva",
+              "given": "Andini Tiara",
+              "name": "Andini Tiara Diva",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            },
+            {
+              "family": "Styaningrum",
+              "given": "Fani Kusuma",
+              "name": "Fani Kusuma Styaningrum",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            },
+            {
+              "family": "Gaoma",
+              "given": "Akin Witri",
+              "name": "Akin Witri Gaoma",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            },
+            {
+              "family": "Fawnia",
+              "given": "Nabila Olga",
+              "name": "Nabila Olga Fawnia",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            },
+            {
+              "family": "Nugraha",
+              "given": "Joko Tri",
+              "name": "Joko Tri Nugraha",
+              "orcid": "https://orcid.org/0000-0002-5220-9389",
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "ANTASENA Governance and Innovation Journal",
+          "volume": "3",
+          "issue": "1",
+          "pages": "223-238",
+          "workType": "article",
+          "publisher": "Universitas Krisnadwipayana",
+          "language": "en"
+        },
+        {
+          "sourceId": "S9",
+          "canonicalId": "10cf1867-0020-fae6-1342-ab8dce07fad9",
+          "openAlexWorkId": "W4411204892",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4411204892",
+          "title": "Social Media Addiction and Academic Performance of University Students",
+          "url": "http://uijournal.usim.edu.my/index.php/uij/article/download/476/305",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.33102/uij.vol34no2.476",
+          "authors": "Fatin Najihah Basri, Farhana Sabri, Mohd Khairul Anuar Rahimi",
+          "authorDetails": [
+            {
+              "family": "Basri",
+              "given": "Fatin Najihah",
+              "name": "Fatin Najihah Basri",
+              "orcid": null,
+              "affiliations": [
+                "Universiti Sains Islam Malaysia"
+              ]
+            },
+            {
+              "family": "Sabri",
+              "given": "Farhana",
+              "name": "Farhana Sabri",
+              "orcid": "https://orcid.org/0000-0003-3177-3084",
+              "affiliations": [
+                "Universiti Sains Islam Malaysia"
+              ]
+            },
+            {
+              "family": "Rahimi",
+              "given": "Mohd Khairul Anuar",
+              "name": "Mohd Khairul Anuar Rahimi",
+              "orcid": null,
+              "affiliations": [
+                "Universiti Sains Islam Malaysia"
+              ]
+            }
+          ],
+          "year": 2022,
+          "venue": "Ulum Islamiyyah",
+          "volume": "34",
+          "issue": "2",
+          "pages": "1-17",
+          "workType": "article",
+          "publisher": "Universiti Sains Islam Malaysia",
+          "language": "en"
+        },
+        {
+          "sourceId": "S10",
+          "canonicalId": "df653c18-d4a9-d160-3265-f92776296c0a",
+          "openAlexWorkId": "W4405879829",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4405879829",
+          "title": "Impact of social media on higher education: Academic performance, leadership and co-curricular activity engagement",
+          "url": "https://malque.pub/ojs/index.php/mr/article/download/5665/3193",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.31893/multirev.2025142",
+          "authors": "Al Amin Mohamed Sultan, Erwan Ismail, Mohd Shamsuri Md Saad, Afifuddin Husairi Hussain, Muhammad Zaid Daud, Haitham M. Alswat",
+          "authorDetails": [
+            {
+              "family": "Sultan",
+              "given": "Al Amin Mohamed",
+              "name": "Al Amin Mohamed Sultan",
+              "orcid": "https://orcid.org/0000-0001-7063-2706",
+              "affiliations": [
+                "Universiti Teknikal Malaysia Melaka"
+              ]
+            },
+            {
+              "family": "Ismail",
+              "given": "Erwan",
+              "name": "Erwan Ismail",
+              "orcid": "https://orcid.org/0009-0007-1706-1394",
+              "affiliations": [
+                "Universiti Teknikal Malaysia Melaka"
+              ]
+            },
+            {
+              "family": "Saad",
+              "given": "Mohd Shamsuri Md",
+              "name": "Mohd Shamsuri Md Saad",
+              "orcid": "https://orcid.org/0000-0002-2269-5494",
+              "affiliations": [
+                "Universiti Teknikal Malaysia Melaka"
+              ]
+            },
+            {
+              "family": "Hussain",
+              "given": "Afifuddin Husairi",
+              "name": "Afifuddin Husairi Hussain",
+              "orcid": "https://orcid.org/0000-0001-5447-9828",
+              "affiliations": [
+                "National University of Malaysia"
+              ]
+            },
+            {
+              "family": "Daud",
+              "given": "Muhammad Zaid",
+              "name": "Muhammad Zaid Daud",
+              "orcid": "https://orcid.org/0000-0002-4394-5181",
+              "affiliations": [
+                "National University of Malaysia"
+              ]
+            },
+            {
+              "family": "Alswat",
+              "given": "Haitham M.",
+              "name": "Haitham M. Alswat",
+              "orcid": "https://orcid.org/0000-0001-5032-9259",
+              "affiliations": [
+                "Shaqra University"
+              ]
+            }
+          ],
+          "year": 2024,
+          "venue": "Multidisciplinary Reviews",
+          "volume": "8",
+          "issue": "5",
+          "pages": "2025142",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S11",
+          "canonicalId": "2490620b-0319-3d39-1157-60d154812034",
+          "openAlexWorkId": "W2994935786",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W2994935786",
+          "title": "Social media and student performance: the moderating role of ICT knowledge",
+          "url": "https://doi.org/10.1108/jices-08-2019-0092",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1108/jices-08-2019-0092",
+          "authors": "Robert Kwame Dzogbenuku, George Kofi Amoako, Desmond Kwadjo Kumi",
+          "authorDetails": [
+            {
+              "family": "Dzogbenuku",
+              "given": "Robert Kwame",
+              "name": "Robert Kwame Dzogbenuku",
+              "orcid": "https://orcid.org/0000-0002-6290-8458",
+              "affiliations": [
+                "Central University"
+              ]
+            },
+            {
+              "family": "Amoako",
+              "given": "George Kofi",
+              "name": "George Kofi Amoako",
+              "orcid": "https://orcid.org/0000-0002-7966-4867",
+              "affiliations": [
+                "Central University"
+              ]
+            },
+            {
+              "family": "Kumi",
+              "given": "Desmond Kwadjo",
+              "name": "Desmond Kwadjo Kumi",
+              "orcid": "https://orcid.org/0000-0002-5737-4965",
+              "affiliations": []
+            }
+          ],
+          "year": 2019,
+          "venue": "Journal of Information Communication and Ethics in Society",
+          "volume": "18",
+          "issue": "2",
+          "pages": "197-219",
+          "workType": "article",
+          "publisher": "Emerald Publishing Limited",
+          "language": "en"
+        },
+        {
+          "sourceId": "S12",
+          "canonicalId": "dee8c6be-1cc2-192c-6a2d-afcbb16c127b",
+          "openAlexWorkId": "W1981702783",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W1981702783",
+          "title": "The Improvement of Students\u2019 Academic Performance by Using Social Media through Collaborative Learning in Malaysian Higher Education",
+          "url": "https://ccsenet.org/journal/index.php/ass/article/download/35490/20138",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.5539/ass.v10n8p210",
+          "authors": "Waleed Mugahed Al-Rahmi, Mohd Shahizan Othman, Mahdi Alhaji Musa",
+          "authorDetails": [
+            {
+              "family": "Al-Rahmi",
+              "given": "Waleed Mugahed",
+              "name": "Waleed Mugahed Al-Rahmi",
+              "orcid": "https://orcid.org/0000-0002-0980-7439",
+              "affiliations": [
+                "University of Technology Malaysia"
+              ]
+            },
+            {
+              "family": "Othman",
+              "given": "Mohd Shahizan",
+              "name": "Mohd Shahizan Othman",
+              "orcid": "https://orcid.org/0000-0003-4261-1873",
+              "affiliations": []
+            },
+            {
+              "family": "Musa",
+              "given": "Mahdi Alhaji",
+              "name": "Mahdi Alhaji Musa",
+              "orcid": null,
+              "affiliations": [
+                "University of Technology Malaysia"
+              ]
+            }
+          ],
+          "year": 2014,
+          "venue": "Asian Social Science",
+          "volume": "10",
+          "issue": "8",
+          "pages": null,
+          "workType": "article",
+          "publisher": "Canadian Center of Science and Education",
+          "language": "en"
+        },
+        {
+          "sourceId": "S13",
+          "canonicalId": "35af1ecd-c552-446e-9486-334fa2d31122",
+          "openAlexWorkId": "W4414553366",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4414553366",
+          "title": "Patterns, Perceptions, and Academic Implications of Social Media Use among Tertiary Institution Students in Yobe State, Nigeria",
+          "url": "https://ejournal.yasin-alsys.org/AMJSAI/article/download/7482/5600",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.58578/amjsai.v2i3.7482",
+          "authors": "Zainab Ibrahim Ciroma, Abdulkadir Musa Abubakar, Abdulkarim Bello Bashir",
+          "authorDetails": [
+            {
+              "family": "Ciroma",
+              "given": "Zainab Ibrahim",
+              "name": "Zainab Ibrahim Ciroma",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Abubakar",
+              "given": "Abdulkadir Musa",
+              "name": "Abdulkadir Musa Abubakar",
+              "orcid": null,
+              "affiliations": [
+                "Federal Polytechnic Damaturu"
+              ]
+            },
+            {
+              "family": "Bashir",
+              "given": "Abdulkarim Bello",
+              "name": "Abdulkarim Bello Bashir",
+              "orcid": "https://orcid.org/0000-0003-0577-5801",
+              "affiliations": []
+            }
+          ],
+          "year": 2025,
+          "venue": "African Multidisciplinary Journal of Sciences and Artificial Intelligence",
+          "volume": "2",
+          "issue": "3",
+          "pages": "508-520",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S14",
+          "canonicalId": "92275dfc-7b38-ac80-1b93-82662b86b3af",
+          "openAlexWorkId": "W7204948599",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7204948599",
+          "title": "Assessment of Social Media Addiction, Academic Stress, and Mental Health among College and University Students",
+          "url": "https://doi.org/10.66572/ejimapss.2026.v6.i2.99131",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.66572/ejimapss.2026.v6.i2.99131",
+          "authors": null,
+          "authorDetails": [],
+          "year": 2026,
+          "venue": "European Journal of Integrative Medicinal and Allied Paramedical Spectrum Studies",
+          "volume": "6",
+          "issue": "2",
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S15",
+          "canonicalId": "709df0c1-a94e-2623-9c06-ec42b7fd7158",
+          "openAlexWorkId": "W7117361642",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7117361642",
+          "title": "Excessive social media use and its impact on psychological well-being and academic performance of Vietnamese university students",
+          "url": "https://doi.org/10.1080/02673843.2025.2608766",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1080/02673843.2025.2608766",
+          "authors": "Tran Minh Duc",
+          "authorDetails": [
+            {
+              "family": "Duc",
+              "given": "Tran Minh",
+              "name": "Tran Minh Duc",
+              "orcid": null,
+              "affiliations": [
+                "Thu Dau Mot University"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "International Journal of Adolescence and Youth",
+          "volume": "31",
+          "issue": "1",
+          "pages": null,
+          "workType": "article",
+          "publisher": "Taylor & Francis",
+          "language": "en"
+        },
+        {
+          "sourceId": "S16",
+          "canonicalId": "b7c5a4a9-3509-ab69-5509-21e55e6d4790",
+          "openAlexWorkId": "W7202289713",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7202289713",
+          "title": "Impact of AI and social media usage on academic performance among undergraduates in the University of Calabar, Cross River State, Nigeria",
+          "url": "https://akasa.com.ng/ojs/index.php/journal/article/download/567/628",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.64726/f7xake82",
+          "authors": "Maria Ofie Sunday, Rose Unwanung Adie, Musa Moses Egaga",
+          "authorDetails": [
+            {
+              "family": "Sunday",
+              "given": "Maria Ofie",
+              "name": "Maria Ofie Sunday",
+              "orcid": "https://orcid.org/0000-0001-6704-2967",
+              "affiliations": [
+                "University of Calabar"
+              ]
+            },
+            {
+              "family": "Adie",
+              "given": "Rose Unwanung",
+              "name": "Rose Unwanung Adie",
+              "orcid": null,
+              "affiliations": [
+                "University of Calabar"
+              ]
+            },
+            {
+              "family": "Egaga",
+              "given": "Musa Moses",
+              "name": "Musa Moses Egaga",
+              "orcid": null,
+              "affiliations": [
+                "University of Calabar"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "Aminu Kano Academic Scholars Association Multidisciplinary Journal",
+          "volume": "5",
+          "issue": "1",
+          "pages": "78-96",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S17",
+          "canonicalId": "ee8ba2a6-8919-289d-c6c6-db153a2a7a3d",
+          "openAlexWorkId": "W7112829116",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7112829116",
+          "title": "The influence of TikTok on academic performance among university students at UiTM Alor Gajah, Melaka",
+          "url": "https://ir.uitm.edu.my/id/eprint/123523/1/123523.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Mat Said, Siti Hajar, Ahmad Hisham, Widad Nasuha, Hussar, Adlyn Nazurah, Anuar, Nur Ellesya Balqis, Sarudin, Muhammad Faizi, Sah Allam, Siti Nurshahidah, Hassan, Mohd Sufiean",
+          "authorDetails": [
+            {
+              "family": "Hajar",
+              "given": "Siti Hajar",
+              "name": "Mat Said, Siti Hajar",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Nasuha",
+              "given": "Widad Nasuha",
+              "name": "Ahmad Hisham, Widad Nasuha",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Hussar",
+              "given": "Adlyn Nazurah",
+              "name": "Hussar, Adlyn Nazurah",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Anuar",
+              "given": "Nur Ellesya Balqis",
+              "name": "Anuar, Nur Ellesya Balqis",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Sarudin",
+              "given": "Muhammad Faizi",
+              "name": "Sarudin, Muhammad Faizi",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Nurshahidah",
+              "given": "Siti Nurshahidah",
+              "name": "Sah Allam, Siti Nurshahidah",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Hassan",
+              "given": "Mohd Sufiean",
+              "name": "Hassan, Mohd Sufiean",
+              "orcid": null,
+              "affiliations": []
+            }
+          ],
+          "year": 2025,
+          "venue": "UiTM Institutional Repositories (Universiti Teknologi MARA)",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": "Universiti Teknologi MARA",
+          "language": "en"
+        },
+        {
+          "sourceId": "S18",
+          "canonicalId": "23149398-8c1f-f9c1-c3d3-75bd92c86d4c",
+          "openAlexWorkId": "W7223089430",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7223089430",
+          "title": "The Effect of Fear of Missing Out (FoMO) on Academic Procrastination among Undergraduate Students",
+          "url": "https://doi.org/10.17605/osf.io/mvaqy",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.17605/osf.io/mvaqy",
+          "authors": "Danish Ara, Rizky Putra Santosa",
+          "authorDetails": [
+            {
+              "family": "Ara",
+              "given": "Danish",
+              "name": "Danish Ara",
+              "orcid": "https://orcid.org/0009-0008-0329-0716",
+              "affiliations": []
+            },
+            {
+              "family": "Santosa",
+              "given": "Rizky Putra",
+              "name": "Rizky Putra Santosa",
+              "orcid": "https://orcid.org/0000-0002-4465-3770",
+              "affiliations": []
+            }
+          ],
+          "year": 2026,
+          "venue": "OSF Preprints (OSF Preprints)",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "preprint",
+          "publisher": "Center for Open Science",
+          "language": "en"
+        },
+        {
+          "sourceId": "S19",
+          "canonicalId": "8d8c5542-a8d2-b422-a385-0d2006c0bf96",
+          "openAlexWorkId": "W3203342489",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W3203342489",
+          "title": "Impact of smartphone usage on academic performance: a study on undergraduates in FMSC of University of Sri Jayewardenepura, Sri Lanka",
+          "url": "https://doi.org/10.4038/jm.v15i1.7593",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.4038/jm.v15i1.7593",
+          "authors": "Nirmal Chathuranga, J. M. D. P. Jaysundara",
+          "authorDetails": [
+            {
+              "family": "Chathuranga",
+              "given": "Nirmal",
+              "name": "Nirmal Chathuranga",
+              "orcid": "https://orcid.org/0000-0001-9263-9239",
+              "affiliations": [
+                "University of Sri Jayewardenepura"
+              ]
+            },
+            {
+              "family": "Jaysundara",
+              "given": "J. M. D. P.",
+              "name": "J. M. D. P. Jaysundara",
+              "orcid": null,
+              "affiliations": [
+                "University of Sri Jayewardenepura"
+              ]
+            }
+          ],
+          "year": 2020,
+          "venue": "Journal of Management",
+          "volume": "15",
+          "issue": "1",
+          "pages": "14",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S20",
+          "canonicalId": "72052be1-1693-9573-3fc3-1b3516addd04",
+          "openAlexWorkId": "W2800281014",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W2800281014",
+          "title": "SOCIAL MEDIA ADDICTION AND ACADEMIC ENGAGEMENT AMONG UNDERGRADUATE STUDENTS OF USMANU DANFODIYO UNIVERSITY SOKOTO, NIGERIA",
+          "url": "https://ijitie.aitie.org.ng/index.php/ijitie/article/download/55/30",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Zubairu Suleiman",
+          "authorDetails": [
+            {
+              "family": "Suleiman",
+              "given": "Zubairu",
+              "name": "Zubairu Suleiman",
+              "orcid": null,
+              "affiliations": [
+                "Gombe State University"
+              ]
+            }
+          ],
+          "year": 2017,
+          "venue": "International Journal of Innovative Technology Integration in Education",
+          "volume": "1",
+          "issue": "2",
+          "pages": "39-46",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S21",
+          "canonicalId": "80252e99-0e17-4e15-221e-bb587113941d",
+          "openAlexWorkId": "W7203538716",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7203538716",
+          "title": "Beyond the Screen: How Peer-to-Peer and Lecturer Interactions Drive Collaborative Engagement and Academic Success",
+          "url": "https://scrrjournal.com/index.php/14/article/download/798/990",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.5281/zenodo.21953385",
+          "authors": "Hafiz Muhammad Humza, Mir Ahmad Feroz, Farah Siddique, Muhammad Qasim Ali",
+          "authorDetails": [
+            {
+              "family": "Humza",
+              "given": "Hafiz Muhammad",
+              "name": "Hafiz Muhammad Humza",
+              "orcid": "https://orcid.org/0009-0009-8198-7989",
+              "affiliations": [
+                "University of Sialkot"
+              ]
+            },
+            {
+              "family": "Feroz",
+              "given": "Mir Ahmad",
+              "name": "Mir Ahmad Feroz",
+              "orcid": null,
+              "affiliations": [
+                "University of Sialkot"
+              ]
+            },
+            {
+              "family": "Siddique",
+              "given": "Farah",
+              "name": "Farah Siddique",
+              "orcid": null,
+              "affiliations": [
+                "University of Sialkot"
+              ]
+            },
+            {
+              "family": "Ali",
+              "given": "Muhammad Qasim",
+              "name": "Muhammad Qasim Ali",
+              "orcid": null,
+              "affiliations": [
+                "University of Sialkot"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "Sociology & Cultural Research Review",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S22",
+          "canonicalId": "b7f8d5e6-4813-3198-4099-2f6203e3cbc8",
+          "openAlexWorkId": "W7214813884",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7214813884",
+          "title": "SOCIAL NETWORKING USAGE AND ACADEMIC PERFORMANCE OF SCHOOL-GOING ADOLESCENTS IN OYO CITY, NIGERIA",
+          "url": "https://tijseg.org/index.php/tijseg/article/download/109/146",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Fatimah Wuraola Garba",
+          "authorDetails": [
+            {
+              "family": "Garba",
+              "given": "Fatimah Wuraola",
+              "name": "Fatimah Wuraola Garba",
+              "orcid": null,
+              "affiliations": [
+                "University of Abuja"
+              ]
+            }
+          ],
+          "year": 2022,
+          "venue": "Turkish International Journal of Special Education and Guidance & Counselling (TIJSEG)",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S25",
+          "canonicalId": "71207aaa-b729-6615-b682-d4b9007c3732",
+          "openAlexWorkId": "W4299286459",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4299286459",
+          "title": "Digital Resources Usage and Academic Performance of Undergraduate Students in Nigeria: A Case Study",
+          "url": "https://www.ejimed.com/download/digital-resources-usage-and-academic-performance-of-undergraduate-students-in-nigeria-a-case-study-12491.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.30935/ejimed/12491",
+          "authors": "Kolawole Francis Ogunbodede, Chinelo Blessing Oribhabor",
+          "authorDetails": [
+            {
+              "family": "Ogunbodede",
+              "given": "Kolawole Francis",
+              "name": "Kolawole Francis Ogunbodede",
+              "orcid": "https://orcid.org/0000-0002-5518-7787",
+              "affiliations": [
+                "University of Africa Toru-Orua"
+              ]
+            },
+            {
+              "family": "Oribhabor",
+              "given": "Chinelo Blessing",
+              "name": "Chinelo Blessing Oribhabor",
+              "orcid": "https://orcid.org/0000-0002-7318-1477",
+              "affiliations": [
+                "University of Africa Toru-Orua"
+              ]
+            }
+          ],
+          "year": 2022,
+          "venue": "European Journal of Interactive Multimedia and Education",
+          "volume": "3",
+          "issue": "2",
+          "pages": "e02213",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S29",
+          "canonicalId": "9f8f1ffc-3fb5-3947-632b-f570e397b7fd",
+          "openAlexWorkId": "W3014646985",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W3014646985",
+          "title": "Mapping research in student engagement and educational technology in higher education: a systematic evidence map",
+          "url": "https://doi.org/10.1186/s41239-019-0176-8",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1186/s41239-019-0176-8",
+          "authors": "Melissa Bond, Katja Buntins, Svenja Bedenlier, Olaf Zawacki\u2010Richter, Michael Kerres",
+          "authorDetails": [
+            {
+              "family": "Bond",
+              "given": "Melissa",
+              "name": "Melissa Bond",
+              "orcid": "https://orcid.org/0000-0002-8267-031X",
+              "affiliations": [
+                "Carl von Ossietzky Universit\u00e4t Oldenburg"
+              ]
+            },
+            {
+              "family": "Buntins",
+              "given": "Katja",
+              "name": "Katja Buntins",
+              "orcid": "https://orcid.org/0000-0001-5571-6952",
+              "affiliations": [
+                "University of Duisburg-Essen"
+              ]
+            },
+            {
+              "family": "Bedenlier",
+              "given": "Svenja",
+              "name": "Svenja Bedenlier",
+              "orcid": "https://orcid.org/0000-0002-7940-5232",
+              "affiliations": [
+                "Carl von Ossietzky Universit\u00e4t Oldenburg"
+              ]
+            },
+            {
+              "family": "Zawacki-Richter",
+              "given": null,
+              "name": "Olaf Zawacki\u2010Richter",
+              "orcid": "https://orcid.org/0000-0003-1482-8303",
+              "affiliations": [
+                "Carl von Ossietzky Universit\u00e4t Oldenburg"
+              ]
+            },
+            {
+              "family": "Kerres",
+              "given": "Michael",
+              "name": "Michael Kerres",
+              "orcid": "https://orcid.org/0000-0002-7419-3023",
+              "affiliations": [
+                "University of Duisburg-Essen"
+              ]
+            }
+          ],
+          "year": 2020,
+          "venue": "International Journal of Educational Technology in Higher Education",
+          "volume": "17",
+          "issue": "1",
+          "pages": null,
+          "workType": "article",
+          "publisher": "Springer Nature",
+          "language": "en"
+        }
+      ],
+      "wordCount": 1805,
+      "processingTimeMs": 235990,
+      "citationVerification": null,
+      "claimAudit": null,
+      "essayFlags": [],
+      "argumentativeQuality": null,
+      "isCaseStudy": false,
+      "caseType": null,
+      "caseSections": null,
+      "caseFactAudit": null,
+      "caseStudyFlags": [],
+      "isResearchPaper": true,
+      "researchPaperSections": {
+        "abstract": "This literature synthesis examines the complex relationship between social media use, time management, and academic performance among university students. It characterizes prevalent patterns of social media engagement, analyzes its documented effects on time management practices, and evaluates its overall impact on academic performance.\n\nThe review reveals that while moderate, academic-oriented social media use can facilitate collaborative learning and information sharing, excessive and non-academic engagement is consistently linked to poor time management, reduced concentration, and lower academic achievement. Key themes include the dual nature of social media's impact depending on usage patterns, and the crucial role of digital self-discipline and effective time management in mediating these effects. Limitations in the existing literature include a reliance on self-reported data, a scarcity of longitudinal studies to infer causality, and a geographical imbalance in research, with limited representation from the Global South. The synthesis concludes that the influence of social media is primarily determined by how students utilize it, underscoring the need for targeted interventions to foster responsible digital engagement.",
+        "introduction": "University students today navigate a complex academic landscape significantly influenced by pervasive digital technologies, particularly social media platforms [S1][S4][S14]. These platforms offer diverse functionalities, from entertainment and communication to collaborative learning and information sharing [S1][S2][S4][S14]. While social media presents opportunities for enhanced peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], its widespread adoption also introduces challenges related to distraction, time management, and academic performance [S1][S2][S4][S5][S6][S13][S14][S17].\n\nNumerous studies have explored the impact of social media on academic outcomes, often revealing a nuanced relationship. Research consistently indicates that excessive and non-academic social media use can lead to decreased concentration, poor time management, reduced study efficiency, and lower academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S18][S19][S20][S22]. For instance, a moderate negative correlation between social media usage and academic performance has been observed among undergraduate students, with younger and lower-level students being particularly susceptible to negative outcomes [S2][S5]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. The impact of social media thus appears to depend less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].\n\nDespite the growing body of literature examining social media use, time management, and academic performance, there remains a need for a comprehensive synthesis that delineates the specific pathways through which these variables interact and how these interactions manifest across diverse student populations. Previous research has often focused on specific aspects, such as social media addiction [S9][S15][S20] or the influence of particular platforms [S17]. While some studies acknowledge the role of time management [S3][S4][S5], a detailed exploration of its moderating or mediating role in the social media-academic performance relationship, drawing on a broader range of evidence, will be beneficial.\n\nThis paper will therefore synthesize existing literature to systematically examine the relationship between social media use, time management, and academic performance among university students. Specifically, it will aim to characterize prevalent patterns of social media use among university students, analyze the documented effects of social media use on students' time management practices, and evaluate the overall impact of social media use and time management on academic performance.",
+        "literatureReview": "Social media platforms have become ubiquitous in the lives of university students, influencing their academic experiences in complex ways [S1][S4][S14]. The prevailing literature indicates a nuanced relationship, where both beneficial and detrimental impacts are observed depending on the nature and extent of social media engagement.\n\n### Patterns of Social Media Use\nUniversity students frequently engage with social media for a variety of purposes, including entertainment, communication, and information sharing [S1][S2][S4][S14]. WhatsApp, Facebook, and YouTube are consistently identified as popular platforms [S7][S8][S10][S13]. While these platforms can facilitate peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], a significant proportion of students admit to using them primarily for non-academic reasons [S13]. Studies also suggest that younger and lower-level students may be more susceptible to negative outcomes associated with social media use [S2][S5]. The highest average time spent on social media is often for social purposes, followed by online gaming [S10]. The pervasive nature of these platforms means that their influence on student life is a growing area of concern [S4].\n\n### Impact on Time Management\nThe literature consistently highlights a strong link between social media use and time management practices among university students. Excessive and non-academic social media engagement is frequently associated with poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. This can manifest as procrastination and inconsistency in study habits [S13][S18]. For instance, students who consciously manage their social media time tend to perform better academically [S4][S5]. The constant drive to remain digitally connected, fueled by phenomena like the Fear of Missing Out (FoMO), can impair cognitive focus and redirect study time [S18]. While some students exhibit resilience and effective time management despite considerable social media use, sleep deprivation due to prolonged engagement is also a concern [S10][S14].\n\n### Effects on Academic Performance\nThe relationship between social media use and academic performance is multifaceted. Several studies indicate a negative correlation between excessive or non-academic social media use and academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. For example, higher social media overuse has been linked to increased psychological distress and a deterioration in academic performance [S15]. Daily social media hours often have a significant negative effect on students' Grade Point Averages (GPAs) [S4][S5][S8]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. Academic-oriented use of platforms like YouTube and WhatsApp for research and collaborative learning can improve academic outcomes [S16][S25]. The impact of social media, therefore, depends less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].",
+        "methods": "A comprehensive literature synthesis will be conducted to address the research aims. The review will systematically examine existing academic publications focusing on the interplay between social media use, time management, and academic performance among university students.\n\nThe search strategy will involve identifying key terms related to \"social media use,\" \"time management,\" \"academic performance,\" and \"university students.\" These terms, along with their synonyms and related phrases, will be used to search relevant academic databases.\n\nThe identified literature will be synthesized to achieve the stated objectives. First, common patterns of social media use among university students will be characterized, drawing from studies that describe frequency, duration, purpose (academic vs. non-academic), and platforms used. Second, the documented effects of social media use on students' time management practices will be analyzed, focusing on how social media influences study efficiency, concentration, procrastination, and overall allocation of academic time. Finally, the overall impact of social media use and time management on academic performance will be evaluated, considering both direct and indirect relationships and identifying potential mediating or moderating roles of time management skills. The synthesis will also consider varying contexts, such as student demographics and types of social media engagement (e.g., problematic versus productive use).",
+        "results": "",
+        "discussion": "The reviewed literature consistently highlights a complex and often contradictory relationship between social media use, time management, and academic performance among university students. A prominent pattern indicates that excessive and non-academic social media engagement generally correlates with negative academic outcomes [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. This is often linked to poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. For example, studies reveal a significant negative effect of daily social media hours on Grade Point Averages (GPAs) [S4][S5][S8]. The constant drive for digital connection, exacerbated by phenomena like the Fear of Missing Out (FoMO), is identified as a factor impairing cognitive focus and diverting study time [S18].\n\nHowever, the literature also presents a significant contradiction: moderate and academic-oriented social media use can positively influence academic performance [S2][S4][S7][S8][S12][S13][S16][S21]. Platforms like WhatsApp and YouTube, while often used for social purposes [S7][S8][S10][S13], can facilitate collaborative learning, discussion, and knowledge sharing when employed purposefully [S2][S4][S7][S8][S12][S13][S16][S21]. This suggests that the impact of social media is not inherent to the platforms themselves, but rather depends on how students choose to utilize them [S4][S5][S6][S13][S15][S17].\n\nA key limitation across many studies is the reliance on self-reported data for social media use and academic performance [S15][S17], which may introduce biases. While some research acknowledges the moderating role of time management skills [S3][S4][S5], a comprehensive exploration of its specific pathways in the social media-academic performance relationship is still developing. Furthermore, studies often focus on specific platforms [S17] or contexts, such as social media addiction [S9][S15][S20], rather than a holistic view. There is also limited research from the Global South, with most studies originating from the United States and the United Kingdom [S29], which may limit the generalizability of findings across diverse educational systems and student populations. The absence of longitudinal designs in much of the existing quantitative research also restricts the ability to infer causal relationships between variables [S11].",
+        "conclusion": "This synthesis of existing literature establishes a multifaceted relationship between social media use, time management, and academic performance among university students. Characterized by diverse engagement patterns, social media can either hinder or enhance academic outcomes, largely depending on the purpose and extent of use. Non-academic and excessive social media engagement is consistently linked to poor time management, reduced concentration, and lower academic achievement. Conversely, purposeful, academic-oriented social media use can positively influence learning through collaborative engagement and information sharing.\n\nThe literature review highlights a crucial role for time management skills and digital self-discipline in moderating these impacts. While self-reported data limitations and a geographical imbalance in existing studies present challenges, the overall evidence underscores that the influence of social media is not inherent to the platforms themselves but rather to students' usage patterns. Future research could benefit from longitudinal designs to explore causal relationships more definitively and from expanded geographical representation to enhance generalizability."
+      },
+      "researchPaperFlags": [
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Introduction",
+          "message": "0 of 38 cited claim(s) could not be confirmed against their source; 3 statement(s) carry no citation.",
+          "citationSourceIds": []
+        },
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Thematic Literature Review",
+          "message": "2 of 49 cited claim(s) could not be confirmed against their source; 3 statement(s) carry no citation.",
+          "citationSourceIds": [
+            "S7",
+            "S8",
+            "S10",
+            "S13"
+          ]
+        },
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Discussion",
+          "message": "5 of 22 cited claim(s) could not be confirmed against their source; 3 statement(s) carry no citation.",
+          "citationSourceIds": [
+            "S1",
+            "S2",
+            "S4",
+            "S5",
+            "S7",
+            "S8",
+            "S13",
+            "S14",
+            "S15",
+            "S17",
+            "S19"
+          ]
+        },
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Research Gaps",
+          "message": "1 of 9 cited claim(s) could not be confirmed against their source; 4 statement(s) carry no citation.",
+          "citationSourceIds": [
+            "S15",
+            "S17"
+          ]
+        },
+        {
+          "code": "AbstractBodyMismatch",
+          "section": "Abstract",
+          "message": "The abstract mentions 'Key themes include the dual nature of social media's impact depending on usage patterns, and the crucial role of digital self-discipline and effective time management in mediating these effects' and 'Limitations in the existing literature include a reliance on self-reported data, a scarcity of longitudinal studies to infer causality, and a geographical imbalance in research, with limited representation from the Global South.' These themes and limitations are not explicitly stated as 'key themes' or 'limitations' in the main body's 'Discussion' section or a dedicated 'Limitations' section before the conclusion, although they are discussed. The body discusses these points in the 'Discussion' and 'Future Research and Gaps' sections, but without explicitly framing them as 'key themes' or 'limitations' in a way that directly matches the abstract's phrasing.",
+          "citationSourceIds": []
+        },
+        {
+          "code": "ModeMismatch",
+          "section": "Methods",
+          "message": "The 'Methods' section describes a 'comprehensive literature synthesis' and states 'The search strategy will involve identifying key terms...These terms...will be used to search relevant academic databases.' This suggests a systematic or at least a structured search process beyond a general literature review, which might conflict with the stated research purpose of 'synthesize published evidence, without...claiming a systematic search that was not conducted.' While 'systematic' is not explicitly claimed, the description of a 'search strategy' and 'relevant academic databases' implies a level of rigor typically associated with systematic or comprehensive reviews that might require a more detailed methodology to avoid misrepresentation.",
+          "citationSourceIds": []
+        }
+      ],
+      "researchPaperSectionResults": [
+        {
+          "sectionKey": "Abstract",
+          "heading": "Abstract",
+          "status": "Generated",
+          "content": "This literature synthesis examines the complex relationship between social media use, time management, and academic performance among university students. It characterizes prevalent patterns of social media engagement, analyzes its documented effects on time management practices, and evaluates its overall impact on academic performance.\n\nThe review reveals that while moderate, academic-oriented social media use can facilitate collaborative learning and information sharing, excessive and non-academic engagement is consistently linked to poor time management, reduced concentration, and lower academic achievement. Key themes include the dual nature of social media's impact depending on usage patterns, and the crucial role of digital self-discipline and effective time management in mediating these effects. Limitations in the existing literature include a reliance on self-reported data, a scarcity of longitudinal studies to infer causality, and a geographical imbalance in research, with limited representation from the Global South. The synthesis concludes that the influence of social media is primarily determined by how students utilize it, underscoring the need for targeted interventions to foster responsible digital engagement.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "UserProvided",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "Introduction",
+          "heading": "Introduction",
+          "status": "Generated",
+          "content": "University students today navigate a complex academic landscape significantly influenced by pervasive digital technologies, particularly social media platforms [S1][S4][S14]. These platforms offer diverse functionalities, from entertainment and communication to collaborative learning and information sharing [S1][S2][S4][S14]. While social media presents opportunities for enhanced peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], its widespread adoption also introduces challenges related to distraction, time management, and academic performance [S1][S2][S4][S5][S6][S13][S14][S17].\n\nNumerous studies have explored the impact of social media on academic outcomes, often revealing a nuanced relationship. Research consistently indicates that excessive and non-academic social media use can lead to decreased concentration, poor time management, reduced study efficiency, and lower academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S18][S19][S20][S22]. For instance, a moderate negative correlation between social media usage and academic performance has been observed among undergraduate students, with younger and lower-level students being particularly susceptible to negative outcomes [S2][S5]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. The impact of social media thus appears to depend less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].\n\nDespite the growing body of literature examining social media use, time management, and academic performance, there remains a need for a comprehensive synthesis that delineates the specific pathways through which these variables interact and how these interactions manifest across diverse student populations. Previous research has often focused on specific aspects, such as social media addiction [S9][S15][S20] or the influence of particular platforms [S17]. While some studies acknowledge the role of time management [S3][S4][S5], a detailed exploration of its moderating or mediating role in the social media-academic performance relationship, drawing on a broader range of evidence, will be beneficial.\n\nThis paper will therefore synthesize existing literature to systematically examine the relationship between social media use, time management, and academic performance among university students. Specifically, it will aim to characterize prevalent patterns of social media use among university students, analyze the documented effects of social media use on students' time management practices, and evaluate the overall impact of social media use and time management on academic performance.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "ReviewMethod",
+          "heading": "Review Method",
+          "status": "Generated",
+          "content": "A comprehensive literature synthesis will be conducted to address the research aims. The review will systematically examine existing academic publications focusing on the interplay between social media use, time management, and academic performance among university students.\n\nThe search strategy will involve identifying key terms related to \"social media use,\" \"time management,\" \"academic performance,\" and \"university students.\" These terms, along with their synonyms and related phrases, will be used to search relevant academic databases.\n\nThe identified literature will be synthesized to achieve the stated objectives. First, common patterns of social media use among university students will be characterized, drawing from studies that describe frequency, duration, purpose (academic vs. non-academic), and platforms used. Second, the documented effects of social media use on students' time management practices will be analyzed, focusing on how social media influences study efficiency, concentration, procrastination, and overall allocation of academic time. Finally, the overall impact of social media use and time management on academic performance will be evaluated, considering both direct and indirect relationships and identifying potential mediating or moderating roles of time management skills. The synthesis will also consider varying contexts, such as student demographics and types of social media engagement (e.g., problematic versus productive use).",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "UserProvided",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "LiteratureReview",
+          "heading": "Thematic Literature Review",
+          "status": "Generated",
+          "content": "Social media platforms have become ubiquitous in the lives of university students, influencing their academic experiences in complex ways [S1][S4][S14]. The prevailing literature indicates a nuanced relationship, where both beneficial and detrimental impacts are observed depending on the nature and extent of social media engagement.\n\n### Patterns of Social Media Use\nUniversity students frequently engage with social media for a variety of purposes, including entertainment, communication, and information sharing [S1][S2][S4][S14]. WhatsApp, Facebook, and YouTube are consistently identified as popular platforms [S7][S8][S10][S13]. While these platforms can facilitate peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], a significant proportion of students admit to using them primarily for non-academic reasons [S13]. Studies also suggest that younger and lower-level students may be more susceptible to negative outcomes associated with social media use [S2][S5]. The highest average time spent on social media is often for social purposes, followed by online gaming [S10]. The pervasive nature of these platforms means that their influence on student life is a growing area of concern [S4].\n\n### Impact on Time Management\nThe literature consistently highlights a strong link between social media use and time management practices among university students. Excessive and non-academic social media engagement is frequently associated with poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. This can manifest as procrastination and inconsistency in study habits [S13][S18]. For instance, students who consciously manage their social media time tend to perform better academically [S4][S5]. The constant drive to remain digitally connected, fueled by phenomena like the Fear of Missing Out (FoMO), can impair cognitive focus and redirect study time [S18]. While some students exhibit resilience and effective time management despite considerable social media use, sleep deprivation due to prolonged engagement is also a concern [S10][S14].\n\n### Effects on Academic Performance\nThe relationship between social media use and academic performance is multifaceted. Several studies indicate a negative correlation between excessive or non-academic social media use and academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. For example, higher social media overuse has been linked to increased psychological distress and a deterioration in academic performance [S15]. Daily social media hours often have a significant negative effect on students' Grade Point Averages (GPAs) [S4][S5][S8]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. Academic-oriented use of platforms like YouTube and WhatsApp for research and collaborative learning can improve academic outcomes [S16][S25]. The impact of social media, therefore, depends less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "Discussion",
+          "heading": "Discussion",
+          "status": "Generated",
+          "content": "The reviewed literature consistently highlights a complex and often contradictory relationship between social media use, time management, and academic performance among university students. A prominent pattern indicates that excessive and non-academic social media engagement generally correlates with negative academic outcomes [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. This is often linked to poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. For example, studies reveal a significant negative effect of daily social media hours on Grade Point Averages (GPAs) [S4][S5][S8]. The constant drive for digital connection, exacerbated by phenomena like the Fear of Missing Out (FoMO), is identified as a factor impairing cognitive focus and diverting study time [S18].\n\nHowever, the literature also presents a significant contradiction: moderate and academic-oriented social media use can positively influence academic performance [S2][S4][S7][S8][S12][S13][S16][S21]. Platforms like WhatsApp and YouTube, while often used for social purposes [S7][S8][S10][S13], can facilitate collaborative learning, discussion, and knowledge sharing when employed purposefully [S2][S4][S7][S8][S12][S13][S16][S21]. This suggests that the impact of social media is not inherent to the platforms themselves, but rather depends on how students choose to utilize them [S4][S5][S6][S13][S15][S17].\n\nA key limitation across many studies is the reliance on self-reported data for social media use and academic performance [S15][S17], which may introduce biases. While some research acknowledges the moderating role of time management skills [S3][S4][S5], a comprehensive exploration of its specific pathways in the social media-academic performance relationship is still developing. Furthermore, studies often focus on specific platforms [S17] or contexts, such as social media addiction [S9][S15][S20], rather than a holistic view. There is also limited research from the Global South, with most studies originating from the United States and the United Kingdom [S29], which may limit the generalizability of findings across diverse educational systems and student populations. The absence of longitudinal designs in much of the existing quantitative research also restricts the ability to infer causal relationships between variables [S11].",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "ResearchGaps",
+          "heading": "Research Gaps",
+          "status": "Generated",
+          "content": "Despite the extensive literature on social media use, time management, and academic performance, several research gaps remain. Many existing studies rely predominantly on self-reported data for social media use and academic performance, which can introduce response biases and limit the objectivity of findings [S15][S17]. Furthermore, a significant portion of research originates from the United States and the United Kingdom, with limited representation from the Global South [S29], which restricts the generalizability of conclusions across diverse cultural and educational contexts.\n\nWhile some literature acknowledges the role of time management [S3][S4][S5], a comprehensive and detailed exploration of its specific moderating or mediating pathways within the social media-academic performance relationship is not fully established across a broad spectrum of evidence. Most quantitative research in this area also employs cross-sectional designs, which prevents the inference of causal relationships between variables [S11]. Future research could benefit from longitudinal designs to better understand the temporal dynamics and causal influences among these factors [S11][S21]. Additionally, studies often concentrate on specific social media platforms or narrow aspects such as social media addiction [S9][S15][S17][S20], rather than offering a holistic view of the interplay between diverse usage patterns, time management strategies, and academic outcomes.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "Conclusion",
+          "heading": "Conclusion",
+          "status": "Generated",
+          "content": "This synthesis of existing literature establishes a multifaceted relationship between social media use, time management, and academic performance among university students. Characterized by diverse engagement patterns, social media can either hinder or enhance academic outcomes, largely depending on the purpose and extent of use. Non-academic and excessive social media engagement is consistently linked to poor time management, reduced concentration, and lower academic achievement. Conversely, purposeful, academic-oriented social media use can positively influence learning through collaborative engagement and information sharing.\n\nThe literature review highlights a crucial role for time management skills and digital self-discipline in moderating these impacts. While self-reported data limitations and a geographical imbalance in existing studies present challenges, the overall evidence underscores that the influence of social media is not inherent to the platforms themselves but rather to students' usage patterns. Future research could benefit from longitudinal designs to explore causal relationships more definitively and from expanded geographical representation to enhance generalizability.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "ModelInference"
+          ]
+        }
+      ],
+      "isLiteratureReview": false,
+      "literatureReviewSections": [],
+      "literatureReviewFlags": [],
+      "generationAuditId": "54b53dbd-0ab9-4613-93c1-835a0e20aeae"
+    }
+  },
+  "resumeEvents": [
+    {
+      "status": "Running",
+      "stage": "drafting:Abstract",
+      "completedSections": 6
+    },
+    {
+      "status": "Completed",
+      "stage": "ready",
+      "completedSections": 7
+    }
+  ],
+  "resumedOutcome": {
+    "runId": "8247c607-8607-4754-a2f2-b1b00ca52969",
+    "documentId": "0ede96bf-1330-45ff-9743-a9fc9af2800a",
+    "status": "Completed",
+    "stage": "ready",
+    "createdAt": "2026-10-30T10:47:59.4006915Z",
+    "updatedAt": "2026-10-30T11:00:14.0815371Z",
+    "error": "",
+    "completedSections": 7,
+    "result": {
+      "pipelineMetrics": null,
+      "completionStatus": "Complete",
+      "completionReason": null,
+      "questionCoverage": null,
+      "coWrite": null,
+      "evidencePlan": null,
+      "evidenceIssues": [],
+      "isEssay": false,
+      "title": "The relationship between social media use, time management, and academic performance among university students.",
+      "content": "This paper synthesizes existing literature to examine the intricate relationship between social media use, time management, and academic performance among university students. The review characterizes prevalent patterns of social media engagement, analyzes its documented effects on time management practices, and evaluates its overall impact on academic outcomes.\n\nThe evidence suggests that while social media offers opportunities for collaborative learning and information sharing, excessive and non-academic use consistently correlates with poor time management, reduced concentration, and lower academic achievement. Conversely, moderate and purposeful academic social media use can positively influence learning. Key themes highlight the importance of digital self-discipline and effective time management as moderators of these impacts. Limitations in the existing literature include a predominant reliance on self-reported data, cross-sectional designs that preclude causal inferences, and a geographical imbalance in studies, with limited representation from the Global South. The synthesis concludes that social media\u2019s influence on academic performance is largely contingent on students' usage patterns rather than the platforms themselves.\n\nUniversity students today navigate a complex academic landscape significantly influenced by pervasive digital technologies, particularly social media platforms [S1][S4][S14]. These platforms offer diverse functionalities, from entertainment and communication to collaborative learning and information sharing [S1][S2][S4][S14]. While social media presents opportunities for enhanced peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], its widespread adoption also introduces challenges related to distraction, time management, and academic performance [S1][S2][S4][S5][S6][S13][S14][S17].\n\nNumerous studies have explored the impact of social media on academic outcomes, often revealing a nuanced relationship. Research consistently indicates that excessive and non-academic social media use can lead to decreased concentration, poor time management, reduced study efficiency, and lower academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S18][S19][S20][S22]. For instance, a moderate negative correlation between social media usage and academic performance has been observed among undergraduate students, with younger and lower-level students being particularly susceptible to negative outcomes [S2][S5]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. The impact of social media thus appears to depend less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].\n\nDespite the growing body of literature examining social media use, time management, and academic performance, there remains a need for a comprehensive synthesis that delineates the specific pathways through which these variables interact and how these interactions manifest across diverse student populations. Previous research has often focused on specific aspects, such as social media addiction [S9][S15][S20] or the influence of particular platforms [S17]. While some studies acknowledge the role of time management [S3][S4][S5], a detailed exploration of its moderating or mediating role in the social media-academic performance relationship, drawing on a broader range of evidence, will be beneficial.\n\nThis paper will therefore synthesize existing literature to systematically examine the relationship between social media use, time management, and academic performance among university students. Specifically, it will aim to characterize prevalent patterns of social media use among university students, analyze the documented effects of social media use on students' time management practices, and evaluate the overall impact of social media use and time management on academic performance.\n\nThis paper presents a narrative synthesis of the evidence available to the writing run for the stated research question. The run assembled 30 distinct source records from OpenAlex. This is the available source pool, not the number of studies ultimately cited or a count from a systematic screening process. The synthesis draws on the metadata and source excerpts supplied by those records; access to every full text is not assumed. It compares reported relationships, differences in study contexts and methods, and limitations relevant to the research question. This is not an exhaustive or systematic review: no predefined screening protocol, independent double screening, comprehensive search coverage, or formal risk-of-bias assessment is claimed. Source identity checks and claim-support checks are separate, and remaining uncertainties are retained as review flags. No original participants were recruited, new dataset collected, or original statistical analysis performed for this literature-based paper.\n\nSocial media platforms have become ubiquitous in the lives of university students, influencing their academic experiences in complex ways [S1][S4][S14]. The prevailing literature indicates a nuanced relationship, where both beneficial and detrimental impacts are observed depending on the nature and extent of social media engagement.\n\n### Patterns of Social Media Use\nUniversity students frequently engage with social media for a variety of purposes, including entertainment, communication, and information sharing [S1][S2][S4][S14]. WhatsApp, Facebook, and YouTube are consistently identified as popular platforms [S7][S8][S10][S13]. While these platforms can facilitate peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], a significant proportion of students admit to using them primarily for non-academic reasons [S13]. Studies also suggest that younger and lower-level students may be more susceptible to negative outcomes associated with social media use [S2][S5]. The highest average time spent on social media is often for social purposes, followed by online gaming [S10]. The pervasive nature of these platforms means that their influence on student life is a growing area of concern [S4].\n\n### Impact on Time Management\nThe literature consistently highlights a strong link between social media use and time management practices among university students. Excessive and non-academic social media engagement is frequently associated with poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. This can manifest as procrastination and inconsistency in study habits [S13][S18]. For instance, students who consciously manage their social media time tend to perform better academically [S4][S5]. The constant drive to remain digitally connected, fueled by phenomena like the Fear of Missing Out (FoMO), can impair cognitive focus and redirect study time [S18]. While some students exhibit resilience and effective time management despite considerable social media use, sleep deprivation due to prolonged engagement is also a concern [S10][S14].\n\n### Effects on Academic Performance\nThe relationship between social media use and academic performance is multifaceted. Several studies indicate a negative correlation between excessive or non-academic social media use and academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. For example, higher social media overuse has been linked to increased psychological distress and a deterioration in academic performance [S15]. Daily social media hours often have a significant negative effect on students' Grade Point Averages (GPAs) [S4][S5][S8]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. Academic-oriented use of platforms like YouTube and WhatsApp for research and collaborative learning can improve academic outcomes [S16][S25]. The impact of social media, therefore, depends less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].\n\nThe reviewed literature consistently highlights a complex and often contradictory relationship between social media use, time management, and academic performance among university students. A prominent pattern indicates that excessive and non-academic social media engagement generally correlates with negative academic outcomes [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. This is often linked to poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. For example, studies reveal a significant negative effect of daily social media hours on Grade Point Averages (GPAs) [S4][S5][S8]. The constant drive for digital connection, exacerbated by phenomena like the Fear of Missing Out (FoMO), is identified as a factor impairing cognitive focus and diverting study time [S18].\n\nHowever, the literature also presents a significant contradiction: moderate and academic-oriented social media use can positively influence academic performance [S2][S4][S7][S8][S12][S13][S16][S21]. Platforms like WhatsApp and YouTube, while often used for social purposes [S7][S8][S10][S13], can facilitate collaborative learning, discussion, and knowledge sharing when employed purposefully [S2][S4][S7][S8][S12][S13][S16][S21]. This suggests that the impact of social media is not inherent to the platforms themselves, but rather depends on how students choose to utilize them [S4][S5][S6][S13][S15][S17].\n\nA key limitation across many studies is the reliance on self-reported data for social media use and academic performance [S15][S17], which may introduce biases. While some research acknowledges the moderating role of time management skills [S3][S4][S5], a comprehensive exploration of its specific pathways in the social media-academic performance relationship is still developing. Furthermore, studies often focus on specific platforms [S17] or contexts, such as social media addiction [S9][S15][S20], rather than a holistic view. There is also limited research from the Global South, with most studies originating from the United States and the United Kingdom [S29], which may limit the generalizability of findings across diverse educational systems and student populations. The absence of longitudinal designs in much of the existing quantitative research also restricts the ability to infer causal relationships between variables [S11].\n\nDespite the extensive literature on social media use, time management, and academic performance, several research gaps remain. Many existing studies rely predominantly on self-reported data for social media use and academic performance, which can introduce response biases and limit the objectivity of findings [S15][S17]. Furthermore, a significant portion of research originates from the United States and the United Kingdom, with limited representation from the Global South [S29], which restricts the generalizability of conclusions across diverse cultural and educational contexts.\n\nWhile some literature acknowledges the role of time management [S3][S4][S5], a comprehensive and detailed exploration of its specific moderating or mediating pathways within the social media-academic performance relationship is not fully established across a broad spectrum of evidence. Most quantitative research in this area also employs cross-sectional designs, which prevents the inference of causal relationships between variables [S11]. Future research could benefit from longitudinal designs to better understand the temporal dynamics and causal influences among these factors [S11][S21]. Additionally, studies often concentrate on specific social media platforms or narrow aspects such as social media addiction [S9][S15][S17][S20], rather than offering a holistic view of the interplay between diverse usage patterns, time management strategies, and academic outcomes.\n\nThis synthesis of existing literature establishes a multifaceted relationship between social media use, time management, and academic performance among university students. Characterized by diverse engagement patterns, social media can either hinder or enhance academic outcomes, largely depending on the purpose and extent of use. Non-academic and excessive social media engagement is consistently linked to poor time management, reduced concentration, and lower academic achievement. Conversely, purposeful, academic-oriented social media use can positively influence learning through collaborative engagement and information sharing.\n\nThe literature review highlights a crucial role for time management skills and digital self-discipline in moderating these impacts. While self-reported data limitations and a geographical imbalance in existing studies present challenges, the overall evidence underscores that the influence of social media is not inherent to the platforms themselves but rather to students' usage patterns. Future research could benefit from longitudinal designs to explore causal relationships more definitively and from expanded geographical representation to enhance generalizability.",
+      "sections": null,
+      "references": [
+        {
+          "sourceId": "S1",
+          "canonicalId": "50c0f715-5ed4-66e3-96d9-0b8fb9aa09d6",
+          "openAlexWorkId": "W7168081275",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7168081275",
+          "title": "Time Spent on Social Media and its Impact on Academic Performance: Evidence from University Students in Sargodha, Pakistan",
+          "url": "https://ojs.pssr.org.pk/journal/article/download/1159/947",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.35484/pssr.2025(9-iv)22",
+          "authors": "Halema Sadia, Muhammad Hassan Babar, Zunaira Ghaffar",
+          "authorDetails": [
+            {
+              "family": "Sadia",
+              "given": "Halema",
+              "name": "Halema Sadia",
+              "orcid": "https://orcid.org/0009-0008-4477-3319",
+              "affiliations": [
+                "University of Sargodha"
+              ]
+            },
+            {
+              "family": "Babar",
+              "given": "Muhammad Hassan",
+              "name": "Muhammad Hassan Babar",
+              "orcid": null,
+              "affiliations": [
+                "University of Lahore"
+              ]
+            },
+            {
+              "family": "Ghaffar",
+              "given": "Zunaira",
+              "name": "Zunaira Ghaffar",
+              "orcid": null,
+              "affiliations": [
+                "University of Sargodha"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Pakistan Social Sciences Review",
+          "volume": "9",
+          "issue": "IV",
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S2",
+          "canonicalId": "28ce1149-4303-2730-e196-a95a7770bb92",
+          "openAlexWorkId": "W7160121679",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7160121679",
+          "title": "EFFECTS OF SOCIAL MEDIA ON SCHOOL PERFORMANCE: AN INVESTIGATIVE STUDY OF UNDERGRADUATE STUDENTS IN EDO STATE",
+          "url": "https://doi.org/10.54922/ijehss.2026.1251",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.54922/ijehss.2026.1251",
+          "authors": "OMI UJUANBI, Gloria Omolegho",
+          "authorDetails": [
+            {
+              "family": "OMI UJUANBI",
+              "given": null,
+              "name": "OMI UJUANBI",
+              "orcid": null,
+              "affiliations": [
+                "Ambrose Alli University"
+              ]
+            },
+            {
+              "family": "Omolegho",
+              "given": "Gloria",
+              "name": "Gloria Omolegho",
+              "orcid": null,
+              "affiliations": [
+                "Ambrose Alli University"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "International Journal of Education Humanities and Social Science",
+          "volume": "09",
+          "issue": "02",
+          "pages": "398-410",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S3",
+          "canonicalId": "b61186cc-2965-3b5d-70e0-de17b70d7e2d",
+          "openAlexWorkId": "W7129271745",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7129271745",
+          "title": "Productive and Problematic Social Media Use and Students\u2019 Academic Outcomes: Mediation by Parent/Teacher Support and Moderation by Time Management Skills (Evidence from Higher Education Institutions in Punjab and Khyber Pakhtunkhwa, Pakistan)",
+          "url": "https://rjsaonline.com/journals/index.php/rjsa/article/download/715/893",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.71317/rjsa.003.06.0715",
+          "authors": "Najma Tauheed, Muhammad Aslam Khan, Muhammad Siddique, Hafiz Safi Ullah, Haji Irfan Haider, Mahesh Kumar Oad",
+          "authorDetails": [
+            {
+              "family": "Tauheed",
+              "given": "Najma",
+              "name": "Najma Tauheed",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Khan",
+              "given": "Muhammad Aslam",
+              "name": "Muhammad Aslam Khan",
+              "orcid": "https://orcid.org/0000-0001-6219-3918",
+              "affiliations": [
+                "University of Haripur"
+              ]
+            },
+            {
+              "family": "Siddique",
+              "given": "Muhammad",
+              "name": "Muhammad Siddique",
+              "orcid": null,
+              "affiliations": [
+                "Gomal University"
+              ]
+            },
+            {
+              "family": "Ullah",
+              "given": "Hafiz Safi",
+              "name": "Hafiz Safi Ullah",
+              "orcid": null,
+              "affiliations": [
+                "Gomal University"
+              ]
+            },
+            {
+              "family": "Haider",
+              "given": "Haji Irfan",
+              "name": "Haji Irfan Haider",
+              "orcid": null,
+              "affiliations": [
+                "Gomal University"
+              ]
+            },
+            {
+              "family": "Oad",
+              "given": "Mahesh Kumar",
+              "name": "Mahesh Kumar Oad",
+              "orcid": null,
+              "affiliations": [
+                "University of Sindh"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Research Journal for Social Affairs",
+          "volume": "3",
+          "issue": "6",
+          "pages": "1847-1856",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S4",
+          "canonicalId": "4286b9f9-2462-9531-fc7d-9ff6094dcb6c",
+          "openAlexWorkId": "W7164532107",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7164532107",
+          "title": "The Influence of Social Media Usage on Students' Academic Performance and Study Habits",
+          "url": "https://doi.org/10.5281/zenodo.20669918",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.5281/zenodo.20669918",
+          "authors": "Saroj Chaudhary",
+          "authorDetails": [
+            {
+              "family": "Chaudhary",
+              "given": "Saroj",
+              "name": "Saroj Chaudhary",
+              "orcid": null,
+              "affiliations": []
+            }
+          ],
+          "year": 2026,
+          "venue": "Zenodo (CERN European Organization for Nuclear Research)",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": "European Organization for Nuclear Research",
+          "language": "en"
+        },
+        {
+          "sourceId": "S5",
+          "canonicalId": "40107c2c-646d-7872-050b-107a4a66b1e9",
+          "openAlexWorkId": "W2992858501",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W2992858501",
+          "title": "Revealing the Relationship between Smartphone Addiction and Academic Performance of Students: Evidences from Higher Educational Institutes of Pakistan",
+          "url": "https://openalex.org/W2992858501",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Arooba Azam Khan, Asma Khalid, Rimsha Iqbal",
+          "authorDetails": [
+            {
+              "family": "Khan",
+              "given": "Arooba Azam",
+              "name": "Arooba Azam Khan",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Khalid",
+              "given": "Asma",
+              "name": "Asma Khalid",
+              "orcid": "https://orcid.org/0000-0003-3919-2487",
+              "affiliations": []
+            },
+            {
+              "family": "Iqbal",
+              "given": "Rimsha",
+              "name": "Rimsha Iqbal",
+              "orcid": "https://orcid.org/0000-0003-4685-2834",
+              "affiliations": []
+            }
+          ],
+          "year": 2019,
+          "venue": "Social Science Open Access Repository (GESIS \u2013 Leibniz Institute for the Social Sciences)",
+          "volume": "3",
+          "issue": "2",
+          "pages": "74-83",
+          "workType": "article",
+          "publisher": "GESIS - Leibniz Institute for the Social Sciences",
+          "language": "en"
+        },
+        {
+          "sourceId": "S6",
+          "canonicalId": "72f1aa6d-fb39-a505-5a73-267dd9bd3c35",
+          "openAlexWorkId": "W7108663441",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7108663441",
+          "title": "THE IMPACT OF SOCIAL MEDIA ON STUDENTS' ACADEMIC PERFORMANCE IN UNIVERSITY DEGREE COLLEGES: A STUDY OF KUMAUN UNIVERSITY NAINITAL",
+          "url": "https://doi.org/10.5281/zenodo.17811611",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.5281/zenodo.17811610",
+          "authors": "Meeta Joshi, Manu Singh",
+          "authorDetails": [
+            {
+              "family": "Joshi",
+              "given": "Meeta",
+              "name": "Meeta Joshi",
+              "orcid": null,
+              "affiliations": [
+                "Shri Venkateshwara University",
+                "Sri Venkateswara University"
+              ]
+            },
+            {
+              "family": "Singh",
+              "given": "Manu",
+              "name": "Manu Singh",
+              "orcid": null,
+              "affiliations": [
+                "Shri Venkateshwara University",
+                "Sri Venkateswara University"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "Zenodo (CERN European Organization for Nuclear Research)",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": "European Organization for Nuclear Research",
+          "language": "en"
+        },
+        {
+          "sourceId": "S7",
+          "canonicalId": "8fb42fd7-cbdd-db81-7b9b-ca7b33d000fb",
+          "openAlexWorkId": "W7215165637",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7215165637",
+          "title": "INFLUENCE OF SOCIAL MEDIA PLATFORM USE ON ACADEMIC PERFORMANCE OF COOPERATIVE ECONOMICS AND MANAGEMENT STUDENTS AT NNAMDI AZIKIWE UNIVERSITY, AWKA",
+          "url": "https://ijmsspcs.com/index.php/IJMSSPCS/article/download/870/943",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Lovelyn Chinwendu Ajubiga, Obianuju Chekwube-Aziekwe, Chinyere Chigozie Akpunonu, Stephanie Chidiogo Akonu",
+          "authorDetails": [
+            {
+              "family": "Ajubiga",
+              "given": "Lovelyn Chinwendu",
+              "name": "Lovelyn Chinwendu Ajubiga",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Chekwube-Aziekwe",
+              "given": "Obianuju",
+              "name": "Obianuju Chekwube-Aziekwe",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Akpunonu",
+              "given": "Chinyere Chigozie",
+              "name": "Chinyere Chigozie Akpunonu",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Akonu",
+              "given": "Stephanie Chidiogo",
+              "name": "Stephanie Chidiogo Akonu",
+              "orcid": null,
+              "affiliations": []
+            }
+          ],
+          "year": 2026,
+          "venue": "INTERNATIONAL JOURNAL OF MANAGEMENT, SOCIAL SCIENCES, PEACE AND CONFLICT STUDIES",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S8",
+          "canonicalId": "591d68c3-f2a6-ea66-e088-d0c38c03bb5f",
+          "openAlexWorkId": "W4411615407",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4411615407",
+          "title": "Perspektif Mahasiswa terhadap Pengunaan Medsos dan Prestasi Belajar Mahasiswa",
+          "url": "https://ejournal-fia.unkris.ac.id/index.php/antasena/article/download/335/230",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.61332/antasena.v3i1.335",
+          "authors": "Diah Pita Sari, Andini Tiara Diva, Fani Kusuma Styaningrum, Akin Witri Gaoma, Nabila Olga Fawnia, Joko Tri Nugraha",
+          "authorDetails": [
+            {
+              "family": "Sari",
+              "given": "Diah Pita",
+              "name": "Diah Pita Sari",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            },
+            {
+              "family": "Diva",
+              "given": "Andini Tiara",
+              "name": "Andini Tiara Diva",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            },
+            {
+              "family": "Styaningrum",
+              "given": "Fani Kusuma",
+              "name": "Fani Kusuma Styaningrum",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            },
+            {
+              "family": "Gaoma",
+              "given": "Akin Witri",
+              "name": "Akin Witri Gaoma",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            },
+            {
+              "family": "Fawnia",
+              "given": "Nabila Olga",
+              "name": "Nabila Olga Fawnia",
+              "orcid": null,
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            },
+            {
+              "family": "Nugraha",
+              "given": "Joko Tri",
+              "name": "Joko Tri Nugraha",
+              "orcid": "https://orcid.org/0000-0002-5220-9389",
+              "affiliations": [
+                "Universitas Tidar"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "ANTASENA Governance and Innovation Journal",
+          "volume": "3",
+          "issue": "1",
+          "pages": "223-238",
+          "workType": "article",
+          "publisher": "Universitas Krisnadwipayana",
+          "language": "en"
+        },
+        {
+          "sourceId": "S9",
+          "canonicalId": "10cf1867-0020-fae6-1342-ab8dce07fad9",
+          "openAlexWorkId": "W4411204892",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4411204892",
+          "title": "Social Media Addiction and Academic Performance of University Students",
+          "url": "http://uijournal.usim.edu.my/index.php/uij/article/download/476/305",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.33102/uij.vol34no2.476",
+          "authors": "Fatin Najihah Basri, Farhana Sabri, Mohd Khairul Anuar Rahimi",
+          "authorDetails": [
+            {
+              "family": "Basri",
+              "given": "Fatin Najihah",
+              "name": "Fatin Najihah Basri",
+              "orcid": null,
+              "affiliations": [
+                "Universiti Sains Islam Malaysia"
+              ]
+            },
+            {
+              "family": "Sabri",
+              "given": "Farhana",
+              "name": "Farhana Sabri",
+              "orcid": "https://orcid.org/0000-0003-3177-3084",
+              "affiliations": [
+                "Universiti Sains Islam Malaysia"
+              ]
+            },
+            {
+              "family": "Rahimi",
+              "given": "Mohd Khairul Anuar",
+              "name": "Mohd Khairul Anuar Rahimi",
+              "orcid": null,
+              "affiliations": [
+                "Universiti Sains Islam Malaysia"
+              ]
+            }
+          ],
+          "year": 2022,
+          "venue": "Ulum Islamiyyah",
+          "volume": "34",
+          "issue": "2",
+          "pages": "1-17",
+          "workType": "article",
+          "publisher": "Universiti Sains Islam Malaysia",
+          "language": "en"
+        },
+        {
+          "sourceId": "S10",
+          "canonicalId": "df653c18-d4a9-d160-3265-f92776296c0a",
+          "openAlexWorkId": "W4405879829",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4405879829",
+          "title": "Impact of social media on higher education: Academic performance, leadership and co-curricular activity engagement",
+          "url": "https://malque.pub/ojs/index.php/mr/article/download/5665/3193",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.31893/multirev.2025142",
+          "authors": "Al Amin Mohamed Sultan, Erwan Ismail, Mohd Shamsuri Md Saad, Afifuddin Husairi Hussain, Muhammad Zaid Daud, Haitham M. Alswat",
+          "authorDetails": [
+            {
+              "family": "Sultan",
+              "given": "Al Amin Mohamed",
+              "name": "Al Amin Mohamed Sultan",
+              "orcid": "https://orcid.org/0000-0001-7063-2706",
+              "affiliations": [
+                "Universiti Teknikal Malaysia Melaka"
+              ]
+            },
+            {
+              "family": "Ismail",
+              "given": "Erwan",
+              "name": "Erwan Ismail",
+              "orcid": "https://orcid.org/0009-0007-1706-1394",
+              "affiliations": [
+                "Universiti Teknikal Malaysia Melaka"
+              ]
+            },
+            {
+              "family": "Saad",
+              "given": "Mohd Shamsuri Md",
+              "name": "Mohd Shamsuri Md Saad",
+              "orcid": "https://orcid.org/0000-0002-2269-5494",
+              "affiliations": [
+                "Universiti Teknikal Malaysia Melaka"
+              ]
+            },
+            {
+              "family": "Hussain",
+              "given": "Afifuddin Husairi",
+              "name": "Afifuddin Husairi Hussain",
+              "orcid": "https://orcid.org/0000-0001-5447-9828",
+              "affiliations": [
+                "National University of Malaysia"
+              ]
+            },
+            {
+              "family": "Daud",
+              "given": "Muhammad Zaid",
+              "name": "Muhammad Zaid Daud",
+              "orcid": "https://orcid.org/0000-0002-4394-5181",
+              "affiliations": [
+                "National University of Malaysia"
+              ]
+            },
+            {
+              "family": "Alswat",
+              "given": "Haitham M.",
+              "name": "Haitham M. Alswat",
+              "orcid": "https://orcid.org/0000-0001-5032-9259",
+              "affiliations": [
+                "Shaqra University"
+              ]
+            }
+          ],
+          "year": 2024,
+          "venue": "Multidisciplinary Reviews",
+          "volume": "8",
+          "issue": "5",
+          "pages": "2025142",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S11",
+          "canonicalId": "2490620b-0319-3d39-1157-60d154812034",
+          "openAlexWorkId": "W2994935786",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W2994935786",
+          "title": "Social media and student performance: the moderating role of ICT knowledge",
+          "url": "https://doi.org/10.1108/jices-08-2019-0092",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1108/jices-08-2019-0092",
+          "authors": "Robert Kwame Dzogbenuku, George Kofi Amoako, Desmond Kwadjo Kumi",
+          "authorDetails": [
+            {
+              "family": "Dzogbenuku",
+              "given": "Robert Kwame",
+              "name": "Robert Kwame Dzogbenuku",
+              "orcid": "https://orcid.org/0000-0002-6290-8458",
+              "affiliations": [
+                "Central University"
+              ]
+            },
+            {
+              "family": "Amoako",
+              "given": "George Kofi",
+              "name": "George Kofi Amoako",
+              "orcid": "https://orcid.org/0000-0002-7966-4867",
+              "affiliations": [
+                "Central University"
+              ]
+            },
+            {
+              "family": "Kumi",
+              "given": "Desmond Kwadjo",
+              "name": "Desmond Kwadjo Kumi",
+              "orcid": "https://orcid.org/0000-0002-5737-4965",
+              "affiliations": []
+            }
+          ],
+          "year": 2019,
+          "venue": "Journal of Information Communication and Ethics in Society",
+          "volume": "18",
+          "issue": "2",
+          "pages": "197-219",
+          "workType": "article",
+          "publisher": "Emerald Publishing Limited",
+          "language": "en"
+        },
+        {
+          "sourceId": "S12",
+          "canonicalId": "dee8c6be-1cc2-192c-6a2d-afcbb16c127b",
+          "openAlexWorkId": "W1981702783",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W1981702783",
+          "title": "The Improvement of Students\u2019 Academic Performance by Using Social Media through Collaborative Learning in Malaysian Higher Education",
+          "url": "https://ccsenet.org/journal/index.php/ass/article/download/35490/20138",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.5539/ass.v10n8p210",
+          "authors": "Waleed Mugahed Al-Rahmi, Mohd Shahizan Othman, Mahdi Alhaji Musa",
+          "authorDetails": [
+            {
+              "family": "Al-Rahmi",
+              "given": "Waleed Mugahed",
+              "name": "Waleed Mugahed Al-Rahmi",
+              "orcid": "https://orcid.org/0000-0002-0980-7439",
+              "affiliations": [
+                "University of Technology Malaysia"
+              ]
+            },
+            {
+              "family": "Othman",
+              "given": "Mohd Shahizan",
+              "name": "Mohd Shahizan Othman",
+              "orcid": "https://orcid.org/0000-0003-4261-1873",
+              "affiliations": []
+            },
+            {
+              "family": "Musa",
+              "given": "Mahdi Alhaji",
+              "name": "Mahdi Alhaji Musa",
+              "orcid": null,
+              "affiliations": [
+                "University of Technology Malaysia"
+              ]
+            }
+          ],
+          "year": 2014,
+          "venue": "Asian Social Science",
+          "volume": "10",
+          "issue": "8",
+          "pages": null,
+          "workType": "article",
+          "publisher": "Canadian Center of Science and Education",
+          "language": "en"
+        },
+        {
+          "sourceId": "S13",
+          "canonicalId": "35af1ecd-c552-446e-9486-334fa2d31122",
+          "openAlexWorkId": "W4414553366",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4414553366",
+          "title": "Patterns, Perceptions, and Academic Implications of Social Media Use among Tertiary Institution Students in Yobe State, Nigeria",
+          "url": "https://ejournal.yasin-alsys.org/AMJSAI/article/download/7482/5600",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.58578/amjsai.v2i3.7482",
+          "authors": "Zainab Ibrahim Ciroma, Abdulkadir Musa Abubakar, Abdulkarim Bello Bashir",
+          "authorDetails": [
+            {
+              "family": "Ciroma",
+              "given": "Zainab Ibrahim",
+              "name": "Zainab Ibrahim Ciroma",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Abubakar",
+              "given": "Abdulkadir Musa",
+              "name": "Abdulkadir Musa Abubakar",
+              "orcid": null,
+              "affiliations": [
+                "Federal Polytechnic Damaturu"
+              ]
+            },
+            {
+              "family": "Bashir",
+              "given": "Abdulkarim Bello",
+              "name": "Abdulkarim Bello Bashir",
+              "orcid": "https://orcid.org/0000-0003-0577-5801",
+              "affiliations": []
+            }
+          ],
+          "year": 2025,
+          "venue": "African Multidisciplinary Journal of Sciences and Artificial Intelligence",
+          "volume": "2",
+          "issue": "3",
+          "pages": "508-520",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S14",
+          "canonicalId": "92275dfc-7b38-ac80-1b93-82662b86b3af",
+          "openAlexWorkId": "W7204948599",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7204948599",
+          "title": "Assessment of Social Media Addiction, Academic Stress, and Mental Health among College and University Students",
+          "url": "https://doi.org/10.66572/ejimapss.2026.v6.i2.99131",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.66572/ejimapss.2026.v6.i2.99131",
+          "authors": null,
+          "authorDetails": [],
+          "year": 2026,
+          "venue": "European Journal of Integrative Medicinal and Allied Paramedical Spectrum Studies",
+          "volume": "6",
+          "issue": "2",
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S15",
+          "canonicalId": "709df0c1-a94e-2623-9c06-ec42b7fd7158",
+          "openAlexWorkId": "W7117361642",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7117361642",
+          "title": "Excessive social media use and its impact on psychological well-being and academic performance of Vietnamese university students",
+          "url": "https://doi.org/10.1080/02673843.2025.2608766",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1080/02673843.2025.2608766",
+          "authors": "Tran Minh Duc",
+          "authorDetails": [
+            {
+              "family": "Duc",
+              "given": "Tran Minh",
+              "name": "Tran Minh Duc",
+              "orcid": null,
+              "affiliations": [
+                "Thu Dau Mot University"
+              ]
+            }
+          ],
+          "year": 2025,
+          "venue": "International Journal of Adolescence and Youth",
+          "volume": "31",
+          "issue": "1",
+          "pages": null,
+          "workType": "article",
+          "publisher": "Taylor & Francis",
+          "language": "en"
+        },
+        {
+          "sourceId": "S16",
+          "canonicalId": "b7c5a4a9-3509-ab69-5509-21e55e6d4790",
+          "openAlexWorkId": "W7202289713",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7202289713",
+          "title": "Impact of AI and social media usage on academic performance among undergraduates in the University of Calabar, Cross River State, Nigeria",
+          "url": "https://akasa.com.ng/ojs/index.php/journal/article/download/567/628",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.64726/f7xake82",
+          "authors": "Maria Ofie Sunday, Rose Unwanung Adie, Musa Moses Egaga",
+          "authorDetails": [
+            {
+              "family": "Sunday",
+              "given": "Maria Ofie",
+              "name": "Maria Ofie Sunday",
+              "orcid": "https://orcid.org/0000-0001-6704-2967",
+              "affiliations": [
+                "University of Calabar"
+              ]
+            },
+            {
+              "family": "Adie",
+              "given": "Rose Unwanung",
+              "name": "Rose Unwanung Adie",
+              "orcid": null,
+              "affiliations": [
+                "University of Calabar"
+              ]
+            },
+            {
+              "family": "Egaga",
+              "given": "Musa Moses",
+              "name": "Musa Moses Egaga",
+              "orcid": null,
+              "affiliations": [
+                "University of Calabar"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "Aminu Kano Academic Scholars Association Multidisciplinary Journal",
+          "volume": "5",
+          "issue": "1",
+          "pages": "78-96",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S17",
+          "canonicalId": "ee8ba2a6-8919-289d-c6c6-db153a2a7a3d",
+          "openAlexWorkId": "W7112829116",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7112829116",
+          "title": "The influence of TikTok on academic performance among university students at UiTM Alor Gajah, Melaka",
+          "url": "https://ir.uitm.edu.my/id/eprint/123523/1/123523.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Mat Said, Siti Hajar, Ahmad Hisham, Widad Nasuha, Hussar, Adlyn Nazurah, Anuar, Nur Ellesya Balqis, Sarudin, Muhammad Faizi, Sah Allam, Siti Nurshahidah, Hassan, Mohd Sufiean",
+          "authorDetails": [
+            {
+              "family": "Hajar",
+              "given": "Siti Hajar",
+              "name": "Mat Said, Siti Hajar",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Nasuha",
+              "given": "Widad Nasuha",
+              "name": "Ahmad Hisham, Widad Nasuha",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Hussar",
+              "given": "Adlyn Nazurah",
+              "name": "Hussar, Adlyn Nazurah",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Anuar",
+              "given": "Nur Ellesya Balqis",
+              "name": "Anuar, Nur Ellesya Balqis",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Sarudin",
+              "given": "Muhammad Faizi",
+              "name": "Sarudin, Muhammad Faizi",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Nurshahidah",
+              "given": "Siti Nurshahidah",
+              "name": "Sah Allam, Siti Nurshahidah",
+              "orcid": null,
+              "affiliations": []
+            },
+            {
+              "family": "Hassan",
+              "given": "Mohd Sufiean",
+              "name": "Hassan, Mohd Sufiean",
+              "orcid": null,
+              "affiliations": []
+            }
+          ],
+          "year": 2025,
+          "venue": "UiTM Institutional Repositories (Universiti Teknologi MARA)",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": "Universiti Teknologi MARA",
+          "language": "en"
+        },
+        {
+          "sourceId": "S18",
+          "canonicalId": "23149398-8c1f-f9c1-c3d3-75bd92c86d4c",
+          "openAlexWorkId": "W7223089430",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7223089430",
+          "title": "The Effect of Fear of Missing Out (FoMO) on Academic Procrastination among Undergraduate Students",
+          "url": "https://doi.org/10.17605/osf.io/mvaqy",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.17605/osf.io/mvaqy",
+          "authors": "Danish Ara, Rizky Putra Santosa",
+          "authorDetails": [
+            {
+              "family": "Ara",
+              "given": "Danish",
+              "name": "Danish Ara",
+              "orcid": "https://orcid.org/0009-0008-0329-0716",
+              "affiliations": []
+            },
+            {
+              "family": "Santosa",
+              "given": "Rizky Putra",
+              "name": "Rizky Putra Santosa",
+              "orcid": "https://orcid.org/0000-0002-4465-3770",
+              "affiliations": []
+            }
+          ],
+          "year": 2026,
+          "venue": "OSF Preprints (OSF Preprints)",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "preprint",
+          "publisher": "Center for Open Science",
+          "language": "en"
+        },
+        {
+          "sourceId": "S19",
+          "canonicalId": "8d8c5542-a8d2-b422-a385-0d2006c0bf96",
+          "openAlexWorkId": "W3203342489",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W3203342489",
+          "title": "Impact of smartphone usage on academic performance: a study on undergraduates in FMSC of University of Sri Jayewardenepura, Sri Lanka",
+          "url": "https://doi.org/10.4038/jm.v15i1.7593",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.4038/jm.v15i1.7593",
+          "authors": "Nirmal Chathuranga, J. M. D. P. Jaysundara",
+          "authorDetails": [
+            {
+              "family": "Chathuranga",
+              "given": "Nirmal",
+              "name": "Nirmal Chathuranga",
+              "orcid": "https://orcid.org/0000-0001-9263-9239",
+              "affiliations": [
+                "University of Sri Jayewardenepura"
+              ]
+            },
+            {
+              "family": "Jaysundara",
+              "given": "J. M. D. P.",
+              "name": "J. M. D. P. Jaysundara",
+              "orcid": null,
+              "affiliations": [
+                "University of Sri Jayewardenepura"
+              ]
+            }
+          ],
+          "year": 2020,
+          "venue": "Journal of Management",
+          "volume": "15",
+          "issue": "1",
+          "pages": "14",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S20",
+          "canonicalId": "72052be1-1693-9573-3fc3-1b3516addd04",
+          "openAlexWorkId": "W2800281014",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W2800281014",
+          "title": "SOCIAL MEDIA ADDICTION AND ACADEMIC ENGAGEMENT AMONG UNDERGRADUATE STUDENTS OF USMANU DANFODIYO UNIVERSITY SOKOTO, NIGERIA",
+          "url": "https://ijitie.aitie.org.ng/index.php/ijitie/article/download/55/30",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Zubairu Suleiman",
+          "authorDetails": [
+            {
+              "family": "Suleiman",
+              "given": "Zubairu",
+              "name": "Zubairu Suleiman",
+              "orcid": null,
+              "affiliations": [
+                "Gombe State University"
+              ]
+            }
+          ],
+          "year": 2017,
+          "venue": "International Journal of Innovative Technology Integration in Education",
+          "volume": "1",
+          "issue": "2",
+          "pages": "39-46",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S21",
+          "canonicalId": "80252e99-0e17-4e15-221e-bb587113941d",
+          "openAlexWorkId": "W7203538716",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7203538716",
+          "title": "Beyond the Screen: How Peer-to-Peer and Lecturer Interactions Drive Collaborative Engagement and Academic Success",
+          "url": "https://scrrjournal.com/index.php/14/article/download/798/990",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.5281/zenodo.21953385",
+          "authors": "Hafiz Muhammad Humza, Mir Ahmad Feroz, Farah Siddique, Muhammad Qasim Ali",
+          "authorDetails": [
+            {
+              "family": "Humza",
+              "given": "Hafiz Muhammad",
+              "name": "Hafiz Muhammad Humza",
+              "orcid": "https://orcid.org/0009-0009-8198-7989",
+              "affiliations": [
+                "University of Sialkot"
+              ]
+            },
+            {
+              "family": "Feroz",
+              "given": "Mir Ahmad",
+              "name": "Mir Ahmad Feroz",
+              "orcid": null,
+              "affiliations": [
+                "University of Sialkot"
+              ]
+            },
+            {
+              "family": "Siddique",
+              "given": "Farah",
+              "name": "Farah Siddique",
+              "orcid": null,
+              "affiliations": [
+                "University of Sialkot"
+              ]
+            },
+            {
+              "family": "Ali",
+              "given": "Muhammad Qasim",
+              "name": "Muhammad Qasim Ali",
+              "orcid": null,
+              "affiliations": [
+                "University of Sialkot"
+              ]
+            }
+          ],
+          "year": 2026,
+          "venue": "Sociology & Cultural Research Review",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S22",
+          "canonicalId": "b7f8d5e6-4813-3198-4099-2f6203e3cbc8",
+          "openAlexWorkId": "W7214813884",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W7214813884",
+          "title": "SOCIAL NETWORKING USAGE AND ACADEMIC PERFORMANCE OF SCHOOL-GOING ADOLESCENTS IN OYO CITY, NIGERIA",
+          "url": "https://tijseg.org/index.php/tijseg/article/download/109/146",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": null,
+          "authors": "Fatimah Wuraola Garba",
+          "authorDetails": [
+            {
+              "family": "Garba",
+              "given": "Fatimah Wuraola",
+              "name": "Fatimah Wuraola Garba",
+              "orcid": null,
+              "affiliations": [
+                "University of Abuja"
+              ]
+            }
+          ],
+          "year": 2022,
+          "venue": "Turkish International Journal of Special Education and Guidance & Counselling (TIJSEG)",
+          "volume": null,
+          "issue": null,
+          "pages": null,
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S25",
+          "canonicalId": "71207aaa-b729-6615-b682-d4b9007c3732",
+          "openAlexWorkId": "W4299286459",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W4299286459",
+          "title": "Digital Resources Usage and Academic Performance of Undergraduate Students in Nigeria: A Case Study",
+          "url": "https://www.ejimed.com/download/digital-resources-usage-and-academic-performance-of-undergraduate-students-in-nigeria-a-case-study-12491.pdf",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.30935/ejimed/12491",
+          "authors": "Kolawole Francis Ogunbodede, Chinelo Blessing Oribhabor",
+          "authorDetails": [
+            {
+              "family": "Ogunbodede",
+              "given": "Kolawole Francis",
+              "name": "Kolawole Francis Ogunbodede",
+              "orcid": "https://orcid.org/0000-0002-5518-7787",
+              "affiliations": [
+                "University of Africa Toru-Orua"
+              ]
+            },
+            {
+              "family": "Oribhabor",
+              "given": "Chinelo Blessing",
+              "name": "Chinelo Blessing Oribhabor",
+              "orcid": "https://orcid.org/0000-0002-7318-1477",
+              "affiliations": [
+                "University of Africa Toru-Orua"
+              ]
+            }
+          ],
+          "year": 2022,
+          "venue": "European Journal of Interactive Multimedia and Education",
+          "volume": "3",
+          "issue": "2",
+          "pages": "e02213",
+          "workType": "article",
+          "publisher": null,
+          "language": "en"
+        },
+        {
+          "sourceId": "S29",
+          "canonicalId": "9f8f1ffc-3fb5-3947-632b-f570e397b7fd",
+          "openAlexWorkId": "W3014646985",
+          "pmid": null,
+          "provider": "OpenAlex",
+          "providerRecordId": "https://openalex.org/W3014646985",
+          "title": "Mapping research in student engagement and educational technology in higher education: a systematic evidence map",
+          "url": "https://doi.org/10.1186/s41239-019-0176-8",
+          "source": "web",
+          "documentId": null,
+          "passageStart": null,
+          "passageEnd": null,
+          "doi": "10.1186/s41239-019-0176-8",
+          "authors": "Melissa Bond, Katja Buntins, Svenja Bedenlier, Olaf Zawacki\u2010Richter, Michael Kerres",
+          "authorDetails": [
+            {
+              "family": "Bond",
+              "given": "Melissa",
+              "name": "Melissa Bond",
+              "orcid": "https://orcid.org/0000-0002-8267-031X",
+              "affiliations": [
+                "Carl von Ossietzky Universit\u00e4t Oldenburg"
+              ]
+            },
+            {
+              "family": "Buntins",
+              "given": "Katja",
+              "name": "Katja Buntins",
+              "orcid": "https://orcid.org/0000-0001-5571-6952",
+              "affiliations": [
+                "University of Duisburg-Essen"
+              ]
+            },
+            {
+              "family": "Bedenlier",
+              "given": "Svenja",
+              "name": "Svenja Bedenlier",
+              "orcid": "https://orcid.org/0000-0002-7940-5232",
+              "affiliations": [
+                "Carl von Ossietzky Universit\u00e4t Oldenburg"
+              ]
+            },
+            {
+              "family": "Zawacki-Richter",
+              "given": null,
+              "name": "Olaf Zawacki\u2010Richter",
+              "orcid": "https://orcid.org/0000-0003-1482-8303",
+              "affiliations": [
+                "Carl von Ossietzky Universit\u00e4t Oldenburg"
+              ]
+            },
+            {
+              "family": "Kerres",
+              "given": "Michael",
+              "name": "Michael Kerres",
+              "orcid": "https://orcid.org/0000-0002-7419-3023",
+              "affiliations": [
+                "University of Duisburg-Essen"
+              ]
+            }
+          ],
+          "year": 2020,
+          "venue": "International Journal of Educational Technology in Higher Education",
+          "volume": "17",
+          "issue": "1",
+          "pages": null,
+          "workType": "article",
+          "publisher": "Springer Nature",
+          "language": "en"
+        }
+      ],
+      "wordCount": 1744,
+      "processingTimeMs": 4338,
+      "citationVerification": null,
+      "claimAudit": null,
+      "essayFlags": [],
+      "argumentativeQuality": null,
+      "isCaseStudy": false,
+      "caseType": null,
+      "caseSections": null,
+      "caseFactAudit": null,
+      "caseStudyFlags": [],
+      "isResearchPaper": true,
+      "researchPaperSections": {
+        "abstract": "This paper synthesizes existing literature to examine the intricate relationship between social media use, time management, and academic performance among university students. The review characterizes prevalent patterns of social media engagement, analyzes its documented effects on time management practices, and evaluates its overall impact on academic outcomes.\n\nThe evidence suggests that while social media offers opportunities for collaborative learning and information sharing, excessive and non-academic use consistently correlates with poor time management, reduced concentration, and lower academic achievement. Conversely, moderate and purposeful academic social media use can positively influence learning. Key themes highlight the importance of digital self-discipline and effective time management as moderators of these impacts. Limitations in the existing literature include a predominant reliance on self-reported data, cross-sectional designs that preclude causal inferences, and a geographical imbalance in studies, with limited representation from the Global South. The synthesis concludes that social media\u2019s influence on academic performance is largely contingent on students' usage patterns rather than the platforms themselves.",
+        "introduction": "University students today navigate a complex academic landscape significantly influenced by pervasive digital technologies, particularly social media platforms [S1][S4][S14]. These platforms offer diverse functionalities, from entertainment and communication to collaborative learning and information sharing [S1][S2][S4][S14]. While social media presents opportunities for enhanced peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], its widespread adoption also introduces challenges related to distraction, time management, and academic performance [S1][S2][S4][S5][S6][S13][S14][S17].\n\nNumerous studies have explored the impact of social media on academic outcomes, often revealing a nuanced relationship. Research consistently indicates that excessive and non-academic social media use can lead to decreased concentration, poor time management, reduced study efficiency, and lower academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S18][S19][S20][S22]. For instance, a moderate negative correlation between social media usage and academic performance has been observed among undergraduate students, with younger and lower-level students being particularly susceptible to negative outcomes [S2][S5]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. The impact of social media thus appears to depend less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].\n\nDespite the growing body of literature examining social media use, time management, and academic performance, there remains a need for a comprehensive synthesis that delineates the specific pathways through which these variables interact and how these interactions manifest across diverse student populations. Previous research has often focused on specific aspects, such as social media addiction [S9][S15][S20] or the influence of particular platforms [S17]. While some studies acknowledge the role of time management [S3][S4][S5], a detailed exploration of its moderating or mediating role in the social media-academic performance relationship, drawing on a broader range of evidence, will be beneficial.\n\nThis paper will therefore synthesize existing literature to systematically examine the relationship between social media use, time management, and academic performance among university students. Specifically, it will aim to characterize prevalent patterns of social media use among university students, analyze the documented effects of social media use on students' time management practices, and evaluate the overall impact of social media use and time management on academic performance.",
+        "literatureReview": "Social media platforms have become ubiquitous in the lives of university students, influencing their academic experiences in complex ways [S1][S4][S14]. The prevailing literature indicates a nuanced relationship, where both beneficial and detrimental impacts are observed depending on the nature and extent of social media engagement.\n\n### Patterns of Social Media Use\nUniversity students frequently engage with social media for a variety of purposes, including entertainment, communication, and information sharing [S1][S2][S4][S14]. WhatsApp, Facebook, and YouTube are consistently identified as popular platforms [S7][S8][S10][S13]. While these platforms can facilitate peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], a significant proportion of students admit to using them primarily for non-academic reasons [S13]. Studies also suggest that younger and lower-level students may be more susceptible to negative outcomes associated with social media use [S2][S5]. The highest average time spent on social media is often for social purposes, followed by online gaming [S10]. The pervasive nature of these platforms means that their influence on student life is a growing area of concern [S4].\n\n### Impact on Time Management\nThe literature consistently highlights a strong link between social media use and time management practices among university students. Excessive and non-academic social media engagement is frequently associated with poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. This can manifest as procrastination and inconsistency in study habits [S13][S18]. For instance, students who consciously manage their social media time tend to perform better academically [S4][S5]. The constant drive to remain digitally connected, fueled by phenomena like the Fear of Missing Out (FoMO), can impair cognitive focus and redirect study time [S18]. While some students exhibit resilience and effective time management despite considerable social media use, sleep deprivation due to prolonged engagement is also a concern [S10][S14].\n\n### Effects on Academic Performance\nThe relationship between social media use and academic performance is multifaceted. Several studies indicate a negative correlation between excessive or non-academic social media use and academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. For example, higher social media overuse has been linked to increased psychological distress and a deterioration in academic performance [S15]. Daily social media hours often have a significant negative effect on students' Grade Point Averages (GPAs) [S4][S5][S8]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. Academic-oriented use of platforms like YouTube and WhatsApp for research and collaborative learning can improve academic outcomes [S16][S25]. The impact of social media, therefore, depends less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].",
+        "methods": "This paper presents a narrative synthesis of the evidence available to the writing run for the stated research question. The run assembled 30 distinct source records from OpenAlex. This is the available source pool, not the number of studies ultimately cited or a count from a systematic screening process. The synthesis draws on the metadata and source excerpts supplied by those records; access to every full text is not assumed. It compares reported relationships, differences in study contexts and methods, and limitations relevant to the research question. This is not an exhaustive or systematic review: no predefined screening protocol, independent double screening, comprehensive search coverage, or formal risk-of-bias assessment is claimed. Source identity checks and claim-support checks are separate, and remaining uncertainties are retained as review flags. No original participants were recruited, new dataset collected, or original statistical analysis performed for this literature-based paper.",
+        "results": "",
+        "discussion": "The reviewed literature consistently highlights a complex and often contradictory relationship between social media use, time management, and academic performance among university students. A prominent pattern indicates that excessive and non-academic social media engagement generally correlates with negative academic outcomes [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. This is often linked to poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. For example, studies reveal a significant negative effect of daily social media hours on Grade Point Averages (GPAs) [S4][S5][S8]. The constant drive for digital connection, exacerbated by phenomena like the Fear of Missing Out (FoMO), is identified as a factor impairing cognitive focus and diverting study time [S18].\n\nHowever, the literature also presents a significant contradiction: moderate and academic-oriented social media use can positively influence academic performance [S2][S4][S7][S8][S12][S13][S16][S21]. Platforms like WhatsApp and YouTube, while often used for social purposes [S7][S8][S10][S13], can facilitate collaborative learning, discussion, and knowledge sharing when employed purposefully [S2][S4][S7][S8][S12][S13][S16][S21]. This suggests that the impact of social media is not inherent to the platforms themselves, but rather depends on how students choose to utilize them [S4][S5][S6][S13][S15][S17].\n\nA key limitation across many studies is the reliance on self-reported data for social media use and academic performance [S15][S17], which may introduce biases. While some research acknowledges the moderating role of time management skills [S3][S4][S5], a comprehensive exploration of its specific pathways in the social media-academic performance relationship is still developing. Furthermore, studies often focus on specific platforms [S17] or contexts, such as social media addiction [S9][S15][S20], rather than a holistic view. There is also limited research from the Global South, with most studies originating from the United States and the United Kingdom [S29], which may limit the generalizability of findings across diverse educational systems and student populations. The absence of longitudinal designs in much of the existing quantitative research also restricts the ability to infer causal relationships between variables [S11].",
+        "conclusion": "This synthesis of existing literature establishes a multifaceted relationship between social media use, time management, and academic performance among university students. Characterized by diverse engagement patterns, social media can either hinder or enhance academic outcomes, largely depending on the purpose and extent of use. Non-academic and excessive social media engagement is consistently linked to poor time management, reduced concentration, and lower academic achievement. Conversely, purposeful, academic-oriented social media use can positively influence learning through collaborative engagement and information sharing.\n\nThe literature review highlights a crucial role for time management skills and digital self-discipline in moderating these impacts. While self-reported data limitations and a geographical imbalance in existing studies present challenges, the overall evidence underscores that the influence of social media is not inherent to the platforms themselves but rather to students' usage patterns. Future research could benefit from longitudinal designs to explore causal relationships more definitively and from expanded geographical representation to enhance generalizability."
+      },
+      "researchPaperFlags": [
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Introduction",
+          "message": "0 of 38 cited claim(s) could not be confirmed against their source; 3 statement(s) carry no citation.",
+          "citationSourceIds": []
+        },
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Thematic Literature Review",
+          "message": "2 of 49 cited claim(s) could not be confirmed against their source; 3 statement(s) carry no citation.",
+          "citationSourceIds": [
+            "S7",
+            "S8",
+            "S10",
+            "S13"
+          ]
+        },
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Discussion",
+          "message": "5 of 22 cited claim(s) could not be confirmed against their source; 3 statement(s) carry no citation.",
+          "citationSourceIds": [
+            "S1",
+            "S2",
+            "S4",
+            "S5",
+            "S7",
+            "S8",
+            "S13",
+            "S14",
+            "S15",
+            "S17",
+            "S19"
+          ]
+        },
+        {
+          "code": "CitationSupportReviewRequired",
+          "section": "Research Gaps",
+          "message": "1 of 9 cited claim(s) could not be confirmed against their source; 4 statement(s) carry no citation.",
+          "citationSourceIds": [
+            "S15",
+            "S17"
+          ]
+        }
+      ],
+      "researchPaperSectionResults": [
+        {
+          "sectionKey": "Abstract",
+          "heading": "Abstract",
+          "status": "Generated",
+          "content": "This paper synthesizes existing literature to examine the intricate relationship between social media use, time management, and academic performance among university students. The review characterizes prevalent patterns of social media engagement, analyzes its documented effects on time management practices, and evaluates its overall impact on academic outcomes.\n\nThe evidence suggests that while social media offers opportunities for collaborative learning and information sharing, excessive and non-academic use consistently correlates with poor time management, reduced concentration, and lower academic achievement. Conversely, moderate and purposeful academic social media use can positively influence learning. Key themes highlight the importance of digital self-discipline and effective time management as moderators of these impacts. Limitations in the existing literature include a predominant reliance on self-reported data, cross-sectional designs that preclude causal inferences, and a geographical imbalance in studies, with limited representation from the Global South. The synthesis concludes that social media\u2019s influence on academic performance is largely contingent on students' usage patterns rather than the platforms themselves.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "UserProvided",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "Introduction",
+          "heading": "Introduction",
+          "status": "Generated",
+          "content": "University students today navigate a complex academic landscape significantly influenced by pervasive digital technologies, particularly social media platforms [S1][S4][S14]. These platforms offer diverse functionalities, from entertainment and communication to collaborative learning and information sharing [S1][S2][S4][S14]. While social media presents opportunities for enhanced peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], its widespread adoption also introduces challenges related to distraction, time management, and academic performance [S1][S2][S4][S5][S6][S13][S14][S17].\n\nNumerous studies have explored the impact of social media on academic outcomes, often revealing a nuanced relationship. Research consistently indicates that excessive and non-academic social media use can lead to decreased concentration, poor time management, reduced study efficiency, and lower academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S18][S19][S20][S22]. For instance, a moderate negative correlation between social media usage and academic performance has been observed among undergraduate students, with younger and lower-level students being particularly susceptible to negative outcomes [S2][S5]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. The impact of social media thus appears to depend less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].\n\nDespite the growing body of literature examining social media use, time management, and academic performance, there remains a need for a comprehensive synthesis that delineates the specific pathways through which these variables interact and how these interactions manifest across diverse student populations. Previous research has often focused on specific aspects, such as social media addiction [S9][S15][S20] or the influence of particular platforms [S17]. While some studies acknowledge the role of time management [S3][S4][S5], a detailed exploration of its moderating or mediating role in the social media-academic performance relationship, drawing on a broader range of evidence, will be beneficial.\n\nThis paper will therefore synthesize existing literature to systematically examine the relationship between social media use, time management, and academic performance among university students. Specifically, it will aim to characterize prevalent patterns of social media use among university students, analyze the documented effects of social media use on students' time management practices, and evaluate the overall impact of social media use and time management on academic performance.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "ReviewMethod",
+          "heading": "Review Method",
+          "status": "Generated",
+          "content": "This paper presents a narrative synthesis of the evidence available to the writing run for the stated research question. The run assembled 30 distinct source records from OpenAlex. This is the available source pool, not the number of studies ultimately cited or a count from a systematic screening process. The synthesis draws on the metadata and source excerpts supplied by those records; access to every full text is not assumed. It compares reported relationships, differences in study contexts and methods, and limitations relevant to the research question. This is not an exhaustive or systematic review: no predefined screening protocol, independent double screening, comprehensive search coverage, or formal risk-of-bias assessment is claimed. Source identity checks and claim-support checks are separate, and remaining uncertainties are retained as review flags. No original participants were recruited, new dataset collected, or original statistical analysis performed for this literature-based paper.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "UserProvided",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "LiteratureReview",
+          "heading": "Thematic Literature Review",
+          "status": "Generated",
+          "content": "Social media platforms have become ubiquitous in the lives of university students, influencing their academic experiences in complex ways [S1][S4][S14]. The prevailing literature indicates a nuanced relationship, where both beneficial and detrimental impacts are observed depending on the nature and extent of social media engagement.\n\n### Patterns of Social Media Use\nUniversity students frequently engage with social media for a variety of purposes, including entertainment, communication, and information sharing [S1][S2][S4][S14]. WhatsApp, Facebook, and YouTube are consistently identified as popular platforms [S7][S8][S10][S13]. While these platforms can facilitate peer-to-peer interaction and access to educational resources [S2][S3][S4][S7][S12][S13][S19][S21], a significant proportion of students admit to using them primarily for non-academic reasons [S13]. Studies also suggest that younger and lower-level students may be more susceptible to negative outcomes associated with social media use [S2][S5]. The highest average time spent on social media is often for social purposes, followed by online gaming [S10]. The pervasive nature of these platforms means that their influence on student life is a growing area of concern [S4].\n\n### Impact on Time Management\nThe literature consistently highlights a strong link between social media use and time management practices among university students. Excessive and non-academic social media engagement is frequently associated with poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. This can manifest as procrastination and inconsistency in study habits [S13][S18]. For instance, students who consciously manage their social media time tend to perform better academically [S4][S5]. The constant drive to remain digitally connected, fueled by phenomena like the Fear of Missing Out (FoMO), can impair cognitive focus and redirect study time [S18]. While some students exhibit resilience and effective time management despite considerable social media use, sleep deprivation due to prolonged engagement is also a concern [S10][S14].\n\n### Effects on Academic Performance\nThe relationship between social media use and academic performance is multifaceted. Several studies indicate a negative correlation between excessive or non-academic social media use and academic achievement [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. For example, higher social media overuse has been linked to increased psychological distress and a deterioration in academic performance [S15]. Daily social media hours often have a significant negative effect on students' Grade Point Averages (GPAs) [S4][S5][S8]. Conversely, moderate and academic-oriented social media use can positively influence academic performance by facilitating collaborative learning, discussion, and knowledge sharing [S2][S4][S7][S8][S12][S13][S16][S21]. Academic-oriented use of platforms like YouTube and WhatsApp for research and collaborative learning can improve academic outcomes [S16][S25]. The impact of social media, therefore, depends less on the platform itself and more on how students utilize it, emphasizing the importance of digital self-discipline and effective time management skills [S4][S5][S6][S13][S15][S17].",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "Discussion",
+          "heading": "Discussion",
+          "status": "Generated",
+          "content": "The reviewed literature consistently highlights a complex and often contradictory relationship between social media use, time management, and academic performance among university students. A prominent pattern indicates that excessive and non-academic social media engagement generally correlates with negative academic outcomes [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19][S22]. This is often linked to poor time management, reduced study efficiency, and decreased concentration [S1][S2][S4][S5][S7][S8][S13][S14][S15][S17][S19]. For example, studies reveal a significant negative effect of daily social media hours on Grade Point Averages (GPAs) [S4][S5][S8]. The constant drive for digital connection, exacerbated by phenomena like the Fear of Missing Out (FoMO), is identified as a factor impairing cognitive focus and diverting study time [S18].\n\nHowever, the literature also presents a significant contradiction: moderate and academic-oriented social media use can positively influence academic performance [S2][S4][S7][S8][S12][S13][S16][S21]. Platforms like WhatsApp and YouTube, while often used for social purposes [S7][S8][S10][S13], can facilitate collaborative learning, discussion, and knowledge sharing when employed purposefully [S2][S4][S7][S8][S12][S13][S16][S21]. This suggests that the impact of social media is not inherent to the platforms themselves, but rather depends on how students choose to utilize them [S4][S5][S6][S13][S15][S17].\n\nA key limitation across many studies is the reliance on self-reported data for social media use and academic performance [S15][S17], which may introduce biases. While some research acknowledges the moderating role of time management skills [S3][S4][S5], a comprehensive exploration of its specific pathways in the social media-academic performance relationship is still developing. Furthermore, studies often focus on specific platforms [S17] or contexts, such as social media addiction [S9][S15][S20], rather than a holistic view. There is also limited research from the Global South, with most studies originating from the United States and the United Kingdom [S29], which may limit the generalizability of findings across diverse educational systems and student populations. The absence of longitudinal designs in much of the existing quantitative research also restricts the ability to infer causal relationships between variables [S11].",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "ResearchGaps",
+          "heading": "Research Gaps",
+          "status": "Generated",
+          "content": "Despite the extensive literature on social media use, time management, and academic performance, several research gaps remain. Many existing studies rely predominantly on self-reported data for social media use and academic performance, which can introduce response biases and limit the objectivity of findings [S15][S17]. Furthermore, a significant portion of research originates from the United States and the United Kingdom, with limited representation from the Global South [S29], which restricts the generalizability of conclusions across diverse cultural and educational contexts.\n\nWhile some literature acknowledges the role of time management [S3][S4][S5], a comprehensive and detailed exploration of its specific moderating or mediating pathways within the social media-academic performance relationship is not fully established across a broad spectrum of evidence. Most quantitative research in this area also employs cross-sectional designs, which prevents the inference of causal relationships between variables [S11]. Future research could benefit from longitudinal designs to better understand the temporal dynamics and causal influences among these factors [S11][S21]. Additionally, studies often concentrate on specific social media platforms or narrow aspects such as social media addiction [S9][S15][S17][S20], rather than offering a holistic view of the interplay between diverse usage patterns, time management strategies, and academic outcomes.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "LiteratureEvidence",
+            "ModelInference"
+          ]
+        },
+        {
+          "sectionKey": "Conclusion",
+          "heading": "Conclusion",
+          "status": "Generated",
+          "content": "This synthesis of existing literature establishes a multifaceted relationship between social media use, time management, and academic performance among university students. Characterized by diverse engagement patterns, social media can either hinder or enhance academic outcomes, largely depending on the purpose and extent of use. Non-academic and excessive social media engagement is consistently linked to poor time management, reduced concentration, and lower academic achievement. Conversely, purposeful, academic-oriented social media use can positively influence learning through collaborative engagement and information sharing.\n\nThe literature review highlights a crucial role for time management skills and digital self-discipline in moderating these impacts. While self-reported data limitations and a geographical imbalance in existing studies present challenges, the overall evidence underscores that the influence of social media is not inherent to the platforms themselves but rather to students' usage patterns. Future research could benefit from longitudinal designs to explore causal relationships more definitively and from expanded geographical representation to enhance generalizability.",
+          "reason": null,
+          "requiredAction": null,
+          "permittedProvenance": [
+            "ModelInference"
+          ]
+        }
+      ],
+      "isLiteratureReview": false,
+      "literatureReviewSections": [],
+      "literatureReviewFlags": [],
+      "generationAuditId": "fb7822bf-c876-49f5-9489-213f495ab409"
+    }
+  },
+  "editorPersistenceCheck": {
+    "savedAndReloaded": true,
+    "interactiveCitationsPreserved": true,
+    "frontendProxy": true
+  }
+}

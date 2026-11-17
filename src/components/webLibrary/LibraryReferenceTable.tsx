@@ -2,7 +2,10 @@ import { Check, ArrowUpDown } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { getPrimaryRowActions, getOverflowRowActions, type RowActionHandlers } from './libraryRowActions'
 import { RowActionBar } from './RowActionBar'
+import { formatLibraryDate } from '../../lib/researchLabels'
 import type { ResearchDocument } from '../../types/webLibrary'
+import type { SavedSortKey } from '../../lib/savedPaperFilters'
+import type { SortDir } from '../../lib/collectionsView'
 
 // The "Reference Manager View" toggle used to render the exact same table as
 // Library View regardless of which pill was active (confirmed via code read
@@ -10,25 +13,25 @@ import type { ResearchDocument } from '../../types/webLibrary'
 // dense table it was supposed to be: one row per paper, real metadata columns
 // only, no AI-content columns (Research Library UX audit, 2026-10-03).
 
-type SortBy = 'date-added' | 'title-asc' | 'title-desc' | 'year'
 
 export function LibraryReferenceTable({
-  docs, selectedRows, onToggleRow, onToggleAll, onOpenDoc, sortBy, onSort, inTrash, handlers,
+  docs, selectedRows, onToggleRow, onToggleAll, onOpenDoc, sortKey, sortDir, onSort, inTrash, handlers, activeId,
 }: {
   docs:         ResearchDocument[]
   selectedRows: Set<string>
   onToggleRow:  (id: string) => void
   onToggleAll:  () => void
   onOpenDoc:    (doc: ResearchDocument) => void
-  sortBy:       string
-  onSort:       (v: string) => void
+  sortKey:      SavedSortKey
+  sortDir:      SortDir
+  /** A header click: the page flips the direction if this column is already the sort. */
+  onSort:       (key: SavedSortKey) => void
   inTrash:      boolean
   handlers:     RowActionHandlers
+  /** The paper open in the details panel. */
+  activeId?:    string | null
 }) {
-  const sortIndicator = (key: SortBy) => {
-    if (sortBy !== key) return undefined
-    return key === 'title-desc' ? 'descending' : 'ascending'
-  }
+  const sortIndicator = (key: SavedSortKey) => sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
 
   return (
     <table className="w-full border-collapse text-[13px]">
@@ -72,8 +75,12 @@ export function LibraryReferenceTable({
           return (
             <tr
               key={doc.id}
+              data-paper-row={doc.id}
+              tabIndex={0}
+              aria-selected={activeId === doc.id}
               onClick={() => onOpenDoc(doc)}
-              className={cn('h-10 border-b border-slate-100 hover:bg-slate-50/60 cursor-pointer transition-colors', selectedRows.has(doc.id) && 'bg-purple-tint/30')}
+              onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) onOpenDoc(doc) }}
+              className={cn('h-10 border-b border-slate-100 hover:bg-slate-50/60 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-purple-accent/40', selectedRows.has(doc.id) && 'bg-purple-tint/30', activeId === doc.id && 'bg-purple-tint/50 shadow-[inset_3px_0_0_var(--color-purple)]')}
             >
               <td className="px-3 py-1.5">
                 <div className="flex items-center gap-2 min-w-0">
@@ -93,8 +100,8 @@ export function LibraryReferenceTable({
               <td className="px-3 py-1.5 text-slate-600 truncate" title={doc.authors.join(', ')}>{doc.authors.join(', ') || '—'}</td>
               <td className="px-3 py-1.5 text-slate-600">{doc.year ?? '—'}</td>
               <td className="px-3 py-1.5 text-slate-600 truncate" title={doc.journal}>{doc.journal ?? '—'}</td>
-              <td className="px-3 py-1.5 text-slate-500 truncate">{doc.tags.length > 0 ? doc.tags.join(', ') : '—'}</td>
-              <td className="px-3 py-1.5 text-slate-500">{new Date(doc.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+              <td className="px-3 py-1.5 text-slate-600 truncate">{doc.tags.length > 0 ? doc.tags.join(', ') : '—'}</td>
+              <td className="px-3 py-1.5 text-slate-600">{formatLibraryDate(doc.createdAt)}</td>
               <td className="px-3 py-1.5">
                 <RowActionBar open={open} overflow={overflow} paper={doc} />
               </td>

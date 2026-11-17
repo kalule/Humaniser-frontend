@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertCircle, AlertTriangle, HelpCircle, Info, ShieldCheck, Upload, Clipboard, Wand2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { CitationModeToggle } from '../../components/app/citationCheck/CitationModeToggle'
 import { citationIntegrityApi } from '../../api/citationIntegrity'
 import type { CitationFinding, CitationFindingSeverity } from '../../types/citationIntegrity'
 import { useDragDrop } from '../../hooks/useDragDrop'
@@ -92,8 +93,9 @@ export default function CitationIntegrityPage() {
 
   const leftPanel = {
     header: (
-      <div className="flex items-center px-4 py-2.5 border-b border-[#e0e0da] shrink-0">
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[#e0e0da] shrink-0">
         <PanelLabel label="Your text" />
+        <CitationModeToggle active="paste" />
       </div>
     ),
     body: (

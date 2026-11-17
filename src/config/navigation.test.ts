@@ -57,6 +57,7 @@ describe('resolvePageTitle (unaffected by the editor title resolver)', () => {
     expect(resolvePageTitle('/app/library')).toBe('Documents')
     expect(resolvePageTitle('/app/humaniser')).toBe('Humanise')
     expect(resolvePageTitle('/app/account')).toBe('Account Settings')
+    expect(resolvePageTitle('/app/thesis-studio')).toBe('Thesis Studio')
   })
 
   it('still falls back to "Dashboard" for unmatched routes', () => {

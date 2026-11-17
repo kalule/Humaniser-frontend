@@ -18,6 +18,15 @@ export function essayStageLabel(stage: string | null | undefined): string | null
     case 'assessing-evidence': text = n ? `Checking ${plural(n, 'source', 'sources')} against each part of your question…` : 'Checking sources against each part of your question…'; break
     case 'searching-gaps': text = n ? `Looking for more evidence on ${plural(n, 'part', 'parts')} still missing…` : 'Looking for more evidence on the parts still missing…'; break
     case 'building-outline': text = 'Planning your sections…'; break
+    case 'planning-essay': return 'Planning your essay…'
+    case 'finding-landmark-studies': return 'Finding landmark studies…'
+    case 'checking-claims': return 'Checking claims and citations?'
+    case 'reviewing-answer': return 'Checking your argument?'
+    case 'repairing-draft-format': return 'Repairing draft format…'
+    case 'repairing-passages': return 'Repairing affected passages?'
+    case 'validating-repair': return 'Validating the repaired passages?'
+    case 'finalising': return 'Finalising your essay?'
+    case 'ready': return 'Your draft is ready'
     case 'checking-thesis': return 'Checking your thesis against the evidence found…'
     default: return null
   }

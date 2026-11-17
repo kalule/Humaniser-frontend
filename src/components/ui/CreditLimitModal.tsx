@@ -63,7 +63,7 @@ export function CreditLimitModal() {
               You've used <span className="text-white font-semibold">{used.toLocaleString()}</span> of{' '}
               <span className="text-white font-semibold">{limit.toLocaleString()}</span> credits on your{' '}
               <span className="text-indigo-400 font-semibold">{user?.plan ?? 'Free'}</span> plan. Credits power
-              every tool — Humaniser, AI Detector, Paraphraser, Grammar, Summariser, Proposal Studio, Data
+              every tool — Humanise, AI Content Check, Paraphraser, Grammar & Style, Summariser, Proposal Studio, Data
               Analyst, and Systematic Review.
             </p>
 

@@ -1,7 +1,7 @@
 import type { KeyboardEvent, RefObject } from 'react'
 import { ArrowLeft, X } from 'lucide-react'
 import { cn } from '../../lib/utils'
-import type { EvidenceQuestion } from '../../api/deepResearch'
+import type { DeepResearchCounts, EvidenceQuestion } from '../../api/deepResearch'
 import { filterSources, type OutlineItem, type SourceFilterId, type SourceGroup } from '../../lib/deepResearchView'
 import { SearchLog, SourceDetail, SourceRow } from './resultsBlocks'
 
@@ -26,6 +26,8 @@ interface Props {
   citedIds: Set<string>
   numbers: Map<string, number>
   questions: EvidenceQuestion[]
+  /** The server's counts for the filter chips. */
+  counts?: DeepResearchCounts | null
   outline: OutlineItem[]
   currentSectionId: string | null
   onJump: (id: string) => void
@@ -59,27 +61,33 @@ export function ResultsPanel(p: Props) {
     requestAnimationFrame(() => document.getElementById(`ptab-${TABS[next].id}`)?.focus())
   }
 
+  // Chip numbers are the server's counts; only when an older response has none are they counted from the list.
+  const server = p.counts
   const count = (f: SourceFilterId) => filterSources(p.groups, f, p.citedIds).length
-  const chips: { id: SourceFilterId; label: string }[] = [
-    { id: 'cited', label: `Cited ${count('cited')}` },
-    { id: 'all', label: `All ${p.groups.length}` },
-    { id: 'disagree', label: `Disagree ${count('disagree')}` },
-    { id: 'left', label: `Left out ${count('left')}` },
+  const chips: { id: SourceFilterId; label: string; n: number }[] = [
+    { id: 'cited', label: 'Cited', n: server?.cited ?? count('cited') },
+    { id: 'contradicts', label: 'Contradicts', n: server?.contradicts ?? count('contradicts') },
+    { id: 'noEffect', label: 'No effect', n: server?.noEffect ?? count('noEffect') },
+    { id: 'offTopic', label: 'Off-topic', n: server?.offTopic ?? count('offTopic') },
+    { id: 'left', label: 'Left out', n: server?.leftOut ?? count('left') },
+    { id: 'all', label: 'All', n: server?.found ?? p.groups.length },
   ]
   const listed = filterSources(p.groups, p.filter, p.citedIds)
   const empty: Record<SourceFilterId, string> = {
     cited: 'Nothing is cited yet. Choose All to see every source found.',
     all: 'No sources here yet.',
-    disagree: 'No accepted source disagreed with your question or found no effect.',
+    contradicts: 'No accepted source contradicts your question.',
+    noEffect: 'No accepted source reported finding no effect.',
+    offTopic: 'No source was judged off-topic.',
     left: 'Nothing was left out.',
   }
   const note = (g: SourceGroup) => p.filter === 'left'
     ? (g.bucket === 'unassessed' ? 'Not reviewed before the research stopped.' : `Left out${g.exclusionReason ? `: ${g.exclusionReason}` : '.'}`)
-    : undefined
+    : p.filter === 'offTopic' ? (g.relevanceReason ?? undefined) : undefined
 
   return (
     <aside id="selected-source-panel" ref={p.panelRef} tabIndex={-1} aria-label="Research panel"
-      className={cn('flex flex-col rounded-2xl border border-slate-200 bg-white outline-none lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)]',
+      className={cn('flex flex-col rounded-2xl border border-slate-200 bg-white outline-none lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:min-h-[20rem]',
         p.open ? 'max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-50 max-lg:max-h-[78vh] max-lg:rounded-b-none max-lg:shadow-2xl' : 'max-lg:hidden')}>
       <div className="shrink-0 border-b border-slate-200 px-3 pt-3">
         {selected ? (
@@ -126,7 +134,7 @@ export function ResultsPanel(p: Props) {
                     <button key={c.id} type="button" aria-pressed={p.filter === c.id} onClick={() => p.onFilter(c.id)}
                       className={cn('rounded-full border px-3 py-1 text-[12px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-accent/40',
                         p.filter === c.id ? 'border-purple-accent bg-purple-tint text-purple-deep' : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50')}>
-                      {c.label}
+                      {c.label} <span className="tabular-nums">{c.n}</span>
                     </button>
                   ))}
                 </div>

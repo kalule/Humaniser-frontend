@@ -17,6 +17,15 @@ describe('essayStageLabel', () => {
     expect(essayStageLabel('checking-thesis')).toBe('Checking your thesis against the evidence found…')
   })
 
+  it('distinguishes review, actual repair and finalisation', () => {
+    expect(essayStageLabel('checking-claims')).toBe('Checking claims and citations?')
+    expect(essayStageLabel('reviewing-answer')).toBe('Checking your argument?')
+    expect(essayStageLabel('repairing-draft-format')).toBe('Repairing draft format…')
+    expect(essayStageLabel('repairing-passages')).toBe('Repairing affected passages?')
+    expect(essayStageLabel('validating-repair')).toBe('Validating the repaired passages?')
+    expect(essayStageLabel('finalising')).toBe('Finalising your essay?')
+  })
+
   it('leaves every other stage to the caller', () => {
     expect(essayStageLabel('drafting')).toBeNull()
     expect(essayStageLabel(null)).toBeNull()

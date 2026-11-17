@@ -10,7 +10,7 @@ import {
   ChevronDown,
   Zap,
   Crown,
-  Infinity,
+  Infinity as InfinityIcon,
   Sparkles,
   ArrowLeft,
   Loader2,
@@ -486,7 +486,7 @@ export function PricingPage() {
 
           <PlanCard
             name="Unlimited"
-            icon={<Infinity size={18} />}
+            icon={<InfinityIcon size={18} />}
             priceMonthly={unlimitedPlans?.monthly?.price ?? 0}
             priceAnnual={unlimitedPlans?.annual?.price ?? 0}
             currency={unlimitedPlans?.monthly?.currency ?? unlimitedPlans?.annual?.currency ?? 'USD'}

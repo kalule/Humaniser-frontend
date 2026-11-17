@@ -8,7 +8,9 @@ export type DeepResearchMode =
   | 'EvidenceForClaim' | 'TopicExploration' | 'RelationshipInvestigation' | 'ResearchGapInvestigation'
   | 'MethodologyEvidence' | 'TheoreticalFramework' | 'MeasurementInstrument' | 'ContradictoryEvidence'
 
-export type DeepResearchStatus = 'Queued' | 'Running' | 'Completed' | 'Stopped' | 'Cancelled' | 'Failed'
+/** NeedsReview: most searches returned off-topic papers, so no answer is given and nothing is charged. */
+/** The API sends "Stopped" for a run that hit a research/search/source limit (stored server-side as BudgetExhausted). */
+export type DeepResearchStatus = 'Queued' | 'Running' | 'Completed' | 'Stopped' | 'Cancelled' | 'Failed' | 'NeedsReview'
 
 export interface StartDeepResearchPayload {
   projectId: string
@@ -24,6 +26,8 @@ export interface StartDeepResearchPayload {
   depth?: 'summary' | 'standard' | 'deep'
   /** Continue an earlier finished or stopped session of this project: its answered questions and verified sources are kept and only the unanswered ones are researched. */
   continueFromSessionId?: string
+  /** Retry a session whose results were off-topic (status NeedsReview): same question, fresh search, no credits held. */
+  retryOfSessionId?: string
 }
 
 /** What continuing a session would research and cost, against starting again. */
@@ -35,6 +39,8 @@ export interface FollowUpQuote {
   freshCredits: number
   followUpCredits: number
   depth: string
+  /** The results were off-topic (our failure): the run can be retried once at no credit cost. */
+  canRetryFree?: boolean
 }
 
 /** How long a depth usually takes for this student; `minutes` is null until there are enough finished runs. */
@@ -51,7 +57,27 @@ export interface DeepResearchProgress {
   searchesRun: number
 }
 
-export interface EvidenceQuestion { id: string; type: string; question: string; status: string; sufficiency: string; reasons: string[] }
+/** The one verdict per question, decided on the server; the card badge, progress strip and headline all show it. */
+export type QuestionVerdict = 'Answered' | 'Partial' | 'NoEvidence' | 'NotResearched' | 'OffTopic'
+
+export interface EvidenceQuestion {
+  id: string; type: string; question: string; status: string; sufficiency: string; reasons: string[]
+  verdict?: QuestionVerdict | null
+  verdictLabel?: string | null
+  /** A short label for the progress strip ("Definition", "Mechanisms", "South Africa"). */
+  shortTitle?: string | null
+  acceptedSources?: number
+  sourceBudget?: number
+  sourcesDiscovered?: number
+  offTopicQuery?: string | null
+}
+
+/** The results page's numbers, counted once on the server. found = accepted + offTopic + leftOut; the rest are parts of accepted. */
+export interface DeepResearchCounts {
+  found: number; relevant: number; accepted: number; cited: number
+  supports: number; contradicts: number; noEffect: number; background: number
+  offTopic: number; leftOut: number; relevanceUnknown: number
+}
 export interface KeyFinding {
   statement: string
   evidenceQuestionId: string
@@ -96,6 +122,9 @@ export interface DeepResearchResult {
   providerCoverage: ProviderCoverage[]
   acceptedSources: number
   contradictorySources: number
+  counts?: DeepResearchCounts | null
+  verdict?: 'Answered' | 'Partial' | 'NoEvidence' | 'NeedsReview' | null
+  verdictLabel?: string | null
 }
 
 export interface DeepResearchSession {
@@ -112,6 +141,11 @@ export interface DeepResearchSession {
   result: DeepResearchResult | null
   /** summary | standard | deep; absent for sessions started before depth existed. */
   depth?: string | null
+  /** Why it ended, for the status badge ("Stopped: source limit reached"). */
+  statusReason?: string | null
+  /** Credits actually charged, once settled. */
+  creditsUsed?: number | null
+  retryOfSessionId?: string | null
 }
 
 /** One sentence of the report. `sourceIds` is never empty: the server drops a claim that has no verified source. */
@@ -138,7 +172,9 @@ export interface DeepResearchReport {
   bottomLine: DeepResearchReportClaim[]
   bottomLineNote: string | null
   sections: DeepResearchReportSection[]
+  /** Sources that contradict. Null results are in `noEffect`, never here. */
   conflicts: DeepResearchReportClaim[]
+  noEffect?: DeepResearchReportClaim[] | null
   gaps: DeepResearchReportGap[]
   references: DeepResearchReportReference[]
   status: string
@@ -168,6 +204,10 @@ export interface EvidenceSource {
   /** What the agent read to judge this source. Older sessions have no value and were abstract-level. */
   coverage?: 'Abstract' | 'FullText'
   studyDesign?: string | null
+  /** Supports | Contradicts | NoEffect | Background | OffTopic | NotUsed, decided on the server after relevance. */
+  stance?: 'Supports' | 'Contradicts' | 'NoEffect' | 'Background' | 'OffTopic' | 'NotUsed' | null
+  relevance?: 'Relevant' | 'OffTopic' | 'Unknown'
+  relevanceReason?: string | null
 }
 
 export interface DeepResearchSessionSummary {
@@ -202,6 +242,20 @@ export interface BindingSuggestion {
   suggestedClaim: string | null
 }
 
+export interface AcademicReport {
+  sessionId: string
+  status: 'NotStarted' | 'Writing' | 'Ready' | 'Failed'
+  markdown: string | null
+  tier: 'Full' | 'Partial' | 'Minimal' | null
+  keptSources: number
+  wordCount: number
+  /** Why the report is limited: failed stages, unverified sentences, a thin evidence base. */
+  notes: string[]
+  error: string | null
+  generatedAt: string | null
+  credits: number
+}
+
 export const deepResearchApi = {
   start: async (payload: StartDeepResearchPayload): Promise<DeepResearchSession> => data(await client.post(base, payload)),
   list: async (projectId?: string, take = 15): Promise<DeepResearchSessionSummary[]> =>
@@ -217,6 +271,19 @@ export const deepResearchApi = {
     const a = document.createElement('a')
     a.href = url
     a.download = `deep-research-report-${id}.docx`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  },
+  academicReport: async (id: string): Promise<AcademicReport> => data(await client.get(`${base}/${id}/academic-report`)),
+  /** Starts writing the full report (credits are held, the write runs in the background). A Ready report is returned unchanged unless `regenerate`. */
+  requestAcademicReport: async (id: string, regenerate = false): Promise<AcademicReport> =>
+    data(await client.post(`${base}/${id}/academic-report`, null, { params: { regenerate } })),
+  exportAcademicReportDocx: async (id: string): Promise<void> => {
+    const res = await client.get(`${base}/${id}/academic-report/docx`, { responseType: 'blob' })
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `academic-report-${id}.docx`
     a.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   },

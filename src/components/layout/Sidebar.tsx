@@ -1,22 +1,43 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sparkles, History, Settings, CreditCard, ChevronLeft, ChevronRight, ChevronUp, X, LogOut, ShieldCheck,
+  Sparkles, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
-import { authApi } from '../../api/auth';
 import { visibleNavSections, isNavItemActive, type NavItem } from '../../config/navigation';
 import { useIsToolEnabled } from '../../config/features';
-import { isDetectorMeterVisible, showUsageBar, usageSummaryText } from '../../lib/usageMeter';
+import { isDetectorMeterVisible, isPlanUnlimited, showUsageBar, usageSummaryText, UNLIMITED_LIMIT_THRESHOLD } from '../../lib/usageMeter';
 import { NewMenu } from './NewMenu';
 
 interface SidebarProps {
   mobileOpen: boolean;
   onMobileClose: () => void;
 }
+
+// Storage can be missing or throw (private window, blocked site data); the sidebar must still render.
+function readStorage(key: string): string | null {
+  try { return window.localStorage.getItem(key); } catch { return null; }
+}
+function writeStorage(key: string, value: string) {
+  try { window.localStorage.setItem(key, value); } catch { /* ignore */ }
+}
+
+const COLLAPSED_SECTIONS_KEY = 'sidebar_collapsed_sections';
+
+function readCollapsedSections(): Record<string, boolean> {
+  try {
+    const parsed = JSON.parse(readStorage(COLLAPSED_SECTIONS_KEY) ?? '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+const sectionDomId = (prefix: string, section: string) =>
+  `${prefix}-nav-${section.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
 // The tool list scrolls inside the sidebar (the footer is pinned), so on a shorter window the last
 // entries sit out of sight with nothing hinting that there is more. Fade the bottom edge while
@@ -38,18 +59,24 @@ function NavScrollArea({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Keep the current page's entry in view: on a short window it can sit below the fold of this list.
+  // 'nearest' only scrolls when the entry is actually out of view. The old 'center' scrolled the list
+  // on every route change, which left the first row half-hidden under the New document button.
   const { pathname } = useLocation();
   useEffect(() => {
-    ref.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'center' });
+    const active = ref.current?.querySelector('[aria-current="page"]') as HTMLElement | null;
+    active?.scrollIntoView?.({ block: 'nearest' });
   }, [pathname]);
 
+  // pt/pb give the first and last rows breathing room inside the scroll box, and scroll-py keeps that
+  // room when scrollIntoView brings a row to an edge. The bottom padding is taller than the fade, so
+  // the last row is never left sitting under it once the list is scrolled to the end.
   return (
     <div className="relative flex-1 min-h-0">
-      <div ref={ref} className="h-full overflow-y-auto py-2 scrollbar-thin">{children}</div>
+      <div ref={ref} className="h-full overflow-y-auto pt-2 pb-8 scroll-py-3 scrollbar-thin">{children}</div>
       {more && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-10"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-6"
           style={{ background: 'linear-gradient(to top, var(--surface-sidebar), transparent)' }}
         />
       )}
@@ -59,50 +86,41 @@ function NavScrollArea({ children }: { children: React.ReactNode }) {
 
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   // Tools outside the launch set (config/features.ts) are not rendered; empty groups disappear with them.
   const isToolOn = useIsToolEnabled();
   const toolSections = visibleNavSections(isToolOn);
 
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar_collapsed') === 'true');
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => readStorage('sidebar_collapsed') === 'true');
+  // Per-section collapse, remembered across visits. The section holding the current page is always
+  // shown open regardless (see sectionOpen below), so the active entry is never hidden.
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(readCollapsedSections);
   // Prompt #7 — the three full usage blocks (each with its own heading, number line, and
   // progress bar) took ~250-300px, which is most of why the nav list above had no room and
   // clipped items on anything but a tall viewport (worsened, not caused, by the New-menu row
   // added above). Collapsed by default to one summary line; expand reveals all three.
   const [usageExpanded, setUsageExpanded] = useState(false);
 
-  const userMenuRef       = useRef<HTMLDivElement>(null);
-  const mobileUserMenuRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    localStorage.setItem('sidebar_collapsed', String(collapsed));
+    writeStorage('sidebar_collapsed', String(collapsed));
   }, [collapsed]);
 
   useEffect(() => {
-    if (!userMenuOpen) return;
-    const handler = (e: MouseEvent) => {
-      const inDesktop = userMenuRef.current?.contains(e.target as Node);
-      const inMobile  = mobileUserMenuRef.current?.contains(e.target as Node);
-      if (!inDesktop && !inMobile) setUserMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [userMenuOpen]);
-
-  const handleLogout = async () => {
-    try { await authApi.logout() } catch { /* ignore */ }
-    logout();
-    navigate('/login');
-  };
+    writeStorage(COLLAPSED_SECTIONS_KEY, JSON.stringify(collapsedSections));
+  }, [collapsedSections]);
 
   const isActive = (tool: NavItem) => isNavItemActive(tool, location.pathname);
+  const sectionHasActive = (items: NavItem[]) => items.some(t => !t.disabled && isActive(t));
+  const sectionOpen = (section: string, items: NavItem[]) =>
+    sectionHasActive(items) || !collapsedSections[section];
+  const toggleSection = (section: string) =>
+    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
 
   const wordsUsed   = user?.wordsUsed  ?? 0;
   const wordsLimit  = user?.wordsLimit ?? 500;
   const plan        = user?.plan       ?? 'Free';
-  const isUnlimited = plan === 'Unlimited' || wordsLimit >= 1_000_000;
+  // From the signed-in user's plan and limits (auth store UserDto), shared with the header AccountMenu.
+  const isUnlimited = isPlanUnlimited(plan, wordsLimit);
   const usagePct    = isUnlimited ? 0 : wordsLimit > 0 ? (wordsUsed / wordsLimit) * 100 : 0;
   const progressColor = usagePct > 90
     ? 'var(--color-red)'
@@ -112,7 +130,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
   const creditsUsed      = user?.creditsUsed  ?? 0;
   const creditsLimit     = user?.creditsLimit ?? 20;
-  const creditsUnlimited = plan === 'Unlimited' || creditsLimit >= 1_000_000;
+  const creditsUnlimited = plan === 'Unlimited' || creditsLimit >= UNLIMITED_LIMIT_THRESHOLD;
   const creditsPct       = creditsUnlimited ? 0 : creditsLimit > 0 ? (creditsUsed / creditsLimit) * 100 : 0;
   const creditsColor = creditsPct > 90
     ? 'var(--color-red)'
@@ -168,72 +186,18 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const usageSummary = allUsageMetrics.filter(m => !m.unlimited).sort((a, b) => b.pct - a.pct)[0]
     ?? allUsageMetrics[0];
 
-  const userInitials = user?.name
-    ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
-    : (user?.email?.[0]?.toUpperCase() ?? 'U');
-  const userName = user?.name || user?.email || 'Account';
-
   function renderSidebar({
     compact,
     showCollapseButton,
     showCloseButton,
-    menuRef,
+    idPrefix,
   }: {
     compact: boolean;
     showCollapseButton: boolean;
     showCloseButton: boolean;
-    menuRef: React.RefObject<HTMLDivElement>;
+    /** Desktop and mobile copies can be in the DOM together, so element ids need a prefix. */
+    idPrefix: string;
   }) {
-    const userMenuPopover = (
-      <div
-        className="absolute bottom-full mb-1 left-0 min-w-[160px] rounded-xl shadow-elevated overflow-hidden z-50"
-        style={{
-          background: 'var(--surface-card)',
-          border: '0.5px solid var(--border-hairline)',
-        }}
-      >
-        {[
-          { to: '/app/history', icon: History,    label: 'History' },
-          { to: '/app/account', icon: Settings,   label: 'Settings' },
-          { to: '/app/billing', icon: CreditCard, label: 'Billing' },
-        ].map(({ to, icon: Icon, label }) => (
-          <Link
-            key={to}
-            to={to}
-            onClick={() => { setUserMenuOpen(false); onMobileClose(); }}
-            className="flex items-center gap-3 px-3 py-2.5 text-sm transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-rail)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            <Icon size={15} /> {label}
-          </Link>
-        ))}
-        {user?.role === 'Admin' && (
-          <Link
-            to="/admin"
-            onClick={() => { setUserMenuOpen(false); onMobileClose(); }}
-            className="flex items-center gap-3 px-3 py-2.5 text-sm transition-colors"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-rail)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            <ShieldCheck size={15} /> Admin
-          </Link>
-        )}
-        <div style={{ borderTop: '0.5px solid var(--border-hairline)' }} />
-        <button
-          onClick={() => { setUserMenuOpen(false); handleLogout(); }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-colors text-left"
-          style={{ color: 'var(--color-red)' }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-red-tint)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-        >
-          <LogOut size={15} /> Log out
-        </button>
-      </div>
-    );
-
     return (
       <div
         className="flex flex-col h-full"
@@ -316,41 +280,72 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             scrolls internally instead of pushing the footer past the h-screen
             sidebar (which clipped bottom items like "Citations" on short viewports) */}
         <NavScrollArea>
-          {toolSections.map((sec, i) => (
+          {toolSections.map((sec, i) => {
+            // Icon-only mode has no section headers to click, so every entry stays visible there.
+            const hasActive = sectionHasActive(sec.items);
+            const open = compact || sectionOpen(sec.section, sec.items);
+            const listId = sectionDomId(idPrefix, sec.section);
+            return (
             <div key={sec.section} className={cn(i > 0 && 'mt-2')}>
               {!compact && (
                 <>
                   {i > 0 && <div className="mx-5 mb-2" style={{ borderTop: '0.5px solid var(--border-sidebar)' }} />}
-                  <p className="text-[10px] uppercase tracking-widest px-5 mb-1 font-semibold" style={{ color: 'var(--text-muted)' }}>{sec.section}</p>
+                  {/* The section with the current page stays open, so its toggle is inert (but still
+                      announced as expanded) rather than collapsing nothing. */}
+                  <button
+                    type="button"
+                    onClick={() => { if (!hasActive) toggleSection(sec.section); }}
+                    aria-expanded={open}
+                    aria-controls={listId}
+                    aria-disabled={hasActive || undefined}
+                    title={hasActive ? 'Contains the current page' : undefined}
+                    className={cn(
+                      'w-[calc(100%-1rem)] mx-2 mb-1 px-3 py-1 rounded-md flex items-center justify-between text-[10px] uppercase tracking-widest font-semibold text-slate-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-purple)]',
+                      hasActive ? 'cursor-default' : 'hover:text-slate-700 hover:bg-[var(--surface-rail)]',
+                    )}
+                  >
+                    <span>{sec.section}</span>
+                    <ChevronDown
+                      size={12}
+                      aria-hidden="true"
+                      className={cn('shrink-0 transition-transform duration-200', !open && '-rotate-90', hasActive && 'opacity-40')}
+                    />
+                  </button>
                 </>
               )}
-              <div className="space-y-0.5 px-2 mb-1">
+              <div id={listId} hidden={!open} className="space-y-0.5 px-2 mb-1">
                 {sec.items.map((t) => {
                   const active = isActive(t);
+                  // Badge sits on the label's line (not centred across both lines), so the
+                  // description underneath gets the row's full width.
+                  const textBlock = !compact && (
+                    <span className="min-w-0 flex-1 flex flex-col text-left">
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[15px] font-medium leading-tight truncate">{t.label}</span>
+                        {t.badge && (
+                          <span className="shrink-0 text-[10px] leading-none px-1.5 py-[3px] rounded-full font-semibold" style={{ background: active ? 'var(--surface-card)' : 'var(--color-purple-tint)', color: 'var(--color-purple-text)' }}>{t.badge}</span>
+                        )}
+                      </span>
+                      <span className={cn('text-[11px] font-normal leading-snug truncate', active ? 'text-slate-600' : 'text-slate-500')}>{t.description}</span>
+                    </span>
+                  );
                   if (t.disabled) {
                     return (
                       <button
                         key={t.label}
                         onClick={() => toast('Coming Phase 2')}
                         className={cn(
-                          'w-full min-h-[38px] py-0.5 px-3 rounded-lg flex items-center gap-3 transition-all duration-150',
+                          'w-full min-h-[38px] py-1 px-3 rounded-lg flex items-center gap-3 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-purple)]',
                           compact && 'justify-center',
                         )}
-                        style={{ color: 'var(--text-muted)' }}
+                        style={{ color: 'var(--text-secondary)' }}
                         title={compact ? `${t.label} — ${t.description}` : t.description}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-rail)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                        aria-label={compact ? t.label : undefined}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-rail)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                       >
-                        <t.icon size={18} />
-                        {!compact && (
-                          <span className="min-w-0 flex flex-col text-left">
-                            <span className="text-[15px] font-medium leading-tight">{t.label}</span>
-                            <span className="text-[11px] font-normal leading-snug truncate" style={{ color: 'var(--text-muted)', opacity: 0.85 }}>{t.description}</span>
-                          </span>
-                        )}
-                        {!compact && t.badge && (
-                          <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--color-purple-tint)', color: 'var(--color-purple-text)' }}>{t.badge}</span>
-                        )}
+                        <t.icon size={18} className="shrink-0" />
+                        {textBlock}
                       </button>
                     );
                   }
@@ -360,80 +355,43 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                       to={t.link}
                       onClick={onMobileClose}
                       aria-current={active ? 'page' : undefined}
+                      aria-label={compact ? t.label : undefined}
                       className={cn(
-                        'min-h-[38px] py-0.5 px-3 rounded-lg flex items-center gap-3 transition-all duration-150',
+                        'min-h-[38px] py-1 px-3 rounded-lg flex items-center gap-3 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-purple)]',
                         compact && 'justify-center',
                       )}
                       style={{
                         background: active ? 'var(--color-purple-tint)' : 'transparent',
-                        color: active ? 'var(--color-purple)' : 'var(--text-muted)',
+                        color: active ? 'var(--color-purple-text)' : 'var(--text-secondary)',
                       }}
                       title={compact ? `${t.label} — ${t.description}` : t.description}
                       onMouseEnter={e => {
                         if (!active) {
                           e.currentTarget.style.background = 'var(--surface-rail)';
-                          e.currentTarget.style.color = 'var(--text-secondary)';
+                          e.currentTarget.style.color = 'var(--text-primary)';
                         }
                       }}
                       onMouseLeave={e => {
                         if (!active) {
                           e.currentTarget.style.background = 'transparent';
-                          e.currentTarget.style.color = 'var(--text-muted)';
+                          e.currentTarget.style.color = 'var(--text-secondary)';
                         }
                       }}
                     >
-                      <t.icon size={18} />
-                      {!compact && (
-                          <span className="min-w-0 flex flex-col text-left">
-                            <span className="text-[15px] font-medium leading-tight">{t.label}</span>
-                            <span className="text-[11px] font-normal leading-snug truncate" style={{ color: 'var(--text-muted)', opacity: 0.85 }}>{t.description}</span>
-                          </span>
-                        )}
-                      {!compact && t.badge && (
-                        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--color-purple-tint)', color: 'var(--color-purple-text)' }}>{t.badge}</span>
-                      )}
+                      <t.icon size={18} className="shrink-0" />
+                      {textBlock}
                     </Link>
                   );
                 })}
               </div>
             </div>
-          ))}
+            );
+          })}
         </NavScrollArea>
 
-        {/* Footer: user + usage */}
+        {/* Footer: usage only. Account actions (Settings, Billing, History, Admin, Log out) live in
+            the header's AccountMenu, the single account entry point. */}
         <div className="shrink-0" style={{ borderTop: '0.5px solid var(--border-sidebar)' }}>
-          <div ref={menuRef} className="relative px-2 py-2">
-            <button
-              onClick={() => setUserMenuOpen(!userMenuOpen)}
-              aria-haspopup="menu"
-              aria-expanded={userMenuOpen}
-              className={cn(
-                'w-full h-10 rounded-lg flex items-center gap-2.5 px-2 transition-all duration-150',
-                compact && 'justify-center',
-              )}
-              style={{ color: 'var(--text-secondary)' }}
-              title={compact ? userName : undefined}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-rail)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-                style={{ background: 'var(--color-purple)' }}
-              >
-                {userInitials}
-              </div>
-              {!compact && (
-                <>
-                  <span className="flex-1 text-sm font-medium text-left truncate">{userName}</span>
-                  <ChevronUp size={14} className={cn('shrink-0 transition-transform duration-200', userMenuOpen && 'rotate-180')} style={{ color: 'var(--text-muted)' }} />
-                </>
-              )}
-            </button>
-            {userMenuOpen && userMenuPopover}
-          </div>
-
-          <div className="mx-3" style={{ borderTop: '0.5px solid var(--border-hairline)' }} />
-
           <div className="p-3">
             {!compact ? (
               <>
@@ -445,7 +403,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                   aria-expanded={usageExpanded}
                   aria-controls="sidebar-usage-detail"
                   title={usageSummary.description}
-                  className="w-full mb-1.5 px-2 py-1.5 rounded-lg transition-colors text-left"
+                  className="w-full mb-1.5 px-2 py-1.5 rounded-lg transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-purple)]"
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-rail)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
@@ -453,7 +411,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                     <span className="text-[12px] font-medium leading-snug" style={{ color: 'var(--text-secondary)' }}>
                       {usageSummaryText(usageSummary, isUnlimited)}
                     </span>
-                    <ChevronUp size={12} className={cn('shrink-0 transition-transform duration-200 ml-2', !usageExpanded && 'rotate-180')} style={{ color: 'var(--text-muted)' }} />
+                    <ChevronUp size={12} aria-hidden="true" className={cn('shrink-0 transition-transform duration-200 ml-2 text-slate-500', !usageExpanded && 'rotate-180')} />
                   </div>
                   {showUsageBar(usageSummary) && (
                     <div
@@ -472,7 +430,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                     </div>
                   )}
                   {usageSummary.key === 'detector' && (
-                    <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                    <p className="text-[10px] mt-1 text-slate-500">
                       Fair-use limit, separate from your plan
                     </p>
                   )}
@@ -483,16 +441,16 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                     {allUsageMetrics.map(m => (
                       <div key={m.key} title={m.description}>
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>{m.label} this month{m.key === 'detector' ? detectorLabelSuffix : ''}</p>
+                          <p className="text-[13px] text-slate-500">{m.label} this month{m.key === 'detector' ? detectorLabelSuffix : ''}</p>
                         </div>
                         <div className="flex justify-between items-end mb-2">
                           <p className="text-[16px] font-semibold" style={{ color: 'var(--text-primary)' }}>
                             {m.unlimited
-                              ? `${m.used.toLocaleString()} used`
+                              ? `${m.used.toLocaleString()} used · no limit`
                               : `${m.used.toLocaleString()} of ${m.limit.toLocaleString()} used`}
                           </p>
                           {!m.unlimited && (
-                            <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+                            <p className="text-[13px] text-slate-500">
                               {Math.max(m.limit - m.used, 0).toLocaleString()} remaining
                             </p>
                           )}
@@ -546,7 +504,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               ) : (
                 <div
                   className="w-full flex justify-center py-2"
-                  title={isUnlimited ? `Words used this month: ${wordsUsed.toLocaleString()}` : `${wordsUsed.toLocaleString()} / ${wordsLimit.toLocaleString()} words`}
+                  title={usageSummaryText({ key: 'words', used: wordsUsed, limit: wordsLimit, unlimited: isUnlimited }, isUnlimited)}
                 >
                   <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-purple)' }} />
                 </div>
@@ -572,7 +530,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           compact: collapsed,
           showCollapseButton: true,
           showCloseButton: false,
-          menuRef: userMenuRef,
+          idPrefix: 'sidebar',
         })}
       </div>
 
@@ -599,7 +557,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 compact: false,
                 showCollapseButton: false,
                 showCloseButton: true,
-                menuRef: mobileUserMenuRef,
+                idPrefix: 'mobile-sidebar',
               })}
             </motion.div>
           </>

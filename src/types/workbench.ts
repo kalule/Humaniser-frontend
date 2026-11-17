@@ -170,6 +170,7 @@ export interface WriteWithAiLibraryDocument {
 }
 
 export interface WriteWithAiRequest {
+  approvedResearchPaperPlan?: ResearchPaperPlanSection[]
   allowAdditionalEvidenceRetrieval?: boolean
   /** Research and plan the essay, then return a section list to write one section at a time instead of drafting it. */
   coWrite?: boolean
@@ -191,10 +192,14 @@ export interface WriteWithAiRequest {
   researchState?: ResearchState
   researchEvidence?: ResearchEvidenceContext
   libraryDocuments?: WriteWithAiLibraryDocument[]
+  /** Ids of papers picked from Saved Sources. The server loads them for the signed-in account. */
+  savedSourceIds?: string[]
   // Set only when documentType === 'LiteratureReview'; ignored otherwise. Selects which of the
   // four seeded templates the backend's grounded literature-review pipeline instantiates.
   literatureReviewArchetype?: LiteratureReviewArchetype
 }
+
+export interface ResearchPaperPlanSection { sectionKey: string; heading: string; targetWords: number; guidance: string }
 
 export interface WriteWithAiReference {
   authorDetails?: { family?: string | null; given?: string | null; name?: string | null }[]
@@ -206,7 +211,7 @@ export interface WriteWithAiReference {
   providerRecordId?: string | null
   title:  string
   url:    string | null
-  source: 'web' | 'my_files'
+  source: 'web' | 'my_files' | 'saved_source'
   documentId?: string | null
   passageStart?: number | null
   passageEnd?: number | null
@@ -273,7 +278,12 @@ export interface CoWriteSectionResponse {
 }
 
 export interface WriteWithAiResponse {
+  pipelineMetrics?: { correlationId: string; totalMs: number; stagesMs: Record<string, number>; counts: Record<string, number>; tokenUsageComplete: boolean; modelCalls: number;
+    inputTokens: number; outputTokens: number; providerRetries: number; cancelledModelCalls: number; failedModelCalls: number; modelElapsedMs: number }
+
   completionStatus?: 'Complete' | 'Incomplete' | 'CoWriteReady'
+  /** Titles of selected saved sources left out because they hold no abstract. */
+  savedSourcesSkipped?: string[]
   coWrite?: CoWriteSession | null
   completionReason?: string | null
   questionCoverage?: {

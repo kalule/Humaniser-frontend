@@ -1,0 +1,51 @@
+[
+    {
+        "file":  "apa.csl",
+        "source":  "https://raw.githubusercontent.com/citation-style-language/styles/master/apa.csl",
+        "sha256":  "3917def5fc951b104d64216c3373096042368b9704ba269ca83c14ebaba889fc",
+        "title":  "APA Style 7th edition",
+        "license":  "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    {
+        "file":  "chicago-author-date.csl",
+        "source":  "https://raw.githubusercontent.com/citation-style-language/styles/master/chicago-author-date.csl",
+        "sha256":  "002fade78d7e4fe9d42936a16b43a8066b097013f6255df40b1bfba6631eff9b",
+        "title":  "Chicago Manual of Style 18th edition (author-date)",
+        "license":  "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    {
+        "file":  "harvard-cite-them-right.csl",
+        "source":  "https://raw.githubusercontent.com/citation-style-language/styles/master/harvard-cite-them-right.csl",
+        "sha256":  "0ca3d2c7c881cd98cdd81098b5349f5921edf430498aa9a5a41918621cf7cc45",
+        "title":  "Cite Them Right 12th edition (author-date/Harvard)",
+        "license":  "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    {
+        "file":  "ieee.csl",
+        "source":  "https://raw.githubusercontent.com/citation-style-language/styles/master/ieee.csl",
+        "sha256":  "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
+        "title":  "IEEE Reference Guide version 11.29.2023",
+        "license":  "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    {
+        "file":  "modern-language-association.csl",
+        "source":  "https://raw.githubusercontent.com/citation-style-language/styles/master/modern-language-association.csl",
+        "sha256":  "e1432698ef28938d044b06bd45ddcc57d6b974cec25f71007075646a11f99484",
+        "title":  "MLA Handbook 9th edition (in-text citations)",
+        "license":  "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    {
+        "file":  "nlm-citation-sequence.csl",
+        "source":  "https://raw.githubusercontent.com/citation-style-language/styles/master/nlm-citation-sequence.csl",
+        "sha256":  "492f7935df42054b33d515f7275122f419780df990ea35925dcbbff0fecf1137",
+        "title":  "NLM/Vancouver: Citing Medicine 2nd edition (citation-sequence)",
+        "license":  "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    {
+        "file":  "locales-en-US.xml",
+        "source":  "https://raw.githubusercontent.com/citation-style-language/locales/master/locales-en-US.xml",
+        "sha256":  "ac864c7c21166b4390d82c31792cdc509400727fa0060b43d8aa17e07f9cb079",
+        "title":  "",
+        "license":  "http://creativecommons.org/licenses/by-sa/3.0/"
+    }
+]

@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid'
 import toast from 'react-hot-toast'
 import { analystApi } from '../api/analyst'
 import { useAnalystStore } from '../store/analystStore'
-import type { AnalystMessage, WriteUpRequest, AcademicStyleGuide, CleanDatasetConfig, PreparationBlueprintRequest, PreparationBlueprint, AnalyticalMethod, LiteratureCitation } from '../types/analyst'
+import type { AnalystMessage, WriteUpRequest, AcademicStyleGuide, CleanDatasetConfig, PreparationBlueprintRequest, PreparationBlueprint, AnalyticalMethod, LiteratureCitation, QualityFixAction } from '../types/analyst'
 import { ACADEMIC_LEVEL_MAP } from '../types/analyst'
 import { workbenchApi } from '../api/workbench'
 import { classifyApiError } from '../lib/classifyApiError'
@@ -17,12 +17,15 @@ export function useAnalyst() {
     sessionId, academicLevel, stepCount,
     addDataset, addMessage, updateMessage,
     setUploading, setQuerying, setExporting,
-    setHealthReport, setProfiling, setCleaning, applyCleanResult,
+    setHealthReport, setProfiling, setProfileError, applyQualityState, setCleaning, applyCleanResult,
     setWizardStep, setBlueprint, setGeneratingBlueprint, skipWizard, completeWizard,
     setSession, clearSession, setAcademicLevel,
   } = useAnalystStore()
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // The run this hook instance is currently waiting on; cleared on finish, stop or timeout.
+  const activeRunRef = useRef<string | null>(null)
+  const activeJobRef = useRef<string | null>(null)
 
   // ── Upload ─────────────────────────────────────────────────────────────────
   // Accepts one or more files (multi-select / multi-drop) — each is validated and uploaded
@@ -89,10 +92,11 @@ export function useAnalyst() {
     const assistantMsg: AnalystMessage = {
       id: assistantId, role: 'assistant', content: '',
       status: 'pending', createdAt: new Date().toISOString(),
-      logStream: [],
+      logStream: [], prompt: text.trim(),
     }
     addMessage(assistantMsg)
     setQuerying(true)
+    activeRunRef.current = assistantId
 
     try {
       const additionalDatasetIds = selectedDatasetIds.filter((id) => id !== datasetId)
@@ -113,6 +117,15 @@ export function useAnalyst() {
         setSession(job.sessionId, job.sessionStepCount ?? 0)
       }
 
+      // Stopped while the request was still being accepted: cancel the job we just created.
+      if (activeRunRef.current !== assistantId) {
+        analystApi.cancelJob(job.jobId)
+          .then((status) => updateMessage(assistantId, { stopConfirmed: status === 'cancelling' || status === 'cancelled' }))
+          .catch(() => updateMessage(assistantId, { stopConfirmed: false }))
+        return
+      }
+
+      activeJobRef.current = job.jobId
       updateMessage(assistantId, { jobId: job.jobId, status: 'running' })
 
       const start = Date.now()
@@ -120,16 +133,16 @@ export function useAnalyst() {
       pollRef.current = setInterval(async () => {
         if (Date.now() - start > POLL_TIMEOUT_MS) {
           clearInterval(pollRef.current!)
-          updateMessage(assistantId, {
-            status: 'error',
-            error: 'Analysis is taking longer than expected (possibly waiting on API rate limits). Please try again in a moment.',
-          })
+          activeRunRef.current = null
+          updateMessage(assistantId, { status: 'timeout' })
           setQuerying(false)
           return
         }
 
         try {
           const result = await analystApi.pollJob(job.jobId)
+          // A reply that arrives after Stop or a timeout must not overwrite that outcome.
+          if (activeRunRef.current !== assistantId) return
 
           // Stream live stdout lines into the message on every tick
           if (result.logStream?.length) {
@@ -143,6 +156,7 @@ export function useAnalyst() {
 
           if (result.status === 'complete') {
             clearInterval(pollRef.current!)
+            activeRunRef.current = null
             updateMessage(assistantId, {
               status:          'complete',
               content:         result.interpretation ?? '',
@@ -159,6 +173,7 @@ export function useAnalyst() {
             setQuerying(false)
           } else if (result.status === 'error') {
             clearInterval(pollRef.current!)
+            activeRunRef.current = null
             const classified = classifyApiError(result.error, { logStream: result.logStream })
             updateMessage(assistantId, {
               status:    'error',
@@ -171,7 +186,9 @@ export function useAnalyst() {
             }
           }
         } catch {
+          if (activeRunRef.current !== assistantId) return
           clearInterval(pollRef.current!)
+          activeRunRef.current = null
           const classified = classifyApiError('connection refused')
           updateMessage(assistantId, { status: 'error', error: classified.message, errorKind: classified.kind })
           setQuerying(false)
@@ -179,6 +196,8 @@ export function useAnalyst() {
       }, POLL_INTERVAL_MS)
 
     } catch (err) {
+      if (activeRunRef.current !== assistantId) return
+      activeRunRef.current = null
       const raw = err instanceof Error ? err.message : String(err)
       const classified = classifyApiError(raw)
       updateMessage(assistantId, { status: 'error', error: classified.message, errorKind: classified.kind })
@@ -186,6 +205,26 @@ export function useAnalyst() {
       if (classified.kind !== 'offline') toast.error(classified.message)
     }
   }, [datasetId, schema, mode, sessionId, academicLevel, selectedDatasetIds, addMessage, updateMessage, setQuerying, setSession])
+
+  /**
+   * Stop the current run. The screen stops waiting at once; the server is then asked to stop the job,
+   * which ends at its next checkpoint without saving a result, a session step or a credit charge.
+   */
+  const stopQuery = useCallback(() => {
+    const assistantId = activeRunRef.current
+    if (!assistantId) return
+    const jobId = activeJobRef.current
+    activeRunRef.current = null
+    activeJobRef.current = null
+    if (pollRef.current) clearInterval(pollRef.current)
+    updateMessage(assistantId, { status: 'stopped' })
+    setQuerying(false)
+    // No job id yet means the request is still being accepted; query() cancels it when it lands.
+    if (!jobId) return
+    analystApi.cancelJob(jobId)
+      .then((status) => updateMessage(assistantId, { stopConfirmed: status === 'cancelling' || status === 'cancelled' }))
+      .catch(() => updateMessage(assistantId, { stopConfirmed: false }))
+  }, [updateMessage, setQuerying])
 
   // ── Literature cross-check ─────────────────────────────────────────────────
 
@@ -288,23 +327,75 @@ export function useAnalyst() {
   const profileDataset = useCallback(async () => {
     if (!datasetId) return
     setProfiling(true)
+    setProfileError(null)
     try {
-      const report = await analystApi.profileDataset(datasetId)
-      setHealthReport(report)
-      const critCount = report.anomalies.filter((a) => a.severity === 'critical').length
-      if (critCount > 0) {
-        toast(`${report.anomalies.length} issue${report.anomalies.length !== 1 ? 's' : ''} found — ${critCount} critical`, { icon: '⚠️' })
-      } else if (report.anomalies.length > 0) {
-        toast(`${report.anomalies.length} data quality issue${report.anomalies.length !== 1 ? 's' : ''} found`)
+      // One call returns the report, the current schema and the cleaning log, so they cannot disagree.
+      const state = await analystApi.getQualityState(datasetId)
+      applyQualityState(state)
+      const issues = state.report.issues ?? []
+      const high   = issues.filter((i) => i.severity === 'high').length
+      if (high > 0) {
+        toast(`${issues.length} issue${issues.length !== 1 ? 's' : ''} found — ${high} high severity`, { icon: '⚠️' })
+      } else if (issues.length > 0) {
+        toast(`${issues.length} data quality issue${issues.length !== 1 ? 's' : ''} found`)
       } else {
-        toast.success('Dataset looks clean — no anomalies detected')
+        toast.success('Quality check finished — no issues found')
       }
     } catch {
-      toast.error('Health check failed — is the server running?')
+      // Never leave a stale or empty report on screen after a failed check.
+      setHealthReport(null)
+      setProfileError('The quality check could not be completed.')
     } finally {
       setProfiling(false)
     }
-  }, [datasetId, setHealthReport, setProfiling])
+  }, [datasetId, applyQualityState, setHealthReport, setProfiling, setProfileError])
+
+  // ── Confirmed quality fixes on the working copy ───────────────────────────
+
+  const applyQualityFix = useCallback(async (issueId: string, action: QualityFixAction) => {
+    if (!datasetId) return
+    setCleaning(true)
+    try {
+      const state = await analystApi.applyQualityFix(datasetId, issueId, action)
+      applyQualityState(state)
+      toast.success(state.log[state.log.length - 1]?.summary ?? 'Change applied')
+    } catch {
+      toast.error('The change could not be applied. Your data is unchanged.')
+    } finally {
+      setCleaning(false)
+    }
+  }, [datasetId, applyQualityState, setCleaning])
+
+  const editQualityCell = useCallback(async (column: string, row: number, value: string): Promise<boolean> => {
+    if (!datasetId) return false
+    setCleaning(true)
+    try {
+      const state = await analystApi.editQualityCell(datasetId, column, row, value)
+      applyQualityState(state)
+      toast.success(state.log[state.log.length - 1]?.summary ?? 'Value changed')
+      return true
+    } catch {
+      toast.error('The value could not be changed. Your data is unchanged.')
+      return false
+    } finally {
+      setCleaning(false)
+    }
+  }, [datasetId, applyQualityState, setCleaning])
+
+  const undoCleaning = useCallback(async (step?: number) => {
+    if (!datasetId) return
+    setCleaning(true)
+    try {
+      applyQualityState(await analystApi.undoCleaning(datasetId, step))
+      toast.success(step === undefined ? 'Original upload restored' : `Step ${step} undone`)
+    } catch {
+      toast.error(step === undefined
+        ? 'The original could not be restored.'
+        : 'That step could not be undone on its own. Restore the original instead.')
+    } finally {
+      setCleaning(false)
+    }
+  }, [datasetId, applyQualityState, setCleaning])
 
   // ── Apply cleaning config ──────────────────────────────────────────────────
 
@@ -459,6 +550,9 @@ export function useAnalyst() {
         `${blueprint.explanation} ` +
         `Ask me anything about your data to get started.`
       completeWizard(res.schema, primedMessage)
+      // The blueprint changed the working copy: reload the report and the cleaning log so they describe it.
+      try { applyQualityState(await analystApi.getQualityState(datasetId)) }
+      catch { setHealthReport(null) }
       const parts: string[] = []
       if (res.duplicatesRemoved > 0) parts.push(`${res.duplicatesRemoved} duplicate${res.duplicatesRemoved !== 1 ? 's' : ''} removed`)
       if (res.rowsRemoved > res.duplicatesRemoved) parts.push(`${res.rowsRemoved - res.duplicatesRemoved} additional rows dropped`)
@@ -468,11 +562,11 @@ export function useAnalyst() {
     } finally {
       setCleaning(false)
     }
-  }, [datasetId, completeWizard, setCleaning])
+  }, [datasetId, completeWizard, setCleaning, applyQualityState, setHealthReport])
 
   return {
-    upload, query, findLiterature, generateWriteUp, runOutlierSimulation,
-    getMethodologyAppendix, profileDataset, cleanDataset, parseAndApplyCleaningInstruction,
+    upload, query, stopQuery, findLiterature, generateWriteUp, runOutlierSimulation,
+    getMethodologyAppendix, profileDataset, applyQualityFix, editQualityCell, undoCleaning, cleanDataset, parseAndApplyCleaningInstruction,
     generateBlueprint, applyBlueprint, skipWizard, generateSynthesis,
     exportSessionDocx,
     // Expose session state so AnalystPage can render the UI without going through the store directly
