@@ -27,9 +27,12 @@ const LAST_CITATION_STYLE_KEY = 'humanise_last_citation_style'
 // make, so the card only offers the four types the mockups show until that's designed.
 const ENABLE_STUDIO_DOCUMENT_TYPES_IN_CREATION_CARD = false
 
+// Literature review is not offered here (user decision 2026-11-17): literature reviews move to the
+// planned Literature Review Studio (backend docs/OPEN_ITEMS.md #113), which screens sources and
+// checks citations before export. Documents that already have this type still open and export as
+// before (the type is only a label).
 const DOCUMENT_TYPES: { value: DocumentGenre; label: string }[] = [
   { value: 'Essay', label: 'Essay' },
-  { value: 'LiteratureReview', label: 'Literature review' },
   { value: 'ResearchPaper', label: 'Research paper' },
   { value: 'ThesisChapter', label: 'Thesis chapter' },
   { value: 'Other', label: 'Other' },
@@ -238,7 +241,7 @@ export function CreationCard({ onClose }: CreationCardProps) {
             value={topic}
             disabled={busy}
             onChange={e => setTopic(e.target.value)}
-            placeholder="e.g. &ldquo;A literature review on social media use and anxiety in adolescents aged 13 to 18&rdquo;"
+            placeholder="e.g. &ldquo;An essay on social media use and anxiety in adolescents aged 13 to 18&rdquo;"
             className="w-full bg-neutral-100 border-0 rounded-lg px-3.5 py-2.5 text-[#1a1a18] text-sm outline-none focus:ring-2 focus:ring-[#7c3aed]/20 resize-none disabled:opacity-50"
             aria-describedby="creation-card-topic-hint"
           />
