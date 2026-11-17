@@ -69,6 +69,10 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
   const total = list ? Object.values(list.stateCounts).reduce((a, b) => a + b, 0) : 0
   const pages = list ? Math.max(1, Math.ceil(list.totalCount / PAGE_SIZE)) : 1
   const needsScreening = !!list && list.screeningStatus !== 'Completed' && list.screeningStatus !== 'Running' && total > 0
+  // Papers screening could not judge stay pending on the server, so running it again retries just those. Without this the page said
+  // "Run screening again" on every such paper but offered no way to do it once a run had finished.
+  const unassessed = list?.stateCounts.UnableToAssess ?? 0
+  const canRescreen = !!list && list.screeningStatus === 'Completed' && unassessed > 0
 
   return (
     <Panel title="Screen what the search found" id="lr-screen"
@@ -76,10 +80,17 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
       {error ? <Notice tone="error">{error}</Notice> : null}
       {notice ? <div className="mb-3"><Notice tone="success" role="status">{notice}</Notice></div> : null}
       {list?.screeningStatus === 'Running' ? <Notice role="status">Screening… {list.screeningProgressPct}%</Notice> : null}
+      {list?.screeningStatus === 'Error' ? <div className="mb-3"><Notice tone="error">Screening failed: the screening service could not be reached, so no paper was judged. Run screening again.</Notice></div> : null}
       {needsScreening ? (
         <div className="mb-3 flex flex-wrap items-center gap-3">
           <button type="button" onClick={() => void startScreening()} disabled={busy} className={btn.secondary}>Screen {total} papers with AI</button>
           <span className="text-[13px] text-slate-700">Each paper gets a verdict and a reason against your question and criteria. You decide in the end.</span>
+        </div>
+      ) : null}
+      {canRescreen ? (
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => void startScreening()} disabled={busy} className={btn.secondary}>Run screening again</button>
+          <span className="text-[13px] text-slate-700">{unassessed} paper{unassessed === 1 ? '' : 's'} could not be judged. Papers that could not be screened are tried again; ones with no abstract still need your decision.</span>
         </div>
       ) : null}
       {list && total > 0 ? (
