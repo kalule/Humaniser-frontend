@@ -9,7 +9,7 @@ export type ToolId =
   | 'verify-citations' | 'similarity-check' | 'reviewer' | 'citation-generator'
   | 'proposal-studio' | 'systematic-review' | 'research-agent'
   | 'saved-sources' | 'deep-research' | 'document-chat' | 'lecture-notes' | 'flashcards'
-  | 'data-analyst' | 'study-design' | 'feedback-tracker' | 'authorship-evidence'
+  | 'data-analyst' | 'study-design' | 'feedback-tracker' | 'qualitative-analysis' | 'authorship-evidence'
 
 export const LAUNCH_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>([
   'documents',

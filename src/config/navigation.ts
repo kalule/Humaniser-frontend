@@ -1,7 +1,7 @@
 import type { ElementType } from 'react'
 import {
   Sparkles, Shield, RefreshCw, Scissors, SpellCheck, ClipboardCheck, ClipboardList, Library, ScrollText,
-  BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, Ruler, ListChecks, FileClock,
+  BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, Ruler, ListChecks, Quote, FileClock,
 } from 'lucide-react'
 import type { ToolId } from './features'
 
@@ -48,6 +48,8 @@ export const TOOLS: Record<ToolId, ToolDef> = {
   // Comes before Data Analyst in the Analyze group: design the study, then analyse what it collects. Its own
   // prefix, so the proposal-studio entry's claim on /app/research-agent does not reach it.
   'study-design':       { id: 'study-design', label: 'Study Design', description: 'Sample size and questionnaire', icon: Ruler, link: '/app/study-design', matchPrefix: '/app/study-design', badge: 'Beta' },
+  // Between the two: interview data is analysed here, numbers in Data Analyst. Its own prefix.
+  'qualitative-analysis': { id: 'qualitative-analysis', label: 'Qualitative Analysis', description: 'Code interview transcripts', icon: Quote, link: '/app/qualitative-analysis', matchPrefix: '/app/qualitative-analysis', badge: 'Beta' },
 }
 
 export interface NavItem extends ToolDef {
@@ -69,7 +71,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { section: 'Improve',  items: pick('humanise', 'paraphraser', 'grammar', 'summariser') },
   { section: 'Studios',  items: pick('proposal-studio', 'systematic-review') },
   { section: 'Research', items: pick('saved-sources', 'deep-research', 'document-chat', 'lecture-notes', 'flashcards') },
-  { section: 'Analyze',  items: pick('study-design', 'data-analyst') },
+  { section: 'Analyze',  items: pick('study-design', 'qualitative-analysis', 'data-analyst') },
 ]
 
 export const NAV_ITEMS: NavItem[] = NAV_SECTIONS.flatMap(s => s.items)
