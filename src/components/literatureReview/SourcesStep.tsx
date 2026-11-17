@@ -118,20 +118,30 @@ function SearchTab({ review }: { review: Review }) {
   const [coverage, setCoverage] = useState<Coverage | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Bumped on every failed poll. A failed poll leaves `status` unchanged, so without this the polling effect never
+  // re-ran and one transient error (for example the API restarting) froze a running search's progress for good.
+  const [failedPolls, setFailedPolls] = useState(0)
 
   const refresh = useCallback(async () => {
     try {
       const [s, c] = await Promise.all([researchApi.getDiscoveryStatus(projectId), literatureReviewApi.coverage(review.id)])
       setStatus(s)
       setCoverage(c)
-    } catch (e) { setError(errorMessage(e, 'The search status could not be loaded.')) }
+      setError(null)
+      setFailedPolls(0)
+    } catch (e) {
+      setError(errorMessage(e, 'The search status could not be loaded. Retrying.'))
+      setFailedPolls(n => n + 1)
+    }
   }, [projectId, review.id])
   useEffect(() => { void refresh() }, [refresh])
   useEffect(() => {
     if (status?.status !== 'Running') return
-    const t = window.setTimeout(() => void refresh(), 3000)
+    // Back off after failures (3s, 6s, 12s, up to 30s) so a down API is not hammered.
+    const delay = Math.min(30000, 3000 * 2 ** Math.min(failedPolls, 4))
+    const t = window.setTimeout(() => void refresh(), delay)
     return () => window.clearTimeout(t)
-  }, [status, refresh])
+  }, [status, failedPolls, refresh])
 
   const start = async () => {
     setError(null)
@@ -166,7 +176,7 @@ function SearchTab({ review }: { review: Review }) {
       {status ? (
         <div role="status" className="rounded-lg border border-slate-200 p-3 text-[13px] text-slate-800">
           <p className="font-medium text-slate-900">
-            {status.status === 'NotStarted' ? 'Not searched yet.' : running ? `Searching… ${status.progressPct}%` : status.status === 'Error' ? 'The search stopped with an error.' : `Search finished: ${status.uniqueCount} unique papers (${status.duplicateCount} duplicates merged).`}
+            {status.status === 'NotStarted' ? 'Not searched yet.' : running ? `Searching… ${status.progressPct}%` : status.status === 'Error' ? (status.statusMessage || 'The search stopped with an error.') : `Search finished: ${status.uniqueCount} unique papers (${status.duplicateCount} duplicates merged).`}
           </p>
           {running && status.liveActivityMessage ? <p className="mt-1 text-slate-700">{status.liveActivityMessage}</p> : null}
         </div>
