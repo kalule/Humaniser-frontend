@@ -35,7 +35,9 @@ export function CheckStage({ paper, onChanged, onOpenSection, onNext }: { paper:
   const verify = useRunPoll(fetchVerify, () => { load(); onChanged() })
   const fetchDraft = useCallback(() => researchPaperApi.latestRun(paper.id, 'DraftSections'), [paper.id])
   const repair = useRunPoll(fetchDraft, load)
-  const running = isRunActive(verify.run) || isRunActive(repair.run)
+  const fetchSentenceRepair = useCallback(() => researchPaperApi.latestRun(paper.id, 'RepairSentences'), [paper.id])
+  const sentenceRepair = useRunPoll(fetchSentenceRepair, () => { load(); onChanged() })
+  const running = isRunActive(verify.run) || isRunActive(repair.run) || isRunActive(sentenceRepair.run)
 
   const act = async (fn: () => Promise<void>, failure: string) => {
     setBusy(true); setError(null); setNote(null)
@@ -43,8 +45,9 @@ export function CheckStage({ paper, onChanged, onOpenSection, onNext }: { paper:
   }
   const fixOne = (g: FindingGroup) => act(async () => {
     const r = await researchPaperApi.fix(paper.id, g.issueIds[0])
-    if (r.run) { if (r.action === 'Regenerating') repair.setRun(r.run); else verify.setRun(r.run) }
-    setNote(r.action === 'Edited' ? 'Edited. Check the paper again to confirm the fix.' : r.action === 'Checking' ? 'Checking the sources again.' : 'Rewriting the section with this problem given to the writer.')
+    if (r.run) { if (r.action === 'Regenerating') repair.setRun(r.run); else if (r.action === 'Repairing') sentenceRepair.setRun(r.run); else verify.setRun(r.run) }
+    setNote(r.action === 'Edited' ? 'Edited. Check the paper again to confirm the fix.' : r.action === 'Checking' ? 'Checking the sources again.'
+      : r.action === 'Repairing' ? 'Rewriting the sentence from its cited passages, then checking it.' : 'Rewriting the section with this problem given to the writer.')
     load()
   }, 'The fix could not be applied.')
   const bulk = (groups: FindingGroup[], action: 'Apply' | 'RemoveSentences') => act(async () => {
@@ -69,6 +72,7 @@ export function CheckStage({ paper, onChanged, onOpenSection, onNext }: { paper:
   const suggestions = shown.filter(g => g.severity === 'Suggestion')
   const removable = main.filter(g => g.severity === 'Critical' && g.sentences.length > 0 && g.status === 'Open' && g.verification === 'Checked')
   const automatic = main.filter(g => g.status === 'Open' && (g.fixKind === 'RemoveClaim' || g.fixKind === 'MakeNarrative'))
+  const repairable = live.filter(g => g.status === 'Open' && g.severity === 'Critical' && (g.fixKind === 'RepairSentence' || g.code === 'PROMPT_ECHO'))
 
   if (!data) return <Panel>{error ? <Notice tone="error">{error}</Notice> : <Loading />}</Panel>
   const r = data.readiness
@@ -85,6 +89,7 @@ export function CheckStage({ paper, onChanged, onOpenSection, onNext }: { paper:
         actions={<button type="button" onClick={() => void act(async () => { verify.setRun(await researchPaperApi.verify(paper.id)) }, 'The check could not be started.')} disabled={busy || running} className={btn.primary}><ShieldCheck size={16} aria-hidden /> Check the paper</button>}>
         <RunBanner run={verify.run} label="Checking" />
         <RunBanner run={repair.run} label="Rewriting" />
+        <RunBanner run={sentenceRepair.run} label="Repairing" />
         <div className="mt-3 space-y-2">
           <p className="text-[16px] font-semibold text-slate-900" role="status">{status}</p>
           <div className="flex flex-wrap gap-2 text-[14px]" aria-label="Issue counts">
@@ -124,6 +129,15 @@ export function CheckStage({ paper, onChanged, onOpenSection, onNext }: { paper:
               <option value="">All categories</option>{categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+          {repairable.length ? (
+            <div className="mb-3 rounded-lg border border-purple-accent/30 bg-purple-tint/40 p-3 text-[14px] text-slate-900">
+              <p>{repairable.length} critical issue{repairable.length === 1 ? '' : 's'} can be repaired automatically: each sentence is rewritten from its cited passages and checked. A sentence that still fails stays here with a suggested fix.</p>
+              <button type="button" className={btn.primary + ' mt-2'} disabled={busy || running}
+                onClick={() => void act(async () => { sentenceRepair.setRun(await researchPaperApi.repair(paper.id)) }, 'The repair could not be started.')}>
+                <Wrench size={16} aria-hidden /> Repair automatically
+              </button>
+            </div>
+          ) : null}
           {automatic.length || removable.length ? (
             <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Fix several at once">
               {automatic.length ? <button type="button" className={btn.small} disabled={busy || running} onClick={() => void bulk(automatic, 'Apply')}><Wrench size={14} aria-hidden /> Apply {automatic.length} automatic fix{automatic.length === 1 ? '' : 'es'}</button> : null}
@@ -179,7 +193,7 @@ function GroupRow({ group: g, busy, onFix, onDismiss, onOpen, issues }: {
       {g.sentences.length > 2 ? <p className="mt-1 text-[12px] text-slate-600">and {g.sentences.length - 2} more sentence{g.sentences.length - 2 === 1 ? '' : 's'}</p> : null}
       <p className="mt-1.5 text-[13px] text-slate-800"><span className="font-medium">What to do:</span> {g.recommendedAction}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {g.oneClick && g.status === 'Open' ? <button type="button" className={btn.small} disabled={busy} onClick={onFix}><Wrench size={14} aria-hidden /> {g.fixKind === 'Regenerate' ? 'Rewrite the section' : g.fixKind === 'RemoveClaim' ? 'Remove the claim' : g.fixKind === 'MakeNarrative' ? 'Make it narrative' : g.fixKind === 'VerifySources' ? 'Check the sources' : 'Draft it'}</button> : null}
+        {g.oneClick && g.status === 'Open' ? <button type="button" className={btn.small} disabled={busy} onClick={onFix}><Wrench size={14} aria-hidden /> {g.fixKind === 'RepairSentence' ? 'Repair this sentence' : g.fixKind === 'Regenerate' ? 'Rewrite the section' : g.fixKind === 'RemoveClaim' ? 'Remove the claim' : g.fixKind === 'MakeNarrative' ? 'Make it narrative' : g.fixKind === 'VerifySources' ? 'Check the sources' : 'Draft it'}</button> : null}
         {g.sectionCodes[0] ? <button type="button" className={btn.small} onClick={() => onOpen(g.sectionCodes[0])}>Open the section</button> : null}
         <button type="button" className={btn.small} aria-expanded={open} onClick={() => setOpen(v => !v)}>{open ? 'Hide details' : 'Details'}</button>
         {g.canDismiss && g.status === 'Open' ? <button type="button" className={btn.small} onClick={() => setDismissing(d => !d)}>Dismiss</button> : null}

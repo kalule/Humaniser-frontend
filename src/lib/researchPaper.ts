@@ -22,7 +22,7 @@ export interface TopicSuggestion { problemStatement: string | null; researchQues
 
 /** The same shape as a Literature Review Studio run, so the shared poll hook and run banner serve both studios. */
 export type PaperRun = ReviewRun
-export type PaperRunKind = 'VerifySources' | 'RankCandidates' | 'PrioritiseScreening' | 'DraftSections' | 'ReviseSection' | 'Verify'
+export type PaperRunKind = 'VerifySources' | 'RankCandidates' | 'PrioritiseScreening' | 'DraftSections' | 'ReviseSection' | 'Verify' | 'RepairSentences'
 
 export interface SearchLogEntry { query: string; database: string; searchedAt: string; resultCount: number; outcome: 'Results' | 'NoResults' | 'Failed'; error: string | null }
 export interface SearchLog { entries: SearchLogEntry[]; totalRecords: number; uniqueRecords: number; duplicates: number; databasesSearched: string[]; databasesFailed: string[]; completedAt: string | null }

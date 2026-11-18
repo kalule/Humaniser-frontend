@@ -71,6 +71,7 @@ const integrity = { readiness: { score: 72, ready: false, blocking: 1, warnings:
     finding('i2', 'Important', 'UNCITED_PARAGRAPH', 'Claim support', 'introduction', 'Introduction', 'A paragraph makes claims without citing any source.', 'Sleep shapes learning in many ways.', [], { verification: 'Rule' }),
     finding('i3', 'Important', 'PARTIAL_SUPPORT', 'Claim support', 'theme-t1', 'Shorter sleep and lower grades', 'Only partly supported by the first source.', partialClaim, [A], { evidence: 'students sleeping under seven hours had lower grade averages' }),
     finding('i4', 'Important', 'PARTIAL_SUPPORT', 'Claim support', 'theme-t1', 'Shorter sleep and lower grades', 'Only partly supported by the second source.', partialClaim, [B], { evidence: 'later start times improved attendance' }),
+    finding('i6', 'Critical', 'DETAIL_NOT_IN_SOURCE', 'Claim support', 'theme-t1', 'Shorter sleep and lower grades', 'The sentence places the study in China, but no cited source mentions China.', `In China, short sleepers had lower grades {{cite:${A}}}.`, [A], { fixKind: 'RepairSentence', oneClick: true, verification: 'Rule' }),
     finding('i5', 'Suggestion', 'QUOTE_OVERUSE', 'Consistency', 'theme-t1', 'Shorter sleep and lower grades', 'A 31-word direct quotation. Paraphrase it.', null, [], { verification: 'Rule' }),
   ], lastVerifiedAt: now, notice: 'Checked against the passages each claim cites.' };
 /** The server's grouping, for the mock: one group per rule and sentence (its sources together), most severe first. */
@@ -138,6 +139,7 @@ await page.route('**/api/v1/**', async route => {
   if (p === `${pb}/integrity`) return ok(withGroups(integrity));
   if (p.startsWith(`${pb}/issues/`) && p.endsWith('/dismiss')) { sent.dismiss = req.postDataJSON(); const i = integrity.issues.find(x => p.includes(`/${x.id}/`)); Object.assign(i, { status: 'Dismissed', dismissReason: sent.dismiss.reason }); return ok(i); }
   if (p.startsWith(`${pb}/issues/`) && p.endsWith('/fix')) { sent.fix = p; Object.assign(integrity.issues[0], { status: 'Stale' }); return ok({ action: 'Edited', run: null, section: null }); }
+  if (p === `${pb}/repair`) { sent.repair = req.postDataJSON(); return route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ success: true, data: { ...run('RepairSentences'), status: 'Running', stage: 'Repairing 1 sentence(s)', finishedAt: null } }) }); }
   if (p === `${pb}/runs/latest`) return ok(null);
   if (p === `${pb}/export`) { sent.export = Object.fromEntries(url.searchParams); return route.fulfill({ status: 200, contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', body: 'PK mock docx' }); }
   return ok([]);
@@ -231,8 +233,13 @@ await page.getByRole('heading', { name: 'Integrity check', exact: true }).waitFo
 await page.getByText('Verification incomplete', { exact: true }).waitFor();
 await page.getByText('3 claim checks were not reached').waitFor();
 await page.getByText('3 claim checks made now, 4 reused from earlier checks').waitFor();
-await page.getByText('1 critical', { exact: true }).waitFor();
-await page.getByText('5 findings, grouped into 4 issues.').waitFor();
+await page.getByText('2 critical', { exact: true }).waitFor();
+await page.getByText('6 findings, grouped into 5 issues.').waitFor();
+// Critical sentences can be repaired automatically: one request for all of them.
+await page.getByText('1 critical issue can be repaired automatically').waitFor();
+await page.getByRole('button', { name: 'Repair automatically' }).click();
+await page.getByText('Repairing: Repairing 1 sentence(s)').waitFor();
+await must(Array.isArray(sent.repair?.issueIds), 'The repair was not requested');
 const issues = page.getByRole('heading', { name: 'Issues', exact: true }).locator('xpath=ancestor::section[1]');
 await issues.getByText("Only partly supported (2 of the sentence's cited sources).").waitFor();
 await must(!(await page.getByText('A 31-word direct quotation. Paraphrase it.').isVisible()), 'A suggestion was shown before it was opened');
@@ -293,5 +300,5 @@ for (const stage of ['check', 'export', 'writing', 'screening', 'synthesis', 'ev
   if (culprits.length) throw Error(`The ${stage} stage scrolls sideways at phone width:\n${culprits.join('\n')}`);
 }
 if (errors.length) throw Error(errors.join('\n'));
-console.log('Research Paper Studio smoke passed: create (SR redirect shown), question saved and approved with its revision, sources (coverage limit, database down, DOI mismatch, consent), screening (reasoned exclusion, bulk, audit, approve), synthesis (gap vs search limit), writing (outline gate, citation evidence, unknown citation, numbered editing), integrity (an incomplete check said so, grouped issues and counts, suggestions collapsed, filters, no dismiss for critical, reasoned dismissal, fix awaits a check, link to the section), draft-only export; desktop and 390px on six stages.');
+console.log('Research Paper Studio smoke passed: create (SR redirect shown), question saved and approved with its revision, sources (coverage limit, database down, DOI mismatch, consent), screening (reasoned exclusion, bulk, audit, approve), synthesis (gap vs search limit), writing (outline gate, citation evidence, unknown citation, numbered editing), integrity (an incomplete check said so, automatic repair started, grouped issues and counts, suggestions collapsed, filters, no dismiss for critical, reasoned dismissal, fix awaits a check, link to the section), draft-only export; desktop and 390px on six stages.');
 await browser.close();
