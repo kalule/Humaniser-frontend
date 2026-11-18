@@ -86,6 +86,8 @@ export const researchPaperApi = {
   verify: (id: string) => client.post<PaperRun>(`${base}/${id}/verify`).then(data).then(r => run(r)!),
   integrity: (id: string) => client.get<Integrity>(`${base}/${id}/integrity`).then(data),
   fix: (id: string, issueId: string) => client.post<{ action: string; run: PaperRun | null; section: Section | null }>(`${base}/${id}/issues/${issueId}/fix`).then(data),
+  bulkFix: (id: string, issueIds: string[], action: 'Apply' | 'RemoveSentences') =>
+    client.post<{ applied: number; skipped: { candidateId: string; error: string }[]; sectionsChanged: string[] }>(`${base}/${id}/issues/fix-bulk`, { issueIds, action }).then(data),
   dismiss: (id: string, issueId: string, reason: string) => client.post<PaperIssue>(`${base}/${id}/issues/${issueId}/dismiss`, { reason }).then(data),
 
   // Runs and export

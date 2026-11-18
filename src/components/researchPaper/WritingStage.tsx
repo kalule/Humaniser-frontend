@@ -18,7 +18,7 @@ const USER_INPUT_KINDS = ['StudyMethods', 'StudyResults', 'ProposedMethods']
  * tightened, re-toned, given the author's notes, edited and restored from its history. Open check findings are marked
  * on the sentence they are about.
  */
-export function WritingStage({ paper, onChanged, onNext }: { paper: Paper; onChanged: (p?: Paper) => void; onNext: () => void }) {
+export function WritingStage({ paper, onChanged, onNext, focusSection }: { paper: Paper; onChanged: (p?: Paper) => void; onNext: () => void; focusSection?: string | null }) {
   const [outline, setOutline] = useState<Outline | null>(null)
   const [sections, setSections] = useState<Section[] | null>(null)
   const [sources, setSources] = useState<Record<string, PaperSource>>({})
@@ -31,9 +31,15 @@ export function WritingStage({ paper, onChanged, onNext }: { paper: Paper; onCha
     researchPaperApi.outline(paper.id).then(setOutline).catch(() => setOutline(null))
     researchPaperApi.sections(paper.id).then(setSections).catch(e => setError(errorMessage(e, 'The sections could not be loaded.')))
     researchPaperApi.sources(paper.id).then(list => setSources(Object.fromEntries(list.map(s => [s.id, s])))).catch(() => setSources({}))
-    researchPaperApi.integrity(paper.id).then(r => setIssues(r.issues.filter(i => i.status === 'Open' || i.status === 'Stale'))).catch(() => setIssues([]))
+    // Critical and important findings are marked on their sentences; suggestions are listed under Integrity check only.
+    researchPaperApi.integrity(paper.id).then(r => setIssues(r.issues.filter(i => (i.status === 'Open' || i.status === 'Stale') && i.severity !== 'Suggestion'))).catch(() => setIssues([]))
   }, [paper.id])
   useEffect(load, [load])
+  // Opened from an issue: bring its section into view once the sections are on the page.
+  useEffect(() => {
+    if (!focusSection || !sections) return
+    document.getElementById(`rp-sec-${focusSection}`)?.scrollIntoView?.({ block: 'start' })
+  }, [focusSection, sections])
   const fetchDraft = useCallback(() => researchPaperApi.latestRun(paper.id, 'DraftSections'), [paper.id])
   const draft = useRunPoll(fetchDraft, () => { load(); onChanged() })
   const fetchRevise = useCallback(() => researchPaperApi.latestRun(paper.id, 'ReviseSection'), [paper.id])
@@ -256,7 +262,7 @@ function SectionText({ text, sources, issues, onCite }: { text: string; sources:
                   {part.narrative ? shortCite(sources[part.sourceId], true) : `(${shortCite(sources[part.sourceId])})`}
                 </button>)
             return issue
-              ? <mark key={si} title={issue.message} className={issue.severity === 'Blocking' ? 'bg-red-50 underline decoration-red-500 decoration-wavy' : 'bg-amber-50 underline decoration-amber-500 decoration-wavy'}>{body} <span className="sr-only">({issue.severity === 'Blocking' ? 'must fix' : 'warning'}: {issue.message})</span></mark>
+              ? <mark key={si} title={issue.message} className={issue.severity === 'Critical' ? 'bg-red-50 underline decoration-red-500 decoration-wavy' : 'bg-amber-50 underline decoration-amber-500 decoration-wavy'}>{body} <span className="sr-only">({issue.severity === 'Critical' ? 'must fix' : 'important'}: {issue.message})</span></mark>
               : <span key={si}>{body} </span>
           })}
         </p>

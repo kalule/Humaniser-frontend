@@ -61,11 +61,38 @@ const sections = outline.sections.map((s, i) => ({ code: s.code, title: s.title,
   flags: [], model: 'claude-sonnet-5-5', draftedAt: now, editedAt: null, versions: 1, mayCite: true }));
 const claims = [{ ordinal: 0, text: claimText, origin: 'Literature', support: 'Supported',
   sources: [{ sourceId: A, title: sources[0].title, authors: 'Nakato, J.', year: 2019, evidenceLevel: 'FullText', field: 'findings', passage: 'students sleeping under seven hours had lower grade averages', verdict: 'Supported' }] }];
-const integrity = { readiness: { score: 72, ready: false, blocking: 1, warnings: 1, sectionsUnverified: 0, byCategory: { References: 1, Claims: 1 }, reasons: ['1 problem must be fixed before export.'] },
+const finding = (id, severity, code, category, sectionCode, sectionTitle, message, claimText, sourceIds, extra = {}) => ({
+  id, sectionCode, sectionTitle, severity, code, category, message, claimText, sourceIds, fixKind: 'None', oneClick: false, status: 'Open', repairAttempts: 0,
+  canDismiss: severity !== 'Critical', dismissReason: null, evidence: null, recommendedAction: 'Change the text, then check again.', verification: 'Checked', ...extra });
+const partialClaim = `Shorter sleep went with lower grades {{cite:${A}}}{{cite:${B}}}.`;
+const integrity = { readiness: { score: 72, ready: false, blocking: 1, warnings: 2, suggestions: 1, sectionsUnverified: 0, byCategory: { References: 1, 'Claim support': 2 }, reasons: ['1 critical problem to fix.'] },
   issues: [
-    { id: 'i1', sectionCode: 'theme-t1', sectionTitle: 'Shorter sleep and lower grades', severity: 'Blocking', code: 'CITATION_OUTSIDE_POOL', category: 'References', message: 'A citation (S9) does not point to one of the paper\'s sources.', claimText: 'A remembered study {{cite:unknown:S9}}.', sourceIds: [], fixKind: 'RemoveClaim', oneClick: true, status: 'Open', repairAttempts: 0, canDismiss: false, dismissReason: null },
-    { id: 'i2', sectionCode: 'introduction', sectionTitle: 'Introduction', severity: 'Warning', code: 'ABSTRACT_ONLY_METHOD', category: 'Claims', message: 'A claim about methods rests on a source read from its abstract only.', claimText: null, sourceIds: [B], fixKind: 'None', oneClick: false, status: 'Open', repairAttempts: 0, canDismiss: true, dismissReason: null },
+    finding('i1', 'Critical', 'CITATION_OUTSIDE_POOL', 'References', 'theme-t1', 'Shorter sleep and lower grades', "A citation (S9) does not point to one of the paper's sources.", 'A remembered study {{cite:unknown:S9}}.', [], { fixKind: 'RemoveClaim', oneClick: true, recommendedAction: "Remove the claim: it cites something that is not one of the paper's sources.", verification: 'Rule' }),
+    finding('i2', 'Important', 'UNCITED_PARAGRAPH', 'Claim support', 'introduction', 'Introduction', 'A paragraph makes claims without citing any source.', 'Sleep shapes learning in many ways.', [], { verification: 'Rule' }),
+    finding('i3', 'Important', 'PARTIAL_SUPPORT', 'Claim support', 'theme-t1', 'Shorter sleep and lower grades', 'Only partly supported by the first source.', partialClaim, [A], { evidence: 'students sleeping under seven hours had lower grade averages' }),
+    finding('i4', 'Important', 'PARTIAL_SUPPORT', 'Claim support', 'theme-t1', 'Shorter sleep and lower grades', 'Only partly supported by the second source.', partialClaim, [B], { evidence: 'later start times improved attendance' }),
+    finding('i5', 'Suggestion', 'QUOTE_OVERUSE', 'Consistency', 'theme-t1', 'Shorter sleep and lower grades', 'A 31-word direct quotation. Paraphrase it.', null, [], { verification: 'Rule' }),
   ], lastVerifiedAt: now, notice: 'Checked against the passages each claim cites.' };
+/** The server's grouping, for the mock: one group per rule and sentence (its sources together), most severe first. */
+function withGroups(r) {
+  const rank = { Critical: 0, Important: 1, Suggestion: 2 };
+  const byKey = new Map();
+  for (const i of r.issues.filter(x => x.status !== 'Repaired')) {
+    const key = (i.status === 'Dismissed' ? 'd:' : '') + i.code + '|' + i.sectionCode + '|' + (i.claimText ?? i.message);
+    byKey.set(key, [...(byKey.get(key) ?? []), i]);
+  }
+  const groups = [...byKey.entries()].map(([key, items]) => ({
+    key, severity: items[0].severity, code: items[0].code, category: items[0].category,
+    message: items.length === 1 ? items[0].message : `Only partly supported (${items.length} of the sentence's cited sources).`,
+    recommendedAction: items[0].recommendedAction, fixKind: items[0].fixKind, oneClick: items[0].oneClick, verification: items[0].verification, count: items.length,
+    sectionCodes: [items[0].sectionCode], sentences: items[0].claimText ? [{ sectionCode: items[0].sectionCode, sectionTitle: items[0].sectionTitle, ordinal: 1, text: items[0].claimText }] : [],
+    sourceIds: items.flatMap(i => i.sourceIds), evidence: items.map(i => i.evidence).filter(Boolean), issueIds: items.map(i => i.id),
+    status: items.every(i => i.status === 'Dismissed') ? 'Dismissed' : items.some(i => i.status === 'Open') ? 'Open' : 'Stale', canDismiss: items.every(i => i.canDismiss),
+  })).sort((a, b) => (a.status === 'Dismissed') - (b.status === 'Dismissed') || rank[a.severity] - rank[b.severity]);
+  const live = groups.filter(g => g.status !== 'Dismissed');
+  return { ...r, groups, summary: { raw: r.issues.filter(i => i.status === 'Open' || i.status === 'Stale').length, groups: live.length,
+    critical: live.filter(g => g.severity === 'Critical').length, important: live.filter(g => g.severity === 'Important').length, suggestion: live.filter(g => g.severity === 'Suggestion').length, dismissedCritical: 0 } };
+}
 const run = kind => ({ id: `run-${kind}`, kind, status: 'Succeeded', stage: `${kind} finished.`, done: 2, total: 2, errorCode: null, errorMessage: null, creditsCharged: 0, startedAt: now, finishedAt: now });
 const sent = { patch: null, approveRevision: null, exclude: null, bulk: null, verify: false, dismiss: null, fix: null, export: null };
 let listed = [];
@@ -106,9 +133,9 @@ await page.route('**/api/v1/**', async route => {
   if (p === `${pb}/outline`) return ok(outline);
   if (p === `${pb}/sections`) return ok(outline.approved ? sections : []);
   if (p.match(/\/sections\/[^/]+\/claims$/)) return ok(claims);
-  if (p === `${pb}/integrity`) return ok(integrity);
+  if (p === `${pb}/integrity`) return ok(withGroups(integrity));
   if (p.startsWith(`${pb}/issues/`) && p.endsWith('/dismiss')) { sent.dismiss = req.postDataJSON(); const i = integrity.issues.find(x => p.includes(`/${x.id}/`)); Object.assign(i, { status: 'Dismissed', dismissReason: sent.dismiss.reason }); return ok(i); }
-  if (p.startsWith(`${pb}/issues/`) && p.endsWith('/fix')) { sent.fix = p; Object.assign(integrity.issues[0], { status: 'Repaired' }); return ok({ action: 'Edited', run: null, section: null }); }
+  if (p.startsWith(`${pb}/issues/`) && p.endsWith('/fix')) { sent.fix = p; Object.assign(integrity.issues[0], { status: 'Stale' }); return ok({ action: 'Edited', run: null, section: null }); }
   if (p === `${pb}/runs/latest`) return ok(null);
   if (p === `${pb}/export`) { sent.export = Object.fromEntries(url.searchParams); return route.fulfill({ status: 200, contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', body: 'PK mock docx' }); }
   return ok([]);
@@ -196,22 +223,41 @@ await must(editable.startsWith('Shorter sleep went with lower grades [1][2]. [@1
 await page.getByRole('button', { name: 'Discard changes' }).click();
 await page.getByRole('button', { name: 'Continue to the integrity check' }).click();
 
-// 6 Integrity check: a blocking finding cannot be dismissed; a warning needs a reason; a one-click fix.
+// 6 Integrity check: status and counts; one sentence's findings across its sources are one issue; a critical issue cannot be
+// dismissed; an important one needs a reason; suggestions are collapsed; filters; the link to the section; a fix awaits a check.
 await page.getByRole('heading', { name: 'Integrity check', exact: true }).waitFor();
-await page.getByText('Not ready yet.').waitFor();
-await page.getByText('Must fix').waitFor();
-const issues = page.getByRole('heading', { name: 'To fix' }).locator('xpath=ancestor::section[1]');
-await must((await issues.getByRole('button', { name: 'Dismiss', exact: true }).count()) === 1, 'A blocking finding offered Dismiss');
-await issues.getByRole('button', { name: 'Dismiss', exact: true }).click();
+await page.getByText('Corrections required').waitFor();
+await page.getByText('1 critical', { exact: true }).waitFor();
+await page.getByText('5 findings, grouped into 4 issues.').waitFor();
+const issues = page.getByRole('heading', { name: 'Issues', exact: true }).locator('xpath=ancestor::section[1]');
+await issues.getByText("Only partly supported (2 of the sentence's cited sources).").waitFor();
+await must(!(await page.getByText('A 31-word direct quotation. Paraphrase it.').isVisible()), 'A suggestion was shown before it was opened');
+await page.getByRole('button', { name: /1 suggestion \(optional\)/ }).click();
+await page.getByText('A 31-word direct quotation. Paraphrase it.').waitFor();
+const partialRow = issues.locator('li', { hasText: "Only partly supported (2 of the sentence's cited sources)." });
+await partialRow.getByRole('button', { name: 'Details' }).click();
+await page.getByText('later start times improved attendance').waitFor();
+const criticalRow = issues.locator('li', { hasText: 'does not point to one of the paper' });
+await must((await criticalRow.getByRole('button', { name: 'Dismiss', exact: true }).count()) === 0, 'A critical issue offered Dismiss');
+await page.getByLabel('Severity').selectOption('Critical');
+await must((await issues.locator('li', { hasText: 'A paragraph makes claims' }).count()) === 0, 'The severity filter did not filter');
+await page.getByLabel('Severity').selectOption('');
+const uncited = issues.locator('li', { hasText: 'A paragraph makes claims' });
+await uncited.getByRole('button', { name: 'Dismiss', exact: true }).click();
 await page.getByLabel('Why does this not apply?').fill('short');
 await must(page.getByRole('button', { name: 'Dismiss with this reason' }).isDisabled(), 'A dismissal was allowed without a real reason');
 await page.getByLabel('Why does this not apply?').fill('I checked the full text of this source myself.');
 await page.getByRole('button', { name: 'Dismiss with this reason' }).click();
 await page.getByRole('heading', { name: 'Dismissed' }).waitFor();
 await must(sent.dismiss?.reason === 'I checked the full text of this source myself.', 'The dismissal reason was not sent');
-await page.getByRole('button', { name: 'Remove the claim' }).click();
-await page.getByText('Fixed. Check again to confirm.').waitFor();
+await criticalRow.getByRole('button', { name: 'Remove the claim' }).click();
+await page.getByText('Edited. Check the paper again to confirm the fix.').waitFor();
 await must(sent.fix?.endsWith('/issues/i1/fix'), 'The one-click fix was not sent');
+await page.getByText('Changed: check again to confirm').waitFor();
+await issues.locator('li', { hasText: 'does not point to one of the paper' }).getByRole('button', { name: 'Open the section' }).click();
+await page.waitForURL(/stage=writing&section=theme-t1/);
+await page.goBack();
+await page.getByRole('heading', { name: 'Integrity check', exact: true }).waitFor();
 await page.getByRole('button', { name: 'Continue to export' }).click();
 
 // 7 Export: a paper that is not ready exports only as a marked draft.
@@ -227,7 +273,7 @@ await must(file?.suggestedFilename().includes('(draft)'), `The downloaded file w
 await page.screenshot({ path: join(tmpdir(), 'humaniser-research-paper-desktop.png'), fullPage: true });
 // Phone width, on the busiest stages.
 await page.setViewportSize({ width: 390, height: 844 });
-for (const stage of ['export', 'writing', 'screening', 'synthesis', 'evidence']) {
+for (const stage of ['check', 'export', 'writing', 'screening', 'synthesis', 'evidence']) {
   await page.goto(`${origin}/app/research-paper/${id}?stage=${stage}`);
   await page.getByRole('heading', { name: paper.title }).waitFor();
   await page.waitForTimeout(400);
@@ -243,5 +289,5 @@ for (const stage of ['export', 'writing', 'screening', 'synthesis', 'evidence'])
   if (culprits.length) throw Error(`The ${stage} stage scrolls sideways at phone width:\n${culprits.join('\n')}`);
 }
 if (errors.length) throw Error(errors.join('\n'));
-console.log('Research Paper Studio smoke passed: create (SR redirect shown), question saved and approved with its revision, sources (coverage limit, database down, DOI mismatch, consent), screening (reasoned exclusion, bulk, audit, approve), synthesis (gap vs search limit), writing (outline gate, citation evidence, unknown citation, numbered editing), integrity (no dismiss for blocking, reasoned dismissal, one-click fix), draft-only export; desktop and 390px on five stages.');
+console.log('Research Paper Studio smoke passed: create (SR redirect shown), question saved and approved with its revision, sources (coverage limit, database down, DOI mismatch, consent), screening (reasoned exclusion, bulk, audit, approve), synthesis (gap vs search limit), writing (outline gate, citation evidence, unknown citation, numbered editing), integrity (grouped issues and counts, suggestions collapsed, filters, no dismiss for critical, reasoned dismissal, fix awaits a check, link to the section), draft-only export; desktop and 390px on six stages.');
 await browser.close();

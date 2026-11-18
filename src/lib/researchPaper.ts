@@ -61,9 +61,24 @@ export interface SectionVersion { versionNo: number; action: string; note: strin
 export interface ClaimSource { sourceId: string; title: string; authors: string; year: number | null; evidenceLevel: EvidenceLevel; field: string | null; passage: string | null; verdict: string }
 export interface Claim { ordinal: number; text: string; origin: string; support: string; sources: ClaimSource[] }
 
-export interface Readiness { score: number; ready: boolean; blocking: number; warnings: number; sectionsUnverified: number; byCategory: Record<string, number>; reasons: string[] }
-export interface PaperIssue { id: string; sectionCode: string | null; sectionTitle: string | null; severity: 'Blocking' | 'Warning'; code: string; category: string; message: string; claimText: string | null; sourceIds: string[]; fixKind: string; oneClick: boolean; status: 'Open' | 'Stale' | 'Dismissed' | 'Repaired'; repairAttempts: number; canDismiss: boolean; dismissReason: string | null }
-export interface Integrity { readiness: Readiness; issues: PaperIssue[]; lastVerifiedAt: string | null; notice: string }
+/** blocking = open critical findings, warnings = open important ones. */
+export interface Readiness { score: number; ready: boolean; blocking: number; warnings: number; suggestions: number; sectionsUnverified: number; byCategory: Record<string, number>; reasons: string[] }
+export type Severity = 'Critical' | 'Important' | 'Suggestion'
+export interface PaperIssue {
+  id: string; sectionCode: string | null; sectionTitle: string | null; severity: Severity; code: string; category: string; message: string; claimText: string | null
+  sourceIds: string[]; fixKind: string; oneClick: boolean; status: 'Open' | 'Stale' | 'Dismissed' | 'Repaired'; repairAttempts: number; canDismiss: boolean; dismissReason: string | null
+  groupKey?: string | null; claimOrdinal?: number | null; citationIds?: string[]; evidence?: string | null; recommendedAction?: string | null; verification?: string | null
+  createdAt?: string | null; resolvedAt?: string | null
+}
+export interface FindingSentence { sectionCode: string | null; sectionTitle: string | null; ordinal: number | null; text: string }
+/** One underlying issue: the same rule on the same sentence (across its cited sources), or on the same source. */
+export interface FindingGroup {
+  key: string; severity: Severity; code: string; category: string; message: string; recommendedAction: string; fixKind: string; oneClick: boolean
+  verification: string; count: number; sectionCodes: string[]; sentences: FindingSentence[]; sourceIds: string[]; evidence: string[]; issueIds: string[]
+  status: 'Open' | 'Stale' | 'Dismissed'; canDismiss: boolean
+}
+export interface FindingSummary { raw: number; groups: number; critical: number; important: number; suggestion: number; dismissedCritical: number }
+export interface Integrity { readiness: Readiness; issues: PaperIssue[]; lastVerifiedAt: string | null; notice: string; groups?: FindingGroup[]; summary?: FindingSummary }
 
 // ── Stages ──────────────────────────────────────────────────────────────────────────────────────────────
 

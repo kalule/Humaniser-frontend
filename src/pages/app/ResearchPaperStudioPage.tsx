@@ -181,7 +181,7 @@ function Workspace({ id }: { id: string }) {
   const p = paper.value
   const reached = reachedStage(p.status)
   const current = params.get('stage') ? stageIndex(params.get('stage')) : reached
-  const go = (i: number) => { setParams({ stage: STAGES[i].id }); window.scrollTo?.(0, 0) }
+  const go = (i: number, section?: string) => { setParams(section ? { stage: STAGES[i].id, section } : { stage: STAGES[i].id }); window.scrollTo?.(0, 0) }
   const onChanged = (next?: Paper) => (next ? setPaper({ state: 'ready', value: next }) : load())
   const steps = STAGES.map(s => ({ ...s, count: s.id === 'evidence' && p.sourceCount > 0 ? `${p.sourceCount} source${p.sourceCount === 1 ? '' : 's'}` : undefined }))
   const stage = STAGES[current].id
@@ -209,8 +209,8 @@ function Workspace({ id }: { id: string }) {
           {stage === 'evidence' ? <EvidenceStage paper={p} onChanged={onChanged} onNext={() => go(2)} /> : null}
           {stage === 'screening' ? <ScreeningStage paper={p} onChanged={onChanged} onNext={() => go(3)} /> : null}
           {stage === 'synthesis' ? <SynthesisStage paper={p} onNext={() => go(4)} /> : null}
-          {stage === 'writing' ? <WritingStage paper={p} onChanged={onChanged} onNext={() => go(5)} /> : null}
-          {stage === 'check' ? <CheckStage paper={p} onChanged={onChanged} onOpenSection={() => go(4)} onNext={() => go(6)} /> : null}
+          {stage === 'writing' ? <WritingStage paper={p} onChanged={onChanged} onNext={() => go(5)} focusSection={params.get('section')} /> : null}
+          {stage === 'check' ? <CheckStage paper={p} onChanged={onChanged} onOpenSection={code => go(4, code)} onNext={() => go(6)} /> : null}
           {stage === 'export' ? <ExportStage paper={p} /> : null}
         </main>
       </div>
