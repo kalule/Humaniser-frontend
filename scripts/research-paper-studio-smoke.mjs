@@ -94,7 +94,10 @@ function withGroups(r) {
   return { ...r, groups, summary: { raw: r.issues.filter(i => i.status === 'Open' || i.status === 'Stale').length, groups: live.length,
     critical: live.filter(g => g.severity === 'Critical').length, important: live.filter(g => g.severity === 'Important').length, suggestion: live.filter(g => g.severity === 'Suggestion').length, dismissedCritical: 0 },
     // The last check stopped at its budget: never shown as a finished check.
-    verification: { state: 'Incomplete', units: 10, reused: 4, judged: 3, notChecked: 3, failed: 0, invalidated: 1, at: now, message: null } };
+    verification: { state: 'Incomplete', units: 10, reused: 4, judged: 3, notChecked: 3, failed: 0, invalidated: 1, at: now, message: null },
+    state: 'VerificationIncomplete', stateLabel: 'Verification incomplete',
+    stateReasons: ['The last check did not reach every claim, so the paper cannot be approved yet. Check again to finish it.'],
+    approvals: [{ decision: 'Refused', state: 'CorrectionsRequired', reasons: ['2 critical issues must be fixed before the paper can be approved.'], textHash: 'abc123', at: now }] };
 }
 const run = kind => ({ id: `run-${kind}`, kind, status: 'Succeeded', stage: `${kind} finished.`, done: 2, total: 2, errorCode: null, errorMessage: null, creditsCharged: 0, startedAt: now, finishedAt: now });
 const sent = { patch: null, approveRevision: null, exclude: null, bulk: null, verify: false, dismiss: null, fix: null, export: null };
@@ -233,6 +236,11 @@ await page.getByRole('heading', { name: 'Integrity check', exact: true }).waitFo
 await page.getByText('Verification incomplete', { exact: true }).waitFor();
 await page.getByText('3 claim checks were not reached').waitFor();
 await page.getByText('3 claim checks made now, 4 reused from earlier checks').waitFor();
+// The gate: no approval while the check is incomplete; the reason is shown, and the refused decision is in the history.
+await page.getByText('The paper cannot be approved yet:').waitFor();
+await must((await page.getByRole('button', { name: 'Approve for final export' }).count()) === 0, 'Approval was offered on an incomplete check');
+await page.getByText('Decision history (1)').click();
+await page.getByText('Refused · 2 critical issues must be fixed').waitFor();
 await page.getByText('2 critical', { exact: true }).waitFor();
 await page.getByText('6 findings, grouped into 5 issues.').waitFor();
 // Critical sentences can be repaired automatically: one request for all of them.
@@ -300,5 +308,5 @@ for (const stage of ['check', 'export', 'writing', 'screening', 'synthesis', 'ev
   if (culprits.length) throw Error(`The ${stage} stage scrolls sideways at phone width:\n${culprits.join('\n')}`);
 }
 if (errors.length) throw Error(errors.join('\n'));
-console.log('Research Paper Studio smoke passed: create (SR redirect shown), question saved and approved with its revision, sources (coverage limit, database down, DOI mismatch, consent), screening (reasoned exclusion, bulk, audit, approve), synthesis (gap vs search limit), writing (outline gate, citation evidence, unknown citation, numbered editing), integrity (an incomplete check said so, automatic repair started, grouped issues and counts, suggestions collapsed, filters, no dismiss for critical, reasoned dismissal, fix awaits a check, link to the section), draft-only export; desktop and 390px on six stages.');
+console.log('Research Paper Studio smoke passed: create (SR redirect shown), question saved and approved with its revision, sources (coverage limit, database down, DOI mismatch, consent), screening (reasoned exclusion, bulk, audit, approve), synthesis (gap vs search limit), writing (outline gate, citation evidence, unknown citation, numbered editing), integrity (an incomplete check said so and could not be approved, automatic repair started, grouped issues and counts, suggestions collapsed, filters, no dismiss for critical, reasoned dismissal, fix awaits a check, link to the section), draft-only export; desktop and 390px on six stages.');
 await browser.close();

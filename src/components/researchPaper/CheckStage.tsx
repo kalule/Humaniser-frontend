@@ -79,8 +79,8 @@ export function CheckStage({ paper, onChanged, onOpenSection, onNext }: { paper:
   const s = data.summary
   const v = data.verification
   const incomplete = v?.state === 'Incomplete'
-  const status = v?.state === 'Running' ? 'Checking…' : incomplete ? 'Verification incomplete' : r.ready ? 'Ready for final export'
-    : !data.lastVerifiedAt ? 'Not checked yet' : r.sectionsUnverified > 0 ? 'Changed since the last check' : r.blocking > 0 ? 'Corrections required' : 'Checked'
+  const status = v?.state === 'Running' ? 'Checking…' : data.stateLabel ?? (incomplete ? 'Verification incomplete' : r.ready ? 'Ready for final export'
+    : !data.lastVerifiedAt ? 'Not checked yet' : r.sectionsUnverified > 0 ? 'Changed since the last check' : r.blocking > 0 ? 'Corrections required' : 'Checked')
 
   return (
     <div className="space-y-4">
@@ -112,6 +112,8 @@ export function CheckStage({ paper, onChanged, onOpenSection, onNext }: { paper:
 
       {note ? <Notice tone="success" role="status">{note}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
+
+      <ApprovalPanel paper={paper} data={data} busy={busy || running} onApproved={next => { setData(next); onChanged() }} setError={setError} />
 
       {live.length ? (
         <Panel title="Issues" id="rp-issues">
@@ -170,6 +172,53 @@ export function CheckStage({ paper, onChanged, onOpenSection, onNext }: { paper:
 
       <button type="button" onClick={onNext} className={btn.primary}>Continue to export</button>
     </div>
+  )
+}
+
+/**
+ * Approval for final export (audit doc 21.11). A finished check is not acceptance: the student approves, only when the
+ * check is complete and nothing critical is open, and the approval lapses when the text changes. Every decision is kept.
+ */
+function ApprovalPanel({ paper, data, busy, onApproved, setError }: {
+  paper: Paper; data: Integrity; busy: boolean; onApproved: (next: Integrity) => void; setError: (e: string | null) => void
+}) {
+  const [confirm, setConfirm] = useState(false)
+  const [sending, setSending] = useState(false)
+  const state = data.state
+  if (!state) return null
+  const approve = async () => {
+    setSending(true); setError(null)
+    try { onApproved(await researchPaperApi.approveFinal(paper.id, true)) } catch (e) { setError(errorMessage(e, 'The paper could not be approved.')) } finally { setSending(false) }
+  }
+  return (
+    <Panel title="Approval for final export" id="rp-approval">
+      {state === 'ReadyForFinalExport' ? (
+        <Notice tone="success" role="status">Approved for final export. Changing the text takes the approval back.</Notice>
+      ) : state === 'VerificationCompleted' ? (
+        <div className="space-y-2 text-[14px] text-slate-900">
+          {(data.stateReasons ?? []).map(x => <p key={x}>{x}</p>)}
+          <label className="flex items-start gap-2">
+            <input type="checkbox" checked={confirm} onChange={e => setConfirm(e.target.checked)} className="mt-1" />
+            <span>I have read the paper and checked its sources, and I take responsibility for it. A completed check is not academic acceptance.</span>
+          </label>
+          <button type="button" className={btn.primary} disabled={busy || sending || !confirm} onClick={() => void approve()}>Approve for final export</button>
+        </div>
+      ) : (
+        <div className="space-y-1 text-[14px] text-slate-900">
+          <p className="font-medium">The paper cannot be approved yet:</p>
+          <ul className="list-disc space-y-1 pl-5">{(data.stateReasons ?? []).map(x => <li key={x}>{x}</li>)}</ul>
+          <p className="text-[13px] text-slate-700">You can still export a draft.</p>
+        </div>
+      )}
+      {data.approvals?.length ? (
+        <details className="mt-3 text-[13px] text-slate-800">
+          <summary className="cursor-pointer">Decision history ({data.approvals.length})</summary>
+          <ul className="mt-2 space-y-1">{data.approvals.map(a => (
+            <li key={a.at + a.decision}>{a.at.slice(0, 16).replace('T', ' ')} · {a.decision === 'Approved' ? 'Approved' : 'Refused'} · {a.reasons.join(' ')}</li>
+          ))}</ul>
+        </details>
+      ) : null}
+    </Panel>
   )
 }
 

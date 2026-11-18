@@ -80,7 +80,13 @@ export interface FindingGroup {
 export interface FindingSummary { raw: number; groups: number; critical: number; important: number; suggestion: number; dismissedCritical: number }
 /** What the latest check did. Incomplete: some claims were not checked or failed; it is never shown as a finished check. */
 export interface VerificationState { state: 'NotChecked' | 'Running' | 'Incomplete' | 'Complete'; units: number; reused: number; judged: number; notChecked: number; failed: number; invalidated: number; at: string | null; message: string | null }
-export interface Integrity { readiness: Readiness; issues: PaperIssue[]; lastVerifiedAt: string | null; notice: string; groups?: FindingGroup[]; summary?: FindingSummary; verification?: VerificationState }
+export type DocumentState = 'Draft' | 'VerificationPending' | 'VerificationIncomplete' | 'CorrectionsRequired' | 'VerificationCompleted' | 'ReadyForFinalExport'
+export interface Approval { decision: 'Approved' | 'Refused'; state: string; reasons: string[]; textHash: string; at: string }
+/** readiness.ready is true only in ReadyForFinalExport: checked completely, nothing critical, approved by the student, unchanged since. */
+export interface Integrity {
+  readiness: Readiness; issues: PaperIssue[]; lastVerifiedAt: string | null; notice: string; groups?: FindingGroup[]; summary?: FindingSummary; verification?: VerificationState
+  state?: DocumentState; stateLabel?: string; stateReasons?: string[]; approvals?: Approval[]
+}
 
 // ── Stages ──────────────────────────────────────────────────────────────────────────────────────────────
 
