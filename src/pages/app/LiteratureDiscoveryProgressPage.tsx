@@ -112,7 +112,7 @@ export default function LiteratureDiscoveryProgressPage() {
       updateProject(project.id, { currentStep: stepIndex })
       syncProject(project.id).catch(() => toast.error('Could not save your progress.'))
     }
-    navigate(`/app/literature-review?projectId=${projectId}`)
+    navigate(`/app/research-agent/${projectId}`)
   }
 
   const handleStart = async () => {
@@ -189,9 +189,9 @@ export default function LiteratureDiscoveryProgressPage() {
       {/* ── Header bar ─────────────────────────────────────────────────────── */}
       <div className="shrink-0 bg-white border-b border-slate-200 px-5 py-3 flex items-center gap-4">
         <button
-          onClick={() => navigate(`/app/literature-review?projectId=${projectId}`)}
+          onClick={() => navigate(`/app/research-agent/${projectId}`)}
           className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
-          aria-label="Back to Literature Review"
+          aria-label="Back to the project"
         >
           <ArrowLeft size={16} />
         </button>
@@ -540,7 +540,7 @@ export default function LiteratureDiscoveryProgressPage() {
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <div className="shrink-0 bg-white border-t border-slate-200 px-5 py-3 flex items-center gap-3">
         <button
-          onClick={() => navigate(`/app/literature-review?projectId=${projectId}`)}
+          onClick={() => navigate(`/app/research-agent/${projectId}`)}
           className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[13px] text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
         >
           <ArrowLeft size={14} /> Back to strategy

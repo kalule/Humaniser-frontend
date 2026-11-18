@@ -27,13 +27,11 @@ const LAST_CITATION_STYLE_KEY = 'humanise_last_citation_style'
 // make, so the card only offers the four types the mockups show until that's designed.
 const ENABLE_STUDIO_DOCUMENT_TYPES_IN_CREATION_CARD = false
 
-// Literature review is not offered here (user decision 2026-11-17): literature reviews move to the
-// planned Literature Review Studio (backend docs/OPEN_ITEMS.md #113), which screens sources and
-// checks citations before export. Documents that already have this type still open and export as
-// before (the type is only a label).
+// Literature reviews (user decision 2026-11-17) and research papers (2026-11-18) are not offered here: they are
+// written in their studios, reached only from the side menu, which screen sources and check citations before export.
+// Documents that already have either type still open and export as before (the type is only a label).
 const DOCUMENT_TYPES: { value: DocumentGenre; label: string }[] = [
   { value: 'Essay', label: 'Essay' },
-  { value: 'ResearchPaper', label: 'Research paper' },
   { value: 'ThesisChapter', label: 'Thesis chapter' },
   { value: 'Other', label: 'Other' },
 ]

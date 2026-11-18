@@ -142,6 +142,7 @@ export function WriteWithAiModal({
   const [assignmentText, setAssignmentText] = useState('')
   const [casePlan, setCasePlan] = useState<CaseStudyPlan | null>(null)
   const [paperPlan, setPaperPlan] = useState<ResearchPaperPlanSection[] | null>(null)
+  const [studioTypeNotice, setStudioTypeNotice] = useState(false)
   const [paperPlanSignature, setPaperPlanSignature] = useState('')
   const [researchProfile, setResearchProfile] = useState<ResearchPaperDisciplineProfile>('GeneralImrad')
   const [literatureReviewArchetype, setLiteratureReviewArchetype] = useState<ArchetypeChoice>('Auto')
@@ -190,7 +191,11 @@ export function WriteWithAiModal({
   useEffect(() => {
     if (!isOpen) return
     if (initialTopic) setTopic(initialTopic)
-    if (initialDocumentType) setDocumentType(initialDocumentType)
+    // A document created as a research paper or literature review before 2026-11-18 opens as General writing: new papers
+    // and reviews start only from their studios in the side menu.
+    const studioType = initialDocumentType === 'ResearchPaper' || initialDocumentType === 'LiteratureReview'
+    setStudioTypeNotice(studioType)
+    if (initialDocumentType) setDocumentType(studioType ? 'General' : initialDocumentType)
     if (initialThesisChapter) setThesisChapter(initialThesisChapter)
     if (initialCitationStyle) setCitationStyle(initialCitationStyle)
     // Hand-off from the New document dialog: the user has already given type, topic and citation
@@ -450,7 +455,8 @@ export function WriteWithAiModal({
       <div>
         <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Document type</label>
         <div className="flex flex-wrap gap-2">
-          {(['General', 'Essay', 'CaseStudy', 'ResearchPaper', 'LiteratureReview', 'ThesisChapter'] as WriteWithAiDocumentType[]).map(type => (
+          {/* Research papers and literature reviews are written in their studios, reached only from the side menu (2026-11-18). */}
+          {(['General', 'Essay', 'CaseStudy', 'ThesisChapter'] as WriteWithAiDocumentType[]).map(type => (
             <button
               key={type}
               type="button"
@@ -466,6 +472,11 @@ export function WriteWithAiModal({
             </button>
           ))}
         </div>
+        {studioTypeNotice ? (
+          <p className="mt-2 text-[13px] text-slate-600" role="note">
+            Research papers and literature reviews are now written in their own studios. Open Research Paper or Literature Review from the side menu.
+          </p>
+        ) : null}
       </div>
 
       {/* Essay type + academic context */}
