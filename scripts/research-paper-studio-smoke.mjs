@@ -97,6 +97,7 @@ await page.route('**/api/v1/**', async route => {
   if (p === `${pb}/screening/bulk`) { sent.bulk = req.postDataJSON(); return ok({ updated: sent.bulk.candidateIds.length, failed: [] }); }
   if (p === `${pb}/screening/flow`) return ok(flow);
   if (p === `${pb}/screening/audit`) return ok({ items: [{ candidateId: 'c1', title: 'Napping and memory in university students', actor: 'User', decision: 'Exclude', reasonCode: 'POPULATION', reasonLabel: 'Wrong population', note: null, aiVerdict: 'PotentiallyRelevant', criteriaVersion: 1, at: now }], totalCount: 1 });
+  if (p === `${pb}/screening/approve` && !req.postDataJSON()?.keepMostRelevant) { sent.overLimit = true; return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ success: false, code: 'TOO_MANY_FOR_SYNTHESIS', error: '71 sources are included, but the synthesis can compare at most 40. Take some out, or keep the 40 most relevant.' }) }); }
   if (p === `${pb}/screening/approve`) return ok({ paper: bump({ status: 'Synthesis', sourceCount: 2, progressPercent: 40 }), addedToPool: 2, excludedForDateRange: 0, poolSize: 2 });
   if (p.startsWith(`${pb}/screening/`) && m === 'PATCH') { sent.exclude = req.postDataJSON(); return ok(null); }
   if (p === `${pb}/synthesis/table`) return ok(synthesis);
@@ -165,6 +166,10 @@ await page.getByText('PubMed did not respond, so its records are missing, not ab
 await page.getByRole('button', { name: 'Show', exact: true }).click();
 await page.getByText('You: excluded “Napping and memory in university students” (Wrong population)', { exact: false }).waitFor();
 await page.getByRole('button', { name: 'Approve and continue' }).click();
+// More sources than the synthesis compares: refused with the numbers, and the way forward offered.
+await page.getByText('71 sources are included, but the synthesis can compare at most 40.', { exact: false }).waitFor();
+await must(sent.overLimit, 'The over-limit refusal was not exercised');
+await page.getByRole('button', { name: 'Keep the most relevant and approve' }).click();
 
 // 4 Synthesis: the table, a research gap apart from a limit of the search.
 await page.getByRole('heading', { name: 'Shorter sleep and lower grades' }).waitFor();

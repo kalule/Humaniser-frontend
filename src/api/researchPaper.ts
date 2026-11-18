@@ -54,8 +54,10 @@ export const researchPaperApi = {
   prioritise: (id: string) => client.post<PaperRun>(`${base}/${id}/screening/prioritise`).then(data).then(r => run(r)!),
   audit: (id: string, page = 1) => client.get<{ items: DecisionEvent[]; totalCount: number }>(`${base}/${id}/screening/audit`, { params: { page, pageSize: 50 } }).then(data),
   flow: (id: string) => client.get<Flow>(`${base}/${id}/screening/flow`).then(data),
-  approveScreening: (id: string, acknowledgeLimitedCoverage: boolean) =>
-    client.post<{ paper: Paper; addedToPool: number; excludedForDateRange: number; poolSize: number }>(`${base}/${id}/screening/approve`, { acknowledgeLimitedCoverage }).then(data),
+  /** keepMostRelevant: when more sources are included than the synthesis compares, keep the most relevant (the rest are taken out with a reason). */
+  approveScreening: (id: string, acknowledgeLimitedCoverage: boolean, keepMostRelevant = false) =>
+    client.post<{ paper: Paper; addedToPool: number; excludedForDateRange: number; poolSize: number; removedForSynthesisLimit: number }>(
+      `${base}/${id}/screening/approve`, { acknowledgeLimitedCoverage, keepMostRelevant }).then(data),
 
   // Synthesis
   synthesise: (id: string) => client.post<PaperRun>(`${base}/${id}/synthesis`).then(data).then(r => run(r)!),

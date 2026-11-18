@@ -280,6 +280,8 @@ export interface ApiError {
   code: string
   message: string
   details?: unknown
+  /** The controller's own code when it answered `{ code, error: "message" }` (code stays 'ERROR' for those, as callers expect). */
+  serverCode?: string
 }
 
 // ─── Plan ────────────────────────────────────────────────────────────────────

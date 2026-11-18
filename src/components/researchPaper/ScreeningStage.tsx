@@ -24,6 +24,8 @@ export function ScreeningStage({ paper, onChanged, onNext }: { paper: Paper; onC
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkReason, setBulkReason] = useState('')
   const [ack, setAck] = useState(false)
+  /** Set when approval was refused because more sources are included than the synthesis compares. */
+  const [overLimit, setOverLimit] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -60,6 +62,15 @@ export function ScreeningStage({ paper, onChanged, onNext }: { paper: Paper; onC
       if (r.failed.length) setError(`${r.failed.length} could not be changed: ${r.failed[0].error}`)
       setSelected(new Set()); load()
     }, 'The decisions could not be saved.')
+  const approve = (keepMostRelevant: boolean) => act(async () => {
+    try {
+      const r = await researchPaperApi.approveScreening(paper.id, ack, keepMostRelevant)
+      setOverLimit(null); onChanged(r.paper); onNext()
+    } catch (e) {
+      if ((e as { serverCode?: string })?.serverCode === 'TOO_MANY_FOR_SYNTHESIS') { setOverLimit(errorMessage(e, 'Too many sources for the synthesis.')); return }
+      throw e
+    }
+  }, 'The sources could not be approved.')
   const toggle = (id: string) => setSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   if (!list) return <Panel>{error ? <Notice tone="error">{error}</Notice> : <Loading />}</Panel>
@@ -136,9 +147,15 @@ export function ScreeningStage({ paper, onChanged, onNext }: { paper: Paper; onC
           <span>Approve even if some parts of the topic are thinly covered by the search.</span>
         </label>
         <button type="button" className={btn.primary + ' mt-3'} disabled={busy || !list.canApprove}
-          onClick={() => void act(async () => { const r = await researchPaperApi.approveScreening(paper.id, ack); onChanged(r.paper); onNext() }, 'The sources could not be approved.')}>
+          onClick={() => void approve(false)}>
           Approve and continue
         </button>
+        {overLimit ? (
+          <div className="mt-3 space-y-2">
+            <Notice tone="warning">{overLimit}</Notice>
+            <button type="button" className={btn.secondary} disabled={busy} onClick={() => void approve(true)}>Keep the most relevant and approve</button>
+          </div>
+        ) : null}
         {!list.canApprove ? <p className="mt-2 text-[13px] text-slate-700">Run the AI screening to completion first.</p> : null}
       </Panel>
     </div>

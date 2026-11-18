@@ -207,10 +207,10 @@ client.interceptors.response.use(
     // Most controllers return `{ error: "plain string" }` for validation failures;
     // the global exception middleware returns `{ error: { code, message, details } }`.
     // Normalize both into an ApiError so every caller's `err.message` check works.
-    const body = error.response?.data as { error?: ApiError | string; message?: string } | undefined
+    const body = error.response?.data as { error?: ApiError | string; message?: string; code?: string } | undefined
     if (body?.error) {
       const normalized: ApiError =
-        typeof body.error === 'string' ? { code: 'ERROR', message: body.error } : body.error
+        typeof body.error === 'string' ? { code: 'ERROR', message: body.error, ...(typeof body.code === 'string' ? { serverCode: body.code } : {}) } : body.error
       return Promise.reject(normalized)
     }
 
