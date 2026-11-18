@@ -6,7 +6,7 @@ import { researchApi } from '../../api/research'
 import { SavedSourcePicker } from '../webLibrary/SavedSourcePicker'
 import {
   errorMessage, EVIDENCE_LABELS, importSummary, PROVIDER_LABELS, SOFT_MIN_SOURCES,
-  type Coverage, type ImportResult, type PoolSource, type Review,
+  type Coverage, type ImportResult, type PoolSource, type Reason, type Review,
 } from '../../lib/literatureReview'
 import type { DiscoveryStatus } from '../../types/research'
 import type { MatrixSummary } from '../../lib/literatureMatrix'
@@ -37,8 +37,15 @@ export function SourcesStep({ review, onChanged, onNext }: { review: Review; onC
   const afterImport = (r: ImportResult) => { setMessage({ tone: 'success', text: importSummary(r) }); loadPool(); onChanged() }
   const failed = (e: unknown, fallback: string) => setMessage({ tone: 'error', text: errorMessage(e, fallback) })
 
-  const remove = async (s: PoolSource) => {
-    try { await literatureReviewApi.removeSource(review.id, s.id); loadPool(); onChanged() } catch (e) { failed(e, 'The source could not be removed.') }
+  // A search result taken out after screening needs a reason: the methods section accounts for every record screening included,
+  // and a marker found "191 included, 20 used" with no reasons the biggest gap in the method.
+  const [reasons, setReasons] = useState<Reason[]>([])
+  useEffect(() => { literatureReviewApi.reasons().then(r => setReasons(r.filter(x => x.code !== 'NEEDS_FULLTEXT' && x.code !== 'DATE'))).catch(() => setReasons([])) }, [])
+  const [removing, setRemoving] = useState<string | null>(null)
+  const [reason, setReason] = useState('')
+
+  const remove = async (s: PoolSource, why?: string) => {
+    try { await literatureReviewApi.removeSource(review.id, s.id, why); setRemoving(null); setReason(''); loadPool(); onChanged() } catch (e) { failed(e, 'The source could not be removed.') }
   }
 
   return (
@@ -76,12 +83,27 @@ export function SourcesStep({ review, onChanged, onNext }: { review: Review; onC
             {pool.length === 0 ? <p className="mt-2 text-[13px] text-slate-700">Nothing yet. Add sources from your library, a matrix, or run a search.</p> : (
               <ul className="mt-2 max-h-[60vh] divide-y divide-slate-100 overflow-y-auto">
                 {pool.map(s => (
-                  <li key={s.id} className="flex items-start gap-2 py-2">
+                  <li key={s.id} className="flex flex-wrap items-start gap-2 py-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-medium text-slate-900 [overflow-wrap:anywhere]">{s.title}</p>
                       <p className="text-[12px] text-slate-600">{s.authors || 'Unknown authors'}{s.year ? ` · ${s.year}` : ''} · {EVIDENCE_LABELS[s.evidenceLevel]} · {s.origin === 'Search' ? 'from search' : 'from your library'}</p>
                     </div>
-                    <button type="button" onClick={() => void remove(s)} className="rounded p-1 text-slate-600 hover:bg-slate-100 hover:text-red-700" aria-label={`Take "${s.title}" out of the review`}><Trash2 size={15} aria-hidden /></button>
+                    <button type="button" onClick={() => s.origin === 'Search' ? (setRemoving(removing === s.id ? null : s.id), setReason('')) : void remove(s)}
+                      aria-expanded={s.origin === 'Search' ? removing === s.id : undefined}
+                      className="rounded p-1 text-slate-600 hover:bg-slate-100 hover:text-red-700" aria-label={`Take "${s.title}" out of the review`}><Trash2 size={15} aria-hidden /></button>
+                    {removing === s.id ? (
+                      <div className="basis-full rounded border border-slate-200 bg-slate-50 p-2">
+                        <label className="block text-[12px] font-medium text-slate-800" htmlFor={`lr-why-${s.id}`}>Why take it out? Your methods section reports this.</label>
+                        <select id={`lr-why-${s.id}`} value={reason} onChange={e => setReason(e.target.value)} className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 text-[13px]">
+                          <option value="">Choose a reason</option>
+                          {reasons.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+                        </select>
+                        <div className="mt-2 flex gap-2">
+                          <button type="button" disabled={!reason} onClick={() => void remove(s, reason)} className={btn.secondary}>Take it out</button>
+                          <button type="button" onClick={() => setRemoving(null)} className={btn.secondary}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>

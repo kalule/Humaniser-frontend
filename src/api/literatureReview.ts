@@ -29,7 +29,8 @@ export const literatureReviewApi = {
   sources: (id: string) => client.get<PoolSource[]>(`${base}/${id}/sources`).then(data),
   addSaved: (id: string, documentIds: string[]) => client.post<ImportResult>(`${base}/${id}/sources/saved`, { documentIds }).then(data),
   addMatrix: (id: string, matrixId: string) => client.post<ImportResult>(`${base}/${id}/sources/matrix/${matrixId}`).then(data),
-  removeSource: (id: string, literatureId: string) => client.delete(`${base}/${id}/sources/${literatureId}`).then(() => undefined),
+  removeSource: (id: string, literatureId: string, reason?: string) =>
+    client.delete(`${base}/${id}/sources/${literatureId}`, { params: reason ? { reason } : undefined }).then(() => undefined),
 
   // Screening
   reasons: () => client.get<Reason[]>(`${base}/screening-reasons`).then(data),
