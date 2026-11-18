@@ -73,7 +73,10 @@ export function CheckStage({ paper, onChanged, onOpenSection, onNext }: { paper:
   if (!data) return <Panel>{error ? <Notice tone="error">{error}</Notice> : <Loading />}</Panel>
   const r = data.readiness
   const s = data.summary
-  const status = r.ready ? 'Ready for final export' : !data.lastVerifiedAt ? 'Not checked yet' : r.sectionsUnverified > 0 ? 'Changed since the last check' : r.blocking > 0 ? 'Corrections required' : 'Checked'
+  const v = data.verification
+  const incomplete = v?.state === 'Incomplete'
+  const status = v?.state === 'Running' ? 'Checking…' : incomplete ? 'Verification incomplete' : r.ready ? 'Ready for final export'
+    : !data.lastVerifiedAt ? 'Not checked yet' : r.sectionsUnverified > 0 ? 'Changed since the last check' : r.blocking > 0 ? 'Corrections required' : 'Checked'
 
   return (
     <div className="space-y-4">
@@ -89,7 +92,14 @@ export function CheckStage({ paper, onChanged, onOpenSection, onNext }: { paper:
             <Chip className={SEVERITY_STYLE.Important}>{s?.important ?? r.warnings} important</Chip>
             <Chip className={SEVERITY_STYLE.Suggestion}>{s?.suggestion ?? r.suggestions ?? 0} suggestion{(s?.suggestion ?? r.suggestions ?? 0) === 1 ? '' : 's'}</Chip>
           </div>
+          {incomplete && v ? (
+            <Notice tone="warning">
+              {v.notChecked > 0 ? `${v.notChecked} claim check${v.notChecked === 1 ? ' was' : 's were'} not reached` : ''}{v.notChecked > 0 && v.failed > 0 ? ' and ' : ''}
+              {v.failed > 0 ? `${v.failed} failed` : ''}. This check is not complete, so the paper cannot be approved yet. Check again to finish: claims already checked are not checked or charged again.
+            </Notice>
+          ) : null}
           {r.reasons.map(x => <p key={x} className="text-[14px] text-slate-700">{x}</p>)}
+          {v && (v.reused > 0 || v.judged > 0) ? <p className="text-[12px] text-slate-600">{v.judged} claim check{v.judged === 1 ? '' : 's'} made now, {v.reused} reused from earlier checks because nothing they depend on changed.</p> : null}
           {s && s.raw > s.groups ? <p className="text-[12px] text-slate-600">{s.raw} findings, grouped into {s.groups} issues.</p> : null}
           <p className="text-[12px] text-slate-600">{data.lastVerifiedAt ? `Last checked ${data.lastVerifiedAt.slice(0, 16).replace('T', ' ')}` : 'Not checked yet.'}</p>
         </div>

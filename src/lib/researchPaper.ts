@@ -78,7 +78,9 @@ export interface FindingGroup {
   status: 'Open' | 'Stale' | 'Dismissed'; canDismiss: boolean
 }
 export interface FindingSummary { raw: number; groups: number; critical: number; important: number; suggestion: number; dismissedCritical: number }
-export interface Integrity { readiness: Readiness; issues: PaperIssue[]; lastVerifiedAt: string | null; notice: string; groups?: FindingGroup[]; summary?: FindingSummary }
+/** What the latest check did. Incomplete: some claims were not checked or failed; it is never shown as a finished check. */
+export interface VerificationState { state: 'NotChecked' | 'Running' | 'Incomplete' | 'Complete'; units: number; reused: number; judged: number; notChecked: number; failed: number; invalidated: number; at: string | null; message: string | null }
+export interface Integrity { readiness: Readiness; issues: PaperIssue[]; lastVerifiedAt: string | null; notice: string; groups?: FindingGroup[]; summary?: FindingSummary; verification?: VerificationState }
 
 // ── Stages ──────────────────────────────────────────────────────────────────────────────────────────────
 

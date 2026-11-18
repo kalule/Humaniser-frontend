@@ -91,7 +91,9 @@ function withGroups(r) {
   })).sort((a, b) => (a.status === 'Dismissed') - (b.status === 'Dismissed') || rank[a.severity] - rank[b.severity]);
   const live = groups.filter(g => g.status !== 'Dismissed');
   return { ...r, groups, summary: { raw: r.issues.filter(i => i.status === 'Open' || i.status === 'Stale').length, groups: live.length,
-    critical: live.filter(g => g.severity === 'Critical').length, important: live.filter(g => g.severity === 'Important').length, suggestion: live.filter(g => g.severity === 'Suggestion').length, dismissedCritical: 0 } };
+    critical: live.filter(g => g.severity === 'Critical').length, important: live.filter(g => g.severity === 'Important').length, suggestion: live.filter(g => g.severity === 'Suggestion').length, dismissedCritical: 0 },
+    // The last check stopped at its budget: never shown as a finished check.
+    verification: { state: 'Incomplete', units: 10, reused: 4, judged: 3, notChecked: 3, failed: 0, invalidated: 1, at: now, message: null } };
 }
 const run = kind => ({ id: `run-${kind}`, kind, status: 'Succeeded', stage: `${kind} finished.`, done: 2, total: 2, errorCode: null, errorMessage: null, creditsCharged: 0, startedAt: now, finishedAt: now });
 const sent = { patch: null, approveRevision: null, exclude: null, bulk: null, verify: false, dismiss: null, fix: null, export: null };
@@ -226,7 +228,9 @@ await page.getByRole('button', { name: 'Continue to the integrity check' }).clic
 // 6 Integrity check: status and counts; one sentence's findings across its sources are one issue; a critical issue cannot be
 // dismissed; an important one needs a reason; suggestions are collapsed; filters; the link to the section; a fix awaits a check.
 await page.getByRole('heading', { name: 'Integrity check', exact: true }).waitFor();
-await page.getByText('Corrections required').waitFor();
+await page.getByText('Verification incomplete', { exact: true }).waitFor();
+await page.getByText('3 claim checks were not reached').waitFor();
+await page.getByText('3 claim checks made now, 4 reused from earlier checks').waitFor();
 await page.getByText('1 critical', { exact: true }).waitFor();
 await page.getByText('5 findings, grouped into 4 issues.').waitFor();
 const issues = page.getByRole('heading', { name: 'Issues', exact: true }).locator('xpath=ancestor::section[1]');
@@ -289,5 +293,5 @@ for (const stage of ['check', 'export', 'writing', 'screening', 'synthesis', 'ev
   if (culprits.length) throw Error(`The ${stage} stage scrolls sideways at phone width:\n${culprits.join('\n')}`);
 }
 if (errors.length) throw Error(errors.join('\n'));
-console.log('Research Paper Studio smoke passed: create (SR redirect shown), question saved and approved with its revision, sources (coverage limit, database down, DOI mismatch, consent), screening (reasoned exclusion, bulk, audit, approve), synthesis (gap vs search limit), writing (outline gate, citation evidence, unknown citation, numbered editing), integrity (grouped issues and counts, suggestions collapsed, filters, no dismiss for critical, reasoned dismissal, fix awaits a check, link to the section), draft-only export; desktop and 390px on six stages.');
+console.log('Research Paper Studio smoke passed: create (SR redirect shown), question saved and approved with its revision, sources (coverage limit, database down, DOI mismatch, consent), screening (reasoned exclusion, bulk, audit, approve), synthesis (gap vs search limit), writing (outline gate, citation evidence, unknown citation, numbered editing), integrity (an incomplete check said so, grouped issues and counts, suggestions collapsed, filters, no dismiss for critical, reasoned dismissal, fix awaits a check, link to the section), draft-only export; desktop and 390px on six stages.');
 await browser.close();
