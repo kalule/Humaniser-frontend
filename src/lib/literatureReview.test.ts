@@ -38,6 +38,23 @@ describe('citations in drafted text', () => {
     expect(shortCite({ authors: 'Nakato', year: null })).toBe('Nakato, n.d.')
     expect(shortCite(undefined)).toBe('source not in this review')
   })
+
+  it('names the first author by surname and writes the narrative form', () => {
+    expect(shortCite({ authors: 'Christopher Kelly, Alan Karthikesalingam', year: 2019 })).toBe('Kelly et al., 2019')
+    expect(shortCite({ authors: 'Christopher Kelly, Alan Karthikesalingam', year: 2019 }, true)).toBe('Kelly et al. (2019)')
+    expect(shortCite({ authors: 'Nakato, J.', year: 2019 }, true)).toBe('Nakato (2019)')
+  })
+
+  it('keeps narrative citations through splitting and editing', () => {
+    const stored = `{{cite:n:${A}}} report a gap {{cite:${B}}}. {{cite:${A}}} again.`
+    expect(splitCitations(stored)[0]).toEqual({ kind: 'cite', sourceId: A, narrative: true })
+    expect(splitCitations(stored)[2]).toEqual({ kind: 'cite', sourceId: B })
+    const { editable, sources } = toEditable(stored)
+    expect(editable).toBe('[@n1] report a gap [@2]. [@1] again.')
+    expect(sources).toEqual([A, B])
+    expect(fromEditable(editable, sources)).toBe(stored)
+    expect(fromEditable('[@n9] said so.', [A])).toBe('{{cite:unknown:@n9}} said so.')
+  })
 })
 
 describe('workflow', () => {

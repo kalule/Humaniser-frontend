@@ -158,7 +158,10 @@ export const isRunActive = (run: { status: string } | null | undefined) => run?.
 
 // ── Citations in drafted text ───────────────────────────────────────────────────────────────────────────
 
-export type TextPart = { kind: 'text'; text: string } | { kind: 'cite'; sourceId: string } | { kind: 'unknown'; label: string }
+export type TextPart = { kind: 'text'; text: string } | { kind: 'cite'; sourceId: string; narrative?: true } | { kind: 'unknown'; label: string }
+
+/** {{cite:n:<id>}} is a narrative citation: the authors are the sentence's subject ("Kelly et al. (2019) report …"). */
+const NARRATIVE = 'n:'
 
 const TOKEN = /\{\{cite:([^}]+)\}\}/g
 
@@ -169,19 +172,26 @@ export function splitCitations(text: string): TextPart[] {
   for (const m of text.matchAll(TOKEN)) {
     if (m.index! > last) parts.push({ kind: 'text', text: text.slice(last, m.index) })
     const value = m[1]
-    parts.push(value.startsWith('unknown:') ? { kind: 'unknown', label: value.slice('unknown:'.length) } : { kind: 'cite', sourceId: value })
+    parts.push(value.startsWith('unknown:') ? { kind: 'unknown', label: value.slice('unknown:'.length) }
+      : value.startsWith(NARRATIVE) ? { kind: 'cite', sourceId: value.slice(NARRATIVE.length), narrative: true }
+      : { kind: 'cite', sourceId: value })
     last = m.index! + m[0].length
   }
   if (last < text.length) parts.push({ kind: 'text', text: text.slice(last) })
   return parts
 }
 
-/** Short author-year label for a source, as shown inline while editing ("Nakato, 2019"). */
-export function shortCite(source: { authors: string; year: number | null } | undefined): string {
+/**
+ * Short author-year label for a source, as shown inline ("Nakato, 2019"; narrative "Nakato (2019)"). The surname is the first author's
+ * last word, so a byline written "Christopher Kelly, Alan Karthikesalingam" shows "Kelly et al.", not "Christopher Kelly et al.".
+ */
+export function shortCite(source: { authors: string; year: number | null } | undefined, narrative = false): string {
   if (!source) return 'source not in this review'
   const first = (source.authors || 'Unknown').split(/[;,]/)[0].trim()
-  const several = /[;,].*[;,]|&| and /i.test(source.authors)
-  return `${first}${several ? ' et al.' : ''}, ${source.year ?? 'n.d.'}`
+  const surname = first.split(/\s+/).filter(Boolean).pop() ?? first
+  const several = /[;,].*[;,]|&| and /i.test(source.authors) || /^[^;,]+\s[^;,]+,\s*[^;,]+\s[^;,]+/.test(source.authors)
+  const who = `${surname}${several ? ' et al.' : ''}`
+  return narrative ? `${who} (${source.year ?? 'n.d.'})` : `${who}, ${source.year ?? 'n.d.'}`
 }
 
 /** One sentence for the export gate. */
@@ -224,9 +234,11 @@ export function toEditable(text: string): { editable: string; sources: string[] 
   const sources: string[] = []
   const editable = text.replace(TOKEN, (_, value: string) => {
     if (value.startsWith('unknown:')) return `[@?${value.slice('unknown:'.length)}]`
-    let n = sources.indexOf(value)
-    if (n < 0) { sources.push(value); n = sources.length - 1 }
-    return `[@${n + 1}]`
+    const narrative = value.startsWith(NARRATIVE)
+    const id = narrative ? value.slice(NARRATIVE.length) : value
+    let n = sources.indexOf(id)
+    if (n < 0) { sources.push(id); n = sources.length - 1 }
+    return narrative ? `[@n${n + 1}]` : `[@${n + 1}]`
   })
   return { editable, sources }
 }
@@ -238,8 +250,9 @@ export function toEditable(text: string): { editable: string; sources: string[] 
 export function fromEditable(editable: string, sources: string[]): string {
   return editable.replace(/\[@(\?)?([^\]\s]+)\]/g, (_, unknown: string | undefined, value: string) => {
     if (unknown) return `{{cite:unknown:${value}}}`
-    const n = Number(value)
-    return Number.isInteger(n) && n >= 1 && n <= sources.length ? `{{cite:${sources[n - 1]}}}` : `{{cite:unknown:@${value}}}`
+    const narrative = /^n\d+$/.test(value)
+    const n = Number(narrative ? value.slice(1) : value)
+    return Number.isInteger(n) && n >= 1 && n <= sources.length ? `{{cite:${narrative ? NARRATIVE : ''}${sources[n - 1]}}}` : `{{cite:unknown:@${value}}}`
   })
 }
 

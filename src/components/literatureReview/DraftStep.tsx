@@ -104,7 +104,7 @@ function SectionCard({ reviewId, section, poolById, busy, onRegenerate, onSaved 
           <div>
             <label htmlFor={`lr-edit-${section.code}`} className="sr-only">Text of {section.title}</label>
             <textarea id={`lr-edit-${section.code}`} rows={14} value={editing.text} onChange={e => setEditing({ ...editing, text: e.target.value })} className={inputClass + ' font-[inherit] leading-relaxed'} />
-            <p className="mt-1 text-[12px] text-slate-600">Citations show as [@1], [@2] … Keep them to keep each claim tied to its source; a number not in the list is flagged when the review is checked.</p>
+            <p className="mt-1 text-[12px] text-slate-600">Citations show as [@1], [@2] … ([@n1] where the authors are the subject: "Kelly et al. (2019) report"). Keep them to keep each claim tied to its source; a number not in the list is flagged when the review is checked.</p>
             <div className="mt-2 flex gap-2"><button type="button" onClick={() => void save()} className={btn.small}>Save</button><button type="button" onClick={() => setEditing(null)} className={btn.small}>Cancel</button></div>
           </div>
           <ol className="list-none space-y-1 text-[12px] text-slate-800" aria-label="Citation numbers">
@@ -117,7 +117,7 @@ function SectionCard({ reviewId, section, poolById, busy, onRegenerate, onSaved 
             {section.text.split('\n\n').map((para, i) => (
               <p key={i}>
                 {splitCitations(para).map((part, j) => part.kind === 'text' ? <Fragment key={j}>{part.text}</Fragment>
-                  : part.kind === 'cite' ? <span key={j} className="mx-0.5 rounded bg-purple-tint px-1 text-[12px] text-purple-text" title={poolById.get(part.sourceId)?.title}>{shortCite(poolById.get(part.sourceId))}</span>
+                  : part.kind === 'cite' ? <span key={j} className="mx-0.5 rounded bg-purple-tint px-1 text-[12px] text-purple-text" title={poolById.get(part.sourceId)?.title}>{shortCite(poolById.get(part.sourceId), part.narrative)}</span>
                     : <span key={j} className="mx-0.5 rounded bg-red-100 px-1 text-[12px] text-red-900" title="This citation is not a source in the review">not in the review: {part.label}</span>)}
               </p>
             ))}
