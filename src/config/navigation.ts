@@ -1,7 +1,7 @@
 import type { ElementType } from 'react'
 import {
   Sparkles, Shield, RefreshCw, Scissors, SpellCheck, ClipboardCheck, ClipboardList, Library, ScrollText,
-  BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, BookOpenCheck, Ruler, ListChecks, Table2, Quote, FileClock,
+  BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, BookOpenCheck, FileSearch, Ruler, ListChecks, Table2, Quote, FileClock,
 } from 'lucide-react'
 import type { ToolId } from './features'
 
@@ -41,6 +41,8 @@ export const TOOLS: Record<ToolId, ToolDef> = {
   'systematic-review':  { id: 'systematic-review', label: 'Systematic Review', description: 'Structured literature review', icon: ClipboardList, link: '/app/systematic-review', matchPrefix: '/app/systematic-review' },
   // One menu item for literature review (2026-11-17): the studio and the Literature Matrix pages both belong to it.
   'literature-review':  { id: 'literature-review', label: 'Literature Review', description: 'Guided source-to-draft review', icon: BookOpenCheck, link: '/app/literature-review', matchPrefix: ['/app/literature-review', '/app/literature-matrix'], badge: 'Beta' },
+  // Reached only from this menu item (user decision 2026-11-18): the New Document dialog and Write with AI no longer start papers.
+  'research-paper':     { id: 'research-paper', label: 'Research Paper', description: 'Topic to checked, cited paper', icon: FileSearch, link: '/app/research-paper', matchPrefix: '/app/research-paper', badge: 'Beta' },
   'research-agent':     { id: 'research-agent', label: 'Research Agent', description: 'Build a project step by step', icon: GraduationCap, link: '/app/research-agent/new' },
   'saved-sources':      { id: 'saved-sources', label: 'Research Library', description: 'Find and save papers', icon: Globe, link: '/app/web-library', matchPrefix: '/app/web-library' },
   // Not in the sidebar since 2026-11-17: reached from Literature Review (its Matrices tab and the review's extraction step).
@@ -74,7 +76,7 @@ const pick = (...ids: ToolId[]): NavItem[] => ids.map(id => TOOLS[id])
 // Grouped by the student's task (2026-11-16). Verify and Improve stay as the launch groups; the
 // studios are long-form writing, so they sit under Write.
 export const NAV_SECTIONS: NavSection[] = [
-  { section: 'Write',        items: pick('documents', 'editor', 'proposal-studio', 'thesis-studio', 'systematic-review', 'literature-review', 'citation-generator') },
+  { section: 'Write',        items: pick('documents', 'editor', 'proposal-studio', 'thesis-studio', 'systematic-review', 'literature-review', 'research-paper', 'citation-generator') },
   { section: 'Find sources', items: pick('saved-sources', 'deep-research') },
   { section: 'Verify',       items: pick('verify-citations', 'ai-content-check', 'similarity-check', 'reviewer', 'feedback-tracker', 'authorship-evidence') },
   { section: 'Improve',      items: pick('humanise', 'paraphraser', 'grammar', 'summariser') },
