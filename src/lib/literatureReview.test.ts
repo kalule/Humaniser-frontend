@@ -34,14 +34,14 @@ describe('citations in drafted text', () => {
   })
 
   it('labels a source by first author and year', () => {
-    expect(shortCite({ authors: 'Nakato, J.; Okello, P.', year: 2019 })).toBe('Nakato et al., 2019')
+    expect(shortCite({ authors: 'Nakato, J.; Okello, P.', year: 2019 })).toBe('Nakato and Okello, 2019')
     expect(shortCite({ authors: 'Nakato', year: null })).toBe('Nakato, n.d.')
     expect(shortCite(undefined)).toBe('source not in this review')
   })
 
   it('names the first author by surname and writes the narrative form', () => {
-    expect(shortCite({ authors: 'Christopher Kelly, Alan Karthikesalingam', year: 2019 })).toBe('Kelly et al., 2019')
-    expect(shortCite({ authors: 'Christopher Kelly, Alan Karthikesalingam', year: 2019 }, true)).toBe('Kelly et al. (2019)')
+    expect(shortCite({ authors: 'Christopher Kelly, Alan Karthikesalingam', year: 2019 })).toBe('Kelly and Karthikesalingam, 2019')
+    expect(shortCite({ authors: 'Christopher Kelly, Alan Karthikesalingam', year: 2019 }, true)).toBe('Kelly and Karthikesalingam (2019)')
     expect(shortCite({ authors: 'Nakato, J.', year: 2019 }, true)).toBe('Nakato (2019)')
   })
 
@@ -100,5 +100,15 @@ describe('registration', () => {
     expect(toolForPath('/app/literature-matrix/abc')?.id).toBe('literature-review')
     expect(isNavItemActive(TOOLS['literature-review'], '/app/literature-matrix')).toBe(true)
     expect(resolvePageTitle('/app/literature-review')).toBe('Literature Review')
+  })
+})
+
+describe('shortCite bylines', () => {
+  it('names PubMed, Crossref and OpenAlex bylines by surname', () => {
+    expect(shortCite({ authors: 'Harbi MH, Xu G, Strom DK', year: 2026 }, true)).toBe('Harbi et al. (2026)')
+    expect(shortCite({ authors: 'Ruiz-Martín H', year: 2026 })).toBe('Ruiz-Martín, 2026')
+    expect(shortCite({ authors: 'Smith, J., Jones, A.', year: 2020 })).toBe('Smith and Jones, 2020')
+    expect(shortCite({ authors: 'Christopher Kelly, Alan Karthikesalingam, Mustafa Suleyman', year: 2019 }, true)).toBe('Kelly et al. (2019)')
+    expect(shortCite({ authors: 'Kun-Hsing Yu', year: null })).toBe('Yu, n.d.')
   })
 })

@@ -185,13 +185,37 @@ export function splitCitations(text: string): TextPart[] {
  * Short author-year label for a source, as shown inline ("Nakato, 2019"; narrative "Nakato (2019)"). The surname is the first author's
  * last word, so a byline written "Christopher Kelly, Alan Karthikesalingam" shows "Kelly et al.", not "Christopher Kelly et al.".
  */
+/** "J.", "MH", "MÁ" are initials; "Yu" or "Li" are names because they have a lower-case letter. */
+function isInitials(s: string): boolean {
+  const letters = [...s].filter((c) => /\p{L}/u.test(c))
+  if (letters.length === 0) return true
+  if (s.includes('.')) return letters.length <= 3 && s.replace(/[.\s]/g, '').length <= 3
+  return letters.length <= 4 && letters.every((c) => c === c.toUpperCase() && c !== c.toLowerCase())
+}
+
+/** Surnames from "Smith, J., Jones, A." (Crossref), "Christopher Kelly, Alan Beam" (OpenAlex) or "Harbi MH, Xu G" (PubMed). Mirrors LitReviewNames on the server. */
+export function surnames(authors: string | null | undefined): string[] {
+  if (!authors?.trim()) return []
+  const parts = (authors.includes(';') ? authors.split(';') : authors.split(',')).map((p) => p.trim()).filter(Boolean)
+  const out: string[] = []
+  for (const part of parts) {
+    if (isInitials(part)) continue
+    const comma = part.indexOf(',')
+    if (comma > 0) { out.push(part.slice(0, comma).trim()); continue } // "Nakato, J." in a semicolon list
+    const words = part.split(/\s+/).filter(Boolean)
+    if (words.length === 1) out.push(words[0].replace(/\.+$/, ''))
+    else if (isInitials(words[words.length - 1])) out.push(words.slice(0, -1).join(' '))
+    else out.push(words[words.length - 1])
+  }
+  return out
+}
+
 export function shortCite(source: { authors: string; year: number | null } | undefined, narrative = false): string {
   if (!source) return 'source not in this review'
-  const first = (source.authors || 'Unknown').split(/[;,]/)[0].trim()
-  const surname = first.split(/\s+/).filter(Boolean).pop() ?? first
-  const several = /[;,].*[;,]|&| and /i.test(source.authors) || /^[^;,]+\s[^;,]+,\s*[^;,]+\s[^;,]+/.test(source.authors)
-  const who = `${surname}${several ? ' et al.' : ''}`
-  return narrative ? `${who} (${source.year ?? 'n.d.'})` : `${who}, ${source.year ?? 'n.d.'}`
+  const people = surnames(source.authors)
+  const year = source.year ?? 'n.d.'
+  const who = people.length === 0 ? 'Unknown' : people.length === 1 ? people[0] : people.length === 2 ? `${people[0]} and ${people[1]}` : `${people[0]} et al.`
+  return narrative ? `${who} (${year})` : `${who}, ${year}`
 }
 
 /** One sentence for the export gate. */
