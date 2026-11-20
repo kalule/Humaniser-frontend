@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CALCULATORS, asPercentHint, buildRequest, designLabel, emptyAdjustments, fieldErrors, headline, inputRows, splitLines, toWire, whereLabel,
+  CALCULATORS, asPercentHint, buildRequest, calculatorById, designLabel, emptyAdjustments, errorSummaryText, fieldErrors, projectOptionLabels, headline, inputRows, splitLines, toWire, whereLabel,
   type CalculationResult, type FormState,
 } from './studyDesign'
 import { LAUNCH_TOOLS, isToolEnabled } from '../config/features'
@@ -71,6 +71,42 @@ describe('fieldErrors', () => {
       { field: 'adjustments.subgroupRequirement.nPerSubgroup', code: 'VALUE_REQUIRED', message: 'required' },
     ])).toEqual({ power: 'Enter power between 0.50 and 0.999, for example 0.80, not 80.', nonResponseRate: 'rate', subgroups: 'sum', nPerSubgroup: 'required' })
     expect(fieldErrors(undefined)).toEqual({})
+  })
+})
+
+describe('errorSummaryText', () => {
+  const chi = calculatorById('chi_square')!
+  it('names the field when the server only says the value is required', () => {
+    expect(errorSummaryText(chi, 'df', 'This value is required.')).toBe('Degrees of freedom: This value is required.')
+    expect(errorSummaryText(chi, 'effectSizeW', 'This value is required.')).toBe('Expected effect size (w): This value is required.')
+    expect(errorSummaryText(chi, 'nPerSubgroup', 'required')).toBe('Minimum completed responses per subgroup: This value is required.')
+  })
+  it('leaves specific messages alone', () => {
+    const msg = 'Enter a significance level between 0.001 and 0.20, for example 0.05.'
+    expect(errorSummaryText(chi, 'alpha', msg)).toBe(msg)
+  })
+  it('leaves a required message alone when the field has no known label', () => {
+    expect(errorSummaryText(chi, 'mystery', 'This value is required.')).toBe('This value is required.')
+  })
+})
+
+describe('projectOptionLabels', () => {
+  it('leaves unique titles as they are', () => {
+    const l = projectOptionLabels([{ id: 'a1', title: 'One', updatedAt: '2026-11-01T10:00:00Z' }, { id: 'b2', title: 'Two' }])
+    expect(l.get('a1')).toBe('One')
+    expect(l.get('b2')).toBe('Two')
+  })
+  it('tells apart projects that share a title by their last-updated date', () => {
+    const l = projectOptionLabels([{ id: 'a1', title: 'Same', updatedAt: '2026-11-01T10:00:00Z' }, { id: 'b2', title: 'Same', updatedAt: '2026-11-05T08:00:00Z' }])
+    expect(l.get('a1')).toBe('Same (updated 2026-11-01)')
+    expect(l.get('b2')).toBe('Same (updated 2026-11-05)')
+  })
+  it('adds a short id only when the date does not separate them', () => {
+    const l = projectOptionLabels([{ id: 'aaaa1111', title: 'Same', updatedAt: '2026-11-01T10:00:00Z' }, { id: 'bbbb2222', title: 'Same', updatedAt: '2026-11-01T18:00:00Z' }, { id: 'cccc3333', title: 'Same' }])
+    expect(l.get('aaaa1111')).toBe('Same (updated 2026-11-01) #1111')
+    expect(l.get('bbbb2222')).toBe('Same (updated 2026-11-01) #2222')
+    expect(l.get('cccc3333')).toBe('Same') // already distinct from the dated ones
+    expect(new Set(l.values()).size).toBe(3)
   })
 })
 

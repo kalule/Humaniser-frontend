@@ -54,13 +54,15 @@ export function EvidenceStage({ paper, onChanged, onNext }: { paper: Paper; onCh
 
   if (!status) return <Panel>{error ? <Notice tone="error">{error}</Notice> : <Loading />}</Panel>
   const searching = status.state === 'Searching'
+  // The advisor's text tells an unapproved question to be approved; once it is approved that is stale.
+  const searchDescription = status.state === 'NotSearched' && paper.questionApproved ? 'No search has run yet. Start the search when you are ready.' : status.message
 
   return (
     <div className="space-y-4">
       {!paper.questionApproved ? <Notice tone="warning">Approve your research question first. The search runs only on the question you approved.</Notice> : null}
       {paper.studentMode ? <Notice tone="info">The studio searches several databases with queries built from your question. Every search is logged, so your methods section can say exactly what was searched.</Notice> : null}
 
-      <Panel title="Search" id="rp-search" description={status.message}
+      <Panel title="Search" id="rp-search" description={searchDescription}
         actions={<button type="button" disabled={busy || searching || !paper.questionApproved} onClick={() => void act(async () => { setStatus(await researchPaperApi.search(paper.id)) }, 'The search could not be started.')} className={btn.primary}>
           <Search size={16} aria-hidden /> {status.state === 'NotSearched' ? 'Search the databases' : 'Search again'}</button>}>
         {searching ? <Notice tone="info" role="status">{discovery?.liveActivityMessage || discovery?.statusMessage || 'Searching…'}{discovery ? ` (${discovery.progressPct}%)` : ''}</Notice> : null}

@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
-  FileText, Eye, Download, FileType2, Trash2, RefreshCw, Loader2,
-  GraduationCap, ScrollText, Upload, X,
+  FileText, Eye, Download, Trash2, RefreshCw, Loader2,
+  GraduationCap, ScrollText, Upload, X, Plus, ChevronDown,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useResearchStore } from '../../store/researchStore'
@@ -14,6 +14,8 @@ import { DocumentList, type DocumentListEntry } from '../../components/app/Docum
 import { Tooltip } from '../../components/ui/Tooltip'
 import type { ApiError } from '../../types'
 import type { ResearchProject, UploadExternalProposalResult } from '../../types/research'
+import { RESEARCH_STATE_OPTIONS } from '../../types/research'
+import { STEPS } from '../../data/proposalOutline'
 
 // ── Status derived from progress ────────────────────────────────────────────
 // ResearchProject has no explicit status field — progressPct is the source of
@@ -41,6 +43,40 @@ function formatDate(iso: string) {
   if (date.toDateString() === new Date().toDateString()) return 'Today'
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
+
+/** "Updated 2 hours ago" for recent work, the plain date once it is older than a week. */
+function updatedLabel(iso: string) {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diffMs / 60_000)
+  if (!Number.isFinite(mins) || mins < 0) return `Updated ${formatDate(iso)}`
+  if (mins < 1) return 'Updated just now'
+  if (mins < 60) return `Updated ${mins} min ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `Updated ${hours} hour${hours === 1 ? '' : 's'} ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `Updated ${days} day${days === 1 ? '' : 's'} ago`
+  return `Updated ${formatDate(iso)}`
+}
+
+// The stage is the student's own declared research state (Study designed, Data
+// collection, …) and the last step is where they were last working — both are
+// real stored values, nothing is estimated.
+function stageLabel(project: ResearchProject): string | null {
+  return RESEARCH_STATE_OPTIONS.find(o => o.value === project.researchState)?.label ?? null
+}
+function lastStepLabel(project: ResearchProject): string | null {
+  // Setup steps (topic, location, …) say nothing useful about a thesis in progress.
+  const step = STEPS[project.currentStep]
+  return step?.group === 'chapters' ? step.label : null
+}
+
+type StatusFilter = 'All' | Status
+const FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: 'All', label: 'All' },
+  { key: 'InProgress', label: 'In progress' },
+  { key: 'Draft', label: 'Draft' },
+  { key: 'Completed', label: 'Completed' },
+]
 
 const PAGE_SIZE = 25
 const MAX_EXTERNAL_PROPOSAL_BYTES = 50 * 1024 * 1024
@@ -226,6 +262,8 @@ export default function ThesisStudioPage() {
   const [uploadOpen,    setUploadOpen]    = useState(false)
   const [pendingDelete, setPendingDelete] = useState<ResearchProject | null>(null)
   const [exportingId,   setExportingId]   = useState<string | null>(null)
+  const [statusFilter,  setStatusFilter]  = useState<StatusFilter>('All')
+  const [newOpen,       setNewOpen]       = useState(false)
 
   useEffect(() => {
     researchStore.loadProjects().catch(() => {})
@@ -239,18 +277,24 @@ export default function ThesisStudioPage() {
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
     [researchStore.projects],
   )
+  const statusCounts = useMemo(() => {
+    const counts: Record<StatusFilter, number> = { All: theses.length, Draft: 0, InProgress: 0, Completed: 0 }
+    for (const p of theses) counts[statusOf(p)]++
+    return counts
+  }, [theses])
   const filteredTheses = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return theses
-    return theses.filter(p => (p.title || '').toLowerCase().includes(q))
-  }, [theses, search])
+    return theses.filter(p =>
+      (statusFilter === 'All' || statusOf(p) === statusFilter)
+      && (!q || (p.title || '').toLowerCase().includes(q)))
+  }, [theses, search, statusFilter])
 
   const visibleTheses = filteredTheses.slice(0, visibleCount)
   const hasMore = filteredTheses.length > visibleTheses.length
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE)
-  }, [search])
+  }, [search, statusFilter])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -293,8 +337,13 @@ export default function ThesisStudioPage() {
       icon: <GraduationCap size={16} />,
       iconClassName: 'bg-violet-50 border-violet-200 text-violet-600',
       title: project.title || 'Untitled research project',
-      metaLine: `${formatDate(project.updatedAt)} · ${project.academicLevel} · ${project.citationStyle.toUpperCase()}`,
-      statusBadge: { label: STATUS_LABELS[status], className: STATUS_STYLES[status] },
+      metaLine: [
+        updatedLabel(project.updatedAt),
+        project.academicLevel,
+        stageLabel(project),
+        status === 'Completed' ? null : (lastStepLabel(project) && status === 'InProgress' ? `Last step: ${lastStepLabel(project)}` : null),
+      ].filter(Boolean).join(' · '),
+      statusBadge: { label: STATUS_LABELS[status], className: STATUS_STYLES[status], progressPct: project.progressPct },
       onOpen,
       inlineActions: [
         { key: 'preview', icon: <Eye size={14} />, label: 'Preview', onClick: (e) => { e.stopPropagation(); onView() } },
@@ -305,7 +354,6 @@ export default function ThesisStudioPage() {
           disabled: exporting,
           onClick: (e) => { e.stopPropagation(); handleExportWord(project) },
         },
-        { key: 'pdf', icon: <FileType2 size={14} />, label: 'PDF export is not yet available', disabled: true, onClick: (e) => e.stopPropagation() },
       ],
       overflowActions: [
         { key: 'delete', icon: <Trash2 size={14} />, label: 'Delete', onClick: () => setPendingDelete(project) },
@@ -319,40 +367,47 @@ export default function ThesisStudioPage() {
 
         {/* ── Page header ───────────────────────────────────────────────────── */}
         <div className="mb-8">
-          <h1 className="text-[26px] font-bold text-slate-900 leading-tight">Thesis Studio</h1>
+          {/* <h1 className="text-[26px] font-bold text-slate-900 leading-tight">Thesis Studio</h1> */}
           <p className="text-[13px] text-slate-500 mt-1">
             Guide an approved proposal through readiness validation, thesis writing, and defence preparation.
           </p>
         </div>
 
         {/* ── Start a thesis ───────────────────────────────────────────────── */}
-        <div className="mb-8">
-          <p className="text-[12px] text-slate-500 font-medium mb-4">Start a thesis</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <ToolCard
-              icon={<ScrollText size={16} />}
-              iconClassName="bg-purple-tint text-purple-accent"
-              title="Continue from an approved proposal"
-              description='Open a proposal in Proposal Studio and run its built-in readiness audit — "Begin thesis writing" unlocks once objectives, methodology, and literature pass review.'
-              ctaLabel="Go to Proposal Studio"
-              onCta={() => navigate('/app/proposal-studio')}
-            />
-            <ToolCard
-              icon={<GraduationCap size={16} />}
-              iconClassName="bg-violet-50 text-violet-600"
-              title="Upload an externally approved proposal"
-              description="Already have an approved proposal from elsewhere? Upload a PDF or Word (.docx) document to begin the same methodology-aware audit."
-              ctaLabel="Upload proposal"
-              onCta={() => setUploadOpen(true)}
-            />
+        {/* First-time students get the full explanation; once they have a thesis the
+            two entry points collapse into a "New thesis" menu beside the list. */}
+        {theses.length === 0 && (
+          <div className="mb-8">
+            <p className="text-[12px] text-slate-500 font-medium mb-4">Start a thesis</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ToolCard
+                icon={<ScrollText size={16} />}
+                iconClassName="bg-purple-tint text-purple-accent"
+                title="Continue from an approved proposal"
+                description='Open a proposal in Proposal Studio and run its built-in readiness audit — "Begin thesis writing" unlocks once objectives, methodology, and literature pass review.'
+                ctaLabel="Go to Proposal Studio"
+                onCta={() => navigate('/app/proposal-studio')}
+              />
+              <ToolCard
+                icon={<GraduationCap size={16} />}
+                iconClassName="bg-violet-50 text-violet-600"
+                title="Upload an externally approved proposal"
+                description="Already have an approved proposal from elsewhere? Upload a PDF or Word (.docx) document to begin the same methodology-aware audit."
+                ctaLabel="Upload proposal"
+                onCta={() => setUploadOpen(true)}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── Research projects ─────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-[15px] font-bold text-slate-900">Research Projects</h2>
-            <p className="text-[12px] text-slate-500">{theses.length} research project{theses.length === 1 ? '' : 's'} in progress</p>
+            <p className="text-[12px] text-slate-500">
+              {theses.length} research project{theses.length === 1 ? '' : 's'}
+              {theses.length > 0 && ` · ${statusCounts.InProgress} in progress · ${statusCounts.Completed} completed`}
+            </p>
           </div>
         </div>
 
@@ -361,20 +416,84 @@ export default function ThesisStudioPage() {
           totalCount={theses.length}
           search={search}
           onSearchChange={setSearch}
+          searchPlaceholder="Search projects..."
+          filterBar={theses.length > 0 ? (
+            <div role="tablist" aria-label="Filter projects by status" className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
+              {FILTERS.map(f => (
+                <button
+                  key={f.key}
+                  role="tab"
+                  aria-selected={statusFilter === f.key}
+                  onClick={() => setStatusFilter(f.key)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors',
+                    statusFilter === f.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900',
+                  )}
+                >
+                  {f.label} <span className="text-slate-500">{statusCounts[f.key]}</span>
+                </button>
+              ))}
+            </div>
+          ) : undefined}
           headerRight={
-            <Tooltip label="Refresh list">
-              <button
-                onClick={handleRefresh}
-                aria-label="Refresh list"
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-              >
-                <RefreshCw size={15} className={cn(refreshing && 'animate-spin')} />
-              </button>
-            </Tooltip>
+            <div className="flex items-center gap-1">
+              <Tooltip label="Refresh list">
+                <button
+                  onClick={handleRefresh}
+                  aria-label="Refresh list"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                >
+                  <RefreshCw size={15} className={cn(refreshing && 'animate-spin')} />
+                </button>
+              </Tooltip>
+              {theses.length > 0 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setNewOpen(v => !v)}
+                    aria-haspopup="menu"
+                    aria-expanded={newOpen}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#7c3aed] hover:bg-[#4c1d95] text-white text-[12px] font-semibold transition-colors shadow-sm shadow-violet-200"
+                  >
+                    <Plus size={14} /> New thesis <ChevronDown size={13} />
+                  </button>
+                  {newOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setNewOpen(false)} />
+                      <div role="menu" className="absolute right-0 top-full mt-1 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-1 whitespace-normal">
+                        <button
+                          role="menuitem"
+                          onClick={() => { setNewOpen(false); navigate('/app/proposal-studio') }}
+                          className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors"
+                        >
+                          <ScrollText size={15} className="mt-0.5 text-purple-accent shrink-0" />
+                          <span>
+                            <span className="block text-[13px] font-medium text-slate-800">Continue from an approved proposal</span>
+                            <span className="block text-[11px] text-slate-500">Open it in Proposal Studio and run the readiness audit.</span>
+                          </span>
+                        </button>
+                        <button
+                          role="menuitem"
+                          onClick={() => { setNewOpen(false); setUploadOpen(true) }}
+                          className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors"
+                        >
+                          <Upload size={15} className="mt-0.5 text-violet-600 shrink-0" />
+                          <span>
+                            <span className="block text-[13px] font-medium text-slate-800">Upload an approved proposal</span>
+                            <span className="block text-[11px] text-slate-500">Import a PDF or Word (.docx) approved elsewhere.</span>
+                          </span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           }
           emptyIcon={<FileText size={22} className="text-slate-400" />}
-          emptyTitle="No research projects yet"
-          emptySubtitle="Transition an approved proposal above, or upload one that's already been approved, to get started."
+          emptyTitle={theses.length > 0 ? 'No projects in this view' : 'No research projects yet'}
+          emptySubtitle={theses.length > 0
+            ? 'Try another status filter.'
+            : "Transition an approved proposal above, or upload one that's already been approved, to get started."}
         />
 
         {/* ── Load more ─────────────────────────────────────────────────────── */}

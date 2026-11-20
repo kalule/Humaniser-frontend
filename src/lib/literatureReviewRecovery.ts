@@ -10,6 +10,8 @@ export interface PendingGeneration {
   projectId: string
   startedAt: number
   citationStyle: string
+  /** Which kind of run this is; absent means a literature review (markers written before essays became durable). */
+  kind?: 'essay'
 }
 
 /** The server keeps a finished review for 24h; a pending marker older than this can never be collected. */
@@ -32,7 +34,7 @@ export function loadPendingGeneration(documentId: string, now = Date.now()): Pen
     const p = JSON.parse(raw) as Partial<PendingGeneration>
     if (typeof p.projectId !== 'string' || typeof p.startedAt !== 'number') return null
     if (now - p.startedAt > PENDING_MAX_AGE_MS) { clearPendingGeneration(documentId); return null }
-    return { projectId: p.projectId, startedAt: p.startedAt, citationStyle: p.citationStyle ?? 'Harvard' }
+    return { projectId: p.projectId, startedAt: p.startedAt, citationStyle: p.citationStyle ?? 'Harvard', ...(p.kind === 'essay' ? { kind: 'essay' as const } : {}) }
   } catch { return null }
 }
 
@@ -69,9 +71,15 @@ export function interpretOutcome(body: { status?: string; stage?: string | null;
   return { status: 'unavailable' }
 }
 
-export async function fetchLiteratureReviewOutcome(projectId: string, signal?: AbortSignal): Promise<LiteratureReviewOutcome> {
-  const res = await fetchWithAuth(`${API_BASE}/api/v1/workbench/write-with-ai/literature-review/${encodeURIComponent(projectId)}/outcome`, { signal })
+export async function fetchLiteratureReviewOutcome(projectId: string, signal?: AbortSignal, kind?: 'essay'): Promise<LiteratureReviewOutcome> {
+  const path = kind === 'essay' ? 'essay' : 'literature-review'
+  const res = await fetchWithAuth(`${API_BASE}/api/v1/workbench/write-with-ai/${path}/${encodeURIComponent(projectId)}/outcome`, { signal })
   if (res.status === 404) return { status: 'unavailable' }
-  if (!res.ok) throw new Error(`Could not check the literature review (${res.status})`)
+  if (!res.ok) throw new Error(`Could not check the generation (${res.status})`)
   return interpretOutcome(await res.json())
+}
+
+/** Stops a running essay on the server. Closing the page no longer does. */
+export async function cancelEssayRun(runId: string): Promise<void> {
+  await fetchWithAuth(`${API_BASE}/api/v1/workbench/write-with-ai/essay/${encodeURIComponent(runId)}/cancel`, { method: 'POST' })
 }

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, FileText, Plus, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { btn } from '../../components/literatureReview/styles'
 import { DocumentList, type DocumentListEntry } from '../../components/app/DocumentList'
 import { ProposalSetupDialog, type ProposalSetup } from '../../components/research-design/ProposalSetupDialog'
 import { AutonomousProposalModal, GenerationPanel, useAutonomousProposalFlow } from '../../components/app/AutonomousProposalTools'
@@ -74,8 +75,8 @@ export default function ProposalStudioPage() {
     setCreating(false); void projects.refetch(); void journeys.refetch()
     navigate(`/app/research-agent/${project.id}`)
   }
-  return <div className="research-design min-w-0 w-full px-4 sm:px-6 py-6 sm:py-8">
-    <div className="flex flex-wrap items-center justify-between gap-4 mb-7"><p className="text-sm text-text-secondary">Write your proposal yourself with AI help, or let us draft it automatically.</p><Button onClick={() => setCreating(true)} leftIcon={<Plus size={16} />}>New proposal</Button></div>
+  return <div className="research-design h-full overflow-y-auto bg-white min-w-0 w-full px-4 sm:px-6 py-6 sm:py-8">
+    <div className="flex flex-wrap items-center justify-between gap-4 mb-7"><p className="text-sm text-text-secondary">Write your proposal yourself with AI help, or let us draft it automatically.</p><button type="button" onClick={() => setCreating(true)} className={`${btn.primary} !min-h-0`}><Plus size={16} aria-hidden /> New proposal</button></div>
     {(projects.error || journeys.error) && <div role="alert" className="text-sm mb-5"><p>We could not check the latest proposal status. Your saved proposals remain available.</p><Button variant="ghost" onClick={() => { void projects.refetch(); void journeys.refetch() }}>Refresh proposals</Button></div>}
     {projects.isPending && <p role="status" className="mb-4 text-sm">Loading your proposals...</p>}
     <DocumentList entries={rows} totalCount={allEntries.length} search={search} onSearchChange={setSearch} searchPlaceholder="Search proposals..."

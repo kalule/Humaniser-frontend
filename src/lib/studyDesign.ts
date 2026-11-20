@@ -192,6 +192,48 @@ export function fieldErrors(details: ApiFieldError[] | undefined): Record<string
   return out
 }
 
+const ADJUSTMENT_LABELS: Record<string, string> = {
+  nonResponseRate: 'Expected non-response',
+  unusableRate: 'Incomplete or unusable responses',
+  clusterSize: 'Average cluster size',
+  icc: 'Intraclass correlation (ICC)',
+  accessiblePopulation: 'People you can actually reach',
+  nPerSubgroup: 'Minimum completed responses per subgroup',
+  subgroups: 'Subgroups',
+}
+
+/** The label the form shows for a field key, so an error summary can say which field it means. */
+export function fieldLabel(def: CalculatorDef, key: string): string | undefined {
+  if (def.effect && key === def.effect.key) return `${def.effect.name} (${def.effect.symbol})`
+  if (key === 'effectSizeBasis') return 'Where this effect size comes from'
+  if (key === 'effectSizeJustification') return 'Justification for the effect size'
+  return def.fields.find(f => f.key === key)?.label ?? ADJUSTMENT_LABELS[key]
+}
+
+/** Server messages that say only that a value is missing, without naming it. */
+export const isGenericRequired = (message: string): boolean => /^(this value is )?required\.?$/i.test(message.trim())
+
+/** The summary line for one field error: generic "required" messages are prefixed with the field's label. */
+export function errorSummaryText(def: CalculatorDef, key: string, message: string): string {
+  const label = fieldLabel(def, key)
+  return label && isGenericRequired(message) ? `${label}: ${message.trim().replace(/^required\.?$/i, 'This value is required.')}` : message
+}
+
+/**
+ * Dropdown labels for a list of projects. Titles are not unique (drafts and copies share them), so a title that
+ * appears more than once gets its last-updated date, and then a short id if that is still not enough.
+ */
+export function projectOptionLabels(projects: { id: string; title: string; updatedAt?: string }[]): Map<string, string> {
+  const count = (list: string[]) => list.reduce((m, t) => m.set(t, (m.get(t) ?? 0) + 1), new Map<string, number>())
+  const titles = count(projects.map(p => p.title))
+  const dated = projects.map(p => {
+    const day = p.updatedAt?.slice(0, 10)
+    return { id: p.id, label: (titles.get(p.title) ?? 0) > 1 && day ? `${p.title} (updated ${day})` : p.title }
+  })
+  const labels = count(dated.map(d => d.label))
+  return new Map(dated.map(d => [d.id, (labels.get(d.label) ?? 0) > 1 ? `${d.label} #${d.id.slice(-4)}` : d.label]))
+}
+
 export interface CalculationNote { code: string; text: string }
 export interface AdjustmentResult {
   nRequired: number

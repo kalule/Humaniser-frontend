@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ListOrdered, Wand2 } from 'lucide-react'
 import { researchPaperApi } from '../../api/researchPaper'
 import { useRunPoll } from '../../hooks/useRunPoll'
@@ -29,21 +29,30 @@ export function ScreeningStage({ paper, onChanged, onNext }: { paper: Paper; onC
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(() => {
+  const loadList = useCallback(() => {
     researchPaperApi.screening(paper.id, { page, pageSize: PAGE }).then(setList).catch(e => setError(errorMessage(e, 'The screening list could not be loaded.')))
-    researchPaperApi.flow(paper.id).then(setFlow).catch(() => setFlow(null))
   }, [paper.id, page])
+  const load = useCallback(() => {
+    loadList()
+    researchPaperApi.flow(paper.id).then(setFlow).catch(() => setFlow(null))
+  }, [paper.id, loadList])
   useEffect(load, [load])
   useEffect(() => {
     researchPaperApi.criteria(paper.id).then(c => { setCriteria(c); setDraft({ include: c.include.join('\n'), exclude: c.exclude.join('\n') }) }).catch(() => setCriteria(null))
     researchPaperApi.reasons().then(setReasons).catch(() => setReasons([]))
   }, [paper.id])
-  // While the AI is screening, refresh the list.
+  // While the AI is screening, refresh the list only (the counts are fetched once more when it finishes), every 5 seconds.
+  const running = list?.screeningStatus === 'Running'
   useEffect(() => {
-    if (list?.screeningStatus !== 'Running') return
-    const t = window.setTimeout(load, 3000)
+    if (!running) return
+    const t = window.setTimeout(loadList, 5000)
     return () => window.clearTimeout(t)
-  }, [list, load])
+  }, [running, list, loadList])
+  const wasRunning = useRef(false)
+  useEffect(() => {
+    if (wasRunning.current && !running) researchPaperApi.flow(paper.id).then(setFlow).catch(() => setFlow(null))
+    wasRunning.current = running
+  }, [running, paper.id])
 
   const fetchOrder = useCallback(() => researchPaperApi.latestRun(paper.id, 'PrioritiseScreening'), [paper.id])
   const order = useRunPoll(fetchOrder, load)
@@ -93,9 +102,10 @@ export function ScreeningStage({ paper, onChanged, onNext }: { paper: Paper; onC
       <Panel title="Screening" id="rp-screening" description={list.orderNote}
         actions={<>
           <button type="button" onClick={() => void act(async () => { setList(await researchPaperApi.startScreening(paper.id)) }, 'Screening could not be started.')} disabled={busy || list.screeningStatus === 'Running'} className={btn.secondary}><Wand2 size={16} aria-hidden /> Screen with AI</button>
+          {list.screeningStatus === 'Running' ? <button type="button" onClick={() => void act(async () => { setList(await researchPaperApi.stopScreening(paper.id)) }, 'Screening could not be stopped.')} disabled={busy} className={btn.secondary}>Stop screening</button> : null}
           <button type="button" onClick={() => void act(async () => { order.setRun(await researchPaperApi.prioritise(paper.id)) }, 'The order could not be updated.')} disabled={busy || isRunActive(order.run)} className={btn.secondary}><ListOrdered size={16} aria-hidden /> Update the order</button>
         </>}>
-        {list.screeningStatus === 'Running' ? <Notice tone="info" role="status">The AI is screening ({list.screeningProgressPct}%).</Notice> : null}
+        {list.screeningStatus === 'Running' ? <Notice tone="info" role="status">The AI is screening ({list.screeningProgressPct}%). Stop it at any time; what it has judged is kept.</Notice> : null}
         <RunBanner run={order.run} label="Ordering" />
         <p className="mt-2 text-[13px] text-slate-700">{Object.entries(list.stateCounts).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()}`).join(' · ')}</p>
 

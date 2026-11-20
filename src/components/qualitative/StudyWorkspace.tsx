@@ -65,7 +65,7 @@ export function StudyWorkspace({ studyId, features }: { studyId: string; feature
       <nav aria-label="Breadcrumb" className="text-[13px] text-slate-700"><Link to="/app/qualitative-analysis" className="underline">Studies</Link> / <span>{study.title}</span></nav>
       <h2 className="mt-1 text-[20px] font-semibold text-slate-900 [overflow-wrap:anywhere]">{study.title}</h2>
       <p className="mt-1 text-[13px] text-slate-700">
-        {METHOD_LABELS[study.method]} · {languageLabel(study.analysisLanguage)} · {study.aiMode === 'ManualOnly' ? 'Manual coding only' : 'AI suggestions allowed'} · {study.transcriptsReady} of {study.transcripts} transcripts ready · {study.participants} participants
+        {METHOD_LABELS[study.method]} · {languageLabel(study.analysisLanguage)} · {study.aiMode === 'ManualOnly' ? 'Manual coding only' : 'AI suggestions allowed'} · {study.transcriptsReady} of {study.transcripts} transcript{study.transcripts === 1 ? '' : 's'} ready · {study.participants} participant{study.participants === 1 ? '' : 's'}
       </p>
       {second && <Notice className="mt-3" title="You are the second coder on this study">Code each transcript with the codebook, without looking at anyone else’s coding, then mark it finished. You cannot see the owner’s coding, quotes or memos, and they do not see yours until they compare the two.</Notice>}
 

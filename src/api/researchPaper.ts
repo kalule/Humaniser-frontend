@@ -46,6 +46,7 @@ export const researchPaperApi = {
   updateCriteria: (id: string, body: Partial<Pick<Criteria, 'include' | 'exclude' | 'yearFrom' | 'yearTo'>> & { clearYearFrom?: boolean; clearYearTo?: boolean }) =>
     client.put<Criteria>(`${base}/${id}/criteria`, body).then(data),
   startScreening: (id: string) => client.post<ScreeningList>(`${base}/${id}/screening/start`).then(data),
+  stopScreening: (id: string) => client.post<ScreeningList>(`${base}/${id}/screening/stop`).then(data),
   screening: (id: string, params: { state?: string; page?: number; pageSize?: number }) => client.get<ScreeningList>(`${base}/${id}/screening`, { params }).then(data),
   decide: (id: string, candidateId: string, body: { decision: 'include' | 'exclude' | 'undo'; reasonCode?: string; note?: string }) =>
     client.patch(`${base}/${id}/screening/${candidateId}`, body).then(() => undefined),

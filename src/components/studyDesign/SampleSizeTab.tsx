@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Check, Copy, Info, Plus, Star, Trash2 } from 'lucide-react'
 import { studyDesignApi, type StoredCalculation } from '../../api/studyDesign'
 import {
-  BASIS_OPTIONS, CALCULATORS, GROUP_LABELS, asPercentHint, buildRequest, calculatorById, emptyAdjustments, fieldErrors, headline, inputRows, percent,
+  BASIS_OPTIONS, CALCULATORS, GROUP_LABELS, asPercentHint, buildRequest, calculatorById, emptyAdjustments, errorSummaryText, fieldErrors, headline, inputRows, percent,
   type AdjustmentValues, type ApiFieldError, type CalculationResult, type CalculatorDef, type CalculatorId, type EffectBasis, type FormState,
 } from '../../lib/studyDesign'
 import { cn } from '../../lib/utils'
@@ -289,7 +289,7 @@ export function SampleSizeTab({ projectId, projectTitle }: { projectId: string; 
           <div ref={summaryRef} tabIndex={-1} role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-[13px] text-red-800 outline-none focus-visible:ring-2 focus-visible:ring-red-400">
             <p className="font-semibold">No number was calculated. {errorList.length === 1 ? 'One value needs attention:' : `${errorList.length} values need attention:`}</p>
             <ul className="mt-1 list-disc pl-5">
-              {errorList.map(([key, message]) => <li key={key}><a href={`#${fid(key)}`} className="underline" onClick={e => { e.preventDefault(); document.getElementById(fid(key))?.focus() }}>{message}</a></li>)}
+              {errorList.map(([key, message]) => <li key={key}><a href={`#${fid(key)}`} className="underline" onClick={e => { e.preventDefault(); document.getElementById(fid(key))?.focus() }}>{errorSummaryText(def, key, message)}</a></li>)}
             </ul>
           </div>
         ) : null}

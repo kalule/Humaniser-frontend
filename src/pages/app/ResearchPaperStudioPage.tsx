@@ -49,7 +49,7 @@ function ListRoute() {
   const enabled = useAvailability()
   if (enabled === null) return <Frame><Skeleton lines={6} tone="light" /></Frame>
   if (!enabled) return <ComingSoon tool="research-paper" />
-  return <Frame><PaperList /></Frame>
+  return <Frame wide><PaperList /></Frame>
 }
 
 function PaperList() {
@@ -125,16 +125,17 @@ function NewPaperForm({ options, onCreated, onCancel }: { options: PaperOptions;
     <form onSubmit={submit} className="mb-5 space-y-3 rounded-xl border border-slate-200 p-4" noValidate aria-label="New paper">
       <div>
         <label htmlFor="rp-topic" className="block text-[14px] font-medium text-slate-900">Topic</label>
-        <textarea id="rp-topic" rows={2} value={topic} maxLength={1000} onChange={e => setTopic(e.target.value)} autoFocus
+        <textarea id="rp-topic" rows={2} value={topic} maxLength={1000} onChange={e => setTopic(e.target.value)} autoFocus aria-describedby="rp-topic-hint"
           placeholder="For example: sleep and academic performance in secondary school students" className={inputClass + ' mt-1'} />
+        <p id="rp-topic-hint" className="mt-1 text-[13px] text-slate-700">At least 10 characters{topic.trim().length > 0 && topic.trim().length < 10 ? ` (${10 - topic.trim().length} more)` : ''}. A sentence naming the subject and the group or setting works best.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="rp-type" className="block text-[14px] font-medium text-slate-900">Type of paper</label>
-          <select id="rp-type" value={paperType} onChange={e => setPaperType(e.target.value as typeof paperType)} className={inputClass + ' mt-1'}>
+          <select id="rp-type" value={paperType} aria-describedby={type ? 'rp-type-desc' : undefined} onChange={e => setPaperType(e.target.value as typeof paperType)} className={inputClass + ' mt-1'}>
             {options.paperTypes.map(t => <option key={t.type} value={t.type}>{t.label}</option>)}
           </select>
-          {type ? <p className="mt-1 text-[13px] text-slate-700">{type.description}</p> : null}
+          {type ? <p id="rp-type-desc" className="mt-1 text-[13px] text-slate-700">{type.description}</p> : null}
         </div>
         <div>
           <label htmlFor="rp-level" className="block text-[14px] font-medium text-slate-900">Academic level</label>
@@ -192,7 +193,7 @@ function Workspace({ id }: { id: string }) {
         <div className="min-w-0">
           <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600"><Link to="/app/research-paper" className="hover:underline">Research papers</Link> / {STAGES[current].label}</nav>
           <h1 className="mt-0.5 text-[22px] font-semibold text-slate-900 [overflow-wrap:anywhere]">{p.title}</h1>
-          <p className="mt-0.5 text-[13px] text-slate-700">{p.sourceCount} source{p.sourceCount === 1 ? '' : 's'} · {STATUS_LABELS[p.status]}</p>
+          <p className="mt-0.5 text-[13px] text-slate-700">{p.sourceCount} approved source{p.sourceCount === 1 ? '' : 's'} · {current > reached ? STATUS_LABELS[p.status] : STAGES[current].label}</p>
         </div>
         <div className="w-48" aria-label={`${p.progressPercent}% through the workflow`}>
           <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-purple-accent" style={{ width: `${p.progressPercent}%` }} /></div>

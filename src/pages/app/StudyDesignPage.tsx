@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { researchApi } from '../../api/research'
 import { studyDesignApi, type StudyDesignAvailability } from '../../api/studyDesign'
@@ -9,6 +9,7 @@ import { InstrumentTab } from '../../components/studyDesign/InstrumentTab'
 import { SampleSizeTab } from '../../components/studyDesign/SampleSizeTab'
 import { ComingSoon } from '../../components/app/ToolGate'
 import { Skeleton } from '../../components/ui/Skeleton'
+import { projectOptionLabels } from '../../lib/studyDesign'
 import { cn } from '../../lib/utils'
 
 type TabId = 'design' | 'sample-size' | 'instrument' | 'export' | 'ethics' | 'consistency'
@@ -22,7 +23,7 @@ const TAB_LIST: { id: TabId; label: string }[] = [
 ]
 
 type Availability = 'loading' | 'on' | 'off' | 'error'
-interface ProjectOption { id: string; title: string }
+interface ProjectOption { id: string; title: string; updatedAt?: string }
 
 /**
  * Study Design: design choice, sample size, instrument, export, ethics and consistency checks for one study. Sample
@@ -49,12 +50,13 @@ export default function StudyDesignPage() {
     if (availability !== 'on') return
     let cancelled = false
     researchApi.list()
-      .then(list => { if (!cancelled) setProjects(list.map(p => ({ id: p.id, title: p.title || 'Untitled project' }))) })
+      .then(list => { if (!cancelled) setProjects(list.map(p => ({ id: p.id, title: p.title || 'Untitled project', updatedAt: p.updatedAt }))) })
       .catch(() => { if (!cancelled) { setProjects([]); setProjectsFailed(true) } })
     return () => { cancelled = true }
   }, [availability])
 
   const project = projects?.find(p => p.id === projectId) ?? null
+  const optionLabels = useMemo(() => projectOptionLabels(projects ?? []), [projects])
   const chooseProject = (id: string) => {
     const next = new URLSearchParams(params)
     if (id) next.set('projectId', id); else next.delete('projectId')
@@ -118,7 +120,7 @@ export default function StudyDesignPage() {
                 <select id="sd-project" value={project ? projectId : ''} onChange={e => chooseProject(e.target.value)}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[14px] text-slate-900 outline-none focus:border-purple-accent focus-visible:ring-2 focus-visible:ring-purple-accent/30">
                   <option value="">No project (nothing is saved)</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                  {projects.map(p => <option key={p.id} value={p.id}>{optionLabels.get(p.id) ?? p.title}</option>)}
                 </select>
                 {/* A select clips long titles, so the chosen title is also shown in full. */}
                 {project ? <p className="mt-1 text-[13px] leading-snug text-slate-700">{project.title}</p> : null}

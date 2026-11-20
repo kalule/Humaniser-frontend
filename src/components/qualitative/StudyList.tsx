@@ -59,12 +59,19 @@ function NewStudyForm({ features }: { features: QualAvailability }) {
   const [consent, setConsent] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorField, setErrorField] = useState<'title' | 'consent' | null>(null)
+
+  // A validation error names the field it is about: it is marked invalid and given focus, so a keyboard or screen-reader user lands on it.
+  const invalid = (field: 'title' | 'consent', message: string) => {
+    setError(message); setErrorField(field)
+    requestAnimationFrame(() => document.getElementById(field === 'title' ? 'qa-title' : 'qa-consent')?.focus())
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    setError(null)
-    if (!title.trim()) { setError('Give the study a title.'); return }
-    if (!consent) { setError('Confirm the statement about your data before creating the study.'); return }
+    setError(null); setErrorField(null)
+    if (!title.trim()) { invalid('title', 'Give the study a title.'); return }
+    if (!consent) { invalid('consent', 'Confirm the statement about your data before creating the study.'); return }
     setBusy(true)
     try {
       const study = await qualApi.createStudy({ title: title.trim(), method, analysisLanguage: language, aiMode, consentAccepted: true })
@@ -76,7 +83,7 @@ function NewStudyForm({ features }: { features: QualAvailability }) {
     <form onSubmit={submit} className="max-w-2xl space-y-4 rounded-xl border border-slate-200 p-4" noValidate>
       <div>
         <label htmlFor="qa-title" className={labelClass}>Title</label>
-        <input id="qa-title" value={title} onChange={e => setTitle(e.target.value)} maxLength={200} className={inputClass} aria-describedby="qa-title-hint" />
+        <input id="qa-title" value={title} onChange={e => setTitle(e.target.value)} maxLength={200} className={inputClass} aria-describedby={errorField === 'title' ? 'qa-title-hint qa-error' : 'qa-title-hint'} aria-invalid={errorField === 'title' || undefined} />
         <p id="qa-title-hint" className="mt-1 text-[12px] text-slate-700">Shown only to you. Do not put a participant’s name or a place that identifies anyone in it.</p>
       </div>
       <div>
@@ -105,13 +112,14 @@ function NewStudyForm({ features }: { features: QualAvailability }) {
         <p className="mt-1 text-[12px] text-slate-700">You can change this later in the study’s settings.</p>
       </fieldset>
       <label className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-[13px] text-slate-900">
-        <input type="checkbox" className="mt-0.5" checked={consent} onChange={e => setConsent(e.target.checked)} />
+        <input id="qa-consent" type="checkbox" className="mt-0.5" checked={consent} onChange={e => setConsent(e.target.checked)}
+          aria-describedby={errorField === 'consent' ? 'qa-error' : undefined} aria-invalid={errorField === 'consent' || undefined} />
         <span>
           I may store and analyse this data here under my ethics approval and my participants’ consent. Transcripts are kept encrypted and deleted after {features.retentionDays} days without activity, or when I delete them.
           Replacing names reduces risk; it does not make a transcript anonymous.
         </span>
       </label>
-      {error && <Notice tone="error">{error}</Notice>}
+      {error && <div id="qa-error"><Notice tone="error">{error}</Notice></div>}
       <PrimaryButton type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create study'}</PrimaryButton>
     </form>
   )

@@ -62,7 +62,7 @@ export function TwoColumnModulePage({
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          background: 'var(--surface-page)',
+          background: '#ffffff',
           overflow: 'hidden',
           minWidth: 0,
         }}>

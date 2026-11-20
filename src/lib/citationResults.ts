@@ -28,8 +28,9 @@ export function searchCards(cards: CitationCard[], query: string): CitationCard[
 }
 
 /** A failure on our side or a lookup service that did not answer: the only citations "retry failed" will run again. */
-export const isRetryable = (c: Pick<CitationCard, 'flags' | 'locked'>): boolean =>
-  !c.locked && (c.flags.includes('LookupFailed') || c.flags.includes('CheckFailed'))
+/** A lookup or check that failed, or a claim check where the judge gave up (its note says so): all of them are worth running again. */
+export const isRetryable = (c: Pick<CitationCard, 'flags' | 'locked'> & { verdict?: { note: string | null } | null }): boolean =>
+  !c.locked && (c.flags.includes('LookupFailed') || c.flags.includes('CheckFailed') || /running the check again may help/i.test(c.verdict?.note ?? ''))
 
 // ── Same reference, cited many times ─────────────────────────────────────────────────────────────
 
@@ -109,6 +110,8 @@ export function correctedReference(c: Pick<CitationCard, 'referenceEntry' | 'met
   for (const d of c.metadataDiffs) {
     const from = d.inDraft?.trim(), to = d.inRecord?.trim()
     if (!from || !to) return null
+    // A year more than one apart is usually a later edition or repository version of the same work: say so, never rewrite it.
+    if (d.field === 'year' && /^\d{4}$/.test(from) && /^\d{4}$/.test(to) && Math.abs(Number(from) - Number(to)) > 1) return null
     const before = result
     if (d.field === 'year' || d.field === 'doi') result = result.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegex(from)}(?![\\p{L}\\p{N}_])`, 'u'), to)
     else if (d.field.toLowerCase().startsWith('author')) result = result.replace(from, to)

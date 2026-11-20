@@ -10,14 +10,14 @@ import { THESIS_CHAPTERS } from '../../lib/thesisChapters'
 import { analystApi } from '../../api/analyst'
 import { suggestedCitationStyle } from '../../config/disciplineCitationStyle'
 import { GenerationAlreadyRunningError, GenerationInterruptedError, useWriteWithAiStream } from '../../hooks/useWriteWithAiStream'
-import { clearPendingGeneration, findAnyPendingGeneration, savePendingGeneration } from '../../lib/literatureReviewRecovery'
+import { cancelEssayRun, clearPendingGeneration, findAnyPendingGeneration, loadPendingGeneration, savePendingGeneration } from '../../lib/literatureReviewRecovery'
 import type { CaseStudyPlan, EssayAcademicLevel, EssayCitationStyle, EssayDiscipline, EssayPlan, EssaySubType, LiteratureReviewArchetype, ResearchPaperDisciplineProfile, WriteWithAiDocumentType, WriteWithAiRequest, WriteWithAiResponse, WriteWithAiSourceMode, ThesisChapterKind } from '../../types/workbench'
 import type { AnalystJobSummary } from '../../types/analyst'
 import toast from 'react-hot-toast'
 import { SavedSourcePicker } from '../webLibrary/SavedSourcePicker'
 import { MAX_SAVED_SOURCES_PER_REQUEST } from '../../lib/savedSources'
 import { RESEARCH_STAGE_OPTIONS, toResearchState, type ResearchStageChoice } from './researchStage'
-import { essayStageLabel } from '../../lib/essayProgress'
+import { essayStageLabel, essayStageDetail, essayPhase, ESSAY_PHASES } from '../../lib/essayProgress'
 import { assertWritableDraft } from '../../lib/writeWithAiOutcome'
 
 const STAGE_LABEL: Record<string, string> = {
@@ -112,7 +112,7 @@ const DOC_TYPE_LABELS: Record<WriteWithAiDocumentType, string> = {
 
 const STEP1_SUBTITLE: Record<WriteWithAiDocumentType, string> = {
   General: 'Step 1 of 2 · Writing setup',
-  Essay: 'Step 1 of 2 · Essay setup',
+  Essay: 'Essay',
   CaseStudy: 'Step 1 of 2 · Case study setup',
   ResearchPaper: 'Step 1 of 2 · Research paper setup',
   LiteratureReview: 'Step 1 of 2 · Literature review setup',
@@ -195,15 +195,17 @@ export function WriteWithAiModal({
     // and reviews start only from their studios in the side menu.
     const studioType = initialDocumentType === 'ResearchPaper' || initialDocumentType === 'LiteratureReview'
     setStudioTypeNotice(studioType)
-    if (initialDocumentType) setDocumentType(studioType ? 'General' : initialDocumentType)
+    setDocumentType(initialDocumentType === 'CaseStudy' || initialDocumentType === 'ThesisChapter' ? initialDocumentType : 'Essay')
     if (initialThesisChapter) setThesisChapter(initialThesisChapter)
     if (initialCitationStyle) setCitationStyle(initialCitationStyle)
     // Hand-off from the New document dialog: the user has already given type, topic and citation
     // style, so don't ask again. Land on the sources/outline screen with a summary and an "Edit
     // details" link back to step 1. Applied once per document. Research papers still start on
-    // step 1 because their research-stage answers affect what the draft may claim.
+    // step 1 because their research-stage answers affect what the draft may claim. Essays do too:
+    // essay type, academic level, discipline and target length are only asked on step 1, so skipping it
+    // silently gave every essay the defaults (argumentative, undergraduate, 1,000 words).
     const handoffKey = `${excludeDocumentId ?? ''}::${initialTopic ?? ''}`
-    if (initialTopic && handoffSkipped.current !== handoffKey && initialDocumentType !== 'ResearchPaper' && initialDocumentType !== 'CaseStudy'
+    if (initialTopic && handoffSkipped.current !== handoffKey && initialDocumentType !== 'ResearchPaper' && initialDocumentType !== 'CaseStudy' && initialDocumentType !== 'Essay'
       && (initialDocumentType !== 'ThesisChapter' || initialThesisChapter === 'LiteratureReview')) {
       handoffSkipped.current = handoffKey
       setWizardStep(2)
@@ -249,11 +251,13 @@ export function WriteWithAiModal({
     ? 'Classifying and planning…'
     : planningEssay
       ? 'Planning your essay…'
-      : (stage && (essayStageLabel(stage) ?? STAGE_LABEL[stage])) ?? 'Generating your draft…'
+      : isEssay && essayPhase(stage) !== null
+        ? `${ESSAY_PHASES[essayPhase(stage)!]}…`
+        : (stage && (essayStageLabel(stage) ?? STAGE_LABEL[stage])) ?? 'Generating your draft…'
 
   const step2Subtitle = isInPlanReview
     ? (isCaseStudy ? 'Review case plan' : 'Review outline')
-    : 'Step 2 of 2 · Sources & outline'
+    : isEssay ? (loading ? 'Essay' : 'More options') : 'Step 2 of 2 · Sources & outline'
 
   const headerSubtitle = wizardStep === 1 ? STEP1_SUBTITLE[documentType] : step2Subtitle
 
@@ -277,7 +281,12 @@ export function WriteWithAiModal({
     }
     cancelledRef.current = true
     abortControllerRef.current?.abort()
-    if (excludeDocumentId) clearPendingGeneration(excludeDocumentId)
+    if (excludeDocumentId) {
+      // An essay keeps writing on the server unless told to stop.
+      const pendingRun = loadPendingGeneration(excludeDocumentId)
+      if (pendingRun?.kind === 'essay') void cancelEssayRun(pendingRun.projectId).catch(() => undefined)
+      clearPendingGeneration(excludeDocumentId)
+    }
     setLoading(false)
     toast('Generation cancelled.', { icon: '✕' })
   }
@@ -371,6 +380,8 @@ export function WriteWithAiModal({
       const result = await generate(payload, controller.signal, projectId => {
         if (excludeDocumentId && requestDocumentType === 'LiteratureReview')
           savePendingGeneration(excludeDocumentId, { projectId, startedAt: Date.now(), citationStyle })
+        else if (excludeDocumentId && requestDocumentType === 'Essay')
+          savePendingGeneration(excludeDocumentId, { projectId, startedAt: Date.now(), citationStyle, kind: 'essay' })
       }, excludeDocumentId)
       abortControllerRef.current = null
       if (cancelledRef.current) return
@@ -451,33 +462,13 @@ export function WriteWithAiModal({
   // ─── Step 1: Document type + context + topic + word count ────────────────
   const renderStep1 = () => (
     <div className="px-6 py-6 space-y-6">
-      {/* Document type */}
-      <div>
-        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Document type</label>
-        <div className="flex flex-wrap gap-2">
-          {/* Research papers and literature reviews are written in their studios, reached only from the side menu (2026-11-18). */}
-          {(['General', 'Essay', 'CaseStudy', 'ThesisChapter'] as WriteWithAiDocumentType[]).map(type => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => { setDocumentType(type); setPlan(null); setCasePlan(null) }}
-              className={cn(
-                'rounded-lg border px-3.5 py-2 text-[13px] font-medium transition-colors',
-                documentType === type
-                  ? 'border-purple-accent bg-purple-tint text-purple-text'
-                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50',
-              )}
-            >
-              {DOC_TYPE_LABELS[type]}
-            </button>
-          ))}
-        </div>
-        {studioTypeNotice ? (
-          <p className="mt-2 text-[13px] text-slate-600" role="note">
-            Research papers and literature reviews are now written in their own studios. Open Research Paper or Literature Review from the side menu.
-          </p>
-        ) : null}
-      </div>
+      {/* Essays only: the document-type picker is gone (2026-11-19). Case studies and thesis chapters keep their own flow
+          for documents that already have that type; everything else is written as an essay. */}
+      {studioTypeNotice ? (
+        <p className="text-[13px] text-slate-600" role="note">
+          Research papers and literature reviews are now written in their own studios. Open Research Paper or Literature Review from the side menu.
+        </p>
+      ) : null}
 
       {/* Essay type + academic context */}
       {isEssay && (
@@ -1029,9 +1020,50 @@ export function WriteWithAiModal({
   }, [loading, loadingLabel])
   const elapsedText = `${Math.floor(elapsedSec / 60)}:${String(elapsedSec % 60).padStart(2, '0')}`
 
+  // Essays show three plain phases instead of the five technical stages; the stage's own wording (counts of searches and
+  // sources) stays as a detail line under the current phase.
+  const renderEssayProgress = () => {
+    const phase = essayPhase(stage) ?? 0
+    const detail = essayStageDetail(stage)
+    return (
+      <div className="px-6 py-6 space-y-5">
+        {topic.trim() && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Writing</p>
+            <p className="mt-0.5 line-clamp-2 text-[13px] text-slate-700">{topic.trim()}</p>
+            <p className="mt-1 text-[11px] text-slate-500">Essay · {academicLevel} · {wordCount.toLocaleString()} words</p>
+          </div>
+        )}
+        <div className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-4" role="status" aria-live="polite">
+          <ol className="space-y-3">
+            {ESSAY_PHASES.map((label, i) => {
+              const done = i < phase
+              const current = i === phase
+              return (
+                <li key={label} aria-current={current ? 'step' : undefined}>
+                  <div className={cn('flex items-center gap-2 text-[14px]', current ? 'font-semibold text-purple-text' : done ? 'text-slate-600' : 'text-slate-400')}>
+                    {current ? <Loader2 size={15} className="animate-spin shrink-0" />
+                      : done ? <Check size={15} className="shrink-0 text-emerald-600" />
+                      : <span className="w-[15px] h-[15px] shrink-0 rounded-full border border-slate-300" aria-hidden />}
+                    <span>{label}</span>
+                    {current && <span className="ml-auto shrink-0 tabular-nums text-[12px] font-normal text-slate-500">{elapsedText}</span>}
+                  </div>
+                  {current && detail && <p className="mt-1 ml-[23px] text-[12px] text-slate-500">{detail}</p>}
+                </li>
+              )
+            })}
+          </ol>
+        </div>
+        <p className="text-[12px] text-slate-500 text-center">
+          This usually takes a few minutes. Every citation is checked against its source before the draft is shown. You can close this window; writing continues in the editor.
+        </p>
+      </div>
+    )
+  }
+
   // ─── CTA label ────────────────────────────────────────────────────────────
   const ctaLabel = loading
-    ? loadingLabel
+    ? (isEssay && !isInPlanReview && !planningEssay ? 'Writing your essay…' : loadingLabel)
     : isEssay && plan ? 'Generate full draft'
     : requestDocumentType === 'ResearchPaper' ? (paperPlan ? 'Approve outline & write' : 'Build research outline')
     : isCaseStudy && casePlan ? 'Generate case study'
@@ -1070,10 +1102,12 @@ export function WriteWithAiModal({
       </div>
 
       {/* Step indicator */}
-      <div className="flex px-6 pt-4 gap-2">
-        <div className={cn('h-1 flex-1 rounded-full transition-colors', wizardStep >= 1 ? 'bg-purple-accent' : 'bg-slate-200')} />
-        <div className={cn('h-1 flex-1 rounded-full transition-colors', wizardStep >= 2 ? 'bg-purple-accent' : 'bg-slate-200')} />
-      </div>
+      {!isEssay && (
+        <div className="flex px-6 pt-4 gap-2">
+          <div className={cn('h-1 flex-1 rounded-full transition-colors', wizardStep >= 1 ? 'bg-purple-accent' : 'bg-slate-200')} />
+          <div className={cn('h-1 flex-1 rounded-full transition-colors', wizardStep >= 2 ? 'bg-purple-accent' : 'bg-slate-200')} />
+        </div>
+      )}
 
       {/* Body */}
       {alreadyRunning && (
@@ -1093,7 +1127,7 @@ export function WriteWithAiModal({
         </div>
       )}
       <div className="overflow-y-auto max-h-[60vh]">
-        {wizardStep === 1 ? renderStep1() : renderStep2()}
+        {loading && isEssay && !isInPlanReview ? renderEssayProgress() : wizardStep === 1 ? renderStep1() : renderStep2()}
       </div>
 
       {/* Footer */}
@@ -1107,20 +1141,36 @@ export function WriteWithAiModal({
             >
               Cancel
             </button>
-            <button
-              type="button"
-              onClick={() => setWizardStep(2)}
-              disabled={!primaryInputValid}
-              className={cn(
-                'flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-colors shadow-md',
-                primaryInputValid
-                  ? 'bg-purple-accent hover:bg-purple-deep shadow-violet-200'
-                  : 'bg-purple-accent/40 cursor-not-allowed shadow-none',
+            <div className="flex items-center gap-2">
+              {isEssay && (
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(2)}
+                  disabled={!primaryInputValid}
+                  className="px-3 py-2 rounded-lg text-[13px] font-medium text-purple-700 hover:bg-purple-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Citation style, source type and outline review"
+                >
+                  More options
+                </button>
               )}
-            >
-              Continue
-              <ArrowRight size={14} />
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // Essays: one click from the topic to writing. Citation style, sources and outline review keep
+                  // their defaults (or whatever was already chosen) and stay reachable through "More options".
+                  if (isEssay) { setWizardStep(2); void handleSubmit() } else setWizardStep(2)
+                }}
+                disabled={!primaryInputValid}
+                className={cn(
+                  'flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-colors shadow-md',
+                  primaryInputValid
+                    ? 'bg-purple-accent hover:bg-purple-deep shadow-violet-200'
+                    : 'bg-purple-accent/40 cursor-not-allowed shadow-none',
+                )}
+              >
+                {isEssay ? <><Sparkles size={14} /> Write essay</> : <>Continue<ArrowRight size={14} /></>}
+              </button>
+            </div>
           </>
         ) : (
           <>

@@ -2,17 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { FileText, Upload } from 'lucide-react'
+import { Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { cn } from '../../lib/utils'
 import { useLibraryStore } from '../../store/libraryStore'
 import { useDraftHandoffStore } from '../../store/draftHandoffStore'
 import { importDocumentFromFile } from '../../lib/importWordDocument'
 import { FORMAT_LABELS, FORMAT_STYLES } from '../../types/citation'
 import type { FormatStyle } from '../../types/citation'
 import type { DocumentGenre } from '../../types/library'
-import type { ThesisChapterKind } from '../../types/workbench'
-import { THESIS_CHAPTERS } from '../../lib/thesisChapters'
 
 // New-document flow prompt #3 — replaces the old "Name your document" modal. Captures document
 // type + citation style up front (previously chosen inside the editor after the fact, or never
@@ -20,21 +17,11 @@ import { THESIS_CHAPTERS } from '../../lib/thesisChapters'
 
 const LAST_CITATION_STYLE_KEY = 'humanise_last_citation_style'
 
-// Proposal Studio and Systematic Review have their own, separate creation flows
-// (ProposalStudioPage.handleCreate, etc.) and are reachable today via the main nav — this flag
-// only controls whether the creation card ALSO offers them as document-type shortcuts. Off by
-// default: routing from here into those modules needs its own UX decision this prompt doesn't
-// make, so the card only offers the four types the mockups show until that's designed.
-const ENABLE_STUDIO_DOCUMENT_TYPES_IN_CREATION_CARD = false
-
-// Literature reviews (user decision 2026-11-17) and research papers (2026-11-18) are not offered here: they are
-// written in their studios, reached only from the side menu, which screen sources and check citations before export.
-// Documents that already have either type still open and export as before (the type is only a label).
-const DOCUMENT_TYPES: { value: DocumentGenre; label: string }[] = [
-  { value: 'Essay', label: 'Essay' },
-  { value: 'ThesisChapter', label: 'Thesis chapter' },
-  { value: 'Other', label: 'Other' },
-]
+// This card creates essays only. Literature reviews (user decision 2026-11-17), research papers (2026-11-18),
+// proposals, systematic reviews and thesis chapters are written in their own studios, reached from the side
+// menu, which screen sources and check citations before export. Documents that already have another type still
+// open and export as before (the type is only a label).
+const DOCUMENT_TYPE: DocumentGenre = 'Essay'
 
 function lastUsedCitationStyle(): FormatStyle {
   try {
@@ -74,8 +61,7 @@ export function CreationCard({ onClose }: CreationCardProps) {
   const createDocument = useLibraryStore(s => s.createDocument)
   const setPendingDraft = useDraftHandoffStore(s => s.setPending)
 
-  const [documentType, setDocumentType] = useState<DocumentGenre>('Essay')
-  const [thesisChapter, setThesisChapter] = useState<ThesisChapterKind>('Introduction')
+  const documentType = DOCUMENT_TYPE
   const [citationStyle, setCitationStyle] = useState<FormatStyle>(lastUsedCitationStyle)
   const [topic, setTopic] = useState('')
   const [busy, setBusy] = useState(false)
@@ -103,7 +89,7 @@ export function CreationCard({ onClose }: CreationCardProps) {
         citationStyle,
       })
       if (withDraft && hasPrompt) {
-        setPendingDraft({ documentId: doc.id, topic: topic.trim(), documentType, citationStyle, thesisChapter: documentType === 'ThesisChapter' ? thesisChapter : undefined })
+        setPendingDraft({ documentId: doc.id, topic: topic.trim(), documentType, citationStyle })
       }
       onClose()
       navigate(`/app/editor/${doc.id}`)
@@ -132,8 +118,8 @@ export function CreationCard({ onClose }: CreationCardProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && !busy) { onClose(); return }
-    // Mirrors the primary button: draft when there's a prompt, otherwise a blank document.
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy) { e.preventDefault(); void handleCreate(hasPrompt) }
+    // Mirrors the primary button, which only acts when there is a topic to write about.
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !busy && hasPrompt) { e.preventDefault(); void handleCreate(true) }
   }
 
   // Rendered into document.body (see createPortal below) rather than wherever the caller happens
@@ -162,69 +148,26 @@ export function CreationCard({ onClose }: CreationCardProps) {
       >
         <div className="px-6 pt-5 pb-3">
           <h3 id="creation-card-title" className="text-[#1a1a18] font-semibold text-lg">
-            What are you writing?
+            New essay
           </h3>
           <p className="text-[13px] text-neutral-500 mt-0.5">You can rename the document later, in the editor.</p>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 pb-2">
-        {/* Document type */}
+        {/* Citation style */}
         <div className="mb-4">
-          <label className="block text-[13px] font-medium text-[#1a1a18] mb-2">Document type</label>
-          <div role="radiogroup" aria-label="Document type" className="flex flex-wrap gap-2">
-            {DOCUMENT_TYPES.map(t => (
-              <button
-                key={t.value}
-                type="button"
-                role="radio"
-                aria-checked={documentType === t.value}
-                disabled={busy}
-                onClick={() => setDocumentType(t.value)}
-                className={cn(
-                  'rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-50',
-                  documentType === t.value
-                    ? 'border-[#7c3aed] bg-[#f5f3ff] text-[#7c3aed]'
-                    : 'border-neutral-200 text-neutral-600 hover:border-neutral-300',
-                )}
-              >
-                {t.label}
-              </button>
+          <label htmlFor="creation-card-citation-style" className="block text-[13px] font-medium text-[#1a1a18] mb-2">Citation style</label>
+          <select
+            id="creation-card-citation-style"
+            value={citationStyle}
+            disabled={busy}
+            onChange={e => rememberCitationStyle(e.target.value as FormatStyle)}
+            className="w-full bg-neutral-100 border-0 rounded-lg px-3.5 py-2.5 text-[#1a1a18] text-sm outline-none focus:ring-2 focus:ring-[#7c3aed]/20 disabled:opacity-50"
+          >
+            {FORMAT_STYLES.map(style => (
+              <option key={style} value={style}>{FORMAT_LABELS[style]}</option>
             ))}
-            {ENABLE_STUDIO_DOCUMENT_TYPES_IN_CREATION_CARD && null /* Proposal/Systematic Review routing — needs its own UX decision before wiring in */}
-          </div>
-        </div>
-
-        {/* Chapter (thesis only) + citation style share one row */}
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          {documentType === 'ThesisChapter' && (
-            <div>
-              <label htmlFor="creation-card-thesis-chapter" className="block text-[13px] font-medium text-[#1a1a18] mb-2">Chapter</label>
-              <select
-                id="creation-card-thesis-chapter"
-                value={thesisChapter}
-                disabled={busy}
-                title={THESIS_CHAPTERS.find(ch => ch.value === thesisChapter)?.description}
-                onChange={e => setThesisChapter(e.target.value as ThesisChapterKind)}
-                className="w-full bg-neutral-100 border-0 rounded-lg px-3.5 py-2.5 text-[#1a1a18] text-sm outline-none focus:ring-2 focus:ring-[#7c3aed]/20 disabled:opacity-50"
-              >
-                {THESIS_CHAPTERS.map(ch => <option key={ch.value} value={ch.value}>{ch.label}</option>)}
-              </select>
-            </div>
-          )}
-          <div className={documentType === 'ThesisChapter' ? '' : 'col-span-2'}>
-            <label htmlFor="creation-card-citation-style" className="block text-[13px] font-medium text-[#1a1a18] mb-2">Citation style</label>
-            <select
-              id="creation-card-citation-style"
-              value={citationStyle}
-              disabled={busy}
-              onChange={e => rememberCitationStyle(e.target.value as FormatStyle)}
-              className="w-full bg-neutral-100 border-0 rounded-lg px-3.5 py-2.5 text-[#1a1a18] text-sm outline-none focus:ring-2 focus:ring-[#7c3aed]/20 disabled:opacity-50"
-            >
-              {FORMAT_STYLES.map(style => (
-                <option key={style} value={style}>{FORMAT_LABELS[style]}</option>
-              ))}
-            </select>
-          </div>
+          </select>
         </div>
 
         {/* Topic / prompt */}
@@ -255,15 +198,6 @@ export function CreationCard({ onClose }: CreationCardProps) {
             <button
               type="button"
               disabled={busy}
-              onClick={() => void handleCreate(false)}
-              title="Create an empty document"
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-neutral-600 hover:bg-neutral-100 transition-colors disabled:opacity-50"
-            >
-              <FileText size={14} /> Blank page
-            </button>
-            <button
-              type="button"
-              disabled={busy}
               onClick={handleImportClick}
               title="Import a Word (.docx) or text file"
               className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-neutral-600 hover:bg-neutral-100 transition-colors disabled:opacity-50"
@@ -290,12 +224,12 @@ export function CreationCard({ onClose }: CreationCardProps) {
             </button>
             <button
               type="button"
-              onClick={() => void handleCreate(hasPrompt)}
-              disabled={busy}
-              title="Ctrl + Enter"
+              onClick={() => void handleCreate(true)}
+              disabled={busy || !hasPrompt}
+              title={hasPrompt ? 'Ctrl + Enter' : 'Enter a topic to write an essay'}
               className="px-5 py-2 rounded-xl bg-[#7c3aed] hover:bg-[#4c1d95] text-white text-[13px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {busy ? 'Creating…' : hasPrompt ? 'Write with AI' : 'Create blank document'}
+              {busy ? 'Creating…' : 'Write essay'}
             </button>
           </div>
         </div>

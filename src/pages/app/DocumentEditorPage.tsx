@@ -922,17 +922,18 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
     let cancelled = false
     const controller = new AbortController()
     const finish = () => clearPendingGeneration(documentId)
+    const what = pending.kind === 'essay' ? 'essay' : 'literature review'
     void (async () => {
-      setRecovering('Collecting your literature review…')
+      setRecovering(`Collecting your ${what}…`)
       while (!cancelled) {
         try {
-          const out = await fetchLiteratureReviewOutcome(pending.projectId, controller.signal)
+          const out = await fetchLiteratureReviewOutcome(pending.projectId, controller.signal, pending.kind)
           if (cancelled) return
           if (out.status === 'complete') {
             finish()
             if (!editor.isEmpty) {
               const ok = await ask({
-                title: 'Your literature review is ready',
+                title: `Your ${what} is ready`,
                 message: 'It finished while you were away. Replace the current document with it?',
                 confirmLabel: 'Replace document',
                 cancelLabel: 'Keep current',
@@ -943,9 +944,9 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
             handleAiGeneratedRef.current(out.result, pending.citationStyle as EssayCitationStyle)
             break
           }
-          if (out.status === 'failed') { finish(); toast.error(`Literature review failed: ${out.message}`); break }
-          if (out.status === 'unavailable') { finish(); toast('The earlier literature review could not be recovered. Please start it again.'); break }
-          setRecovering(out.stage ? `Still generating your literature review (${out.stage})…` : 'Still generating your literature review…')
+          if (out.status === 'failed') { finish(); toast.error(`Your ${what} did not finish: ${out.message}`); break }
+          if (out.status === 'unavailable') { finish(); toast(`The earlier ${what} could not be recovered. Please start it again.`); break }
+          setRecovering(out.stage ? `Still writing your ${what} (${out.stage})…` : `Still writing your ${what}…`)
         } catch {
           if (cancelled) return // a network blip: keep trying until the marker expires
         }

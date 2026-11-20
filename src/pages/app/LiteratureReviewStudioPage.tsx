@@ -56,7 +56,7 @@ function ListRoute() {
   if (enabled === null) return <Frame><Skeleton lines={6} tone="light" /></Frame>
   if (!enabled && tab === 'reviews') return <ComingSoon tool="literature-review" />
   return (
-    <Frame>
+    <Frame wide>
       <div role="tablist" aria-label="Literature review" className="mb-5 flex gap-1 border-b border-slate-200">
         {(['reviews', 'matrices'] as const).map(t => (
           <button key={t} role="tab" type="button" aria-selected={tab === t} onClick={() => setParams(t === 'matrices' ? { tab: 'matrices' } : {})}

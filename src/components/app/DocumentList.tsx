@@ -202,8 +202,8 @@ export function DocumentList({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         {filterBar}
-        <div className="flex items-center gap-2 ml-auto">
-          <div className="relative max-w-xs w-full">
+        <div className={cn('flex flex-wrap items-center gap-2', filterBar ? 'justify-end ml-auto' : 'w-full justify-between')}>
+          <div className={cn('relative flex-1 min-w-[15rem]', filterBar ? 'max-w-md' : '')}>
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               value={search}
@@ -212,7 +212,8 @@ export function DocumentList({
               className="w-full pl-8 pr-4 py-2 text-[13px] text-slate-700 border border-slate-200 rounded-lg outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 transition placeholder-slate-500"
             />
           </div>
-          {headerRight}
+          {/* The action keeps its one-line height: without this a long label ("New literature review") wrapped to three lines when the search box took the room. */}
+          {headerRight ? <div className="shrink-0 whitespace-nowrap">{headerRight}</div> : null}
         </div>
       </div>
 
