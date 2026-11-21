@@ -169,7 +169,15 @@ export interface WriteWithAiLibraryDocument {
   content: string
 }
 
+/** Concepts and search terms the essay question check found in this exact question; search leads for the planner, never findings. */
+export interface QuestionHints {
+  concepts: string[]
+  searchKeywords: string[]
+}
+
 export interface WriteWithAiRequest {
+  /** From the question check on the new-essay card, sent only while the topic is unchanged since that check. */
+  questionHints?: QuestionHints
   approvedResearchPaperPlan?: ResearchPaperPlanSection[]
   allowAdditionalEvidenceRetrieval?: boolean
   /** Research and plan the essay, then return a section list to write one section at a time instead of drafting it. */
@@ -277,11 +285,20 @@ export interface CoWriteSectionResponse {
   needsReview?: boolean
 }
 
+/** A source that passed evidence checking during an essay run, shown while the essay is prepared ({ sources } stream frame). */
+export interface EssaySourceBrief {
+  sourceId: string
+  title: string
+  firstAuthor?: string | null
+  year?: number | null
+}
+
 export interface WriteWithAiResponse {
   pipelineMetrics?: { correlationId: string; totalMs: number; stagesMs: Record<string, number>; counts: Record<string, number>; tokenUsageComplete: boolean; modelCalls: number;
     inputTokens: number; outputTokens: number; providerRetries: number; cancelledModelCalls: number; failedModelCalls: number; modelElapsedMs: number }
 
-  completionStatus?: 'Complete' | 'Incomplete' | 'CoWriteReady'
+  /** 'Checking': an essay draft sent before claim checking finished (the { draft } stream frame); the final result replaces it. */
+  completionStatus?: 'Complete' | 'Incomplete' | 'CoWriteReady' | 'Checking'
   /** Titles of selected saved sources left out because they hold no abstract. */
   savedSourcesSkipped?: string[]
   coWrite?: CoWriteSession | null
@@ -528,6 +545,8 @@ export interface EssayClaimAuditItem {
   verificationStatus: string
   supportConfidence?: number | null
   repairStatus: string
+  /** The essay's own wording of this claim, with [S1]-style source tokens; used to highlight the sentence when the claim fails checking. */
+  originalSpan?: string | null
 }
 
 // ── Write On (continue writing) ──────────────────────────────────────────────

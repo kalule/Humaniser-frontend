@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { DocumentGenre } from '../types/library'
 import type { FormatStyle } from '../types/citation'
-import type { ThesisChapterKind } from '../types/workbench'
+import type { QuestionHints, ThesisChapterKind } from '../types/workbench'
 
 export interface PendingDraft {
   documentId:    string
@@ -9,6 +9,8 @@ export interface PendingDraft {
   documentType:  DocumentGenre
   citationStyle: FormatStyle
   thesisChapter?: ThesisChapterKind
+  /** From the question check, for exactly this topic. */
+  questionHints?: QuestionHints
 }
 
 interface DraftHandoffStore {

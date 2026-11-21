@@ -277,3 +277,12 @@
 @keyframes cc-flash { 0% { box-shadow: 0 0 0 4px rgba(124,58,237,.55); } 100% { box-shadow: 0 0 0 4px rgba(124,58,237,0); } }
 @media (prefers-reduced-motion: reduce) { .cc-flash { animation: none; outline: 2px solid #7c3aed; outline-offset: 2px; } }
 .cc-card-wrap { content-visibility: auto; contain-intrinsic-size: auto 140px; }
+
+/* Sentences whose claims failed checking (ClaimReviewHighlight). A decoration only: never saved or exported. */
+.ProseMirror .claim-review-highlight {
+  background-color: #fef3c7;
+  text-decoration: underline wavy #d97706;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: help;
+}

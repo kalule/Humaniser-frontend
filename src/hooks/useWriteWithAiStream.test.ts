@@ -101,3 +101,35 @@ describe('parseWriteWithAiSseFrames', () => {
     expect(events).toEqual([{ stage: 'drafting' }])
   })
 })
+
+describe('essay parts and coverage frames', () => {
+  const frame = (payload: unknown) => `data: ${JSON.stringify(payload)}\n\n`
+
+  it('reads a parts frame', () => {
+    const { events } = parseWriteWithAiSseFrames('', frame({ parts: [{ id: 'C1', label: 'Causes of the rise' }] }))
+    expect(events).toEqual([{ parts: [{ id: 'C1', label: 'Causes of the rise' }] }])
+  })
+
+  it('reads a coverage frame and never turns another state into supported', () => {
+    const { events } = parseWriteWithAiSseFrames('', frame({ coverage: [{ id: 'C1', state: 'supported' }, { id: 'C2', state: 'conflicting' }, { id: 'C3', state: 'partial' }] }))
+    expect(events).toEqual([{ coverage: [{ id: 'C1', state: 'supported' }, { id: 'C2', state: 'unknown' }, { id: 'C3', state: 'partial' }] }])
+  })
+
+  it('ignores an unknown frame type between known ones', () => {
+    const chunk = stageFrame('planning-question') + frame({ somethingNew: { x: 1 } }) + frame({ parts: [{ id: 'C1', label: 'A' }] }) + stageFrame('searching-sources:4')
+    const { events } = parseWriteWithAiSseFrames('', chunk)
+    expect(events).toEqual([{ stage: 'planning-question' }, { parts: [{ id: 'C1', label: 'A' }] }, { stage: 'searching-sources:4' }])
+  })
+
+  it('skips malformed parts or coverage frames and keeps the stream going', () => {
+    const chunk = frame({ parts: 'not a list' }) + frame({ coverage: null }) + 'data: {"parts":[\n\n' + frame(null) + stageFrame('drafting')
+    const { events } = parseWriteWithAiSseFrames('', chunk)
+    expect(events).toEqual([{ stage: 'drafting' }])
+  })
+
+  it('still parses a stage-only stream exactly as before', () => {
+    const chunk = stageFrame('planning-question') + stageFrame('assessing-evidence:18') + resultFrame(sampleResult)
+    const { events } = parseWriteWithAiSseFrames('', chunk)
+    expect(events).toEqual([{ stage: 'planning-question' }, { stage: 'assessing-evidence:18' }, { result: sampleResult }])
+  })
+})

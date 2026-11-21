@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { hasRealProjectTitle, shouldAutoGenerateTitles } from '../../lib/proposalTitle'
+import { citationFlagsBySection } from '../../lib/citationFlagScan'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft, ChevronRight, ChevronDown, Download,
   Sparkles, Loader2, CheckCircle2, Circle, BookOpen,
-  Lock, RefreshCw, FileText, AlertCircle, Check, Edit2,
+  Lock, RefreshCw, RotateCcw, FileText, AlertCircle, Check, Edit2,
   PenLine, ShieldCheck, X, GraduationCap,
   ClipboardList, Mic, HelpCircle, Copy, FolderOpen, Globe, Layers,
   BookMarked, Menu, AlertTriangle, History,
@@ -25,6 +27,7 @@ import { Tooltip } from '../../components/ui/Tooltip'
 import ConfirmActionModal from '../../components/app/ConfirmActionModal'
 import { DocumentSurface, type DocumentSurfaceHandle } from '../../components/research-agent/DocumentSurface'
 import { ReviewNotesPanel } from '../../components/research-agent/ReviewNotesPanel'
+import { LiteratureReviewEvidenceTablesPanel } from '../../components/research-agent/LiteratureReviewEvidenceTables'
 import { ReferencesDrawer } from '../../components/research-agent/ReferencesDrawer'
 import { SectionVersionHistoryDrawer } from '../../components/research-agent/SectionVersionHistoryDrawer'
 import { EvidenceCoverageDrawer } from '../../components/research-agent/EvidenceCoverageDrawer'
@@ -629,11 +632,13 @@ function ResearchTitleStep({ project }: { project: ResearchProject }) {
       const results = await researchApi.generateTitles(project.id, chosenTopic, project.academicLevel)
       setTitles(results)
       setGeneratedTitles(project.id, results)
-      setSelectedId(null)
-      setCustomTitle('')
-      // Clear the stale title string too — previously Regenerate All left project.title
-      // pointing at a title no card was marked as selected for (Research Agent UX audit).
-      updateProject(project.id, { title: 'Untitled Research Project' })
+      // The student's existing title is never discarded: it stays selected if a new card matches it, otherwise it
+      // stays as their own (custom) title, so the stored title and what the step shows always agree.
+      const current = useResearchStore.getState().projects.find(p => p.id === project.id)?.title ?? project.title
+      const keep = hasRealProjectTitle(current) ? current : ''
+      const match = keep ? results.find(r => r.titleText === keep) : undefined
+      setSelectedId(match?.id ?? null)
+      setCustomTitle(match ? '' : keep)
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Failed to generate titles. Please try again.'))
     } finally {
@@ -647,9 +652,10 @@ function ResearchTitleStep({ project }: { project: ResearchProject }) {
     doGenerate()
   }
 
-  // Auto-generate on first load if no titles are cached yet
+  // Auto-generate on first load only when there is nothing to show yet: no cached titles and no title of the
+  // student's own. A project that already has a title gets suggestions only when the student asks for them.
   useEffect(() => {
-    if (existingTitles.length === 0 && chosenTopic.trim()) {
+    if (shouldAutoGenerateTitles(existingTitles.length, project.title, chosenTopic)) {
       doGenerate()
     }
   }, []) // run once on mount
@@ -866,7 +872,7 @@ function ResearchTitleStep({ project }: { project: ResearchProject }) {
         {pendingRegenerateConfirm && (
           <ConfirmActionModal
             title="Regenerate all titles?"
-            message="This replaces every title below, including the one you've selected or written. It can't be undone."
+            message="This replaces every suggested title below. Your current title is kept until you choose another one."
             confirmLabel="Regenerate all"
             onClose={() => setPendingRegenerateConfirm(false)}
             onConfirm={async () => { setPendingRegenerateConfirm(false); await doGenerate() }}
@@ -2166,9 +2172,11 @@ function DownloadStep({ project }: { project: ResearchProject }) {
     }
 
     // 2. Fetch citation flags from backend for all chapter sections in parallel
+    // One request for every chapter's flags (falls back to per-chapter requests if it is unavailable).
+    const flagsBySection = await citationFlagsBySection(project.id, chapterSteps.map(s => s.id), researchApi)
     const flagResults = await Promise.all(
       chapterSteps.map(async (step) => {
-        const flags = await researchApi.getCitationFlags(project.id, step.id).catch(() => [])
+        const flags = flagsBySection.get(step.id) ?? []
         const openFlags = flags.filter(f =>
           f.status === 'Open' &&
           f.mismatchTypes.some(m => m === 'ClaimContentMismatch' || m === 'ImplausibleYear' || m === 'UnresolvedCitation'
@@ -5141,11 +5149,11 @@ function ChapterWriterView({
                     this confirmation gates on (Research Agent UX audit, 2026-10-03). */}
                 {showRegenConfirm && (
                   <ConfirmActionModal
-                    title="Regenerate this section?"
+                    title="Rewrite this section?"
                     message={`Your current draft of ${activeSection.code}: ${activeSection.title} will be replaced. A copy is saved to History, so you can restore it afterwards.${activeSection.status === 'Approved' ? ' This section is currently Approved — regenerating resets it to Draft and you\'ll need to re-approve it.' : ''}`}
-                    confirmLabel={`Regenerate (${sectionGenerationCost} credits)`}
+                    confirmLabel={`Rewrite · ${sectionGenerationCost} credits`}
                     tone="reversible"
-                    icon={<RefreshCw size={20} className="text-purple-accent" />}
+                    icon={<RotateCcw size={20} className="text-purple-accent" />}
                     onClose={() => setShowRegenConfirm(false)}
                     onConfirm={confirmRegenerate}
                   >
@@ -5165,6 +5173,12 @@ function ChapterWriterView({
                   sectionCode={activeSection.code}
                   refreshKey={`${activeSection.status}:${activeSection.citationsPendingVerification}`}
                 />
+                {activeSection.code === '2.0' && (
+                  <LiteratureReviewEvidenceTablesPanel
+                    projectId={project.id}
+                    refreshKey={`${activeSection.status}:${activeSection.citationsPendingVerification}`}
+                  />
+                )}
 
                 <DocumentSurface
                   ref={documentSurfaceRef}

@@ -29,7 +29,7 @@ import { useCitationStore } from '../../store/citationStore'
 import { useCitation } from '../../hooks/useCitation'
 import type { CitationDto, FormatStyle } from '../../types/citation'
 import { FORMAT_LABELS, FORMAT_STYLES } from '../../types/citation'
-import type { CoWriteSession, WriteWithAiResponse, WriteWithAiReference, EssayCitationStyle, WriteWithAiDocumentType, ReviewDocumentResponse, ThesisChapterKind } from '../../types/workbench'
+import type { CoWriteSession, WriteWithAiResponse, WriteWithAiReference, EssayCitationStyle, WriteWithAiDocumentType, ReviewDocumentResponse, ThesisChapterKind, QuestionHints } from '../../types/workbench'
 import { useDraftHandoffStore } from '../../store/draftHandoffStore'
 import { documentGenreToWriteWithAiDocumentType, formatStyleToEssayCitationStyle } from '../../lib/draftHandoffMapping'
 import { WriteWithAiModal } from '../../components/app/WriteWithAiModal'
@@ -60,6 +60,9 @@ import { useDocumentDownload } from '../../hooks/useDocumentDownload'
 import { buildExportReferences, type ExportFormat } from '../../lib/documentExport'
 import toast from 'react-hot-toast'
 import { useConfirm } from '../../components/ui/ConfirmDialog'
+import { isDraftPreview, checkingDraftEnded, CHECKING_BANNER, CHECK_STOPPED_MESSAGE } from '../../lib/essayDraftPreview'
+import { reviewItems, type ClaimReviewItem } from '../../lib/claimReviewHighlights'
+import { ClaimReviewHighlight, claimReviewKey } from '../../components/app/ClaimReviewHighlight'
 
 // ── Citation TipTap Node ──────────────────────────────────────────────────────
 
@@ -412,6 +415,8 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
   const coWriteHasAcceptedSection = useRef(false)
   const [coWriteOpen, setCoWriteOpen] = useState(true)
   const handleAiBusyChange = useCallback((busy: boolean, label: string) => setAiBusy({ busy, label }), [])
+  // An essay draft is shown as soon as it is written and stays read-only while its citations are checked (see handleAiGenerated).
+  const [checkingDraft, setCheckingDraft] = useState(false)
   // Generation can take minutes; closing the tab mid-run would lose the paid result.
   useEffect(() => {
     if (!aiBusy.busy) return
@@ -427,6 +432,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
   const [aiWritingFailure, setAiWritingFailure] = useState<{ documentId: string | undefined; message: string } | null>(null)
   const [draftPrefill, setDraftPrefill] = useState<{
     topic: string; documentType: WriteWithAiDocumentType; citationStyle: EssayCitationStyle; thesisChapter?: ThesisChapterKind
+    questionHints?: QuestionHints
   } | null>(null)
   const [writeOnLoading, setWriteOnLoading]     = useState(false)
   const [reviewLoading,  setReviewLoading]      = useState(false)
@@ -494,6 +500,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
       documentType: documentGenreToWriteWithAiDocumentType(pending.documentType),
       citationStyle: formatStyleToEssayCitationStyle(pending.citationStyle),
       thesisChapter: pending.thesisChapter,
+      questionHints: pending.questionHints,
     })
     setShowWriteAiModal(true)
   }, [documentId])
@@ -538,6 +545,9 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
 
   // ── Editor ────────────────────────────────────────────────────────────────────
 
+  // Sentences whose claims failed checking in the last generation (highlighted, never saved). See ClaimReviewHighlight.
+  const claimReviewRef = useRef<ClaimReviewItem[]>([])
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ link: false }),
@@ -560,6 +570,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
       // other half (turning a case-study draft's GitHub-Flavored-Markdown table text into actual
       // <table> HTML before it reaches the editor) is renderCaseStudyParagraphs, below.
       TableKit.configure({ table: { resizable: false } }),
+      ClaimReviewHighlight.configure({ items: claimReviewRef }),
     ],
     content: doc?.content
       ? (() => { try { return upgradeLegacyCitations(JSON.parse(doc.content!), citations, doc.citationStyle ?? citationStyle) } catch { return doc.content } })()
@@ -793,6 +804,10 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
     setAiWritingFailure(null)
     // Throwing keeps the dialog open with the error shown; silently returning used to close it and leave an empty document.
     if (!editor) throw new Error('The editor was not ready to receive the draft. Please try again.')
+    // A draft shown before checking finished stays read-only until the checked version arrives; any other result ends that state.
+    const preview = isDraftPreview(result)
+    setCheckingDraft(preview)
+    editor.setEditable(!preview)
 
     // Section-by-section: nothing is written yet. Keep the prepared outline, set the style and title, and open the writing panel.
     if (result.coWrite) {
@@ -841,8 +856,16 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
     // ParseCaseSections), guaranteed present by the structural validation gate before this
     // response is ever returned — no more guessing section boundaries from raw prose with a
     // marker regex here.
+    // An incomplete essay keeps its sections and headings when its text, sections and references agree; its flagged sentences are
+    // highlighted (claimReviewRef below). Only when they disagree does it fall back to plain paragraphs, as before.
+    const incompleteEssayHtml = (() => {
+      if (!result.isEssay || result.completionStatus !== 'Incomplete' || !result.sections) return null
+      try { return renderGeneratedEssay(result, resolveCitations) } catch { return null }
+    })()
     const bodyHtml = result.isEssay && result.completionStatus !== 'Incomplete'
       ? renderGeneratedEssay(result, resolveCitations)
+      : incompleteEssayHtml !== null
+        ? incompleteEssayHtml
       : result.isCaseStudy && result.caseSections
         ? Object.entries(result.caseSections)
             .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
@@ -900,13 +923,29 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
     setSyncState('unsaved')
     debouncedSave(JSON.stringify(editor.getJSON()))
     setEditorVersion(v => v + 1)
-    toast.success('Content generated')
+    // Sentences whose claims failed checking are highlighted with the reason, instead of the essay only being called incomplete.
+    claimReviewRef.current = preview ? [] : reviewItems(result)
+    editor.view.dispatch(editor.state.tr.setMeta(claimReviewKey, true))
+    if (preview) toast('Your draft is ready to read. Citations are still being checked.', { icon: '✓', duration: 6000 })
+    else if (claimReviewRef.current.length > 0)
+      toast(`${claimReviewRef.current.length} ${claimReviewRef.current.length === 1 ? 'sentence needs' : 'sentences need'} review. They are highlighted; hover for the reason.`, { icon: '!', duration: 10000 })
+    else toast.success('Content generated')
   }, [editor, docTitle, documentId, updateDocument, debouncedSave])
 
   // A literature review keeps running on the server when this page loses its stream (reload, navigation, the stream's time cap).
   // Collect the finished review for this document instead of leaving it empty. Latest handler through a ref so polling never restarts on typing.
   const handleAiGeneratedRef = useRef(handleAiGenerated)
   handleAiGeneratedRef.current = handleAiGenerated
+
+  // The run ended (failed, cancelled, or lost) while its early draft was still being checked: the checked version is not coming.
+  // Keep the draft, unlock it, and say plainly that it was not fully checked.
+  useEffect(() => {
+    // Collecting a run after a reload counts as busy too: its early draft stays locked until the checked version arrives.
+    if (!editor || !checkingDraftEnded(checkingDraft, aiBusy.busy || recovering !== null)) return
+    setCheckingDraft(false)
+    editor.setEditable(true)
+    toast(CHECK_STOPPED_MESSAGE, { icon: '!', duration: 10000 })
+  }, [editor, checkingDraft, aiBusy.busy, recovering])
 
   // A checked review opened from Literature Review Studio: applied once, through the same path as a generated review,
   // so its citations become the editor's citation nodes tied to their sources.
@@ -923,6 +962,8 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
     const controller = new AbortController()
     const finish = () => clearPendingGeneration(documentId)
     const what = pending.kind === 'essay' ? 'essay' : 'literature review'
+    // The early draft of an essay still being checked, shown once (read-only) while this page waits; the checked version replaces it without asking.
+    let shownDraft = false
     void (async () => {
       setRecovering(`Collecting your ${what}…`)
       while (!cancelled) {
@@ -931,7 +972,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
           if (cancelled) return
           if (out.status === 'complete') {
             finish()
-            if (!editor.isEmpty) {
+            if (!editor.isEmpty && !shownDraft) {
               const ok = await ask({
                 title: `Your ${what} is ready`,
                 message: 'It finished while you were away. Replace the current document with it?',
@@ -946,6 +987,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
           }
           if (out.status === 'failed') { finish(); toast.error(`Your ${what} did not finish: ${out.message}`); break }
           if (out.status === 'unavailable') { finish(); toast(`The earlier ${what} could not be recovered. Please start it again.`); break }
+          if (out.draft && !shownDraft && editor.isEmpty) { shownDraft = true; handleAiGeneratedRef.current(out.draft, pending.citationStyle as EssayCitationStyle) }
           setRecovering(out.stage ? `Still writing your ${what} (${out.stage})…` : `Still writing your ${what}…`)
         } catch {
           if (cancelled) return // a network blip: keep trying until the marker expires
@@ -1556,7 +1598,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
       {aiBusy.busy && !showWriteAiModal && (
         <div role="status" className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-purple-200 bg-white px-4 py-3 text-[13px] text-slate-700 shadow-xl">
           <span className="h-2 w-2 animate-pulse rounded-full bg-purple-accent" />
-          <span>{aiBusy.label} Keep this page open.</span>
+          <span>{checkingDraft ? CHECKING_BANNER : `${aiBusy.label} Keep this page open.`}</span>
           <button type="button" onClick={() => setShowWriteAiModal(true)} className="font-semibold text-purple-text hover:underline">Show progress</button>
         </div>
       )}
@@ -1570,6 +1612,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
         isOpen={showWriteAiModal}
         onClose={() => setShowWriteAiModal(false)}
         onGenerated={handleAiGenerated}
+        onDraftReady={handleAiGenerated}
         onFailure={message => setAiWritingFailure({ documentId, message })}
         onBusyChange={handleAiBusyChange}
         excludeDocumentId={documentId}
@@ -1577,6 +1620,7 @@ export default function DocumentEditorPage({ documentId }: { documentId: string 
         initialDocumentType={draftPrefill?.documentType}
         initialThesisChapter={draftPrefill?.thesisChapter}
         initialCitationStyle={draftPrefill?.citationStyle}
+        initialQuestionHints={draftPrefill?.questionHints}
       />
       <ReviewResultsModal
         isOpen={showReviewModal}

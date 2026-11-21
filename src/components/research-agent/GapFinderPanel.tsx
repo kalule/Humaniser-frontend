@@ -60,6 +60,13 @@ export function GapFinderPanel({ projectId, topic, onUseGap, className }: Props)
         <p role="alert" className="mt-3 text-[12px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{gf.error}</p>
       )}
 
+      {gf.pollStalled && (
+        <div role="status" className="mt-3 flex items-center justify-between gap-3 text-[12px] text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+          <span>Could not check progress. The search may still be running.</span>
+          <button type="button" onClick={gf.resumePolling} className="shrink-0 font-medium underline">Retry</button>
+        </div>
+      )}
+
       {run?.status === 'queued' && run.stage === 'scope' && <Progress run={run} onStop={gf.cancel} busy={gf.busy} />}
       {run?.status === 'awaiting_scope' && run.scope && (
         <ScopeEditor key={run.id} scope={run.scope} busy={gf.busy} onConfirm={gf.confirmScope} onCancel={gf.cancel} />

@@ -4,10 +4,12 @@ import { researchApi } from '../api/research'
 import { STEPS } from '../data/proposalOutline'
 import { countBodyWords } from '../lib/wordCount'
 import type {
+  AcademicLevel,
   AlignmentIssue,
   AlignmentValidationResult,
   CanonicalResearchPlan,
   ChecklistItem,
+  CitationStyle,
   DefencePreparation,
   EthicsChecklist,
   ProjectAnalysisPlan,
@@ -35,7 +37,8 @@ interface ResearchStore {
   projects: ResearchProject[]
 
   // ── API-backed operations ──────────────────────────────────────────────────
-  createProject: (opts: { generatorMode: GeneratorMode; documentMode: DocumentMode; title?: string }) => Promise<ResearchProject>
+  /** topic/academicLevel/citationStyle, when given, are stored by the create call itself (no follow-up PATCH needed for them). */
+  createProject: (opts: { generatorMode: GeneratorMode; documentMode: DocumentMode; title?: string; topic?: string; academicLevel?: AcademicLevel; citationStyle?: CitationStyle }) => Promise<ResearchProject>
   loadProjects:  () => Promise<void>
   loadProject:   (id: string) => Promise<void>
   syncProject:   (id: string) => Promise<void>
@@ -199,6 +202,9 @@ const invalidateEthicsChecklistIfRelevant = (
   return next
 }
 
+/** The project-list request currently in flight, shared by concurrent loadProjects() calls. */
+let projectsInFlight: Promise<void> | null = null
+
 export const useResearchStore = create<ResearchStore>()(
   persist(
     (set, get) => ({
@@ -224,8 +230,8 @@ export const useResearchStore = create<ResearchStore>()(
       ethicsChecklist: {},
 
       // ── createProject ───────────────────────────────────────────────────────
-      createProject: async ({ generatorMode, documentMode, title }) => {
-        const project = await researchApi.create({ generatorMode, documentMode })
+      createProject: async ({ generatorMode, documentMode, title, topic, academicLevel, citationStyle }) => {
+        const project = await researchApi.create({ generatorMode, documentMode, topic, academicLevel, citationStyle })
         const record  = title ? { ...project, title } : project
         set(s => ({ projects: [record, ...s.projects] }))
         return record
@@ -236,9 +242,15 @@ export const useResearchStore = create<ResearchStore>()(
       // the dashboard list, since localStorage no longer persists enough to be
       // trustworthy on its own (and won't survive clearing storage or switching
       // devices).
+      // Concurrent callers share one request: Proposal Studio's list query and the generation-recovery hook both load
+      // projects on mount, which used to send GET /projects twice.
       loadProjects: async () => {
-        const list = await researchApi.list()
-        set({ projects: list })
+        if (projectsInFlight) return projectsInFlight
+        projectsInFlight = (async () => {
+          const list = await researchApi.list()
+          set({ projects: list })
+        })()
+        try { await projectsInFlight } finally { projectsInFlight = null }
       },
 
       // ── loadProject ─────────────────────────────────────────────────────────

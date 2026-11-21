@@ -53,15 +53,19 @@ export function findAnyPendingGeneration(now = Date.now()): ({ documentId: strin
 }
 
 export type LiteratureReviewOutcome =
-  | { status: 'pending'; stage?: string }
+  /** `draft`: an essay draft written before checking finished, cached by the server so a reloaded page can show it while it waits. */
+  | { status: 'pending'; stage?: string; draft?: WriteWithAiResponse }
   | { status: 'complete'; result: WriteWithAiResponse }
   | { status: 'failed'; message: string }
   | { status: 'unavailable' }
 
 /** Turns the server's outcome payload into a result the editor can use. Pure so it is testable without a network. */
-export function interpretOutcome(body: { status?: string; stage?: string | null; frame?: string } | null): LiteratureReviewOutcome {
+export function interpretOutcome(body: { status?: string; stage?: string | null; frame?: string; draftFrame?: string | null } | null): LiteratureReviewOutcome {
   if (!body) return { status: 'unavailable' }
-  if (body.status === 'pending') return { status: 'pending', stage: body.stage ?? undefined }
+  if (body.status === 'pending') {
+    const draftEvent = body.draftFrame ? parseWriteWithAiSseFrames('', 'data: ' + body.draftFrame + '\n\n').events.find(e => 'draft' in e) : undefined
+    return { status: 'pending', stage: body.stage ?? undefined, ...(draftEvent && 'draft' in draftEvent ? { draft: draftEvent.draft } : {}) }
+  }
   if (body.status !== 'complete' || !body.frame) return { status: 'unavailable' }
   const { events } = parseWriteWithAiSseFrames('', 'data: ' + body.frame + '\n\n')
   for (const event of events) {

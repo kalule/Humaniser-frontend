@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { GenerationStatus, ResearchProject } from '../types/research'
-import { recoverProposalGeneration, shouldRecoverGeneration } from './proposalGenerationRecovery'
+import { mapWithConcurrency, recoverProposalGeneration, RECOVERY_STATUS_CONCURRENCY, shouldRecoverGeneration } from './proposalGenerationRecovery'
 
 const status = (overrides: Partial<GenerationStatus> = {}): GenerationStatus => ({
   status: 'Completed', completedCount: 20, totalCount: 20,
@@ -50,5 +50,31 @@ describe('proposal generation recovery', () => {
       project('thesis', '2026-10-02', { documentMode: 'DISSERTATION' }),
     ], getStatus, () => null)).toBeNull()
     expect(getStatus).not.toHaveBeenCalled()
+  })
+  it('fetches statuses concurrently but never more than the limit at once', async () => {
+    let inFlight = 0, peak = 0
+    const getStatus = vi.fn(async () => {
+      inFlight++; peak = Math.max(peak, inFlight)
+      await new Promise(r => setTimeout(r, 5))
+      inFlight--
+      return status()
+    })
+    const projects = Array.from({ length: 10 }, (_, i) => project(`p${i}`, `2026-10-${String(i + 1).padStart(2, '0')}`))
+    await recoverProposalGeneration(projects, getStatus, () => null)
+    expect(getStatus).toHaveBeenCalledTimes(10)
+    expect(peak).toBeGreaterThan(1)
+    expect(peak).toBeLessThanOrEqual(RECOVERY_STATUS_CONCURRENCY)
+  })
+  it('still prefers the newest recoverable project when statuses arrive out of order', async () => {
+    const getStatus = vi.fn(async (id: string) => {
+      await new Promise(r => setTimeout(r, id === 'newest' ? 20 : 1)) // the newest answers last
+      return status({ status: 'NeedsReview' })
+    })
+    const result = await recoverProposalGeneration([project('old', '2026-10-01'), project('newest', '2026-10-03')], getStatus, () => null)
+    expect(result?.project.id).toBe('newest')
+  })
+  it('keeps results in input order', async () => {
+    const out = await mapWithConcurrency([30, 1, 10], 2, async ms => { await new Promise(r => setTimeout(r, ms)); return ms })
+    expect(out).toEqual([30, 1, 10])
   })
 })

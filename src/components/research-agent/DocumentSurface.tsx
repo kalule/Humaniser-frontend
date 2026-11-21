@@ -15,10 +15,11 @@ import {
   List, ListOrdered, Quote,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Undo2, Redo2,
-  Sparkles, RefreshCw, ThumbsUp, Loader2, Check,
+  PenLine, RotateCcw, ThumbsUp, Loader2, Check,
   CheckCircle2, ShieldCheck, Upload, Globe, AlertTriangle, BookMarked, MoreHorizontal,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { CREDIT_COSTS } from '../../config/creditCosts'
 import { countBodyWords } from '../../lib/wordCount'
 import type { SectionStatus, CitationFixAction, CitationStyle, CitationFlag, FetchedLiterature } from '../../types/research'
 import type { ParsedReference } from '../../lib/citationFormat'
@@ -689,7 +690,10 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h3 className="text-[15px] font-bold text-slate-800">{chapterLabel || 'Section'}</h3>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{chapterLabel || 'Section'}</p>
+                <h3 className="text-[15px] font-bold text-slate-800">Write {sectionCode} {sectionTitle}</h3>
+              </div>
               <button
                 onClick={() => setShowWCModal(false)}
                 className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
@@ -781,7 +785,9 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
                     : 'bg-slate-300 shadow-slate-200 cursor-not-allowed',
                 )}
               >
-                <Sparkles size={14} /> Start Generation
+                <PenLine size={14} aria-hidden />
+                {isValidWC ? `Write ${targetWordCount} words` : 'Write section'}
+                <span className="font-normal text-white/75">· {CREDIT_COSTS.proposalSectionGeneration} credits</span>
               </button>
             </div>
           </div>
@@ -821,7 +827,7 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
                     onMouseDown={e => { e.preventDefault(); onRegenerate() }}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-[12px] font-medium hover:bg-slate-50 transition-colors"
                   >
-                    <RefreshCw size={12} /> Regenerate
+                    <RotateCcw size={12} aria-hidden /> Rewrite
                   </button>
                   {/* A draft shows a real primary action; an approved section (with nothing
                       still open) shows a quiet status chip instead of a disabled button that
@@ -856,7 +862,8 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
                   }}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-semibold transition-colors"
                 >
-                  <Sparkles size={13} /> Generate Entire Section
+                  <PenLine size={13} aria-hidden /> Write section
+                  <span className="font-normal text-white/75">· {CREDIT_COSTS.proposalSectionGeneration} credits</span>
                 </button>
               )}
             </div>

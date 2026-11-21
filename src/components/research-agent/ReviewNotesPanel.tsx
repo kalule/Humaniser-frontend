@@ -8,6 +8,7 @@ const NOTE_TITLES: Record<string, string> = {
   ClaimStrengthExceedsSourceDesign: 'Wording stronger than the source supports',
   OverstatedGapClaim: 'Gap stated too strongly',
   GapLanguageInBackground: 'Gap stated in the Background',
+  BackgroundRuleViolation: 'Background rule not met',
   LiteratureReviewShape: 'Reads like a list of studies',
   PreSubmissionChecks: 'Check before you submit',
   ImplausibleReferenceMetadata: 'Reference details look wrong',

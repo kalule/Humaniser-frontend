@@ -11,14 +11,16 @@ import { analystApi } from '../../api/analyst'
 import { suggestedCitationStyle } from '../../config/disciplineCitationStyle'
 import { GenerationAlreadyRunningError, GenerationInterruptedError, useWriteWithAiStream } from '../../hooks/useWriteWithAiStream'
 import { cancelEssayRun, clearPendingGeneration, findAnyPendingGeneration, loadPendingGeneration, savePendingGeneration } from '../../lib/literatureReviewRecovery'
-import type { CaseStudyPlan, EssayAcademicLevel, EssayCitationStyle, EssayDiscipline, EssayPlan, EssaySubType, LiteratureReviewArchetype, ResearchPaperDisciplineProfile, WriteWithAiDocumentType, WriteWithAiRequest, WriteWithAiResponse, WriteWithAiSourceMode, ThesisChapterKind } from '../../types/workbench'
+import type { CaseStudyPlan, EssaySourceBrief, QuestionHints, EssayAcademicLevel, EssayCitationStyle, EssayDiscipline, EssayPlan, EssaySubType, LiteratureReviewArchetype, ResearchPaperDisciplineProfile, WriteWithAiDocumentType, WriteWithAiRequest, WriteWithAiResponse, WriteWithAiSourceMode, ThesisChapterKind } from '../../types/workbench'
 import type { AnalystJobSummary } from '../../types/analyst'
 import toast from 'react-hot-toast'
 import { SavedSourcePicker } from '../webLibrary/SavedSourcePicker'
 import { MAX_SAVED_SOURCES_PER_REQUEST } from '../../lib/savedSources'
 import { RESEARCH_STAGE_OPTIONS, toResearchState, type ResearchStageChoice } from './researchStage'
-import { essayStageLabel, essayStageDetail, essayPhase, ESSAY_PHASES } from '../../lib/essayProgress'
+import { essayStageLabel, essayStageDetail, essayPhase, nextEssayPhase, ESSAY_PHASES, type EssayCoverageState, type EssayPart } from '../../lib/essayProgress'
+import { EssayProgressPanel } from './EssayProgressPanel'
 import { assertWritableDraft } from '../../lib/writeWithAiOutcome'
+import { inferEssaySubType } from '../../lib/essayTypeInference'
 
 const STAGE_LABEL: Record<string, string> = {
   drafting: 'Drafting your essay…',
@@ -37,6 +39,8 @@ interface WriteWithAiModalProps {
   isOpen:            boolean
   onClose:           () => void
   onGenerated:       (result: WriteWithAiResponse, citationStyle: EssayCitationStyle) => void
+  /** An essay draft written before checking finished. The dialog hides; onGenerated still follows with the final, checked version. */
+  onDraftReady?:     (draft: WriteWithAiResponse, citationStyle: EssayCitationStyle) => void
   onFailure?:       (message: string) => void
   /** Reports whether a generation is in flight and its current stage label, so the page can show progress while this modal is hidden. */
   onBusyChange?:     (busy: boolean, label: string) => void
@@ -47,6 +51,8 @@ interface WriteWithAiModalProps {
   // already typed in the card. Ignored (and only ever read once, on the isOpen:false→true edge)
   // for every other way this modal opens.
   initialTopic?:         string
+  /** From the question check on the new-essay card; sent with the request only while the topic is still exactly initialTopic. */
+  initialQuestionHints?: QuestionHints
   initialDocumentType?:  WriteWithAiDocumentType
   initialThesisChapter?: ThesisChapterKind
   initialCitationStyle?: EssayCitationStyle
@@ -120,8 +126,8 @@ const STEP1_SUBTITLE: Record<WriteWithAiDocumentType, string> = {
 }
 
 export function WriteWithAiModal({
-  isOpen, onClose, onGenerated, onFailure, onBusyChange, excludeDocumentId,
-  initialTopic, initialDocumentType, initialThesisChapter, initialCitationStyle,
+  isOpen, onClose, onGenerated, onDraftReady, onFailure, onBusyChange, excludeDocumentId,
+  initialTopic, initialDocumentType, initialThesisChapter, initialCitationStyle, initialQuestionHints,
 }: WriteWithAiModalProps) {
   const [wizardStep, setWizardStep] = useState<1 | 2>(1)
   const [topic, setTopic] = useState('')
@@ -136,7 +142,18 @@ export function WriteWithAiModal({
   const [citationStyle, setCitationStyle] = useState<EssayCitationStyle>('Harvard')
   // A subject suggests its usual citation style (Vancouver for medicine, IEEE for engineering…) until the user picks one themselves.
   const styleChosenByUser = useRef(false)
+  // The essay type follows the question's command word ("to what extent" -> argumentative) until the student picks one.
+  const subTypeChosenByUser = useRef(false)
+  const [subTypeCue, setSubTypeCue] = useState<string | null>(null)
   const [plan, setPlan] = useState<EssayPlan | null>(null)
+  useEffect(() => {
+    if (!topic.trim()) { subTypeChosenByUser.current = false; setSubTypeCue(null); return }
+    if (subTypeChosenByUser.current) return
+    const inferred = inferEssaySubType(topic)
+    setSubTypeCue(inferred?.cue ?? null)
+    if (inferred && inferred.type !== essaySubType) { setEssaySubType(inferred.type); setPlan(null) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topic])
   // The backend plans from the original question. Request a separate preview only when the user opts in.
   const [reviewOutline, setReviewOutline] = useState(false)
   const [assignmentText, setAssignmentText] = useState('')
@@ -169,6 +186,18 @@ export function WriteWithAiModal({
   // A literature review is already being written (HTTP 409): not a failure. Names the document it will appear in when this browser knows.
   const [alreadyRunning, setAlreadyRunning] = useState<{ message: string; documentId: string | null } | null>(null)
   const { stage, generate } = useWriteWithAiStream()
+  // Sources that passed evidence checking during this run, shown under the progress while the essay is prepared.
+  const [foundSources, setFoundSources] = useState<EssaySourceBrief[]>([])
+  // The parts of the question and whether each has evidence, when the server sends them ({ parts } and { coverage } frames). An older
+  // server or a recovered run sends neither, and the progress screen simply leaves the checklist out.
+  const [essayParts, setEssayParts] = useState<EssayPart[]>([])
+  const [partCoverage, setPartCoverage] = useState<Record<string, EssayCoverageState>>({})
+  // The furthest essay phase reached in this run. Progress never moves back, whatever stage name arrives next.
+  const [shownPhase, setShownPhase] = useState(0)
+  useEffect(() => {
+    if (!loading) { setShownPhase(0); return }
+    setShownPhase(previous => nextEssayPhase(previous, stage))
+  }, [loading, stage])
   const abortControllerRef = useRef<AbortController | null>(null)
   const cancelledRef = useRef(false)
 
@@ -252,7 +281,7 @@ export function WriteWithAiModal({
     : planningEssay
       ? 'Planning your essay…'
       : isEssay && essayPhase(stage) !== null
-        ? `${ESSAY_PHASES[essayPhase(stage)!]}…`
+        ? `${ESSAY_PHASES[Math.max(shownPhase, essayPhase(stage)!)]}…`
         : (stage && (essayStageLabel(stage) ?? STAGE_LABEL[stage])) ?? 'Generating your draft…'
 
   const step2Subtitle = isInPlanReview
@@ -310,6 +339,9 @@ export function WriteWithAiModal({
     setGenerationError(null)
     setAlreadyRunning(null)
     cancelledRef.current = false
+    setFoundSources([])
+    setEssayParts([])
+    setPartCoverage({})
     setLoading(true)
     const generationStarted = performance.now()
     try {
@@ -362,6 +394,7 @@ export function WriteWithAiModal({
         } : undefined,
         libraryDocuments: showDocPicker ? selectedLibraryDocuments() : undefined,
         savedSourceIds: usesSavedSources && savedSourceIds.length ? savedSourceIds : undefined,
+        questionHints: isEssay && initialQuestionHints && topic.trim() === initialTopic?.trim() ? initialQuestionHints : undefined,
       }
       if (requestDocumentType === 'ResearchPaper') {
         const signature = JSON.stringify(payload)
@@ -382,7 +415,18 @@ export function WriteWithAiModal({
           savePendingGeneration(excludeDocumentId, { projectId, startedAt: Date.now(), citationStyle })
         else if (excludeDocumentId && requestDocumentType === 'Essay')
           savePendingGeneration(excludeDocumentId, { projectId, startedAt: Date.now(), citationStyle, kind: 'essay' })
-      }, excludeDocumentId)
+      }, excludeDocumentId, draft => {
+        // The essay is written; claim checking continues on the server. Show it in the editor now (read-only until the
+        // checked version replaces it) and hide this dialog: the page's banner carries the remaining progress.
+        if (cancelledRef.current || !onDraftReady) return
+        onDraftReady(draft, citationStyle)
+        onClose()
+      }, sources => { if (!cancelledRef.current) setFoundSources(sources) }, detail => {
+        if (cancelledRef.current) return
+        // Each coverage frame lists every part, so it replaces the previous states.
+        if ('parts' in detail) setEssayParts(detail.parts)
+        else setPartCoverage(Object.fromEntries(detail.coverage.map(row => [row.id, row.state])))
+      })
       abortControllerRef.current = null
       if (cancelledRef.current) return
       // Evidence diagnostics stay internal. Deliver any available draft without a review gate.
@@ -477,13 +521,16 @@ export function WriteWithAiModal({
             <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Essay type</label>
             <select
               value={essaySubType}
-              onChange={e => { setEssaySubType(e.target.value as EssaySubType); setPlan(null) }}
+              onChange={e => { subTypeChosenByUser.current = true; setSubTypeCue(null); setEssaySubType(e.target.value as EssaySubType); setPlan(null) }}
               className="w-full rounded-lg border border-slate-200 p-2.5 text-[13px] text-slate-700 bg-white"
             >
               {(['Argumentative','Expository','CompareAndContrast','CriticalEvaluation','Discussion','Reflective','LiteratureBased'] as EssaySubType[]).map(type => (
                 <option key={type} value={type}>{type.replace(/([A-Z])/g, ' $1').trim().replace('Expository', 'Analytical')}</option>
               ))}
             </select>
+            {subTypeCue && (
+              <p className="mt-1.5 text-[12px] text-slate-400">Chosen from &ldquo;{subTypeCue}&rdquo; in your question. You can change it.</p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1021,45 +1068,20 @@ export function WriteWithAiModal({
   const elapsedText = `${Math.floor(elapsedSec / 60)}:${String(elapsedSec % 60).padStart(2, '0')}`
 
   // Essays show three plain phases instead of the five technical stages; the stage's own wording (counts of searches and
-  // sources) stays as a detail line under the current phase.
-  const renderEssayProgress = () => {
-    const phase = essayPhase(stage) ?? 0
-    const detail = essayStageDetail(stage)
-    return (
-      <div className="px-6 py-6 space-y-5">
-        {topic.trim() && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Writing</p>
-            <p className="mt-0.5 line-clamp-2 text-[13px] text-slate-700">{topic.trim()}</p>
-            <p className="mt-1 text-[11px] text-slate-500">Essay · {academicLevel} · {wordCount.toLocaleString()} words</p>
-          </div>
-        )}
-        <div className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-4" role="status" aria-live="polite">
-          <ol className="space-y-3">
-            {ESSAY_PHASES.map((label, i) => {
-              const done = i < phase
-              const current = i === phase
-              return (
-                <li key={label} aria-current={current ? 'step' : undefined}>
-                  <div className={cn('flex items-center gap-2 text-[14px]', current ? 'font-semibold text-purple-text' : done ? 'text-slate-600' : 'text-slate-400')}>
-                    {current ? <Loader2 size={15} className="animate-spin shrink-0" />
-                      : done ? <Check size={15} className="shrink-0 text-emerald-600" />
-                      : <span className="w-[15px] h-[15px] shrink-0 rounded-full border border-slate-300" aria-hidden />}
-                    <span>{label}</span>
-                    {current && <span className="ml-auto shrink-0 tabular-nums text-[12px] font-normal text-slate-500">{elapsedText}</span>}
-                  </div>
-                  {current && detail && <p className="mt-1 ml-[23px] text-[12px] text-slate-500">{detail}</p>}
-                </li>
-              )
-            })}
-          </ol>
-        </div>
-        <p className="text-[12px] text-slate-500 text-center">
-          This usually takes a few minutes. Every citation is checked against its source before the draft is shown. You can close this window; writing continues in the editor.
-        </p>
-      </div>
-    )
-  }
+  // sources) is the status line under the current phase, and the parts of the question sit under the sources phase.
+  const renderEssayProgress = () => (
+    <EssayProgressPanel
+      topic={topic}
+      academicLevel={academicLevel}
+      wordCount={wordCount}
+      phase={Math.max(shownPhase, essayPhase(stage) ?? 0)}
+      detail={essayStageDetail(stage) ?? (stage ? STAGE_LABEL[stage.split(':')[0]] ?? null : null)}
+      elapsedText={elapsedText}
+      parts={essayParts}
+      coverage={partCoverage}
+      sources={foundSources}
+    />
+  )
 
   // ─── CTA label ────────────────────────────────────────────────────────────
   const ctaLabel = loading
@@ -1183,11 +1205,11 @@ export function WriteWithAiModal({
               {loading ? <X size={14} /> : <ArrowLeft size={14} />}
               {loading ? 'Cancel generation' : isInPlanReview ? 'Change options' : 'Back'}
             </button>
-            {loading && (
+            {loading ? (
               <span className="hidden sm:inline-block text-[11px] text-slate-400 max-w-[220px] text-center leading-tight">
                 Elapsed: {elapsedText}
               </span>
-            )}
+            ) : null}
             <button
               type="button"
               onClick={handleSubmit}

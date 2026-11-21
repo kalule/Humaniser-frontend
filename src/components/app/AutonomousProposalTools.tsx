@@ -110,6 +110,8 @@ export function AutonomousProposalModal({ onClose, onCreate, initialTitle = '', 
   const [loading,          setLoading]          = useState(false)
   const [methodologyType, setMethodologyType] = useState<ProposalConfig['methodologyType'] | ''>('')
   const [dataCollectionApproach, setDataCollectionApproach] = useState('')
+  // Topic and level already entered in "Start your proposal" are shown as a confirmed summary, not asked for again.
+  const [editingBasics,    setEditingBasics]    = useState(initialTitle.trim().length === 0)
 
   const tabIndex   = MODAL_TABS.findIndex(t => t.key === tab)
   const isLastTab  = tabIndex === MODAL_TABS.length - 1
@@ -188,7 +190,35 @@ export function AutonomousProposalModal({ onClose, onCreate, initialTitle = '', 
 
         {/* Tab content */}
         <div className="min-h-[240px]">
-          {tab === 'basic' && (
+          {tab === 'basic' && !editingBasics && (
+            <div className="flex flex-col gap-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3" data-testid="carried-over-basics">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Topic</p>
+                    <p className="text-[14px] text-slate-800 break-words">{title}</p>
+                    <p className="text-[12px] text-slate-600 mt-1">
+                      Level: {LEVEL_OPTIONS.find(o => o.value === academicLevel)?.label ?? academicLevel}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => setEditingBasics(true)} className="shrink-0 text-[12px] font-medium text-[#7c3aed] hover:underline">
+                    Change
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-[12px] font-semibold text-slate-700 mb-1.5 block">Topic / Keywords (Optional)</label>
+                <input
+                  value={fieldInterest}
+                  onChange={e => setFieldInterest(e.target.value)}
+                  placeholder="e.g., healthcare, artificial intelligence, rural medicine"
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-[14px] text-slate-800 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition placeholder-slate-400"
+                />
+              </div>
+            </div>
+          )}
+
+          {tab === 'basic' && editingBasics && (
             <div className="flex flex-col gap-4">
               <div>
                 <label className="text-[12px] font-semibold text-slate-700 mb-1.5 block">Research Title *</label>
@@ -850,10 +880,15 @@ export function useAutonomousProposalFlow() {
       return
     }
 
+    // Topic, level and citation style go in the create call itself (the server stores them; it accepts a topic of
+    // up to 500 characters). The fields CreateProjectRequest does not take are still synced below.
     const project = await researchStore.createProject({
       generatorMode: PROPOSAL_GENERATOR_MODE,
       documentMode:  PROPOSAL_DOCUMENT_MODE,
       title:         config.title,
+      ...(config.title.length <= 500
+        ? { topic: config.title, academicLevel: config.academicLevel, citationStyle: config.citationStyle }
+        : {}),
     })
     researchStore.updateProject(project.id, {
       fieldInterest: config.fieldInterest,

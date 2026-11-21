@@ -133,11 +133,25 @@ export interface SyncProjectPayload {
   selectedLibraryDocumentIds?: string[]
 }
 
+/** Advice on a research idea before a proposal exists. "unavailable" when the check is off, over its daily limit or failed. */
+export type ProposalIdeaVerdict = 'ready' | 'too_broad' | 'too_narrow' | 'unclear' | 'not_researchable' | 'unavailable'
+export interface ProposalIdeaCheckResult {
+  available: boolean
+  verdict: ProposalIdeaVerdict
+  reasons: string[]
+  rewrites: string[]
+  evidenceHint: { level: 'few' | 'some' | 'many'; count: number } | null
+}
+
 // ── API calls ─────────────────────────────────────────────────────────────────
 
 export const researchApi = {
   create: async (payload: CreateProjectPayload): Promise<ResearchProject> =>
     unwrap(await client.post<Wrap<ResearchProject>>('/api/v1/research/projects', payload)),
+
+  /** Saves nothing and never gates creation. Pass a signal so a newer check can cancel this one. */
+  checkProposalIdea: async (topic: string, academicLevel: AcademicLevel, signal?: AbortSignal): Promise<ProposalIdeaCheckResult> =>
+    unwrap(await client.post<Wrap<ProposalIdeaCheckResult>>('/api/v1/research/proposal-idea/check', { topic, academicLevel }, { signal })),
 
   list: async (): Promise<ResearchProject[]> =>
     unwrap(await client.get<Wrap<ResearchProject[]>>('/api/v1/research/projects')),

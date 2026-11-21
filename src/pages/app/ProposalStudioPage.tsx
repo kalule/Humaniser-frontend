@@ -31,7 +31,7 @@ export default function ProposalStudioPage() {
   const [quick, setQuick] = useState<{ topic: string; level: AcademicLevel } | null>(null)
   const [filter, setFilter] = useState<ProposalFilter>('all'), [search, setSearch] = useState(''), [limit, setLimit] = useState(25)
   const [deleteBusy, setDeleteBusy] = useState(false), [deleteError, setDeleteError] = useState(''), [sort, setSort] = useState('updated'), [creating, setCreating] = useState(false), [deleting, setDeleting] = useState<{ id: string; title: string; remove: () => Promise<void> } | null>(null)
-  const projects = useQuery({ queryKey: ['proposal-projects', userId], queryFn: () => researchApi.list(), enabled: !!userId, retry: false, refetchOnWindowFocus: true, refetchInterval: q => q.state.data?.some(p => ['Starting', 'Generating'].includes(p.generation?.status ?? '')) ? 10000 : false })
+  const projects = useQuery({ queryKey: ['proposal-projects', userId], queryFn: async () => { await research.loadProjects(); return useResearchStore.getState().projects }, enabled: !!userId, retry: false, refetchOnWindowFocus: true, refetchInterval: q => q.state.data?.some(p => ['Starting', 'Generating'].includes(p.generation?.status ?? '')) ? 10000 : false })
   const journeys = useQuery({ queryKey: ['proposal-journeys', userId], queryFn: ({ signal }) => proposalJourneyApi.list(signal), enabled: !!userId, retry: false, refetchOnWindowFocus: true, refetchInterval: q => q.state.data?.some(v => ['Designing', 'CheckingEvidence', 'Writing'].includes(v.stage)) ? 10000 : false })
   useEffect(() => { void studio.loadDocuments().catch(() => {}) }, [userId])
   useEffect(() => { setLimit(25) }, [filter, search])
@@ -46,6 +46,7 @@ export default function ProposalStudioPage() {
         // New proposals go straight to the writing workspace. Only proposals already started with the
         // retired design-first flow still need the workflow page to finish their accepted design.
         open: () => navigate(summary?.designRequired && p.documentMode !== 'DISSERTATION' ? `/app/research-agent/${p.id}/proposal-workflow` : `/app/research-agent/${p.id}`),
+        viewDocument: () => navigate(`/app/research-agent/${p.id}/document`),
         remove: () => research.deleteProject(p.id),
       }
     })
@@ -56,7 +57,7 @@ export default function ProposalStudioPage() {
         let editorId = doc.linkedEditorId
         if (!editorId) { const d = await library.createDocument({ title: doc.title, type: 'doc' }); editorId = d.id; await studio.updateDocument(doc.id, { linkedEditorId: editorId }) }
         navigate(`/app/editor/${editorId}`)
-      }, remove: () => studio.deleteDocument(doc.id),
+      }, viewDocument: undefined as (() => void) | undefined, remove: () => studio.deleteDocument(doc.id),
     }))
     return [...proposals, ...documents]
   }, [projects.data, journeys.data, studio.documents])
@@ -67,7 +68,7 @@ export default function ProposalStudioPage() {
       statusBadge: summary ? { label: proposalStageLabel(summary.stage), className: ['NeedsInput', 'NeedsAttention'].includes(summary.stage) ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-700' } : undefined,
       onOpen: () => { void entry.open() },
       inlineActions: [{ key: 'continue', icon: <ArrowRight size={14} />, label: proposalNextLabel(summary?.nextAction), showLabel: true, onClick: () => { void entry.open() } }],
-      overflowActions: [{ key: 'open', icon: <FileText size={14} />, label: 'Open', destructive: false, onClick: () => { void entry.open() } }, { key: 'delete', icon: <Trash2 size={14} />, label: 'Delete', destructive: true, onClick: () => { setDeleteError(''); setDeleting(entry) } }],
+      overflowActions: [{ key: 'open', icon: <FileText size={14} />, label: 'Open', destructive: false, onClick: () => { void entry.open() } }, ...(entry.viewDocument ? [{ key: 'view-document', icon: <FileText size={14} />, label: 'View document', destructive: false, onClick: () => { entry.viewDocument?.() } }] : []), { key: 'delete', icon: <Trash2 size={14} />, label: 'Delete', destructive: true, onClick: () => { setDeleteError(''); setDeleting(entry) } }],
     }
   })
   const create = async (setup: ProposalSetup) => {

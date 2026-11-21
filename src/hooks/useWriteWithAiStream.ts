@@ -2,7 +2,8 @@ import { authorshipHeader } from '../lib/authorshipDocument'
 import { useCallback, useState } from 'react'
 import { fetchWithAuth } from '../lib/fetchWithAuth'
 import { generateResearchPaper } from '../lib/researchPaperRuns'
-import type { WriteWithAiRequest, WriteWithAiResponse } from '../types/workbench'
+import type { EssaySourceBrief, WriteWithAiRequest, WriteWithAiResponse } from '../types/workbench'
+import { parseEssayCoverage, parseEssayParts, type EssayPart, type EssayPartCoverage } from '../lib/essayProgress'
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 
@@ -12,7 +13,18 @@ export type WriteWithAiSseEvent =
   | { stage: string }
   | { projectId: string }
   | { result: WriteWithAiResponse }
+  /** An essay draft written before claim checking finished; the { result } frame that follows replaces it. */
+  | { draft: WriteWithAiResponse }
+  /** Sources that passed evidence checking so far (the whole list each time). */
+  | { sources: EssaySourceBrief[] }
+  /** The parts of the essay question, sent once after it is planned. */
+  | { parts: EssayPart[] }
+  /** Which parts have evidence, after each assessment (every part each time). */
+  | { coverage: EssayPartCoverage[] }
   | { error: string; recoverable?: boolean }
+
+/** The essay detail frames the progress screen shows. Older servers never send them; nothing depends on them. */
+export type EssayDetailEvent = { parts: EssayPart[] } | { coverage: EssayPartCoverage[] }
 
 /** The server refused a new generation because one is already running for this account (HTTP 409). */
 export class GenerationAlreadyRunningError extends Error {
@@ -48,11 +60,17 @@ export function parseWriteWithAiSseFrames(
     if (!dataLine) continue
     try {
       const parsed = JSON.parse(dataLine.slice('data: '.length)) as
-        Partial<{ stage: string; projectId: string; result: WriteWithAiResponse; error: string; recoverable: boolean }>
+        Partial<{ stage: string; projectId: string; result: WriteWithAiResponse; draft: WriteWithAiResponse; sources: EssaySourceBrief[]; parts: unknown; coverage: unknown; error: string; recoverable: boolean }> | null
+      if (!parsed || typeof parsed !== 'object') continue
       if (typeof parsed.projectId === 'string') events.push({ projectId: parsed.projectId })
       else if (typeof parsed.stage === 'string') events.push({ stage: parsed.stage })
       else if (parsed.result) events.push({ result: parsed.result })
+      else if (parsed.draft) events.push({ draft: parsed.draft })
+      else if (Array.isArray(parsed.sources)) events.push({ sources: parsed.sources })
+      else if ('parts' in parsed) { const parts = parseEssayParts(parsed.parts); if (parts) events.push({ parts }) }
+      else if ('coverage' in parsed) { const coverage = parseEssayCoverage(parsed.coverage); if (coverage) events.push({ coverage }) }
       else if (typeof parsed.error === 'string') events.push(parsed.recoverable === true ? { error: parsed.error, recoverable: true } : { error: parsed.error })
+      // Any other frame type is ignored, so a newer server can add frames without breaking this client.
     } catch {
       // Malformed frame — skip it; the caller surfaces failure via the connection ending
       // without a result/error event.
@@ -64,7 +82,11 @@ export function parseWriteWithAiSseFrames(
 interface UseWriteWithAiStreamResult {
   stage: WriteWithAiStage
   /** `onStarted` receives the project id of a literature-review generation as soon as the server has created it. */
-  generate: (request: WriteWithAiRequest, signal?: AbortSignal, onStarted?: (projectId: string) => void, documentId?: string) => Promise<WriteWithAiResponse>
+  /** `onDraft` receives an essay draft as soon as it is written, before checking finishes; the promise still resolves with the final result. */
+  /** `onEssayDetail` receives the parts of an essay question and, later, which of them have evidence. */
+  generate: (request: WriteWithAiRequest, signal?: AbortSignal, onStarted?: (projectId: string) => void, documentId?: string,
+    onDraft?: (draft: WriteWithAiResponse) => void, onSources?: (sources: EssaySourceBrief[]) => void,
+    onEssayDetail?: (event: EssayDetailEvent) => void) => Promise<WriteWithAiResponse>
 }
 
 /**
@@ -80,7 +102,9 @@ interface UseWriteWithAiStreamResult {
 export function useWriteWithAiStream(): UseWriteWithAiStreamResult {
   const [stage, setStage] = useState<WriteWithAiStage>(null)
 
-  const generate = useCallback(async (request: WriteWithAiRequest, signal?: AbortSignal, onStarted?: (projectId: string) => void, documentId?: string): Promise<WriteWithAiResponse> => {
+  const generate = useCallback(async (request: WriteWithAiRequest, signal?: AbortSignal, onStarted?: (projectId: string) => void, documentId?: string,
+    onDraft?: (draft: WriteWithAiResponse) => void, onSources?: (sources: EssaySourceBrief[]) => void,
+    onEssayDetail?: (event: EssayDetailEvent) => void): Promise<WriteWithAiResponse> => {
     setStage(null)
     try {
       if (request.documentType === 'ResearchPaper') {
@@ -132,6 +156,9 @@ export function useWriteWithAiStream(): UseWriteWithAiStreamResult {
           if ('projectId' in event) onStarted?.(event.projectId)
           else if ('stage' in event) setStage(event.stage as WriteWithAiStage)
           else if ('result' in event) return event.result
+          else if ('draft' in event) { try { onDraft?.(event.draft) } catch { /* showing the draft early is a convenience */ } }
+          else if ('sources' in event) onSources?.(event.sources)
+          else if ('parts' in event || 'coverage' in event) { try { onEssayDetail?.(event) } catch { /* progress detail is cosmetic */ } }
           else if ('error' in event) throw event.recoverable ? new GenerationInterruptedError(event.error) : new Error(event.error)
         }
         return undefined
