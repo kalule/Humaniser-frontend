@@ -38,7 +38,22 @@ export interface DraftContext {
    * means "not known here"; the server still checks it.
    */
   designReady?:          boolean
+  /**
+   * "Draft ahead, review later" (off by default): Chapters 1 to DRAFT_AHEAD_LAST_CHAPTER may be
+   * drafted without waiting for earlier chapters' approval. Later chapters still need every
+   * earlier chapter approved, and the locks (Abstract, Results/Discussion) never relax.
+   */
+  draftAhead?:           boolean
 }
+
+/** Last chapter "draft ahead" covers. Chapter 4 onward always waits for approval. */
+export const DRAFT_AHEAD_LAST_CHAPTER = 3
+
+/** Where the setting is kept: the project's synced sectionContent, like targetSectionWordCount. */
+export const DRAFT_AHEAD_KEY = 'draftAhead'
+
+export const isDraftAheadOn = (sectionContent: Record<string, string> | undefined) =>
+  sectionContent?.[DRAFT_AHEAD_KEY] === 'on'
 
 /** Same list as ResearchService.MethodologySensitiveSectionCodes on the server. */
 export const METHODOLOGY_SENSITIVE_SECTIONS: ReadonlySet<string> =
@@ -77,10 +92,11 @@ const isApplicable = (s: ProjectSection) => s.isApplicableForMethodology !== fal
  * later chapter is drafted. Within a chapter, sections can be drafted in any order, and each one
  * still stops at needs_review. Returns the earlier sections still waiting.
  */
-export function unapprovedPrerequisites(section: ProjectSection, sections: readonly ProjectSection[]): ProjectSection[] {
+export function unapprovedPrerequisites(section: ProjectSection, sections: readonly ProjectSection[], draftAhead = false): ProjectSection[] {
   if (THESIS_ONLY_SECTIONS.has(section.code)) return []
   const chapter = chapterNumber(section)
   if (chapter === null) return []
+  if (draftAhead && chapter <= DRAFT_AHEAD_LAST_CHAPTER) return []
   return sections
     .filter(s => s.code !== section.code
       && !THESIS_ONLY_SECTIONS.has(s.code)
@@ -135,7 +151,7 @@ export function canDraft(section: ProjectSection, ctx: DraftContext): DraftDecis
   }
   const lock = lockReason(section, ctx)
   if (lock) return blocked('locked', lock)
-  const waiting = unapprovedPrerequisites(section, ctx.sections)
+  const waiting = unapprovedPrerequisites(section, ctx.sections, ctx.draftAhead)
   if (waiting.length > 0) return blocked('prerequisite', describeWaiting(waiting))
   if (METHODOLOGY_SENSITIVE_SECTIONS.has(section.code) && !ctx.methodologyConfirmed) {
     return blocked('methodology', 'Confirm your methodology in Setup before drafting this section.')

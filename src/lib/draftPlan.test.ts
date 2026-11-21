@@ -39,6 +39,14 @@ describe('nextDraftAction', () => {
     expect(plan([section('1.0', 'Approved'), section('1.2')])?.label).toBe('Draft 1.2 Title 1.2 · about 350 words')
   })
 
+  it('with draft ahead on, offers Chapters 1 to 3 as one sequence and nothing beyond', () => {
+    const sections = [section('1.0', 'Draft'), section('1.2'), section('2.0'), section('3.1'), section('4.1')]
+    const ctx: DraftContext = { sections, methodologyConfirmed: true, documentType: 'Proposal', researchState: 'Proposal', draftAhead: true }
+    const action = nextDraftAction(buildOutline(sections, 'Proposal'), ctx, 300)
+    expect(action).toMatchObject({ codes: ['1.2', '2.0', '3.1'], label: 'Draft ahead: Chapters 1–3 · 3 sections, about 900 words' })
+    expect(action?.decision.allowed).toBe(true)
+  })
+
   it('never offers a section that is already being written or drafted', () => {
     expect(plan([section('1.0', 'Generating'), section('1.2', 'Draft')])).toBeNull()
   })

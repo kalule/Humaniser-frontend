@@ -188,6 +188,18 @@ describe('DocumentModeView', () => {
     expect(cancelGeneration).toHaveBeenCalledWith('p1')
   })
 
+  it('asks before turning on draft ahead, then saves it on the project', async () => {
+    const setContent = vi.fn()
+    const syncProject = vi.fn().mockResolvedValue(undefined)
+    act(() => { useResearchStore.setState({ setContent, syncProject }) })
+    renderView()
+    await act(async () => { fireEvent.click(screen.getByRole('switch', { name: 'Draft ahead, review later' })) })
+    expect(setContent).not.toHaveBeenCalled()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Turn on' })) })
+    expect(setContent).toHaveBeenCalledWith('p1', 'draftAhead', 'on')
+    expect(syncProject).toHaveBeenCalledWith('p1')
+  })
+
   it('re-renders only the section that changed when a poll replaces every section object', () => {
     renderView()
     const before = renders.get('Approved introduction text.')

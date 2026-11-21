@@ -13,7 +13,7 @@ import { CREDIT_COSTS } from '../../../config/creditCosts'
 import { researchApi } from '../../../api/research'
 import { proposalJourneyApi } from '../../../api/proposalJourney'
 import { useConfirm } from '../../ui/ConfirmDialog'
-import { canDraft, dedupeSections, documentStatus, isThesisDocument, type DraftContext } from '../../../lib/sectionWorkflow'
+import { canDraft, dedupeSections, documentStatus, DRAFT_AHEAD_KEY, isDraftAheadOn, isThesisDocument, type DraftContext } from '../../../lib/sectionWorkflow'
 import { buildOutline, outlineProgress, sectionFlags, type SectionFlag } from '../../../lib/documentOutline'
 import { nextDraftAction } from '../../../lib/draftPlan'
 import { followDraft, forgetDraft } from '../../../lib/liveDraftStore'
@@ -116,7 +116,31 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     documentType:         project.documentType,
     researchState:        project.researchState,
     methodologyConfirmed: !!project.confirmedMethodology,
-  }), [sections, project.documentType, project.researchState, project.confirmedMethodology])
+    draftAhead:           isDraftAheadOn(project.sectionContent),
+  }), [sections, project.documentType, project.researchState, project.confirmedMethodology, project.sectionContent])
+
+  // "Draft ahead, review later": stored on the project (synced sectionContent), off by default.
+  const draftAhead = ctx.draftAhead === true
+  const handleToggleDraftAhead = useCallback(async () => {
+    const p = latest.current.project
+    const next = !isDraftAheadOn(p.sectionContent)
+    if (next) {
+      const ok = await confirm({
+        title: 'Draft ahead, review later?',
+        message: 'Chapters 1 to 3 can then be drafted without waiting for earlier chapters to be approved. Each section still stops at Needs review, and nothing is approved for you. Inconsistencies between early chapters can build up until you review them. Chapter 4 onward still waits for every earlier chapter to be approved, and Results, Discussion and Conclusion keep their gates.',
+        confirmLabel: 'Turn on',
+      })
+      if (!ok) return
+    }
+    const store = useResearchStore.getState()
+    store.setContent(p.id, DRAFT_AHEAD_KEY, next ? 'on' : 'off')
+    try {
+      await store.syncProject(p.id)
+      toast.success(next ? 'Draft ahead is on for Chapters 1 to 3.' : 'Draft ahead is off.')
+    } catch {
+      toast.error('The setting changed here but could not be saved. It will be saved with your next change.')
+    }
+  }, [confirm])
 
   const outline = useMemo(() => buildOutline(sections, project.documentType), [sections, project.documentType])
   const progress = useMemo(() => outlineProgress(sections), [sections])
@@ -493,6 +517,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       draftAction={draftAction} queued={draftQueue} onDraftAction={handleDraftAction} onStop={handleStop}
       stoppingCode={stoppingCode} targetWords={targetWords} activity={activity}
       lockedNote={lockedNote} onJump={scrollToAnchor}
+      draftAhead={draftAhead} onToggleDraftAhead={handleToggleDraftAhead}
       staleAlignment={staleAlignment} isValidating={isValidating} onCheckAlignment={handleValidate} />
   )
 

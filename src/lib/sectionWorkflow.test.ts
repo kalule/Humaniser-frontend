@@ -121,6 +121,28 @@ describe('canDraft', () => {
   })
 })
 
+describe('draft ahead, review later', () => {
+  const early = () => [section('1.0', 'Draft'), section('2.0', 'NotStarted'), section('3.1', 'NotStarted'), section('4.1', 'NotStarted')]
+
+  it('lets Chapters 1 to 3 be drafted before earlier chapters are approved', () => {
+    const sections = early()
+    expect(canDraft(sections[2], ctx(sections)).blocker).toBe('prerequisite')
+    expect(canDraft(sections[2], ctx(sections, { draftAhead: true })).allowed).toBe(true)
+  })
+
+  it('still makes Chapter 4 onward wait for every earlier chapter', () => {
+    const sections = early()
+    expect(canDraft(sections[3], ctx(sections, { draftAhead: true }))).toMatchObject({ allowed: false, blocker: 'prerequisite' })
+  })
+
+  it('never relaxes locks or the methodology gate', () => {
+    const results = section('6.0')
+    expect(canDraft(results, ctx([results], { draftAhead: true, documentType: 'Thesis', researchState: 'DataCollection' })).blocker).toBe('locked')
+    const framework = section('3.3')
+    expect(canDraft(framework, ctx([framework], { draftAhead: true, methodologyConfirmed: false })).blocker).toBe('methodology')
+  })
+})
+
 describe('documentStatus', () => {
   it('maps server statuses onto the five document states', () => {
     const c = ctx([])

@@ -49,7 +49,7 @@ import { FixIssuesPanel } from '../../components/research-agent/FixIssuesPanel'
 // chapter list and prompts without pulling in this whole page's module.
 import { STEPS, SECTION_PROMPTS, getStepLabel } from '../../data/proposalOutline'
 import { isAbstractStepLocked } from './abstractStepStatus'
-import { canDraft, dedupeSections, type DraftDecision } from '../../lib/sectionWorkflow'
+import { canDraft, dedupeSections, isDraftAheadOn, type DraftDecision } from '../../lib/sectionWorkflow'
 import { guidedParamsFor } from '../../lib/documentOutline'
 import { parseView, readStoredView, storeView, type ResearchAgentView } from '../../lib/researchAgentView'
 import { DocumentModeView, type DocumentModeActions, type DocumentModeActionsState } from '../../components/research-agent/document/DocumentModeView'
@@ -4288,6 +4288,7 @@ function ChapterWriterView({
         documentType:         project.documentType,
         researchState:        project.researchState,
         methodologyConfirmed: !!project.confirmedMethodology,
+        draftAhead:           isDraftAheadOn(project.sectionContent),
       })
     : null
 

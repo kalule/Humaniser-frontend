@@ -27,6 +27,9 @@ interface Props {
   staleAlignment: string[]
   isValidating: boolean
   onCheckAlignment: () => void
+  /** The opt-in "draft ahead, review later" setting for Chapters 1-3. */
+  draftAhead:   boolean
+  onToggleDraftAhead: () => void
 }
 
 const label = (s: ProjectSection) => `${s.displayCode || s.code} ${s.title}`
@@ -84,7 +87,7 @@ function NowDrafting({ projectId, section, targetWords, queued, onJump, onStop, 
 
 function DocumentAgentPanelImpl({
   projectId, writing, flags, nextReview, draftAction, queued, onDraftAction, onStop, stoppingCode, targetWords,
-  activity, lockedNote, onJump, staleAlignment, isValidating, onCheckAlignment,
+  activity, lockedNote, onJump, staleAlignment, isValidating, onCheckAlignment, draftAhead, onToggleDraftAhead,
 }: Props) {
   const bySection = new Map<string, number>()
   for (const f of flags) bySection.set(f.sectionCode, (bySection.get(f.sectionCode) ?? 0) + 1)
@@ -167,6 +170,21 @@ function DocumentAgentPanelImpl({
           <p className="m-0 text-[12px]" style={{ color: 'var(--text-secondary)' }}>Every available section is drafted.</p>
         )}
         {lockedNote && <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-muted)' }}>{lockedNote}</p>}
+        <div className="flex items-start gap-2.5 pt-2.5" style={{ borderTop: '0.5px solid var(--border-hairline)' }}>
+          <button type="button" role="switch" aria-checked={draftAhead} onClick={onToggleDraftAhead}
+            aria-describedby="draft-ahead-help"
+            className="dm-action shrink-0 mt-0.5 relative w-8 h-[18px] rounded-full transition-colors"
+            style={{ background: draftAhead ? 'var(--color-purple)' : 'var(--border-strong)' }}>
+            <span className="sr-only">Draft ahead, review later</span>
+            <span aria-hidden="true" className="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-all" style={{ left: draftAhead ? 16 : 2 }} />
+          </button>
+          <div>
+            <div className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Draft ahead, review later {draftAhead ? '· On' : '· Off'}</div>
+            <p id="draft-ahead-help" className="m-0 text-[11px] leading-[1.45]" style={{ color: 'var(--text-muted)' }}>
+              Chapters 1 to 3 draft without waiting for approval. Chapter 4 onward and Results always wait.
+            </p>
+          </div>
+        </div>
       </div>
     </aside>
   )
