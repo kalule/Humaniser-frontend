@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { ListTree, Bot, X, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { ApiError } from '../../../types'
-import type { AlignmentIssue, CitationFlag, ProjectSection, ResearchProject } from '../../../types/research'
+import type { AlignmentIssue, CitationFlag, FetchedLiterature, ProjectSection, ResearchProject } from '../../../types/research'
+import type { ParsedReference } from '../../../lib/citationFormat'
+import { bibliographyReferences } from '../../../lib/bibliographyState'
 import { useResearchStore } from '../../../store/researchStore'
 import { useAuthStore } from '../../../store/authStore'
 import { useUiStore } from '../../../store/uiStore'
@@ -18,6 +20,7 @@ import { followDraft, forgetDraft } from '../../../lib/liveDraftStore'
 import { DocumentOutlineRail, type OutlineRow } from './DocumentOutlineRail'
 import { DocumentSectionBlock } from './DocumentSectionBlock'
 import { DocumentAgentPanel } from './DocumentAgentPanel'
+import { CitationDataContext, type CitationData } from './citationDataContext'
 import '../../../styles/research-agent-editor.css'
 import '../../../styles/research-document-mode.css'
 
@@ -63,6 +66,10 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const { confirm, dialog } = useConfirm()
 
   const [citationFlags, setCitationFlags] = useState<CitationFlag[]>([])
+  // Pinned sources (and, for IEEE, the numbered reference list) that inline citations resolve to.
+  const [literature, setLiterature] = useState<FetchedLiterature[]>([])
+  const [bibliography, setBibliography] = useState<ParsedReference[]>([])
+  const [literatureVersion, setLiteratureVersion] = useState(0)
   const [alignmentIssues, setAlignmentIssues] = useState<AlignmentIssue[]>([])
   const [approvingCode, setApprovingCode] = useState<string | null>(null)
   const [isValidating, setIsValidating] = useState(false)
@@ -151,6 +158,24 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id, flagsKey])
+
+  // Cheap reads (no model calls). Refetched after a draft finishes: drafting can add sources.
+  useEffect(() => {
+    let cancelled = false
+    researchApi.getLiterature(project.id)
+      .then(list => { if (!cancelled) setLiterature(list) })
+      .catch(() => { /* citations then show as unresolved; nothing is blocked */ })
+    if (project.citationStyle === 'ieee') {
+      researchApi.getBibliography(project.id)
+        .then(data => { if (!cancelled) setBibliography(bibliographyReferences({ status: 'ready', data }) ?? []) })
+        .catch(() => {})
+    }
+    return () => { cancelled = true }
+  }, [project.id, project.citationStyle, literatureVersion])
+
+  const citationData = useMemo<CitationData>(() => ({
+    style: project.citationStyle, literature, bibliography, flags: citationFlags,
+  }), [project.citationStyle, literature, bibliography, citationFlags])
 
   // Poll while anything is being written, so a run started here or in Guided lands in place.
   const anyWriting = writing.length > 0
@@ -371,6 +396,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       } else if (done.generationError) {
         logActivity(`${label} stopped or interrupted; text kept for review`, 'error')
       } else {
+        setLiteratureVersion(v => v + 1)
         logActivity(`Drafted ${label}; ready for review`)
         setStaleAlignment(prev => (prev.includes(code) ? prev : [...prev, code]))
       }
@@ -471,6 +497,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   )
 
   return (
+    <CitationDataContext.Provider value={citationData}>
     <div className="absolute inset-0 flex" style={{ background: 'var(--surface-page)' }}>
       {dialog}
 
@@ -539,5 +566,6 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
         </div>
       )}
     </div>
+    </CitationDataContext.Provider>
   )
 }

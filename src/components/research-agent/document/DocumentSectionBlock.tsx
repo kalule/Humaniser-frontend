@@ -126,7 +126,8 @@ function DocumentSectionBlockImpl({
 
         {hasBody && (near
           ? <SectionEditor projectId={projectId} code={section.code} content={section.content} label={label}
-              editable={!isSectionHeld(section)} onDemoted={onDemoted} registerFlush={registerFlush} />
+              editable={!isSectionHeld(section)} onDemoted={onDemoted} registerFlush={registerFlush}
+              citationsPending={section.citationsPendingVerification} />
           : <div aria-hidden="true" style={{ height: measured.current ?? estimateHeight(section.wordCount) }} />)}
       </div>
 
@@ -189,6 +190,7 @@ export const DocumentSectionBlock = memo(DocumentSectionBlockImpl, (a, b) =>
   && a.section.wordCount === b.section.wordCount
   && a.section.status === b.section.status
   && a.section.lockedBy === b.section.lockedBy
+  && a.section.citationsPendingVerification === b.section.citationsPendingVerification
   && a.projectId === b.projectId
   && a.onDemoted === b.onDemoted && a.registerFlush === b.registerFlush
   && a.onDraft === b.onDraft && a.onStop === b.onStop && a.isStopping === b.isStopping

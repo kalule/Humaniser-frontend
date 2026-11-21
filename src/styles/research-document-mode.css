@@ -45,3 +45,7 @@
 .dm-editor { border-radius: 6px; margin: 0 -8px; padding: 2px 8px; transition: box-shadow .15s; }
 .dm-editor:focus-within { box-shadow: 0 0 0 2px var(--color-purple-tint); }
 .dm-editor .ProseMirror[contenteditable="false"] { cursor: default; }
+
+/* Inline citations (Phase 5): resolved to pinned sources on display; text itself unchanged. */
+.dm-cite { color: var(--color-purple-text); background: var(--color-purple-tint); border-radius: 3px; padding: 0 2px; cursor: help; }
+.dm-cite--flagged { text-decoration: underline wavy var(--color-amber); text-underline-offset: 3px; }

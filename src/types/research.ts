@@ -483,6 +483,8 @@ export interface FetchedLiterature {
   includedByStudent: boolean
   citationCount:     number
   citedInSections:   string[]
+  /** The source's full text is held (fetched or uploaded), not only its abstract. */
+  hasFullText?:      boolean
 }
 
 export interface UnresolvedCitation {

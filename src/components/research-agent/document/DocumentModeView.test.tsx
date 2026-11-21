@@ -23,7 +23,7 @@ vi.mock('./SectionEditor', async () => {
 })
 vi.mock('../../../api/research', async importOriginal => {
   const actual = await importOriginal<typeof import('../../../api/research')>()
-  return { ...actual, researchApi: { ...actual.researchApi, getSectionCitationFlags: vi.fn().mockResolvedValue([]) } }
+  return { ...actual, researchApi: { ...actual.researchApi, getSectionCitationFlags: vi.fn().mockResolvedValue([]), getLiterature: vi.fn().mockResolvedValue([]) } }
 })
 
 vi.mock('../../../lib/liveDraftStore', () => ({
