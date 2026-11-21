@@ -371,6 +371,10 @@ export interface ProjectSection {
   // the project has since moved past (a genuine Confirm-Methodology change) and needs re-review.
   isMethodologyStale: boolean
   methodologyStaleReason: string | null
+  // Id of the run holding this section while it is Generating (a section job id, or "generation"
+  // for the autonomous run). Null otherwise. The server refuses saves while it is set
+  // (409 SECTION_GENERATING). Optional so fixtures and older responses without it still type.
+  lockedBy?: string | null
 }
 
 // 'LlmJudged' issues (the validators' own coherence/quality criteria) and 'ReviewerFinding'

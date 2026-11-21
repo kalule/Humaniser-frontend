@@ -49,6 +49,7 @@ import { FixIssuesPanel } from '../../components/research-agent/FixIssuesPanel'
 // chapter list and prompts without pulling in this whole page's module.
 import { STEPS, SECTION_PROMPTS, getStepLabel } from '../../data/proposalOutline'
 import { isAbstractStepLocked } from './abstractStepStatus'
+import { canDraft, type DraftDecision } from '../../lib/sectionWorkflow'
 import { apiErrorMessage } from '../../lib/deepResearch'
 import { recommendMethodology, methodologyInputFingerprint, type MethodologyRecommendation } from '../../lib/methodologyRecommendation'
 import { useConfirm } from '../../components/ui/ConfirmDialog'
@@ -1043,7 +1044,6 @@ const METHODOLOGY_MIXED_DESIGNS = ['Convergent', 'Explanatory Sequential', 'Expl
 // docs/OPEN_ITEMS.md #81 — this list was missing "3.3" and "5.2" relative to the backend's
 // authoritative list; the backend independently re-gates both (this is a client-side pre-check
 // only), but the mismatch meant the friendly toast below never fired for those two codes.
-const METHODOLOGY_SENSITIVE_SECTIONS = new Set(['3.3', '5.2', '5.4', '5.5', '5.6', '5.7', '5.7a', '5.9', '5.10', '5.12'])
 
 function MethodologyTypeStep({ project }: { project: ResearchProject }) {
   const { updateProject, syncProject, loadProject, loadSections, setContent } = useResearchStore()
@@ -4204,7 +4204,13 @@ function ChapterWriterView({
       // just fail again with the same stale version, and silently discarding either side would
       // defeat the whole point of the guard — reload the section's current content instead, same
       // "never silently overwrite" posture as FACT_CONFLICT elsewhere in this file.
-      if ((err as ApiError | undefined)?.code === 'SECTION_EDIT_CONFLICT') {
+      if ((err as ApiError | undefined)?.code === 'SECTION_GENERATING') {
+        // The section is held by a run (lockedBy): its draft will replace the text, so the edit
+        // cannot be kept. Drop the local copy and show the run's state instead of retrying.
+        toast.error('This section is being written, so your edit was not saved. You can edit it when the draft is finished.')
+        setIsDirty(false)
+        loadSections(project.id).catch(() => {})
+      } else if ((err as ApiError | undefined)?.code === 'SECTION_EDIT_CONFLICT') {
         toast((t) => (
           <div className="flex flex-col gap-2 text-[13px]">
             <span>This section changed elsewhere while you were editing — your last change wasn't saved. Reload to see the current version.</span>
@@ -4285,24 +4291,43 @@ function ChapterWriterView({
     return true
   }
 
+  // Shared drafting gate (lib/sectionWorkflow) — the Document view asks the same question, so
+  // both views offer drafting under identical rules. The server still enforces its own locks.
+  const draftDecision = (): DraftDecision | null => activeSection
+    ? canDraft(activeSection, {
+        sections:             uniqueSections,
+        documentType:         project.documentType,
+        researchState:        project.researchState,
+        methodologyConfirmed: !!project.confirmedMethodology,
+      })
+    : null
+
+  // Returns true when drafting may proceed; otherwise explains why and returns false.
+  const passesDraftGate = () => {
+    const decision = draftDecision()
+    if (!decision || decision.allowed) return true
+    if (decision.blocker === 'methodology') showMethodologyRequiredToast()
+    else toast.error(decision.reason ?? 'This section cannot be drafted yet.')
+    return false
+  }
+
   const handleGenerate = async (targetWordCount = defaultTargetWordCount) => {
     if (!activeSection) return
-    if (!hasEnoughCreditsForSection()) return
     // Client-side pre-check — avoids a wasted round-trip (and credit reservation attempt) for
     // the common case; the server-side guard is still authoritative if this is stale.
     // docs/OPEN_ITEMS.md #81 — checks the real confirmed methodology, not just whether
     // methodologyType is a non-empty (possibly unconfirmed, e.g. AI-pre-filled) string.
-    if (METHODOLOGY_SENSITIVE_SECTIONS.has(selectedCode) && !project.confirmedMethodology) {
-      showMethodologyRequiredToast()
-      return
-    }
+    if (!passesDraftGate()) return
+    if (!hasEnoughCreditsForSection()) return
     try {
       if (!await ensureProposalDesignReady()) return
       await generateSection(project.id, selectedCode, targetWordCount)
       syncAfterGeneration()
       toast.success(`Generation started for section ${selectedCode}.`)
     } catch (err) {
-      const code = (err as { response?: { data?: { error?: { code?: string } } } } | undefined)?.response?.data?.error?.code
+      // client.ts rejects with the unwrapped ApiError; the response shape is kept as a fallback.
+      const code = (err as ApiError | undefined)?.code
+        ?? (err as { response?: { data?: { error?: { code?: string } } } } | undefined)?.response?.data?.error?.code
       if (code === 'METHODOLOGY_NOT_CONFIRMED') {
         showMethodologyRequiredToast()
         return
@@ -4316,6 +4341,7 @@ function ChapterWriterView({
     if (!activeSection) return
     // Only confirm when the user has personally edited or approved the section —
     // draft/not-started sections contain only AI output, so no confirmation needed.
+    if (!passesDraftGate()) return
     const needsConfirm = activeSection.status === 'Edited' || activeSection.status === 'Approved'
     if (needsConfirm) {
       setShowRegenConfirm(true)
@@ -4332,7 +4358,7 @@ function ChapterWriterView({
   }
 
   const confirmRegenerate = async () => {
-    if (!hasEnoughCreditsForSection()) { setShowRegenConfirm(false); return }
+    if (!passesDraftGate() || !hasEnoughCreditsForSection()) { setShowRegenConfirm(false); return }
     try {
       if (!await ensureProposalDesignReady()) return
       await regenerateSection(project.id, selectedCode)
