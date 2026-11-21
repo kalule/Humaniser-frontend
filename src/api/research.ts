@@ -246,6 +246,16 @@ export const researchApi = {
       { params: { code, acknowledgeConflicts } },
     )),
 
+  // Stops the on-demand run writing one section: the job is cancelled, the section released, and
+  // the text written so far kept as a draft to review. Sections held by the whole-proposal run
+  // (lockedBy "generation") are stopped with cancelGeneration instead.
+  stopSection: async (projectId: string, code: string): Promise<ProjectSection> =>
+    unwrap(await client.post<Wrap<ProjectSection>>(
+      `/api/v1/research/projects/${projectId}/sections/stop`,
+      null,
+      { params: { code } },
+    )),
+
   // Same enqueue-and-return contract as generateSection above — see its comment.
   regenerateSection: async (projectId: string, code: string): Promise<ProjectSection> =>
     unwrap(await client.post<Wrap<ProjectSection>>(
@@ -307,6 +317,12 @@ export const researchApi = {
   getCitationFlags: async (projectId: string, sectionCode: string): Promise<CitationFlag[]> =>
     unwrap(await client.get<Wrap<CitationFlag[]>>(
       `/api/v1/research/projects/${projectId}/sections/${sectionCode}/citation-flags`,
+    )),
+
+  /** Open citation flags for every section in one request (each flag carries its sectionCode). */
+  getSectionCitationFlags: async (projectId: string): Promise<CitationFlag[]> =>
+    unwrap(await client.get<Wrap<CitationFlag[]>>(
+      `/api/v1/research/projects/${projectId}/citation-flags/sections`,
     )),
 
   getQualityFlags: async (projectId: string, sectionCode: string): Promise<QualityFlag[]> =>

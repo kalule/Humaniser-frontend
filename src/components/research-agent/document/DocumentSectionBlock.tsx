@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, type RefObject } from 'react'
-import { AlertTriangle, ExternalLink, Loader2, Lock } from 'lucide-react'
+import { AlertTriangle, ExternalLink, Lock, Square } from 'lucide-react'
 import type { ProjectSection } from '../../../types/research'
 import { isSectionHeld, type DocumentSectionStatus, type DraftDecision } from '../../../lib/sectionWorkflow'
 import type { SectionFlag } from '../../../lib/documentOutline'
@@ -7,6 +7,7 @@ import { SECTION_PROMPTS } from '../../../data/proposalOutline'
 import { useNearViewport } from '../../../hooks/useNearViewport'
 import { SectionStatusChip } from './SectionStatusMark'
 import { SectionEditor } from './SectionEditor'
+import { LiveDraftBody, WritingChip } from './LiveDraft'
 
 export interface DocumentSectionBlockProps {
   projectId:     string
@@ -23,6 +24,9 @@ export interface DocumentSectionBlockProps {
   onRewrite:     (code: string) => void
   onOpenGuided:  (code: string) => void
   onDemoted:     (code: string) => void
+  onDraft:       (code: string) => void
+  onStop:        (code: string) => void
+  isStopping:    boolean
   registerFlush: (code: string, flush: (() => Promise<boolean>) | null) => void
 }
 
@@ -30,6 +34,7 @@ const FLAG_LABEL: Record<SectionFlag['kind'], string> = {
   alignment:   'Alignment',
   citation:    'Citation',
   interrupted: 'Interrupted',
+  stopped:     'Stopped',
 }
 
 /** Rough height of an unmounted body, so the scrollbar does not jump before it is measured. */
@@ -39,7 +44,7 @@ const actionClass = 'dm-action rounded-lg text-[13px] px-4 py-2 transition-color
 
 function DocumentSectionBlockImpl({
   projectId, section, status, flags, draft, lockedReason, isApproving, scrollRoot, registerAnchor,
-  onApprove, onRewrite, onOpenGuided, onDemoted, registerFlush,
+  onApprove, onRewrite, onOpenGuided, onDemoted, registerFlush, onDraft, onStop, isStopping,
 }: DocumentSectionBlockProps) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const measured = useRef<number | null>(null)
@@ -72,8 +77,16 @@ function DocumentSectionBlockImpl({
         <h3 id={headingId} tabIndex={-1} className="dm-heading m-0 text-[18px] font-semibold" style={{ fontFamily: 'Georgia, serif', color: 'var(--text-primary)' }}>
           {label}
         </h3>
-        <SectionStatusChip status={status} detail={status === 'writing' && section.wordCount > 0 ? `${section.wordCount} words` : undefined} />
+        {status === 'writing' ? <WritingChip projectId={projectId} code={section.code} /> : <SectionStatusChip status={status} />}
         <div className="flex-1" />
+        {status === 'writing' && (
+          <button type="button" onClick={() => onStop(section.code)} disabled={isStopping}
+            className="dm-action inline-flex items-center gap-1.5 text-[12px] font-semibold rounded-md px-2.5 py-1 disabled:opacity-60"
+            style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)', background: 'white' }}
+            aria-label={`Stop writing ${label}`}>
+            <Square size={10} aria-hidden="true" /> {isStopping ? 'Stopping…' : 'Stop'}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onOpenGuided(section.code)}
@@ -95,20 +108,21 @@ function DocumentSectionBlockImpl({
         {status === 'queued' && (
           <div className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
             <p className="m-0 italic" style={{ fontFamily: 'Georgia, serif' }}>{SECTION_PROMPTS[section.code]?.prompt ?? 'Not drafted yet.'}</p>
-            {!draft.allowed && draft.reason && <p className="m-0 mt-1.5 text-[12px]">{draft.reason}</p>}
+            {section.isApplicableForMethodology !== false && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
+                <button type="button" onClick={() => onDraft(section.code)} disabled={!draft.allowed}
+                  aria-describedby={!draft.allowed && draft.reason ? `draft-reason-${section.code}` : undefined}
+                  className={`${actionClass} font-semibold disabled:opacity-100`}
+                  style={draft.allowed ? { background: 'var(--color-purple)', color: 'white' } : { background: 'var(--surface-rail)', color: 'var(--text-secondary)' }}>
+                  Draft this section
+                </button>
+                {!draft.allowed && draft.reason && <span id={`draft-reason-${section.code}`} className="text-[12px]">{draft.reason}</span>}
+              </div>
+            )}
           </div>
         )}
 
-        {status === 'writing' && (
-          <div aria-live="polite">
-            <p className="flex items-center gap-1.5 text-[12px] m-0 mb-3" style={{ color: 'var(--color-purple-text)' }}>
-              <Loader2 size={12} className="animate-spin" aria-hidden="true" /> The agent is writing this section. It opens for review when the draft is finished.
-            </p>
-            <div className="skeleton-lines" aria-hidden="true">
-              <div className="skeleton-line" /><div className="skeleton-line" style={{ width: '92%' }} /><div className="skeleton-line" style={{ width: '64%' }} />
-            </div>
-          </div>
-        )}
+        {status === 'writing' && <LiveDraftBody projectId={projectId} code={section.code} />}
 
         {hasBody && (near
           ? <SectionEditor projectId={projectId} code={section.code} content={section.content} label={label}
@@ -177,6 +191,7 @@ export const DocumentSectionBlock = memo(DocumentSectionBlockImpl, (a, b) =>
   && a.section.lockedBy === b.section.lockedBy
   && a.projectId === b.projectId
   && a.onDemoted === b.onDemoted && a.registerFlush === b.registerFlush
+  && a.onDraft === b.onDraft && a.onStop === b.onStop && a.isStopping === b.isStopping
   && flagsKey(a.flags) === flagsKey(b.flags)
   && a.onApprove === b.onApprove && a.onRewrite === b.onRewrite && a.onOpenGuided === b.onOpenGuided
   && a.registerAnchor === b.registerAnchor && a.scrollRoot === b.scrollRoot)

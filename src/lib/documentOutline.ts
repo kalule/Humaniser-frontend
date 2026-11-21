@@ -60,7 +60,7 @@ export function outlineProgress(sections: readonly ProjectSection[]): { approved
   return { approved: counted.filter(s => s.status === 'Approved').length, total: counted.length }
 }
 
-export type SectionFlagKind = 'alignment' | 'citation' | 'interrupted'
+export type SectionFlagKind = 'alignment' | 'citation' | 'interrupted' | 'stopped'
 
 export interface SectionFlag {
   id:          string
@@ -97,8 +97,10 @@ export function sectionFlags(
 ): SectionFlag[] {
   const flags: SectionFlag[] = []
   if (section.generationError && section.status !== 'Generating') {
-    flags.push({ id: `${section.code}:interrupted`, sectionCode: section.code, kind: 'interrupted',
-      message: `Generation interrupted: ${section.generationError}` })
+    // A Stop by the student is not a failure; the server's message already says what was kept.
+    const stopped = section.generationError.startsWith('Stopped')
+    flags.push({ id: `${section.code}:interrupted`, sectionCode: section.code, kind: stopped ? 'stopped' : 'interrupted',
+      message: stopped ? section.generationError : `Generation interrupted: ${section.generationError}` })
   }
   alignmentIssues.filter(i => i.sectionCode === section.code).forEach((issue, i) =>
     flags.push({ id: `${section.code}:alignment:${i}`, sectionCode: section.code, kind: 'alignment', message: issue.issue }))

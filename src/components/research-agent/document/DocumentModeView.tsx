@@ -13,6 +13,8 @@ import { proposalJourneyApi } from '../../../api/proposalJourney'
 import { useConfirm } from '../../ui/ConfirmDialog'
 import { canDraft, dedupeSections, documentStatus, isThesisDocument, type DraftContext } from '../../../lib/sectionWorkflow'
 import { buildOutline, outlineProgress, sectionFlags, type SectionFlag } from '../../../lib/documentOutline'
+import { nextDraftAction } from '../../../lib/draftPlan'
+import { followDraft, forgetDraft } from '../../../lib/liveDraftStore'
 import { DocumentOutlineRail, type OutlineRow } from './DocumentOutlineRail'
 import { DocumentSectionBlock } from './DocumentSectionBlock'
 import { DocumentAgentPanel } from './DocumentAgentPanel'
@@ -31,6 +33,12 @@ interface Props {
 }
 
 const EMPTY_SECTIONS: ProjectSection[] = []
+/** Fallback per-section length when the project set none (same default as Guided). */
+const DEFAULT_SECTION_WORDS = 500
+/** Most recent entries kept in the agent panel's activity log. */
+const ACTIVITY_LIMIT = 8
+
+export interface ActivityEntry { id: string; text: string; state: 'done' | 'active' | 'error' }
 const POLL_MS = 3000
 /** Offset from the top of the document column at which a section counts as "current". */
 const ACTIVE_OFFSET = 120
@@ -62,6 +70,16 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const [activeCode, setActiveCode] = useState<string | null>(null)
   const [outlineOpen, setOutlineOpen] = useState(false)
   const [agentOpen, setAgentOpen] = useState(false)
+  // Sections still to draft in the chapter the student started (drafted one after another).
+  const [draftQueue, setDraftQueue] = useState<string[]>([])
+  const [stoppingCode, setStoppingCode] = useState<string | null>(null)
+  const [activity, setActivity] = useState<ActivityEntry[]>([])
+  const startingRef = useRef(false)
+  const targetWords = Number(project.sectionContent?.['targetSectionWordCount']) || DEFAULT_SECTION_WORDS
+
+  const logActivity = useCallback((text: string, state: ActivityEntry['state'] = 'done') => {
+    setActivity(prev => [{ id: `${Date.now()}-${prev.length}`, text, state }, ...prev].slice(0, ACTIVITY_LIMIT))
+  }, [])
 
   const scrollRef = useRef<HTMLElement | null>(null)
   const anchors = useRef(new Map<string, HTMLElement>())
@@ -120,10 +138,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     return v && (v.status === 'needs_review' || v.status === 'approved') ? v.flags : []
   }), [ordered, view])
   const nextReview = useMemo(() => ordered.find(s => view[s.code]?.status === 'needs_review') ?? null, [ordered, view])
-  const nextDraft = useMemo(() => {
-    const s = ordered.find(x => view[x.code]?.status === 'queued' && x.isApplicableForMethodology !== false)
-    return s ? { section: s, decision: view[s.code].draft } : null
-  }, [ordered, view])
+  const draftAction = useMemo(() => nextDraftAction(outline, ctx, targetWords), [outline, ctx, targetWords])
 
   // ── Data: citation flags for every section in one request, refreshed when sections change ──
   const flagsKey = sections.map(s => `${s.code}:${s.status}:${s.generatedAt ?? ''}:${s.citationsPendingVerification}`).join('|')
@@ -225,6 +240,152 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     }
   }, [onOpenGuided])
 
+  // Credits for `count` drafts, and (for a proposal bound to a study design) an accepted design.
+  const preflight = useCallback(async (count: number): Promise<boolean> => {
+    const p = latest.current.project
+    const cost = CREDIT_COSTS.proposalSectionGeneration * count
+    const user = useAuthStore.getState().user
+    if (user && user.plan !== 'Unlimited' && user.creditsLimit - user.creditsUsed < cost) {
+      useUiStore.getState().openCreditLimitModal({
+        used: user.creditsUsed, limit: user.creditsLimit,
+        resetDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+      })
+      return false
+    }
+    if (p.documentMode === 'PROPOSAL') {
+      try {
+        const journey = await proposalJourneyApi.current(p.id)
+        if (journey.summary.designRequired && (!journey.summary.acceptedRevisionId || journey.readiness?.canGenerate !== true)) {
+          toast('Complete your study design before writing. Opening your proposal workspace.')
+          navigate(`/app/research-agent/${p.id}/proposal-workflow?tab=design`)
+          return false
+        }
+      } catch (err) {
+        toast.error((err as ApiError | undefined)?.message ?? 'Could not check your study design. Try again.')
+        return false
+      }
+    }
+    return true
+  }, [navigate])
+
+  // Claims the section on the server (status Generating, lockedBy = its job) and streams it in.
+  const startDraft = useCallback(async (code: string): Promise<boolean> => {
+    const { project: p, sections: list, ctx: c } = latest.current
+    const section = list.find(s => s.code === code)
+    if (!section) return false
+    const decision = canDraft(section, c)
+    if (!decision.allowed) { toast.error(decision.reason ?? `${code} cannot be drafted yet.`); return false }
+    try {
+      await useResearchStore.getState().generateSection(p.id, code, Number(p.sectionContent?.['targetSectionWordCount']) || DEFAULT_SECTION_WORDS)
+      logActivity(`Started drafting ${section.displayCode || code} ${section.title}`, 'active')
+      return true
+    } catch (err) {
+      toast.error((err as ApiError | undefined)?.message ?? `Drafting ${code} could not start.`)
+      return false
+    }
+  }, [logActivity])
+
+  const handleDraftSection = useCallback(async (code: string) => {
+    if (!(await preflight(1))) return
+    await startDraft(code)
+  }, [preflight, startDraft])
+
+  const handleDraftAction = useCallback(async () => {
+    const action = draftAction
+    if (!action || !action.decision.allowed) return
+    if (action.codes.length > 1) {
+      const ok = await confirm({
+        title: action.label.split(' · ')[0] + '?',
+        message: `The agent drafts ${action.codes.length} sections one after another (${action.codes.join(', ')}). Each one stops at Needs review for you to approve; nothing is approved for you. You can stop at any time.`,
+        confirmLabel: `Draft · ${CREDIT_COSTS.proposalSectionGeneration * action.codes.length} credits`,
+      })
+      if (!ok) return
+    }
+    if (!(await preflight(action.codes.length))) return
+    const [first, ...rest] = action.codes
+    if (await startDraft(first)) setDraftQueue(rest)
+  }, [draftAction, confirm, preflight, startDraft])
+
+  // Chapter drafting: start the next queued section once nothing is being written. Each start is
+  // gated again, so a section that became undraftable meanwhile ends the run with its reason.
+  useEffect(() => {
+    if (writing.length > 0 || draftQueue.length === 0 || startingRef.current) return
+    const [next, ...rest] = draftQueue
+    startingRef.current = true
+    setDraftQueue(rest)
+    void startDraft(next).then(ok => { if (!ok) setDraftQueue([]) }).finally(() => { startingRef.current = false })
+  }, [writing.length, draftQueue, startDraft])
+
+  const handleStop = useCallback(async (code: string) => {
+    const { project: p, sections: list } = latest.current
+    const section = list.find(s => s.code === code)
+    if (!section) return
+    setDraftQueue([])
+    setStoppingCode(code)
+    try {
+      if (section.lockedBy === 'generation') {
+        // Held by the whole-proposal run: stopping means cancelling that run.
+        const ok = await confirm({
+          title: 'Stop the whole-proposal run?',
+          message: 'This section is being written by the automatic whole-proposal run. Stopping cancels that run; the section it is writing may still finish.',
+          confirmLabel: 'Stop the run',
+        })
+        if (!ok) return
+        await useResearchStore.getState().cancelGeneration(p.id)
+        logActivity('Stopped the whole-proposal run')
+      } else {
+        await useResearchStore.getState().stopSection(p.id, code)
+        logActivity(`Stopped ${code}; the text so far is kept for review`)
+        toast.success(`Stopped ${code}. The text written so far is kept for you to review.`)
+      }
+    } catch (err) {
+      toast.error((err as ApiError | undefined)?.message ?? `Could not stop ${code}.`)
+    } finally {
+      setStoppingCode(null)
+    }
+  }, [confirm, logActivity])
+
+  // Follow every section being written; when one finishes, forget its stream (the saved section
+  // is the truth now), log the outcome, and mark its alignment as not yet checked.
+  const writingCodes = writing.map(s => s.code).join('|')
+  const followed = useRef(new Set<string>())
+  useEffect(() => {
+    const now = new Set(writing.map(s => s.code))
+    for (const code of now) {
+      if (!followed.current.has(code)) { followed.current.add(code); followDraft(project.id, code) }
+    }
+    for (const code of [...followed.current]) {
+      if (now.has(code)) continue
+      followed.current.delete(code)
+      forgetDraft(project.id, code)
+      const done = latest.current.sections.find(s => s.code === code)
+      if (!done) continue
+      const label = `${done.displayCode || code} ${done.title}`
+      const stopped = done.generationError?.startsWith('Stopped') ?? false
+      if (stopped) {
+        // Already logged by handleStop when stopped from this tab.
+      } else if (done.generationError && done.status === 'NotStarted') {
+        logActivity(`${label} failed: ${done.generationError}`, 'error')
+        toast.error(`${label}: ${done.generationError}`)
+        setDraftQueue([])
+      } else if (done.generationError) {
+        logActivity(`${label} stopped or interrupted; text kept for review`, 'error')
+      } else {
+        logActivity(`Drafted ${label}; ready for review`)
+        setStaleAlignment(prev => (prev.includes(code) ? prev : [...prev, code]))
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writingCodes, project.id])
+
+  useEffect(() => {
+    const following = followed.current
+    return () => {
+      for (const code of following) forgetDraft(project.id, code)
+      following.clear()
+    }
+  }, [project.id])
+
   const handleRewrite = useCallback(async (code: string) => {
     const { project: p, sections: list, ctx: c } = latest.current
     const section = list.find(s => s.code === code)
@@ -242,30 +403,14 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       if (!ok) return
     }
 
-    const user = useAuthStore.getState().user
-    if (user && user.plan !== 'Unlimited' && user.creditsLimit - user.creditsUsed < cost) {
-      useUiStore.getState().openCreditLimitModal({
-        used: user.creditsUsed, limit: user.creditsLimit,
-        resetDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
-      })
-      return
-    }
-
     try {
-      if (p.documentMode === 'PROPOSAL') {
-        const journey = await proposalJourneyApi.current(p.id)
-        if (journey.summary.designRequired && (!journey.summary.acceptedRevisionId || journey.readiness?.canGenerate !== true)) {
-          toast('Complete your study design before writing. Opening your proposal workspace.')
-          navigate(`/app/research-agent/${p.id}/proposal-workflow?tab=design`)
-          return
-        }
-      }
+      if (!(await preflight(1))) return
       await useResearchStore.getState().regenerateSection(p.id, code)
-      toast.success(`Rewriting ${code}.`)
+      logActivity(`Started rewriting ${code} ${section.title}`, 'active')
     } catch (err) {
       toast.error((err as ApiError | undefined)?.message ?? 'Rewrite failed.')
     }
-  }, [confirm, navigate])
+  }, [confirm, preflight, logActivity])
 
   const handleValidate = useCallback(async () => {
     setIsValidating(true)
@@ -318,8 +463,10 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       onSelect={scrollToAnchor} onSelectChapter={key => scrollToAnchor(`chapter:${key}`)} />
   )
   const agent = (
-    <DocumentAgentPanel writing={writing} flags={allFlags} nextReview={nextReview} nextDraft={nextDraft}
-      lockedNote={lockedNote} onJump={scrollToAnchor} onDraftInGuided={onOpenGuided}
+    <DocumentAgentPanel projectId={project.id} writing={writing} flags={allFlags} nextReview={nextReview}
+      draftAction={draftAction} queued={draftQueue} onDraftAction={handleDraftAction} onStop={handleStop}
+      stoppingCode={stoppingCode} targetWords={targetWords} activity={activity}
+      lockedNote={lockedNote} onJump={scrollToAnchor}
       staleAlignment={staleAlignment} isValidating={isValidating} onCheckAlignment={handleValidate} />
   )
 
@@ -367,7 +514,8 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
                     lockedReason={v.draft.blocker === 'locked' ? v.draft.reason : null}
                     isApproving={approvingCode === s.code} scrollRoot={scrollRef} registerAnchor={registerAnchor}
                     onApprove={handleApprove} onRewrite={handleRewrite} onOpenGuided={onOpenGuided}
-                    onDemoted={handleDemoted} registerFlush={registerFlush} />
+                    onDemoted={handleDemoted} registerFlush={registerFlush}
+                    onDraft={handleDraftSection} onStop={handleStop} isStopping={stoppingCode === s.code} />
                 )
               })}
             </div>

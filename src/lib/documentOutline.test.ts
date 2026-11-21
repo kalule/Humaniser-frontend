@@ -63,6 +63,11 @@ describe('sectionFlags', () => {
     expect(flags[3].message).toBe('(Braun & Clarke, 2006): the source may not support the claim.')
   })
 
+  it('reports a stop by the student as stopped, not as a failure', () => {
+    const flags = sectionFlags(section('3.2', 'Draft', { generationError: 'Stopped before the draft was finished. The partial text is kept for you to review.' }), [], [])
+    expect(flags).toEqual([expect.objectContaining({ kind: 'stopped', message: 'Stopped before the draft was finished. The partial text is kept for you to review.' })])
+  })
+
   it('does not report an old error while the section is being rewritten', () => {
     expect(sectionFlags(section('1.0', 'Generating', { generationError: 'old' }), [], [])).toEqual([])
   })

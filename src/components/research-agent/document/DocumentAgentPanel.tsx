@@ -1,20 +1,29 @@
 import { memo } from 'react'
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle, Check, Circle, Square, X } from 'lucide-react'
 import type { ProjectSection } from '../../../types/research'
 import type { SectionFlag } from '../../../lib/documentOutline'
-import type { DraftDecision } from '../../../lib/sectionWorkflow'
+import type { DraftAction } from '../../../lib/draftPlan'
+import { useLiveDraft } from '../../../lib/liveDraftStore'
+import type { ActivityEntry } from './DocumentModeView'
 
 interface Props {
+  projectId:    string
   writing:      ProjectSection[]
   flags:        SectionFlag[]
   /** First section waiting for review, if any. */
   nextReview:   ProjectSection | null
-  /** First section not drafted yet, with whether it may be drafted now. */
-  nextDraft:    { section: ProjectSection; decision: DraftDecision } | null
+  /** The next chapter (or section) to draft, with whether it may be drafted now. */
+  draftAction:  DraftAction | null
+  /** Sections still waiting in the chapter being drafted. */
+  queued:       string[]
+  onDraftAction: () => void
+  onStop:       (code: string) => void
+  stoppingCode: string | null
+  targetWords:  number
+  activity:     ActivityEntry[]
   lockedNote:   string | null
   onJump:       (code: string) => void
-  onDraftInGuided: (code: string) => void
-  /** Sections edited materially since the last alignment check. */
+  /** Sections drafted or edited since the last alignment check. */
   staleAlignment: string[]
   isValidating: boolean
   onCheckAlignment: () => void
@@ -22,32 +31,89 @@ interface Props {
 
 const label = (s: ProjectSection) => `${s.displayCode || s.code} ${s.title}`
 
-function DocumentAgentPanelImpl({ writing, flags, nextReview, nextDraft, lockedNote, onJump, onDraftInGuided, staleAlignment, isValidating, onCheckAlignment }: Props) {
+function Mark({ state }: { state: ActivityEntry['state'] }) {
+  if (state === 'done') return <Check size={13} className="mt-0.5 shrink-0" aria-label="Done" style={{ color: 'var(--color-green)' }} />
+  if (state === 'error') return <X size={13} className="mt-0.5 shrink-0" aria-label="Problem" style={{ color: 'var(--color-red)' }} />
+  return <Circle size={9} className="dm-pulse mt-1 shrink-0" aria-label="In progress" fill="var(--color-purple)" style={{ color: 'var(--color-purple)' }} />
+}
+
+/** The section being drafted: progress, sources read, and what the run is doing. Watches only its own stream. */
+function NowDrafting({ projectId, section, targetWords, queued, onJump, onStop, stopping }: {
+  projectId: string; section: ProjectSection; targetWords: number; queued: string[]
+  onJump: (code: string) => void; onStop: (code: string) => void; stopping: boolean
+}) {
+  const live = useLiveDraft(projectId, section.code)
+  const pct = Math.min(100, Math.round((live.words / Math.max(1, targetWords)) * 100))
+  const steps: ActivityEntry[] = [
+    ...live.activities.map((a, i) => ({ id: `a${i}`, text: a, state: 'done' as const })),
+    { id: 'draft', text: 'Drafting the section', state: live.streamEnded ? 'done' : 'active' },
+    ...(live.streamEnded ? [{ id: 'check', text: 'Checking citations and claims', state: 'active' as const }] : []),
+  ]
+  return (
+    <div className="rounded-[10px] p-3.5" style={{ border: '0.5px solid var(--border-strong)' }}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[12px] mb-1" style={{ color: 'var(--text-secondary)' }}>Now drafting</div>
+          <button type="button" onClick={() => onJump(section.code)} className="dm-action text-left text-[14px] font-semibold hover:underline" style={{ color: 'var(--text-primary)' }}>
+            {label(section)}
+          </button>
+        </div>
+        <button type="button" onClick={() => onStop(section.code)} disabled={stopping}
+          className="dm-action shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60"
+          style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }} aria-label={`Stop drafting ${label(section)}`}>
+          <Square size={10} aria-hidden="true" /> {stopping ? 'Stopping…' : 'Stop'}
+        </button>
+      </div>
+      <div className="h-1.5 rounded-full mt-2.5" style={{ background: 'var(--surface-rail)' }}
+        role="progressbar" aria-valuemin={0} aria-valuemax={targetWords} aria-valuenow={live.words} aria-label={`${live.words} of about ${targetWords} words`}>
+        <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: 'var(--color-purple)', transition: 'width .2s' }} />
+      </div>
+      <div className="flex justify-between text-[12px] mt-2" style={{ color: 'var(--text-secondary)' }}>
+        <span>{live.words.toLocaleString()} of about {targetWords.toLocaleString()} words</span>
+        {live.sourcesRead !== null && <span>{live.sourcesRead} source{live.sourcesRead === 1 ? '' : 's'} read</span>}
+      </div>
+      <ul className="list-none m-0 mt-3 p-0 flex flex-col gap-1.5 text-[12px] leading-[1.4]" style={{ color: 'var(--text-secondary)' }} aria-live="polite">
+        {steps.map(step => <li key={step.id} className="flex gap-2"><Mark state={step.state} />{step.text}</li>)}
+      </ul>
+      {queued.length > 0 && (
+        <p className="m-0 mt-2.5 text-[12px]" style={{ color: 'var(--text-muted)' }}>Then: {queued.join(', ')}</p>
+      )}
+    </div>
+  )
+}
+
+function DocumentAgentPanelImpl({
+  projectId, writing, flags, nextReview, draftAction, queued, onDraftAction, onStop, stoppingCode, targetWords,
+  activity, lockedNote, onJump, staleAlignment, isValidating, onCheckAlignment,
+}: Props) {
   const bySection = new Map<string, number>()
   for (const f of flags) bySection.set(f.sectionCode, (bySection.get(f.sectionCode) ?? 0) + 1)
+  const busy = writing.length > 0 || queued.length > 0
 
   return (
     <aside aria-label="Agent" className="h-full flex flex-col gap-4 p-[18px] overflow-y-auto dm-scroll">
       <h2 className="m-0 text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>Agent</h2>
 
-      {writing.length > 0 ? (
-        <div className="rounded-[10px] p-3.5" style={{ border: '0.5px solid var(--border-strong)' }} aria-live="polite">
-          <div className="text-[12px] mb-1" style={{ color: 'var(--text-secondary)' }}>Now drafting</div>
-          {writing.map(s => (
-            <button key={s.code} type="button" onClick={() => onJump(s.code)}
-              className="dm-action flex items-center gap-2 text-left text-[14px] font-semibold hover:underline" style={{ color: 'var(--text-primary)' }}>
-              <Loader2 size={13} className="animate-spin shrink-0" aria-hidden="true" style={{ color: 'var(--color-purple)' }} /> {label(s)}
-            </button>
-          ))}
-        </div>
-      ) : (
+      {writing.length > 0 ? writing.map(s => (
+        <NowDrafting key={s.code} projectId={projectId} section={s} targetWords={targetWords} queued={queued}
+          onJump={onJump} onStop={onStop} stopping={stoppingCode === s.code} />
+      )) : (
         <p className="m-0 text-[13px]" style={{ color: 'var(--text-secondary)' }}>Nothing is being drafted right now.</p>
+      )}
+
+      {activity.length > 0 && (
+        <div>
+          <div className="text-[11px] font-semibold tracking-[0.08em] mb-2" style={{ color: 'var(--text-secondary)' }}>ACTIVITY</div>
+          <ul className="list-none m-0 p-0 flex flex-col gap-2 text-[13px] leading-[1.4]" style={{ color: 'var(--text-secondary)' }}>
+            {activity.map(a => <li key={a.id} className="flex gap-2"><Mark state={a.state === 'active' ? 'done' : a.state} />{a.text}</li>)}
+          </ul>
+        </div>
       )}
 
       {staleAlignment.length > 0 && (
         <div className="rounded-[10px] px-3.5 py-3 flex flex-col gap-2" style={{ border: '0.5px solid var(--border-strong)' }}>
           <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
-            Alignment has not been re-checked since you edited {staleAlignment.join(', ')}.
+            Alignment has not been checked since {staleAlignment.join(', ')} {staleAlignment.length === 1 ? 'was' : 'were'} drafted or edited.
           </p>
           <button type="button" onClick={onCheckAlignment} disabled={isValidating}
             className="dm-action self-start rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60"
@@ -81,17 +147,21 @@ function DocumentAgentPanelImpl({ writing, flags, nextReview, nextDraft, lockedN
             Review <button type="button" onClick={() => onJump(nextReview.code)} className="dm-action font-semibold hover:underline" style={{ color: 'var(--text-primary)' }}>{label(nextReview)}</button> and approve it, or rewrite it.
           </p>
         )}
-        {nextDraft ? (
+        {draftAction ? (
           <>
-            <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
-              {nextDraft.decision.allowed ? `${label(nextDraft.section)} is ready to draft.` : nextDraft.decision.reason}
-            </p>
-            <button type="button" disabled={!nextDraft.decision.allowed} onClick={() => onDraftInGuided(nextDraft.section.code)}
+            {!draftAction.decision.allowed && (
+              <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>{draftAction.decision.reason}</p>
+            )}
+            <button type="button" disabled={!draftAction.decision.allowed || busy} onClick={onDraftAction}
               className="dm-action rounded-lg px-3.5 py-2 text-[13px] font-semibold text-left disabled:cursor-not-allowed"
-              style={nextDraft.decision.allowed ? { background: 'var(--color-purple)', color: 'white' } : { background: 'var(--surface-rail)', color: 'var(--text-secondary)' }}>
-              Draft {nextDraft.section.displayCode || nextDraft.section.code} in Guided
-              {!nextDraft.decision.allowed && <span className="sr-only"> (unavailable: {nextDraft.decision.reason})</span>}
+              style={draftAction.decision.allowed && !busy ? { background: 'var(--color-purple)', color: 'white' } : { background: 'var(--surface-rail)', color: 'var(--text-secondary)' }}>
+              {draftAction.label}
+              {!draftAction.decision.allowed && <span className="sr-only"> (unavailable: {draftAction.decision.reason})</span>}
+              {draftAction.decision.allowed && busy && <span className="sr-only"> (available when the current draft finishes)</span>}
             </button>
+            {draftAction.decision.allowed && draftAction.codes.length > 1 && (
+              <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-muted)' }}>Each finished section stops at Needs review.</p>
+            )}
           </>
         ) : !nextReview && (
           <p className="m-0 text-[12px]" style={{ color: 'var(--text-secondary)' }}>Every available section is drafted.</p>

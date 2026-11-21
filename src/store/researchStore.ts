@@ -59,6 +59,8 @@ interface ResearchStore {
   saveSection:         (projectId: string, code: string, content: string) => Promise<void>
   approveSection:      (projectId: string, code: string, acknowledgeConflicts?: boolean) => Promise<void>
   regenerateSection:   (projectId: string, code: string) => Promise<void>
+  /** Stop the run writing one section; the partial text stays as a draft to review. */
+  stopSection:         (projectId: string, code: string) => Promise<void>
   // "Apply fix" preview/confirm/discard — see api/research.ts. applySectionFix returns the
   // proposed content for the caller to hold locally (a diff modal) without mutating store state;
   // confirmSectionFix is what actually replaces the section, discardSectionFix just releases
@@ -395,6 +397,14 @@ export const useResearchStore = create<ResearchStore>()(
 
       saveSection: async (projectId, code, content) => {
         const updated = await researchApi.saveSection(projectId, code, content)
+        set(s => ({
+          sections: updateSection(s.sections, projectId, updated),
+          ethicsChecklist: invalidateEthicsChecklistIfRelevant(s.ethicsChecklist, projectId, updated.code),
+        }))
+      },
+
+      stopSection: async (projectId, code) => {
+        const updated = await researchApi.stopSection(projectId, code)
         set(s => ({
           sections: updateSection(s.sections, projectId, updated),
           ethicsChecklist: invalidateEthicsChecklistIfRelevant(s.ethicsChecklist, projectId, updated.code),

@@ -26,6 +26,14 @@ vi.mock('../../../api/research', async importOriginal => {
   return { ...actual, researchApi: { ...actual.researchApi, getSectionCitationFlags: vi.fn().mockResolvedValue([]) } }
 })
 
+vi.mock('../../../lib/liveDraftStore', () => ({
+  followDraft: vi.fn(), forgetDraft: vi.fn(),
+  useLiveDraft: () => ({ text: '', words: 0, sourcesRead: null, activities: [], streamEnded: false }),
+}))
+vi.mock('../../../api/proposalJourney', () => ({
+  proposalJourneyApi: { current: vi.fn().mockResolvedValue({ summary: { designRequired: false }, readiness: null }) },
+}))
+
 const { useResearchStore } = await import('../../../store/researchStore')
 const { DocumentModeView } = await import('./DocumentModeView')
 
@@ -48,9 +56,16 @@ const project = {
 
 const approveSection = vi.fn().mockResolvedValue(undefined)
 const regenerateSection = vi.fn().mockResolvedValue(undefined)
+// Like the real store: the section is Generating (held by its job) by the time the call resolves.
+const generateSection = vi.fn(async (projectId: string, code: string) => {
+  useResearchStore.setState(st => ({ sections: { ...st.sections, [projectId]: st.sections[projectId].map(x =>
+    x.code === code ? { ...x, status: 'Generating' as const, lockedBy: `job-${code}` } : x) } }))
+})
+const stopSection = vi.fn().mockResolvedValue(undefined)
+const cancelGeneration = vi.fn().mockResolvedValue(undefined)
 
 function seed(sections: ProjectSection[]) {
-  act(() => { useResearchStore.setState({ sections: { p1: sections }, approveSection, regenerateSection }) })
+  act(() => { useResearchStore.setState({ sections: { p1: sections }, approveSection, regenerateSection, generateSection, stopSection, cancelGeneration }) })
 }
 
 function renderView(onOpenGuided = vi.fn()) {
@@ -138,6 +153,39 @@ describe('DocumentModeView', () => {
     const { onOpenGuided } = renderView()
     fireEvent.click(sectionRegion('1.2').getByRole('button', { name: /Open 1\.2 .* in Guided/ }))
     expect(onOpenGuided).toHaveBeenCalledWith('1.2')
+  })
+
+  it('drafts a single section that may be drafted, and explains one that may not', async () => {
+    seed([section('1.0', 'Approved', 'Intro.'), section('2.0', 'NotStarted'), section('3.1', 'NotStarted')])
+    renderView()
+    expect((sectionRegion('3.1').getByRole('button', { name: /Draft this section/ }) as HTMLButtonElement).disabled).toBe(true)
+    await act(async () => { fireEvent.click(sectionRegion('2.0').getByRole('button', { name: 'Draft this section' })) })
+    expect(generateSection).toHaveBeenCalledWith('p1', '2.0', 500)
+  })
+
+  it('drafts a chapter one section at a time, each only after the previous finished', async () => {
+    const intro = section('1.0', 'Approved', 'Intro.')
+    seed([intro, section('2.0', 'NotStarted'), section('2.1', 'NotStarted')])
+    renderView()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Draft Chapter 2 · 2 sections/ })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Draft · \d+ credits/ })) })
+    expect(generateSection.mock.calls.map(c => c[1])).toEqual(['2.0'])
+
+    expect(generateSection).toHaveBeenCalledTimes(1)
+    await act(async () => { seed([intro, section('2.0', 'Draft', 'Drafted.'), section('2.1', 'NotStarted')]) })
+    expect(generateSection.mock.calls.map(c => c[1])).toEqual(['2.0', '2.1'])
+  })
+
+  it('stops a section run, keeping its text, and asks before stopping the whole-proposal run', async () => {
+    seed([section('1.0', 'Generating', '', { lockedBy: 'job-7' }), section('1.2', 'Generating', '', { lockedBy: 'generation' })])
+    renderView()
+    await act(async () => { fireEvent.click(sectionRegion('1.0').getByRole('button', { name: /Stop writing/ })) })
+    expect(stopSection).toHaveBeenCalledWith('p1', '1.0')
+
+    await act(async () => { fireEvent.click(sectionRegion('1.2').getByRole('button', { name: /Stop writing/ })) })
+    expect(cancelGeneration).not.toHaveBeenCalled()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Stop the run' })) })
+    expect(cancelGeneration).toHaveBeenCalledWith('p1')
   })
 
   it('re-renders only the section that changed when a poll replaces every section object', () => {
