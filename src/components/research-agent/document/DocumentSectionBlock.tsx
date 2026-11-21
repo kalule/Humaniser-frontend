@@ -1,15 +1,15 @@
 import { memo, useEffect, useRef, type RefObject } from 'react'
 import { AlertTriangle, ExternalLink, Loader2, Lock } from 'lucide-react'
 import type { ProjectSection } from '../../../types/research'
-import type { DocumentSectionStatus, DraftDecision } from '../../../lib/sectionWorkflow'
+import { isSectionHeld, type DocumentSectionStatus, type DraftDecision } from '../../../lib/sectionWorkflow'
 import type { SectionFlag } from '../../../lib/documentOutline'
 import { SECTION_PROMPTS } from '../../../data/proposalOutline'
-import { stripTrailingReferences } from '../../../lib/wordCount'
 import { useNearViewport } from '../../../hooks/useNearViewport'
-import { ProposalMarkdown } from '../ProposalMarkdown'
 import { SectionStatusChip } from './SectionStatusMark'
+import { SectionEditor } from './SectionEditor'
 
 export interface DocumentSectionBlockProps {
+  projectId:     string
   section:       ProjectSection
   status:        DocumentSectionStatus
   flags:         SectionFlag[]
@@ -22,6 +22,8 @@ export interface DocumentSectionBlockProps {
   onApprove:     (code: string) => void
   onRewrite:     (code: string) => void
   onOpenGuided:  (code: string) => void
+  onDemoted:     (code: string) => void
+  registerFlush: (code: string, flush: (() => Promise<boolean>) | null) => void
 }
 
 const FLAG_LABEL: Record<SectionFlag['kind'], string> = {
@@ -36,8 +38,8 @@ const estimateHeight = (words: number) => Math.max(72, Math.round(words / 11) * 
 const actionClass = 'dm-action rounded-lg text-[13px] px-4 py-2 transition-colors disabled:cursor-not-allowed'
 
 function DocumentSectionBlockImpl({
-  section, status, flags, draft, lockedReason, isApproving, scrollRoot, registerAnchor,
-  onApprove, onRewrite, onOpenGuided,
+  projectId, section, status, flags, draft, lockedReason, isApproving, scrollRoot, registerAnchor,
+  onApprove, onRewrite, onOpenGuided, onDemoted, registerFlush,
 }: DocumentSectionBlockProps) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const measured = useRef<number | null>(null)
@@ -109,7 +111,8 @@ function DocumentSectionBlockImpl({
         )}
 
         {hasBody && (near
-          ? <div className="dm-prose"><ProposalMarkdown content={stripTrailingReferences(section.content)} /></div>
+          ? <SectionEditor projectId={projectId} code={section.code} content={section.content} label={label}
+              editable={!isSectionHeld(section)} onDemoted={onDemoted} registerFlush={registerFlush} />
           : <div aria-hidden="true" style={{ height: measured.current ?? estimateHeight(section.wordCount) }} />)}
       </div>
 
@@ -170,6 +173,10 @@ export const DocumentSectionBlock = memo(DocumentSectionBlockImpl, (a, b) =>
   && a.section.title === b.section.title
   && a.section.displayCode === b.section.displayCode
   && a.section.wordCount === b.section.wordCount
+  && a.section.status === b.section.status
+  && a.section.lockedBy === b.section.lockedBy
+  && a.projectId === b.projectId
+  && a.onDemoted === b.onDemoted && a.registerFlush === b.registerFlush
   && flagsKey(a.flags) === flagsKey(b.flags)
   && a.onApprove === b.onApprove && a.onRewrite === b.onRewrite && a.onOpenGuided === b.onOpenGuided
   && a.registerAnchor === b.registerAnchor && a.scrollRoot === b.scrollRoot)

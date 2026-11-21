@@ -65,6 +65,24 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
 
   const scrollRef = useRef<HTMLElement | null>(null)
   const anchors = useRef(new Map<string, HTMLElement>())
+  // Sections whose text changed materially since the last "Check alignment" (re-check needed).
+  const [staleAlignment, setStaleAlignment] = useState<string[]>([])
+  // Each mounted editor's "save now" — awaited before approve, alignment and export.
+  const flushers = useRef(new Map<string, () => Promise<boolean>>())
+
+  const registerFlush = useCallback((code: string, flush: (() => Promise<boolean>) | null) => {
+    if (flush) flushers.current.set(code, flush)
+    else flushers.current.delete(code)
+  }, [])
+  const flushAll = useCallback(() => Promise.all([...flushers.current.values()].map(f => f())), [])
+
+  // A material edit ends the approval (server rule, SectionEditPolicy) and makes the last
+  // alignment result for that section out of date: drop it and ask for a re-check.
+  const handleDemoted = useCallback((code: string) => {
+    setAlignmentIssues(prev => prev.filter(i => i.sectionCode !== code))
+    setStaleAlignment(prev => (prev.includes(code) ? prev : [...prev, code]))
+    toast(`Your edit to ${code} changed more than a small fix, so it needs approving again. Run Check alignment when you are done editing.`, { duration: 8000 })
+  }, [])
   const isThesis = isThesisDocument(project.documentType)
 
   // ── Derived view model (one pass; blocks re-render only when their own slice changes) ──
@@ -179,6 +197,10 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     const { project: p } = latest.current
     setApprovingCode(code)
     try {
+      if ((await flushers.current.get(code)?.()) === false) {
+        toast.error(`Your latest edit to ${code} is not saved yet, so it was not approved. Retry the save first.`)
+        return
+      }
       // Same rule as Guided: Agent-mode projects approve without the human acknowledgement step;
       // the server still runs and records every integrity check.
       await useResearchStore.getState().approveSection(p.id, code, p.generatorMode === 'AGENT')
@@ -248,8 +270,10 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const handleValidate = useCallback(async () => {
     setIsValidating(true)
     try {
+      await flushAll()
       const result = await useResearchStore.getState().validateAlignment(latest.current.project.id)
       setAlignmentIssues(result.issues ?? [])
+      setStaleAlignment([])
       if (result.issues?.length) toast(`${result.issues.length} alignment issue${result.issues.length === 1 ? '' : 's'} found. They are shown on the sections concerned.`)
       else toast.success(result.message || 'No alignment issues found.')
     } catch (err) {
@@ -257,10 +281,11 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     } finally {
       setIsValidating(false)
     }
-  }, [])
+  }, [flushAll])
 
   const handleExport = useCallback(async () => {
     const p = latest.current.project
+    await flushAll().catch(() => {})
     const thesis = isThesisDocument(p.documentType)
     setIsExporting(true)
     const toastId = toast.loading(thesis ? 'Building thesis .docx…' : 'Building .docx — this may take a moment…')
@@ -274,7 +299,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     } finally {
       setIsExporting(false)
     }
-  }, [])
+  }, [flushAll])
 
   useEffect(() => {
     if (!actionsRef) return
@@ -294,7 +319,8 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   )
   const agent = (
     <DocumentAgentPanel writing={writing} flags={allFlags} nextReview={nextReview} nextDraft={nextDraft}
-      lockedNote={lockedNote} onJump={scrollToAnchor} onDraftInGuided={onOpenGuided} />
+      lockedNote={lockedNote} onJump={scrollToAnchor} onDraftInGuided={onOpenGuided}
+      staleAlignment={staleAlignment} isValidating={isValidating} onCheckAlignment={handleValidate} />
   )
 
   return (
@@ -337,10 +363,11 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
                 const v = view[s.code]
                 if (!v) return null
                 return (
-                  <DocumentSectionBlock key={s.code} section={s} status={v.status} flags={v.flags} draft={v.draft}
+                  <DocumentSectionBlock key={s.code} projectId={project.id} section={s} status={v.status} flags={v.flags} draft={v.draft}
                     lockedReason={v.draft.blocker === 'locked' ? v.draft.reason : null}
                     isApproving={approvingCode === s.code} scrollRoot={scrollRef} registerAnchor={registerAnchor}
-                    onApprove={handleApprove} onRewrite={handleRewrite} onOpenGuided={onOpenGuided} />
+                    onApprove={handleApprove} onRewrite={handleRewrite} onOpenGuided={onOpenGuided}
+                    onDemoted={handleDemoted} registerFlush={registerFlush} />
                 )
               })}
             </div>

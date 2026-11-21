@@ -14,11 +14,15 @@ interface Props {
   lockedNote:   string | null
   onJump:       (code: string) => void
   onDraftInGuided: (code: string) => void
+  /** Sections edited materially since the last alignment check. */
+  staleAlignment: string[]
+  isValidating: boolean
+  onCheckAlignment: () => void
 }
 
 const label = (s: ProjectSection) => `${s.displayCode || s.code} ${s.title}`
 
-function DocumentAgentPanelImpl({ writing, flags, nextReview, nextDraft, lockedNote, onJump, onDraftInGuided }: Props) {
+function DocumentAgentPanelImpl({ writing, flags, nextReview, nextDraft, lockedNote, onJump, onDraftInGuided, staleAlignment, isValidating, onCheckAlignment }: Props) {
   const bySection = new Map<string, number>()
   for (const f of flags) bySection.set(f.sectionCode, (bySection.get(f.sectionCode) ?? 0) + 1)
 
@@ -38,6 +42,19 @@ function DocumentAgentPanelImpl({ writing, flags, nextReview, nextDraft, lockedN
         </div>
       ) : (
         <p className="m-0 text-[13px]" style={{ color: 'var(--text-secondary)' }}>Nothing is being drafted right now.</p>
+      )}
+
+      {staleAlignment.length > 0 && (
+        <div className="rounded-[10px] px-3.5 py-3 flex flex-col gap-2" style={{ border: '0.5px solid var(--border-strong)' }}>
+          <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
+            Alignment has not been re-checked since you edited {staleAlignment.join(', ')}.
+          </p>
+          <button type="button" onClick={onCheckAlignment} disabled={isValidating}
+            className="dm-action self-start rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60"
+            style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
+            {isValidating ? 'Checking…' : 'Check alignment'}
+          </button>
+        </div>
       )}
 
       {flags.length > 0 && (

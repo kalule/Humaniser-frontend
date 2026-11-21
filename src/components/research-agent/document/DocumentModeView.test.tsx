@@ -5,12 +5,22 @@ import { MemoryRouter } from 'react-router-dom'
 import type { ProjectSection, ResearchProject, SectionStatus } from '../../../types/research'
 
 const renders = new Map<string, number>()
-vi.mock('../ProposalMarkdown', () => ({
-  ProposalMarkdown: ({ content }: { content: string }) => {
-    renders.set(content, (renders.get(content) ?? 0) + 1)
-    return <p>{content}</p>
-  },
-}))
+// Flush result each mounted editor reports (true = everything saved).
+const flushResult = { value: true }
+const flushCalls: string[] = []
+vi.mock('./SectionEditor', async () => {
+  const { useEffect } = await import('react')
+  return {
+    SectionEditor: ({ code, content, editable, registerFlush }: { code: string; content: string; editable: boolean; registerFlush: (c: string, f: (() => Promise<boolean>) | null) => void }) => {
+      renders.set(content, (renders.get(content) ?? 0) + 1)
+      useEffect(() => {
+        registerFlush(code, async () => { flushCalls.push(code); return flushResult.value })
+        return () => registerFlush(code, null)
+      }, [code, registerFlush])
+      return <p data-editable={String(editable)}>{content}</p>
+    },
+  }
+})
 vi.mock('../../../api/research', async importOriginal => {
   const actual = await importOriginal<typeof import('../../../api/research')>()
   return { ...actual, researchApi: { ...actual.researchApi, getSectionCitationFlags: vi.fn().mockResolvedValue([]) } }
@@ -53,6 +63,8 @@ const sectionRegion = (code: string) => within(screen.getByRole('region', { name
 
 beforeEach(() => {
   renders.clear()
+  flushCalls.length = 0
+  flushResult.value = true
   seed([
     section('1.0', 'Approved', 'Approved introduction text.'),
     section('1.2', 'Draft', 'Background draft text.'),
@@ -82,6 +94,24 @@ describe('DocumentModeView', () => {
     renderView()
     await act(async () => { fireEvent.click(sectionRegion('1.2').getByRole('button', { name: 'Approve' })) })
     expect(approveSection).toHaveBeenCalledWith('p1', '1.2', false)
+  })
+
+  it('saves pending edits before approving, and does not approve over an unsaved edit', async () => {
+    renderView()
+    await act(async () => { fireEvent.click(sectionRegion('1.2').getByRole('button', { name: 'Approve' })) })
+    expect(flushCalls).toEqual(['1.2'])
+    expect(approveSection).toHaveBeenCalledTimes(1)
+
+    flushResult.value = false
+    await act(async () => { fireEvent.click(sectionRegion('1.2').getByRole('button', { name: 'Approve' })) })
+    expect(approveSection).toHaveBeenCalledTimes(1)
+  })
+
+  it('makes approved and needs-review text editable, but not a section a run holds', () => {
+    seed([section('1.0', 'Approved', 'Approved text.'), section('1.2', 'Draft', 'Held text.', { lockedBy: 'job-9' })])
+    renderView()
+    expect(screen.getByText('Approved text.').getAttribute('data-editable')).toBe('true')
+    expect(screen.getByText('Held text.').getAttribute('data-editable')).toBe('false')
   })
 
   it('explains why a later chapter cannot be drafted yet', () => {

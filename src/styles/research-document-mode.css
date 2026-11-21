@@ -38,3 +38,10 @@
   outline: 2px solid var(--color-purple);
   outline-offset: 2px;
 }
+
+/* Per-section editor (Phase 3): reads like the page, shows a quiet focus ring while editing. */
+.dm-editor .ProseMirror { outline: none; min-height: 1.75em; }
+.dm-editor .ProseMirror p:last-child { margin-bottom: 0; }
+.dm-editor { border-radius: 6px; margin: 0 -8px; padding: 2px 8px; transition: box-shadow .15s; }
+.dm-editor:focus-within { box-shadow: 0 0 0 2px var(--color-purple-tint); }
+.dm-editor .ProseMirror[contenteditable="false"] { cursor: default; }
