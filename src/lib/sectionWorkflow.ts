@@ -1,4 +1,4 @@
-import type { ProjectSection } from '../types/research'
+import type { ProjectSection, SectionStatus } from '../types/research'
 import { isAbstractStepLocked } from '../pages/app/abstractStepStatus'
 
 /**
@@ -166,4 +166,23 @@ export const DOCUMENT_STATUS_LABELS: Record<DocumentSectionStatus, string> = {
   needs_review: 'Needs review',
   approved:     'Approved',
   locked:       'Locked',
+}
+
+// Shared by every view that reads sections (Guided rail, Guided editor, Document view, exports):
+// when the server returns duplicate rows for a code, keep the most advanced status, then the
+// longest content, so no two views can resolve "the section for code X" differently.
+const SECTION_STATUS_ORDER: Record<SectionStatus, number> =
+  { NotStarted: 0, Generating: 1, Draft: 2, Edited: 3, Approved: 4 }
+
+export function dedupeSections(rawSections: readonly ProjectSection[]): ProjectSection[] {
+  const best = new Map<string, ProjectSection>()
+  for (const s of rawSections) {
+    const existing = best.get(s.code)
+    if (!existing) { best.set(s.code, s); continue }
+    const statusDelta = SECTION_STATUS_ORDER[s.status] - SECTION_STATUS_ORDER[existing.status]
+    if (statusDelta > 0 || (statusDelta === 0 && s.content.length > existing.content.length)) {
+      best.set(s.code, s)
+    }
+  }
+  return [...best.values()].sort((a, b) => a.order - b.order)
 }

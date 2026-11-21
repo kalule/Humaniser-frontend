@@ -1,0 +1,40 @@
+/* Research Agent — Document mode. Colours come from the app tokens in index.css. */
+
+.dm-prose {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.dm-prose p { margin: 0 0 14px; }
+.dm-prose h1, .dm-prose h2, .dm-prose h3, .dm-prose h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 18px 0 8px;
+}
+.dm-prose ul, .dm-prose ol { margin: 0 0 14px; padding-left: 22px; }
+.dm-prose ul { list-style: disc; }
+.dm-prose ol { list-style: decimal; }
+.dm-prose li { margin: 4px 0; }
+.dm-prose table { border-collapse: collapse; margin: 0 0 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; display: block; overflow-x: auto; }
+.dm-prose th, .dm-prose td { border: 0.5px solid var(--border-strong); padding: 6px 8px; text-align: left; vertical-align: top; }
+.dm-prose img { max-width: 100%; height: auto; }
+.dm-prose blockquote { border-left: 2px solid var(--border-strong); margin: 0 0 14px; padding-left: 12px; color: var(--text-secondary); }
+
+@keyframes dm-pulse { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+.dm-pulse { animation: dm-pulse 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .dm-pulse { animation: none; }
+}
+
+.dm-scroll { scrollbar-width: thin; }
+.dm-scroll::-webkit-scrollbar { width: 6px; }
+.dm-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+
+.dm-outline-item:focus-visible,
+.dm-action:focus-visible,
+.dm-heading:focus-visible {
+  outline: 2px solid var(--color-purple);
+  outline-offset: 2px;
+}

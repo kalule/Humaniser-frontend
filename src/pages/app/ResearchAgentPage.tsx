@@ -49,7 +49,10 @@ import { FixIssuesPanel } from '../../components/research-agent/FixIssuesPanel'
 // chapter list and prompts without pulling in this whole page's module.
 import { STEPS, SECTION_PROMPTS, getStepLabel } from '../../data/proposalOutline'
 import { isAbstractStepLocked } from './abstractStepStatus'
-import { canDraft, type DraftDecision } from '../../lib/sectionWorkflow'
+import { canDraft, dedupeSections, type DraftDecision } from '../../lib/sectionWorkflow'
+import { guidedParamsFor } from '../../lib/documentOutline'
+import { parseView, readStoredView, storeView, type ResearchAgentView } from '../../lib/researchAgentView'
+import { DocumentModeView, type DocumentModeActions, type DocumentModeActionsState } from '../../components/research-agent/document/DocumentModeView'
 import { apiErrorMessage } from '../../lib/deepResearch'
 import { recommendMethodology, methodologyInputFingerprint, type MethodologyRecommendation } from '../../lib/methodologyRecommendation'
 import { useConfirm } from '../../components/ui/ConfirmDialog'
@@ -77,21 +80,7 @@ const extractErrorMessage = (err: unknown): string | undefined =>
 // as its comment claimed. Together those two bugs could show a stale/empty duplicate row's content
 // (0 words) in the editor while the sidebar's badge, reading the raw array, happened to reflect
 // the real generated row (524w) — the exact "sidebar and editor disagree" symptom this fixes.
-const SECTION_STATUS_ORDER: Record<SectionStatus, number> =
-  { NotStarted: 0, Generating: 1, Draft: 2, Edited: 3, Approved: 4 }
-
-function dedupeSections(rawSections: ProjectSection[]): ProjectSection[] {
-  const best = new Map<string, ProjectSection>()
-  for (const s of rawSections) {
-    const existing = best.get(s.code)
-    if (!existing) { best.set(s.code, s); continue }
-    const statusDelta = SECTION_STATUS_ORDER[s.status] - SECTION_STATUS_ORDER[existing.status]
-    if (statusDelta > 0 || (statusDelta === 0 && s.content.length > existing.content.length)) {
-      best.set(s.code, s)
-    }
-  }
-  return [...best.values()].sort((a, b) => a.order - b.order)
-}
+// dedupeSections now lives in lib/sectionWorkflow so the Document view resolves sections identically.
 
 // Groups alignment/quality issues by sectionCode for display, and separates out each group's
 // 'LlmJudged' subset — the only issues eligible for "Apply fix" (see IssueSource in
@@ -5292,6 +5281,27 @@ export default function ResearchAgentPage() {
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const saveStateResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Guided | Document. Both views read and write the same section records in researchStore;
+  // Guided stays mounted (hidden) under Document so an edit still waiting for its autosave is
+  // never lost by switching. ?view= wins over the per-user stored choice.
+  const userId = useAuthStore(s => s.user?.id)
+  const [storedView, setStoredView] = useState<ResearchAgentView>(() => readStoredView(userId))
+  useEffect(() => { setStoredView(readStoredView(userId)) }, [userId])
+  const view: ResearchAgentView = parseView(searchParams.get('view')) ?? storedView
+  const documentActionsRef = useRef<DocumentModeActions | null>(null)
+  const [documentActionsState, setDocumentActionsState] = useState<DocumentModeActionsState>({
+    isValidating: false, isExporting: false, isThesisOrDissertation: false,
+  })
+  const switchView = (next: ResearchAgentView) => {
+    storeView(userId, next)
+    setStoredView(next)
+    setSearchParams(prev => {
+      const params = new URLSearchParams(prev)
+      params.set('view', next)
+      return params
+    }, { replace: true })
+  }
+
   // Bootstrap: create project on backend then navigate to its real ID.
   // The module-level flag prevents double-creation from StrictMode remounts.
   useEffect(() => {
@@ -5366,6 +5376,16 @@ export default function ResearchAgentPage() {
 
   const goNext = () => goToStep(currentStep + 1)
   const goBack = () => goToStep(currentStep - 1)
+
+  // From Document mode: open one section in Guided (drafting and flag-repair tools live there).
+  const openGuidedAt = useCallback((code: string) => {
+    storeView(userId, 'guided')
+    setStoredView('guided')
+    const target = guidedParamsFor(code)
+    if (target.step !== undefined) goToStep(Number(target.step))
+    else setSearchParams({ ...target, view: 'guided' }, { replace: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, project?.id])
 
   // On the last step (Download) goNext's target index is out of bounds, so goToStep's own
   // bounds check silently no-ops — "Finish" looked clickable but genuinely did nothing. The
@@ -5442,7 +5462,7 @@ export default function ResearchAgentPage() {
       <ToolSidebar />
 
       {/* ── 2. Step Rail — 220px, mobile slide-in drawer below md ───────────── */}
-      <StepRail
+      {view === 'guided' && <StepRail
         currentStepIdx={currentStep}
         activeSectionCode={requestedSectionCode}
         onSelectSectionCode={code => {
@@ -5465,7 +5485,7 @@ export default function ResearchAgentPage() {
         project={project}
         isOpen={railOpen}
         onClose={() => setRailOpen(false)}
-      />
+      />}
 
       {/* ── 3. Main Panel ───────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 overflow-hidden">
@@ -5476,22 +5496,22 @@ export default function ResearchAgentPage() {
           style={{ borderBottom: '0.5px solid var(--border-hairline)' }}
         >
           {/* Mobile-only rail toggle */}
-          <button
+          {view === 'guided' && <button
             onClick={() => setRailOpen(true)}
             className="shrink-0 md:hidden flex items-center justify-center rounded-lg hover:bg-slate-50 transition-colors"
             style={{ width: 28, height: 28, color: 'var(--text-secondary)' }}
             aria-label="Open chapter list"
           >
             <Menu size={16} />
-          </button>
+          </button>}
 
           {/* Breadcrumb */}
-          <span className="text-[12px] shrink-0" style={{ color: 'var(--text-muted)' }}>Research Agent</span>
-          <span className="text-[12px] shrink-0" style={{ color: 'var(--border-strong)' }}>›</span>
+          <span className="text-[12px] shrink-0 hidden sm:inline" style={{ color: 'var(--text-muted)' }}>Research Agent</span>
+          <span className="text-[12px] shrink-0 hidden sm:inline" style={{ color: 'var(--border-strong)' }}>›</span>
           <span className="text-[12px] truncate max-w-[140px]" style={{ color: 'var(--text-secondary)' }} title={project.title}>{docTitle}</span>
           <span className="text-[12px] shrink-0" style={{ color: 'var(--border-strong)' }}>›</span>
           <span className="text-[12px] font-medium truncate max-w-[130px]" style={{ color: 'var(--text-primary)' }}>
-            {requestedSectionCode
+            {view === 'document' ? 'Whole document' : requestedSectionCode
               ? activeChapterSection
                 ? `${activeChapterSection.code} ${activeChapterSection.title}`
                 : requestedSectionCode === '0.0' ? '0.0 Abstract'
@@ -5516,10 +5536,28 @@ export default function ResearchAgentPage() {
           {/* Step counter lives in the sidebar header ("Step N of M · X% complete") —
               not repeated here to avoid showing the same fact twice in one screen. */}
 
+          {/* Guided | Document — two views of the same sections. */}
+          <div role="group" aria-label="View" className="shrink-0 flex rounded-lg p-[3px]" style={{ background: 'var(--surface-rail)' }}>
+            {(['guided', 'document'] as const).map(v => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => { if (v !== view) switchView(v) }}
+                aria-pressed={view === v}
+                className="text-[12px] rounded-md px-3 transition-colors"
+                style={view === v
+                  ? { height: 22, background: 'white', color: 'var(--text-primary)', fontWeight: 600, boxShadow: '0 1px 2px rgba(28,26,43,.12)' }
+                  : { height: 22, color: 'var(--text-secondary)' }}
+              >
+                {v === 'guided' ? 'Guided' : 'Document'}
+              </button>
+            ))}
+          </div>
+
           {/* Save and exit — makes the already-real autosave explicit before leaving. */}
           <button
             onClick={handleSaveAndExit}
-            className="shrink-0 flex items-center gap-1.5 text-[12px] hover:bg-slate-50 transition-colors"
+            className="shrink-0 hidden sm:flex items-center gap-1.5 text-[12px] hover:bg-slate-50 transition-colors"
             style={{ height: 28, border: '0.5px solid var(--border-strong)', borderRadius: 6, padding: '0 10px', color: 'var(--text-secondary)' }}
           >
             Save and exit
@@ -5528,7 +5566,30 @@ export default function ResearchAgentPage() {
           {/* Check alignment / Export .docx — chapter writer view only. The handlers
               live inside ChapterWriterView (they close over isDirty/handleSave/project.id);
               this topbar just triggers them through chapterActionsRef. */}
-          {stepType === 'chapter' && (
+          {view === 'document' && (
+            <>
+              <button
+                onClick={() => documentActionsRef.current?.validate()}
+                disabled={documentActionsState.isValidating}
+                className="shrink-0 hidden sm:flex items-center gap-1.5 text-[12px] hover:bg-slate-50 transition-colors disabled:opacity-50"
+                style={{ height: 28, border: '0.5px solid var(--border-strong)', borderRadius: 6, padding: '0 10px', color: 'var(--text-secondary)' }}
+              >
+                {documentActionsState.isValidating ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
+                Check alignment
+              </button>
+              <button
+                onClick={() => documentActionsRef.current?.export()}
+                disabled={documentActionsState.isExporting}
+                className="shrink-0 hidden sm:flex items-center gap-1.5 text-[12px] hover:bg-slate-50 transition-colors disabled:opacity-50"
+                style={{ height: 28, border: '0.5px solid var(--border-strong)', borderRadius: 6, padding: '0 10px', color: 'var(--text-secondary)' }}
+              >
+                {documentActionsState.isExporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                {documentActionsState.isThesisOrDissertation ? 'Export Thesis' : 'Export .docx'}
+              </button>
+            </>
+          )}
+
+          {view === 'guided' && stepType === 'chapter' && (
             <>
               <button
                 onClick={() => chapterActionsRef.current?.validate()}
@@ -5624,11 +5685,23 @@ export default function ResearchAgentPage() {
               onActiveSectionChange={setActiveChapterSection}
             />
           </div>
+
+          {/* Document mode covers the Guided views, which stay mounted underneath. */}
+          {view === 'document' && (
+            <div className="absolute inset-0 z-10">
+              <DocumentModeView
+                project={project}
+                actionsRef={documentActionsRef}
+                onActionsStateChange={setDocumentActionsState}
+                onOpenGuided={openGuidedAt}
+              />
+            </div>
+          )}
         </div>
 
-        {/* Bottom nav — 48px */}
+        {/* Bottom nav — 48px (Guided only; Document mode navigates by its outline) */}
         <div
-          className="shrink-0 h-12 flex items-center gap-3 px-4 bg-white"
+          className={cn('shrink-0 h-12 flex items-center gap-3 px-4 bg-white', view === 'document' && 'hidden')}
           style={{ borderTop: '0.5px solid var(--border-hairline)' }}
         >
           {/* Previous */}
