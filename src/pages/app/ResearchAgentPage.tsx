@@ -52,6 +52,7 @@ import { isAbstractStepLocked } from './abstractStepStatus'
 import { apiErrorMessage } from '../../lib/deepResearch'
 import { recommendMethodology, methodologyInputFingerprint, type MethodologyRecommendation } from '../../lib/methodologyRecommendation'
 import { useConfirm } from '../../components/ui/ConfirmDialog'
+import { DATA_COLLECTION_OPTIONS } from '../../lib/methodologyOptions'
 
 export { STEPS }
 
@@ -1033,7 +1034,7 @@ const METHODOLOGY_TIER2: Record<MethodologyTier1, string[]> = {
 const RECOMMENDATION_KEY = 'methodology-recommendation-v1'
 const CONFIRMATION_SOURCE_KEY = 'methodology-confirmation-source'
 const METHODOLOGY_TIME_FRAMES = ['Cross-sectional', 'Longitudinal', 'Unspecified']
-const METHODOLOGY_COLLECTION = ['Questionnaire', 'Interview', 'Focus Group', 'Observation', 'Existing Records', 'Other']
+const METHODOLOGY_COLLECTION = [...DATA_COLLECTION_OPTIONS]
 const METHODOLOGY_ANALYSIS = ['Regression', 'Thematic Analysis', 'Descriptive Statistics', 'Other']
 const METHODOLOGY_MIXED_DESIGNS = ['Convergent', 'Explanatory Sequential', 'Exploratory Sequential', 'Unspecified']
 
@@ -4423,6 +4424,32 @@ function ChapterWriterView({
       // AxiosError at all, so `axios.isAxiosError(err)` is always false and this never matched
       // anything (FACT_CONFLICT included — same dormant bug, not something new).
       const errorCode = (err as ApiError | undefined)?.code
+
+      // APPROVAL_HARD_BLOCKED (409) — a defect "Approve anyway" cannot override: a "[CITATION NEEDED]" marker, a citation
+      // that points to no source, or a claim its source contradicts. No override button: the text has to change.
+      if (errorCode === 'APPROVAL_HARD_BLOCKED') {
+        const reasons = ((err as ApiError)?.details as { reasons?: string[] } | undefined)?.reasons ?? []
+        toast((t) => (
+          <div className="flex max-w-[430px] flex-col gap-2 text-[13px]">
+            <span className="font-semibold text-red-800">Fix these before approving this section:</span>
+            {reasons.length > 0
+              ? <ul className="list-disc pl-5 text-slate-700">{reasons.map(r => <li key={r}>{r}</li>)}</ul>
+              : <span className="text-slate-700">{(err as ApiError)?.message}</span>}
+            <div className="flex gap-3 mt-1">
+              <button
+                onClick={() => { toast.dismiss(t.id); handleOpenReferences() }}
+                className="font-semibold text-[#7c3aed] hover:text-[#6d28d9]"
+              >
+                Review issues
+              </button>
+              <button onClick={() => toast.dismiss(t.id)} className="text-slate-500 hover:text-slate-700">
+                Close
+              </button>
+            </div>
+          </div>
+        ), { duration: 30000 })
+        return
+      }
 
       // FACT_CONFLICT (409) — this section's own stated facts contradict an earlier chapter
       // (see CheckFactsConsistencyAsync). Show the competing values here: a generic warning made

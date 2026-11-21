@@ -18,6 +18,7 @@ import { findSimilarPapers, MIN_QUERY_LENGTH, type LiteratureCitation } from '..
 import { CHAPTER_STEPS } from '../../data/proposalOutline'
 import type { AcademicLevel, CitationStyle, DocumentMode, GeneratorMode, GenerationPhase, ProjectSection } from '../../types/research'
 import { GenerationProgressDialog } from './GenerationProgressDialog'
+import { DATA_COLLECTION_OPTIONS } from '../../lib/methodologyOptions'
 
 // ── Autonomous Proposal + Similar Papers Finder ─────────────────────────────
 // Hoisted out of the old "AI Thesis" page (now Thesis Studio, which no longer
@@ -38,6 +39,9 @@ export interface ProposalConfig {
   studyPopulation:  string
   targetWords:      number
   methodologyType: 'Qualitative' | 'Quantitative' | 'Mixed Methods'
+  // Confirmed with the approach. The methodology chapters are framed from it (participants or not), so the proposal
+  // is not generated without it.
+  dataCollectionApproach: string
 }
 
 // The tool always produces a PROPOSAL document via the AGENT (autonomous)
@@ -105,10 +109,11 @@ export function AutonomousProposalModal({ onClose, onCreate, initialTitle = '', 
   const [lengthUnit,       setLengthUnit]       = useState<'words' | 'pages'>('words')
   const [loading,          setLoading]          = useState(false)
   const [methodologyType, setMethodologyType] = useState<ProposalConfig['methodologyType'] | ''>('')
+  const [dataCollectionApproach, setDataCollectionApproach] = useState('')
 
   const tabIndex   = MODAL_TABS.findIndex(t => t.key === tab)
   const isLastTab  = tabIndex === MODAL_TABS.length - 1
-  const canProceed = title.trim().length > 0 && (!isLastTab || methodologyType !== '')
+  const canProceed = title.trim().length > 0 && (!isLastTab || (methodologyType !== '' && dataCollectionApproach !== ''))
 
   const goNext = () => {
     if (!canProceed || loading) return
@@ -124,7 +129,7 @@ export function AutonomousProposalModal({ onClose, onCreate, initialTitle = '', 
   }
 
   const handleCreate = async () => {
-    if (!canProceed || !methodologyType || loading) return
+    if (!canProceed || !methodologyType || !dataCollectionApproach || loading) return
     setLoading(true)
     try {
       await onCreate({
@@ -138,6 +143,7 @@ export function AutonomousProposalModal({ onClose, onCreate, initialTitle = '', 
         studyPopulation:  studyPopulation.trim(),
         targetWords,
         methodologyType,
+        dataCollectionApproach,
       })
     } catch {
       toast.error('Could not create the research project. Please try again.')
@@ -333,6 +339,16 @@ export function AutonomousProposalModal({ onClose, onCreate, initialTitle = '', 
                   <option value="Mixed Methods">Mixed Methods</option>
                 </select>
                 <p className="text-[12px] text-slate-500 mt-2">Generating confirms this approach for your proposal. You can refine the design in the research workspace.</p>
+              </div>
+              <div>
+                <label htmlFor="autonomous-data-collection" className="text-[12px] font-semibold text-slate-700 mb-1.5 block">How data will be collected *</label>
+                <select id="autonomous-data-collection" value={dataCollectionApproach}
+                  onChange={e => setDataCollectionApproach(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-[13px] text-slate-800 bg-white">
+                  <option value="">Select how data will be collected</option>
+                  {DATA_COLLECTION_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <p className="text-[12px] text-slate-500 mt-2">The methodology chapters are written from this, including whether the study has participants.</p>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -869,7 +885,7 @@ export function useAutonomousProposalFlow() {
       // citationStyle/sectionContent set here once syncProject actually
       // pushes them, so this must happen before starting the job.
       await researchStore.syncProject(project.id)
-      const status = await startAutonomousProposal(project.id, { methodologyType: config.methodologyType }, perSectionWords)
+      const status = await startAutonomousProposal(project.id, { methodologyType: config.methodologyType, dataCollectionApproach: config.dataCollectionApproach }, perSectionWords)
       setShowCreateModal(false)
       setGen({ projectId: project.id, title: config.title, phase: status.status, index: status.completedCount, currentLabel: labelForSectionCode(status.currentSection), currentSection: status.currentSection, totalCount: status.totalCount, words: status.wordsWritten, failedCount: status.failedCount, articleView: false, stalled: false, startedAt: Date.now(), perSectionWords })
       researchStore.loadProject(project.id).catch(() => {})
