@@ -279,3 +279,16 @@ export function startHint(text: string): string | null {
   if (words === 0) return `Paste a draft with in-text citations and a reference list. Minimum ${MIN_WORDS} words.`
   return words < MIN_WORDS ? `Minimum ${MIN_WORDS} words required (${MIN_WORDS - words} more needed).` : null
 }
+
+/** Where a project section's "Check citations" link goes (research-platform W5). */
+export function sectionCheckLink(projectId: string, sectionCode: string, label: string): string {
+  const q = new URLSearchParams({ projectId, section: sectionCode, label })
+  return `/app/citation-check?${q.toString()}`
+}
+
+/** The section a check was opened for, read back from the link, or null when the page was opened on its own. */
+export function sectionFromLink(params: URLSearchParams): { projectId: string; sectionCode: string; label: string } | null {
+  const projectId = params.get('projectId'), sectionCode = params.get('section')
+  if (!projectId || !sectionCode) return null
+  return { projectId, sectionCode, label: params.get('label') || `Section ${sectionCode}` }
+}

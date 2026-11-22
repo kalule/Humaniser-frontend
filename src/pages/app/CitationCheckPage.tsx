@@ -6,7 +6,8 @@ import toast from 'react-hot-toast'
 import { useCitationCheck } from '../../hooks/useCitationCheck'
 import type { CitationCard } from '../../types/citationCheck'
 import { insertReference, referenceStub } from '../../lib/citationCheckActions'
-import { canStart, isCheckableFile, MAX_FILE_BYTES, retentionNote, startHint, wordCount } from '../../lib/citationCheckView'
+import { canStart, isCheckableFile, MAX_FILE_BYTES, retentionNote, sectionFromLink, startHint, wordCount } from '../../lib/citationCheckView'
+import { Link, useSearchParams } from 'react-router-dom'
 import { wordCountOf } from '../../lib/citationHighlights'
 import { LOST_TOUCH_MESSAGE } from '../../lib/citationCheckPolling'
 import { CitationCheckReportView } from '../../components/app/citationCheck/CitationCheckReportView'
@@ -35,6 +36,9 @@ import { primaryButtonClass } from '../../lib/utils'
 
 export default function CitationCheckPage() {
   const check = useCitationCheck()
+  // Opened from a project section (W5): the check runs on that section without pasting anything.
+  const [params] = useSearchParams()
+  const fromSection = sectionFromLink(params)
   const { confirm, dialog: confirmDialog } = useConfirm()
   const [inputText, setInputText] = useState('')
   const [isDragging, setIsDragging] = useState(false)
@@ -183,6 +187,18 @@ export default function CitationCheckPage() {
           <PanelLabel label="Your draft" />
           <CitationModeToggle active="document" />
         </div>
+        {fromSection && (
+          <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-[#e0e0da] bg-violet-50 text-[13px] text-violet-900">
+            <span className="min-w-0 flex-1">From your project: <strong>{fromSection.label}</strong></span>
+            {(check.phase === 'idle' || check.phase === 'finished') && (
+              <button type="button" className={primaryButtonClass(true)}
+                onClick={() => void check.startSection(fromSection.projectId, fromSection.sectionCode, fromSection.label)}>
+                {check.phase === 'finished' ? 'Check this section again' : 'Check this section'}
+              </button>
+            )}
+            <Link to={`/app/research-agent/${fromSection.projectId}`} className="font-medium underline">Back to your project</Link>
+          </div>
+        )}
         {hasRun && (
           <CitationDraftHeader
             fileName={check.fileName}

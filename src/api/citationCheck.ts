@@ -12,6 +12,10 @@ export const citationCheckApi = {
   start: async (text: string): Promise<string> =>
     unwrap(await client.post<Wrap<{ runId: string }>>(BASE, { text })).runId,
 
+  /** Start a check on a section of the caller's research project, with the project sources it cites (research-platform W5). */
+  startFromSection: async (projectId: string, sectionCode: string): Promise<string> =>
+    unwrap(await client.post<Wrap<{ runId: string }>>(`${BASE}/from-section`, { projectId, sectionCode })).runId,
+
   /** Start a check on a Word (.docx) or text-based PDF file. The server reads the file itself (type and size are enforced there). */
   uploadFile: async (file: File): Promise<CitationCheckStarted> => {
     const form = new FormData()

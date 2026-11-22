@@ -1,5 +1,7 @@
 import { memo, useEffect, useRef, type RefObject } from 'react'
-import { AlertTriangle, ExternalLink, Lock, Square } from 'lucide-react'
+import { AlertTriangle, ExternalLink, Lock, SearchCheck, Square } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { sectionCheckLink } from '../../../lib/citationCheckView'
 import type { ProjectSection } from '../../../types/research'
 import { isSectionHeld, type DocumentSectionStatus, type DraftDecision } from '../../../lib/sectionWorkflow'
 import type { SectionFlag } from '../../../lib/documentOutline'
@@ -98,6 +100,16 @@ function DocumentSectionBlockImpl({
         >
           <ExternalLink size={12} aria-hidden="true" /> Open in Guided
         </button>
+        {hasBody && section.content.trim() && (
+          <Link
+            to={sectionCheckLink(projectId, section.code, label)}
+            className="dm-action inline-flex items-center gap-1 text-[12px] rounded-md px-2 py-1 hover:bg-white/60"
+            style={{ color: 'var(--text-secondary)' }}
+            aria-label={`Check the citations in ${label}`}
+          >
+            <SearchCheck size={12} aria-hidden="true" /> Check citations
+          </Link>
+        )}
       </div>
 
       {hasBody && flags.length > 0 && (

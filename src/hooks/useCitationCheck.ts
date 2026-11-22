@@ -146,6 +146,9 @@ export function useCitationCheck() {
 
   const startText = useCallback((text: string) =>
     begin(async () => ({ runId: await citationCheckApi.start(text), fileName: null, warnings: [] })), [begin])
+  /** A section of the student's project: no paste; the server builds the draft from the section and its sources. */
+  const startSection = useCallback((projectId: string, sectionCode: string, label: string) =>
+    begin(async () => ({ runId: await citationCheckApi.startFromSection(projectId, sectionCode), fileName: label, warnings: [] })), [begin])
   const startFile = useCallback((file: File) =>
     begin(async () => {
       const { runId, warnings } = await citationCheckApi.uploadFile(file)
@@ -225,7 +228,7 @@ export function useCitationCheck() {
 
   return {
     phase, report, error, queuedSince, draft, draftState, fileName, extractionWarnings,
-    startText, startFile, reset, remove, retryWatch, retryDraft,
+    startText, startFile, startSection, reset, remove, retryWatch, retryDraft,
     pending, preparing, prepareText, prepareFile, confirmPending, cancelPending, retryFailed,
     currentRunId: () => currentRun.current,
   }
