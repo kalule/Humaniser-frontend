@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, ChevronDown, Download, Loader2, Undo2, Wrench } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { researchApi } from '../../api/research'
 import { changedLines } from '../../lib/proposalRepairDiff'
 import { nextActionAfterRepair } from '../../lib/proposalRepairFlow'
+import { triageIssues, type IssueGroup } from '../../lib/proposalIssueTriage'
 import type { ProposalIssue, ProposalIssues, RepairReport } from '../../types/research'
 
 interface FixIssuesPanelProps {
@@ -40,6 +41,8 @@ const ISSUE_LABELS: Record<string, string> = {
   budget_duration_mismatch: 'Budget vs timeline',
   timeline_duration_mismatch: 'Timeline duration',
   fact_conflict: 'Conflicting facts',
+  presentation_latex_math: 'Math markup',
+  presentation_glued_citation: 'Broken citation',
 }
 
 /** The proposal business rules (docs/specs/business-rules.md) arrive as quality_brNN. */
@@ -63,9 +66,43 @@ const QUALITY_LABELS: Record<string, string> = {
   pi01: 'Completed work in a proposal',
 }
 
+/** SectionRulesDetector's checks arrive as section_rule_<name>. */
+const SECTION_RULE_LABELS: Record<string, string> = {
+  internal_language: 'Generator wording',
+  unresolved_wording: 'Open decision in the text',
+  template_residue: 'Wording from another kind of study',
+  duplicate_citation: 'Same source twice',
+  causal_wording: 'Causal wording',
+  qualitative_variable_language: 'Variable language',
+  shared_definition: 'Shared definition',
+  repetition: 'Repeated sentence',
+  repeated_statistic: 'Repeated statistic',
+  calendar_month_one: 'Timeline start date',
+  no_risk_claim: 'No-risk claim',
+  data_protection_law: 'Data protection law',
+  collector_conflict: 'Who collects the data',
+  frame_conflict: 'Sampling frame',
+  budget_coverage: 'Budget coverage',
+  timeline_coverage: 'Timeline coverage',
+  variable_table: 'Variable table',
+  correlation_on_categorical: 'Analysis method',
+  citation_padding: 'Citation padding',
+  hypothetical_procedure: 'Hypothetical procedure',
+  circular_measurement: 'Circular measurement',
+  outcome_eligibility: 'Eligibility screens on an outcome',
+  power_analysis_mismatch: 'Sample size vs analysis',
+  sampling_technique: 'Sampling technique',
+  collection_mode: 'Collection mode',
+  anonymity_claim: 'Anonymous vs pseudonymised',
+  abstract_optional: 'Abstract (optional)',
+  abstract_not_required: 'Abstract (not required)',
+}
+
 export function issueLabel(type: string): string {
   if (ISSUE_LABELS[type]) return ISSUE_LABELS[type]
   if (type.startsWith('quality_')) return QUALITY_LABELS[type.slice('quality_'.length)] ?? 'Quality check'
+  if (type.startsWith('section_rule_abstract_') && !SECTION_RULE_LABELS[type.slice('section_rule_'.length)]) return 'Abstract'
+  if (type.startsWith('section_rule_')) return SECTION_RULE_LABELS[type.slice('section_rule_'.length)] ?? type.slice('section_rule_'.length).replace(/_/g, ' ')
   if (type.startsWith('contradiction_')) return 'Contradiction'
   return type.replace(/_/g, ' ')
 }
@@ -193,8 +230,14 @@ export function FixIssuesPanel({
 
   if (!issues) return null
 
-  const blocking = issues.issues.filter(i => i.severity === 'Blocking')
-  const warnings = issues.issues.filter(i => i.severity === 'Warning')
+  const triaged = triageIssues(issues.issues)
+  const blockingCount = triaged.blocking.reduce((n, g) => n + g.issues.length, 0)
+  const reviewCount = triaged.review.reduce((n, g) => n + g.issues.length, 0)
+  const renderRow = (issue: ProposalIssue, idx: number) => (
+    <IssueRow key={`${issue.type}|${issue.sectionKey}|${issue.evidence}|${idx}`}
+      issue={issue} canJump={canJump(issue.sectionKey)} onJump={onJump} disabled={busy}
+      onFill={fillPlaceholder} onSetYear={setSourceYear} />
+  )
 
   return (
     <div className="mb-6 flex flex-col gap-4" data-testid="fix-issues-panel">
@@ -202,12 +245,12 @@ export function FixIssuesPanel({
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1">
             <h3 className="text-[14px] font-bold text-slate-800">
-              {issues.issues.length === 0 ? 'No issues found' : `Issues in your proposal (${issues.issues.length})`}
+              {triaged.openCount === 0 ? 'No issues found' : `Issues in your proposal (${triaged.openCount})`}
             </h3>
             <p className="text-[12px] text-slate-500">
-              {issues.issues.length === 0
+              {triaged.openCount === 0
                 ? 'Nothing was flagged. Review the document yourself before submitting; this check does not validate it.'
-                : `${blocking.length} blocking, ${warnings.length} to review. Fixing only changes what can be corrected without inventing content.`}
+                : `${blockingCount} blocking, ${reviewCount} to review${triaged.notes.length ? `, ${triaged.notes.length} note${triaged.notes.length === 1 ? '' : 's'}` : ''}. Fixing only changes what can be corrected without inventing content.`}
             </p>
           </div>
           <button
@@ -233,12 +276,21 @@ export function FixIssuesPanel({
           <p className="text-[11.5px] text-slate-500">{issues.repairsUnavailableReason}</p>
         )}
 
-        {issues.issues.length > 0 && (
+        {triaged.openCount > 0 && (
           <div className="flex flex-col gap-1.5">
-            {[...blocking, ...warnings].map((issue, idx) => (
-              <IssueRow key={`${issue.type}|${issue.sectionKey}|${issue.evidence}|${idx}`}
-                issue={issue} canJump={canJump(issue.sectionKey)} onJump={onJump} disabled={busy}
-                onFill={fillPlaceholder} onSetYear={setSourceYear} />
+            {[...triaged.blocking, ...triaged.review].map((group, gIdx) => group.issues.length === 1
+              ? renderRow(group.issues[0], gIdx)
+              : <IssueGroupRow key={`${group.type}|${gIdx}`} group={group} renderRow={renderRow} />)}
+          </div>
+        )}
+
+        {triaged.notes.length > 0 && (
+          <div className="flex flex-col gap-1" data-testid="fix-issues-notes">
+            <p className="text-[11.5px] font-semibold text-slate-500 uppercase tracking-wide">Notes (not counted as issues)</p>
+            {triaged.notes.map((note, idx) => (
+              <p key={`${note.type}|${idx}`} className="text-[12px] text-slate-600 leading-snug">
+                <span className="font-medium text-slate-700">{issueLabel(note.type)}</span> · {note.message}
+              </p>
             ))}
           </div>
         )}
@@ -272,6 +324,29 @@ export function FixIssuesPanel({
           onUndo={undo} canJump={canJump} onJump={onJump}
         />
       )}
+    </div>
+  )
+}
+
+/** Several findings from one check, shown as one collapsible entry so a repeated defect is counted once by eye. */
+function IssueGroupRow({ group, renderRow }: {
+  group: IssueGroup
+  renderRow: (issue: ProposalIssue, idx: number) => ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const isBlocking = group.issues[0].severity === 'Blocking'
+  const sections = [...new Set(group.issues.map(i => i.sectionKey))]
+  return (
+    <div className={`rounded-lg text-[12.5px] ${isBlocking ? 'bg-red-50 border border-red-100' : 'bg-amber-50 border border-amber-100'}`}>
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
+        className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left">
+        <span className={`font-semibold ${isBlocking ? 'text-red-800' : 'text-amber-800'}`}>
+          {issueLabel(group.type)} ({group.issues.length})
+          <span className="font-normal text-slate-500"> · {sections.slice(0, 6).join(', ')}{sections.length > 6 ? '…' : ''}</span>
+        </span>
+        <ChevronDown size={14} className={`shrink-0 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="flex flex-col gap-1.5 px-2 pb-2">{group.issues.map(renderRow)}</div>}
     </div>
   )
 }
