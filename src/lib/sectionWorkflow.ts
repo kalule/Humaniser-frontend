@@ -141,6 +141,19 @@ function lockReason(section: ProjectSection, ctx: DraftContext): string | null {
     const results = ctx.sections.find(s => s.code === '6.0')
     if (results?.status !== 'Approved' || !results.content.trim()) return 'Discussion unlocks after Results (6.0) is approved.'
   }
+  // Closing-chapter grounding chain, mirroring the server's ThesisChapterPrerequisites:
+  // the Conclusion is written from the approved Discussion (not in a literature-only thesis, which has none),
+  // and Recommendations from the approved Conclusion.
+  const approvedWithContent = (code: string) => {
+    const s = ctx.sections.find(x => x.code === code)
+    return s?.status === 'Approved' && !!s.content.trim()
+  }
+  if (section.code === '8.0' && ctx.researchState !== 'LiteratureOnly' && !approvedWithContent('7.0')) {
+    return 'Conclusion unlocks after Discussion (7.0) is approved.'
+  }
+  if (section.code === '8.1' && !approvedWithContent('8.0')) {
+    return 'Recommendations unlock after Conclusion (8.0) is approved.'
+  }
   return null
 }
 

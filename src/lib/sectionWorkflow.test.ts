@@ -120,6 +120,21 @@ describe('canDraft', () => {
       expect(canDraft(conclusion, thesis('LiteratureOnly', [section('6.0'), section('7.0'), conclusion])).allowed).toBe(true)
     })
 
+    it('locks the Conclusion until the Discussion is approved in an empirical thesis', () => {
+      const conclusion = section('8.0')
+      expect(canDraft(conclusion, thesis('AnalysisCompleted', [section('6.0', 'Approved'), section('7.0', 'Draft'), conclusion])))
+        .toMatchObject({ blocker: 'locked', reason: 'Conclusion unlocks after Discussion (7.0) is approved.' })
+      expect(canDraft(conclusion, thesis('AnalysisCompleted', [section('6.0', 'Approved'), section('7.0', 'Approved'), conclusion])).allowed)
+        .toBe(true)
+    })
+
+    it('locks Recommendations until the Conclusion is approved, literature-only included', () => {
+      const recs = section('8.1')
+      expect(canDraft(recs, thesis('LiteratureOnly', [section('8.0', 'Draft'), recs])).reason)
+        .toBe('Recommendations unlock after Conclusion (8.0) is approved.')
+      expect(canDraft(recs, thesis('LiteratureOnly', [section('8.0', 'Approved'), recs])).allowed).toBe(true)
+    })
+
     it('locks the proposal Abstract until its source sections are approved', () => {
       const abstract = section('0.0')
       const sections = [abstract, ...['3.1', '3.2', '4.2', '4.3'].map(c => section(c, 'Approved')), section('5.2', 'Draft')]

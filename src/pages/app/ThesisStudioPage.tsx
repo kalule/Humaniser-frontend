@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useResearchStore } from '../../store/researchStore'
+import { researchApi } from '../../api/research'
 import ConfirmActionModal from '../../components/app/ConfirmActionModal'
 import { ToolCard } from '../../components/app/ToolCard'
 import { DocumentList, type DocumentListEntry } from '../../components/app/DocumentList'
@@ -110,7 +111,7 @@ function ThesisUploadModal({
 }: {
   onClose:  () => void
   onUpload: (file: File) => Promise<UploadExternalProposalResult>
-  onConfirm: (result: UploadExternalProposalResult) => void
+  onConfirm: (result: UploadExternalProposalResult) => void | Promise<void>
   onDiscard: (result: UploadExternalProposalResult) => Promise<void>
 }) {
   const [file, setFile]       = useState<File | null>(null)
@@ -118,6 +119,7 @@ function ThesisUploadModal({
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
   const [result, setResult]   = useState<UploadExternalProposalResult | null>(null)
+  const [attested, setAttested] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const pick = (f: File | undefined) => {
@@ -226,13 +228,27 @@ function ThesisUploadModal({
 
         {error && <p className="text-[12px] text-red-500 mb-3">{error}</p>}
 
+        {/* An uploaded proposal skips the in-app readiness audit, so the student states that it was approved
+            elsewhere. The audit still runs on the project's Validation tab, as advice. */}
+        {result && (
+          <label className="flex items-start gap-2 mb-4 text-[12px] text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={attested}
+              onChange={e => setAttested(e.target.checked)}
+              className="mt-0.5 accent-purple-600"
+            />
+            <span>This proposal was approved by my supervisor or institution. I understand the readiness audit will still flag anything it finds.</span>
+          </label>
+        )}
+
         <div className="flex gap-2 justify-end">
           <button onClick={() => result ? void onDiscard(result) : onClose()} disabled={loading} className="px-4 py-2 text-[13px] text-slate-500 hover:text-slate-800 transition-colors disabled:opacity-40">
             {result ? 'Discard import' : 'Cancel'}
           </button>
           <button
             onClick={() => result ? onConfirm(result) : void handleSubmit()}
-            disabled={loading || (!file && !result)}
+            disabled={loading || (!file && !result) || (!!result && !attested)}
             className="flex items-center gap-2 px-5 py-2 rounded-xl bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading ? <><Loader2 size={14} className="animate-spin" /> Extracting…</> : result ? 'Confirm & continue' : 'Upload & review'}
@@ -384,7 +400,7 @@ export default function ThesisStudioPage() {
                 icon={<ScrollText size={16} />}
                 iconClassName="bg-purple-tint text-purple-accent"
                 title="Continue from an approved proposal"
-                description='Open a proposal in Proposal Studio and run its built-in readiness audit — "Begin thesis writing" unlocks once objectives, methodology, and literature pass review.'
+                description='Open your proposal in Proposal Studio, then its dashboard Validation tab. "Begin thesis writing" appears there once the readiness audit finds nothing blocking.'
                 ctaLabel="Go to Proposal Studio"
                 onCta={() => navigate('/app/proposal-studio')}
               />
@@ -516,7 +532,13 @@ export default function ThesisStudioPage() {
           <ThesisUploadModal
             onClose={() => setUploadOpen(false)}
             onUpload={handleUploadExternalProposal}
-            onConfirm={(result) => {
+            onConfirm={async (result) => {
+              try {
+                await researchApi.attestExternalProposal(result.project.id)
+              } catch {
+                toast.error('Could not record your confirmation. Please try again.')
+                return
+              }
               setUploadOpen(false)
               navigate(`/app/research-agent/${result.project.id}/dashboard`)
             }}

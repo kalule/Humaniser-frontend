@@ -2094,7 +2094,12 @@ function FullDocumentStep({ project }: { project: ResearchProject }) {
 // ── Download Step ─────────────────────────────────────────────────────────────
 
 function DownloadStep({ project }: { project: ResearchProject }) {
-  const { exportDocx, syncProject } = useResearchStore()
+  const { exportDocx, exportThesisDocx, syncProject } = useResearchStore()
+  // A thesis downloads through the thesis export (its own server gates and chapter order); the proposal
+  // export would silently produce a proposal-shaped document for a thesis (Stage A finding).
+  const isThesisProject = project.documentType === 'Thesis' || project.documentType === 'Dissertation'
+  const downloadDocument = (acknowledgeCitationIssues: boolean) =>
+    isThesisProject ? exportThesisDocx(project.id) : exportDocx(project.id, acknowledgeCitationIssues)
   const [, setSearchParams] = useSearchParams()
   // dedupeSections — see its doc comment; the downloaded .docx must never silently
   // pick up an empty/stale duplicate row instead of the real generated content.
@@ -2135,7 +2140,7 @@ function DownloadStep({ project }: { project: ResearchProject }) {
     const toastId = toast.loading('Acknowledging issues and building .docx…')
     try {
       await syncProject(project.id)
-      await exportDocx(project.id, true)
+      await downloadDocument(true)
       toast.success('Download started!', { id: toastId })
       setBlockedSections(null)
     } catch (err) {
@@ -2233,7 +2238,7 @@ function DownloadStep({ project }: { project: ResearchProject }) {
     try {
       await syncProject(project.id)
       // With the issue list off for this user, the download acknowledges citation issues instead of stopping on them.
-      await exportDocx(project.id, !showIssues)
+      await downloadDocument(!showIssues)
       toast.success('Download started.', { id: toastId })
     } catch (err) {
       toast.dismiss(toastId)
@@ -2358,7 +2363,7 @@ function DownloadStep({ project }: { project: ResearchProject }) {
             canJump={key => stepIndexFor(key) >= 0}
             onJump={key => setSearchParams({ step: String(stepIndexFor(key)) })}
             prepare={() => syncProject(project.id)}
-            download={() => exportDocx(project.id, true)}
+            download={() => downloadDocument(true)}
             onRepaired={async () => {
               const store = useResearchStore.getState()
               await Promise.all([store.loadSections(project.id), store.loadProject(project.id)])
@@ -3698,7 +3703,8 @@ function ChapterWriterView({
   onActiveSectionChange?: (section: ProjectSection | null) => void
 }) {
   const navigateToWorkflow = useNavigate()
-  const [, setStepParams] = useSearchParams()
+  const [stepParams, setStepParams] = useSearchParams()
+  const thesisAuditRequested = stepParams.get('thesisAudit') === '1'
   const {
     sections: allSections,
     initSections,
@@ -4124,7 +4130,9 @@ function ChapterWriterView({
   // The audit itself is the readiness gate now (methodology-aware, not a hypothesis-only
   // heuristic that could never fire for a qualitative thesis) — the panel is always available
   // once the project isn't already a thesis, and the user triggers the audit on demand.
-  const showThesisAuditPanel = SHOW_THESIS_AUDIT_BANNER && !isThesisOrDissertation
+  // `?thesisAudit=1` (linked from the dashboard Validation tab's "Answer audit questions") opens the panel even
+  // with the banner flag off, so the audit's blocking questions are always answerable.
+  const showThesisAuditPanel = (SHOW_THESIS_AUDIT_BANNER || thesisAuditRequested) && !isThesisOrDissertation
 
   // Special section codes that use their own UI instead of the textarea editor
   const isSpecialSection = selectedCode === '4.4' || selectedCode === 'defence'

@@ -1502,17 +1502,36 @@ function RoadmapTab({ projectId, onNavigateToTab }: { projectId: string; onNavig
 
 // ── Validation tab ────────────────────────────────────────────────────────────
 
-function ValidationTab({ projectId }: { projectId: string }) {
-  const { thesisAudit, isLoadingThesisAudit, loadThesisAudit } = useResearchStore()
+function ValidationTab({ projectId, documentType }: { projectId: string; documentType?: string }) {
+  const { thesisAudit, isLoadingThesisAudit, loadThesisAudit, transitionToThesis } = useResearchStore()
+  const navigate = useNavigate()
   const audit = thesisAudit[projectId]
   const [conflicts, setConflicts] = useState<FactConflict[] | null>(null)
   const [readiness, setReadiness] = useState<ReadinessEvaluation | null>(null)
   const [loadingReadiness, setLoadingReadiness] = useState(true)
   const [refreshingReadiness, setRefreshingReadiness] = useState(false)
+  const [transitioning, setTransitioning] = useState(false)
+  // A thesis is checked against the Thesis rubric (proposal foundation + thesis chapters), which is
+  // also what gates thesis export on the server. A proposal keeps the Proposal rubric.
+  const isThesis = documentType === 'Thesis' || documentType === 'Dissertation'
+  const readinessTarget = isThesis ? 'Thesis' : 'Proposal'
+  const blockingQuestions = audit?.unlockCondition.blockingQuestions ?? []
+
+  const handleBeginThesis = async () => {
+    setTransitioning(true)
+    try {
+      await transitionToThesis(projectId)
+      toast.success('Thesis writing unlocked.')
+    } catch {
+      toast.error('Could not start the thesis — resolve the audit\'s blocking questions first.')
+    } finally {
+      setTransitioning(false)
+    }
+  }
 
   const loadReadiness = () => {
     setLoadingReadiness(true)
-    researchApi.getReadiness('Proposal', projectId)
+    researchApi.getReadiness(readinessTarget, projectId)
       .then(setReadiness)
       .catch(() => setReadiness(null))
       .finally(() => setLoadingReadiness(false))
@@ -1522,12 +1541,12 @@ function ValidationTab({ projectId }: { projectId: string }) {
     if (!audit) loadThesisAudit(projectId)
     researchApi.getFactConflicts(projectId).then(setConflicts).catch(() => setConflicts([]))
     loadReadiness()
-  }, [projectId])
+  }, [projectId, readinessTarget])
 
   const handleRefreshReadiness = async () => {
     setRefreshingReadiness(true)
     try {
-      const result = await researchApi.refreshReadiness('Proposal', projectId)
+      const result = await researchApi.refreshReadiness(readinessTarget, projectId)
       setReadiness(result)
     } finally {
       setRefreshingReadiness(false)
@@ -1559,7 +1578,7 @@ function ValidationTab({ projectId }: { projectId: string }) {
                 'text-[11px] font-semibold px-2.5 py-1 rounded-full',
                 readiness.isReady ? 'bg-green-tint text-green-text' : 'bg-amber-tint text-amber-text',
               )}>
-                {readiness.isReady ? 'Ready for Thesis' : 'Not Ready'}
+                {readiness.isReady ? (isThesis ? 'Ready to export' : 'Ready for Thesis') : 'Not Ready'}
               </span>
             </div>
             <div className="space-y-1.5">
@@ -1587,6 +1606,35 @@ function ValidationTab({ projectId }: { projectId: string }) {
           </div>
         ) : audit ? (
           <div className="rounded-xl border border-slate-200 p-4">
+            {/* The one reachable "Begin thesis writing" entry point (it used to exist only in a flag-off workspace banner). */}
+            {!isThesis && (
+              <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50 p-3">
+                {blockingQuestions.length === 0 ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[12px] text-violet-900">The audit found nothing blocking. You can begin writing the thesis chapters.</p>
+                    <button
+                      onClick={handleBeginThesis}
+                      disabled={transitioning}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 text-white text-[12px] font-semibold hover:bg-violet-700 disabled:opacity-50"
+                    >
+                      {transitioning && <Loader2 size={12} className="animate-spin" />} Begin thesis writing
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[12px] text-violet-900">
+                      {blockingQuestions.length} question{blockingQuestions.length === 1 ? '' : 's'} must be answered before thesis writing can begin.
+                    </p>
+                    <button
+                      onClick={() => navigate(`/app/research-agent/${projectId}?thesisAudit=1`)}
+                      className="shrink-0 px-3 py-1.5 rounded-lg border border-violet-300 text-violet-700 text-[12px] font-semibold hover:bg-violet-100"
+                    >
+                      Answer audit questions
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <p className="text-[12px] text-slate-700 whitespace-pre-wrap mb-3">{audit.narrative}</p>
             <div className="space-y-1.5">
               {(Object.keys(RUBRIC_PILLAR_LABELS) as (keyof RubricScores)[]).map(key => {
@@ -2334,7 +2382,7 @@ export default function ResearchDashboardPage() {
           {activeTab === 'writing'         && <WritingTab project={project} onOpenWriting={openWriting} />}
           {activeTab === 'structure'       && <StructureTab project={project} />}
           {activeTab === 'roadmap'         && <RoadmapTab projectId={projectId} onNavigateToTab={setActiveTab} />}
-          {activeTab === 'validation'      && <ValidationTab projectId={projectId} />}
+          {activeTab === 'validation'      && <ValidationTab projectId={projectId} documentType={project.documentType} />}
           {activeTab === 'submission'      && <SubmissionTab projectId={projectId} onOpenWriting={openWriting} />}
         </div>
       </div>

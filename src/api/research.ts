@@ -671,6 +671,12 @@ export const researchApi = {
     ))
   },
 
+  /** Thesis Studio: records that the uploaded proposal was approved by the student's supervisor or institution. */
+  attestExternalProposal: async (projectId: string): Promise<{ attestedAt: string }> =>
+    unwrap(await client.post<Wrap<{ attestedAt: string }>>(
+      `/api/v1/research/projects/${projectId}/external-proposal/attest`,
+    )),
+
   pollProposalJob: async (jobId: string): Promise<ExternalProposalJobResult> =>
     unwrap(await client.get<Wrap<ExternalProposalJobResult>>(
       `/api/v1/research/projects/proposal-jobs/${jobId}`,
