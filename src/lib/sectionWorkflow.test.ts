@@ -46,6 +46,15 @@ describe('canDraft', () => {
     expect(decision.reason).toBe('Needs Chapters 1 and 2 approved first (1.2 Title 1.2 is not approved yet).')
   })
 
+  it('lets a later chapter be drafted when chapter order is switched off', () => {
+    const sections = [section('4.3', 'Approved'), section('4.4'), section('5.1')]
+    expect(canDraft(sections[2], ctx(sections)).blocker).toBe('prerequisite')
+    expect(canDraft(sections[2], ctx(sections, { chapterOrder: false }))).toEqual({ allowed: true, reason: null, blocker: null })
+    // the other gates still apply
+    const design = section('5.2')
+    expect(canDraft(design, ctx([design], { chapterOrder: false, methodologyConfirmed: false })).blocker).toBe('methodology')
+  })
+
   it('ignores sections that do not apply to the methodology', () => {
     const sections = [section('4.3', 'Approved'), section('4.4', 'NotStarted', { isApplicableForMethodology: false }), section('5.1')]
     expect(canDraft(sections[2], ctx(sections)).allowed).toBe(true)

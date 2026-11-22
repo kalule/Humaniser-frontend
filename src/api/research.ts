@@ -1,4 +1,5 @@
 import client from './client'
+import { showCitationFlags } from '../config/features'
 import type {
   ProposalIssues,
   RepairReport,
@@ -328,16 +329,22 @@ export const researchApi = {
       `/api/v1/research/projects/${projectId}/validate-quality`,
     )),
 
-  getCitationFlags: async (projectId: string, sectionCode: string): Promise<CitationFlag[]> =>
-    unwrap(await client.get<Wrap<CitationFlag[]>>(
+  // Both flag reads return nothing when citation flags are switched off for this user
+  // (VITE_SHOW_CITATION_FLAGS, see config/features), so every view that shows them goes quiet at once.
+  getCitationFlags: async (projectId: string, sectionCode: string): Promise<CitationFlag[]> => {
+    if (!showCitationFlags()) return []
+    return unwrap(await client.get<Wrap<CitationFlag[]>>(
       `/api/v1/research/projects/${projectId}/sections/${sectionCode}/citation-flags`,
-    )),
+    ))
+  },
 
   /** Open citation flags for every section in one request (each flag carries its sectionCode). */
-  getSectionCitationFlags: async (projectId: string): Promise<CitationFlag[]> =>
-    unwrap(await client.get<Wrap<CitationFlag[]>>(
+  getSectionCitationFlags: async (projectId: string): Promise<CitationFlag[]> => {
+    if (!showCitationFlags()) return []
+    return unwrap(await client.get<Wrap<CitationFlag[]>>(
       `/api/v1/research/projects/${projectId}/citation-flags/sections`,
-    )),
+    ))
+  },
 
   getQualityFlags: async (projectId: string, sectionCode: string): Promise<QualityFlag[]> =>
     unwrap(await client.get<Wrap<QualityFlag[]>>(

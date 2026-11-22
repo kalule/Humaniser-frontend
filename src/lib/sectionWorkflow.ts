@@ -44,6 +44,11 @@ export interface DraftContext {
    * earlier chapter approved, and the locks (Abstract, Results/Discussion) never relax.
    */
   draftAhead?:           boolean
+  /**
+   * Whether a later chapter waits for every earlier chapter's approval. Undefined/true enforces it;
+   * false (the app default, see REQUIRE_CHAPTER_ORDER) lets any chapter be drafted at any time.
+   */
+  chapterOrder?:         boolean
 }
 
 /** Last chapter "draft ahead" covers. Chapter 4 onward always waits for approval. */
@@ -151,7 +156,7 @@ export function canDraft(section: ProjectSection, ctx: DraftContext): DraftDecis
   }
   const lock = lockReason(section, ctx)
   if (lock) return blocked('locked', lock)
-  const waiting = unapprovedPrerequisites(section, ctx.sections, ctx.draftAhead)
+  const waiting = ctx.chapterOrder === false ? [] : unapprovedPrerequisites(section, ctx.sections, ctx.draftAhead)
   if (waiting.length > 0) return blocked('prerequisite', describeWaiting(waiting))
   if (METHODOLOGY_SENSITIVE_SECTIONS.has(section.code) && !ctx.methodologyConfirmed) {
     return blocked('methodology', 'Confirm your methodology in Setup before drafting this section.')

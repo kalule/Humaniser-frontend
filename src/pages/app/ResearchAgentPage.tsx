@@ -4,7 +4,7 @@ import { citationFlagsBySection } from '../../lib/citationFlagScan'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ChevronLeft, ChevronRight, ChevronDown, Download,
+  ChevronLeft, ChevronRight, ChevronDown, Download, MoreHorizontal,
   Sparkles, Loader2, CheckCircle2, Circle, BookOpen,
   Lock, RefreshCw, RotateCcw, FileText, AlertCircle, Check, Edit2,
   PenLine, ShieldCheck, X, GraduationCap,
@@ -28,6 +28,7 @@ import ConfirmActionModal from '../../components/app/ConfirmActionModal'
 import { DocumentSurface, type DocumentSurfaceHandle } from '../../components/research-agent/DocumentSurface'
 import { ReviewNotesPanel } from '../../components/research-agent/ReviewNotesPanel'
 import { LiteratureReviewEvidenceTablesPanel } from '../../components/research-agent/LiteratureReviewEvidenceTables'
+import { SHOW_LIT_REVIEW_EVIDENCE_TABLES, SHOW_REVIEW_NOTES, SHOW_THESIS_AUDIT_BANNER, CONFIRM_APPROVAL_ISSUES, SHOW_METHODOLOGY_REFINEMENT, REQUIRE_CHAPTER_ORDER, showProposalIssues } from '../../config/features'
 import { ReferencesDrawer } from '../../components/research-agent/ReferencesDrawer'
 import { SectionVersionHistoryDrawer } from '../../components/research-agent/SectionVersionHistoryDrawer'
 import { EvidenceCoverageDrawer } from '../../components/research-agent/EvidenceCoverageDrawer'
@@ -1113,8 +1114,11 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
     requestRef.current += 1
     updateProject(project.id, { methodologyType: value, methodologySubType: source === 'accepted-suggestion' ? (suggestion?.design ?? '') : (tier1 === value ? tier2 : '') })
     setContent(project.id, CONFIRMATION_SOURCE_KEY, source)
-    try { await syncProject(project.id); toast.success('Research approach saved.') }
-    catch { toast.error('Could not save the research approach.') }
+    try { await syncProject(project.id) }
+    catch { toast.error('Could not save the research approach.'); return }
+    // Refinement/confirm box hidden: choosing the approach is the confirmation.
+    if (!SHOW_METHODOLOGY_REFINEMENT) await confirmMethodology(value, { skipImpactPrompt: true })
+    else toast.success('Research approach saved.')
   }
 
   const applyTier1 = async (value: MethodologyTier1) => {
@@ -1155,9 +1159,20 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
   const methodologyDetailsChanged = !methodologyTypeChanged && selectedCollection !== confirmedCollection
   const confirmedWithoutCollection = !methodologyTypeChanged && !confirmedCollection
 
-  const confirmMethodology = async () => {
-    if (!tier1) return
-    if (project.confirmedMethodology && project.confirmedMethodology.methodologyType !== tier1) {
+  // Hidden confirm box: a project that picked an approach but never confirmed it (made before the box was
+  // hidden) is confirmed once here, so methodology-dependent chapters are not left locked with no button.
+  const autoConfirmedRef = useRef(false)
+  useEffect(() => {
+    if (SHOW_METHODOLOGY_REFINEMENT || autoConfirmedRef.current || !tier1 || project.confirmedMethodology) return
+    autoConfirmedRef.current = true
+    void confirmMethodology(tier1, { skipImpactPrompt: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tier1, project.confirmedMethodology])
+
+  const confirmMethodology = async (type: MethodologyTier1 | undefined = tier1, opts: { skipImpactPrompt?: boolean } = {}) => {
+    if (!type) return
+    if (project.confirmedMethodology?.methodologyType === type && !SHOW_METHODOLOGY_REFINEMENT) return
+    if (!opts.skipImpactPrompt && project.confirmedMethodology && project.confirmedMethodology.methodologyType !== tier1) {
       try {
         const impact = await researchApi.previewMethodologyChangeImpact(project.id, tier1)
         if (impact.isGenuineChange) {
@@ -1194,14 +1209,14 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
     setConfirming(true)
     try {
       await researchApi.confirmMethodology(project.id, {
-        methodologyType: tier1,
-        methodologySubType: tier2,
+        methodologyType: type,
+        methodologySubType: type === tier1 ? tier2 : '',
         timeHorizon: project.sectionContent['methodology-time-frame'] ?? '',
         dataCollectionApproach: project.sectionContent['methodology-data-collection'] ?? '',
         dataAnalysisApproach: project.sectionContent['methodology-analysis'] ?? '',
       })
       await loadProject(project.id)
-      toast.success('Methodology confirmed.')
+      toast.success(SHOW_METHODOLOGY_REFINEMENT ? 'Methodology confirmed.' : `Research approach confirmed: ${type}.`)
     } catch {
       toast.error('Could not confirm methodology.')
     } finally {
@@ -1297,7 +1312,7 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
           </div>
         )}
 
-        {tier1 && (
+        {SHOW_METHODOLOGY_REFINEMENT && tier1 && (
           <div className="mb-2">
             <p className="text-[13px] font-semibold text-slate-700 mb-1">
               Refine further <span className="text-slate-400 font-normal">(optional)</span>
@@ -1331,7 +1346,7 @@ function MethodologyTypeStep({ project }: { project: ResearchProject }) {
           </div>
         )}
 
-        {tier1 && (
+        {SHOW_METHODOLOGY_REFINEMENT && tier1 && (
           <div className={cn(
             'mt-4 rounded-xl border p-4',
             project.confirmedMethodology
@@ -2089,6 +2104,8 @@ function DownloadStep({ project }: { project: ResearchProject }) {
   // "Fix issues and download" owns the issue list. The older per-section scan below only shows if that list could not be loaded.
   const [issuePanelFailed, setIssuePanelFailed] = useState(false)
   const [issuePanelBusy, setIssuePanelBusy] = useState(false)
+  // The issue list (and its fallback scan) is off for end users in production; see VITE_SHOW_PROPOSAL_ISSUES.
+  const showIssues = showProposalIssues()
   const stepIndexFor = (key: string) => STEPS.findIndex(s => s.id === key)
 
   const showAcknowledgedExportError = (err: unknown, toastId: string) => {
@@ -2215,7 +2232,8 @@ function DownloadStep({ project }: { project: ResearchProject }) {
     const toastId = toast.loading('Saving and building .docx…')
     try {
       await syncProject(project.id)
-      await exportDocx(project.id)
+      // With the issue list off for this user, the download acknowledges citation issues instead of stopping on them.
+      await exportDocx(project.id, !showIssues)
       toast.success('Download started.', { id: toastId })
     } catch (err) {
       toast.dismiss(toastId)
@@ -2334,7 +2352,7 @@ function DownloadStep({ project }: { project: ResearchProject }) {
           </div>
         </div>
 
-        {!issuePanelFailed && (
+        {showIssues && !issuePanelFailed && (
           <FixIssuesPanel
             projectId={project.id}
             canJump={key => stepIndexFor(key) >= 0}
@@ -2350,7 +2368,7 @@ function DownloadStep({ project }: { project: ResearchProject }) {
           />
         )}
 
-        {issuePanelFailed && blockedSections && blockedSections.length > 0 && (
+        {showIssues && issuePanelFailed && blockedSections && blockedSections.length > 0 && (
           <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[13px] flex flex-col gap-3">
             <div className="flex items-center gap-2 font-semibold text-amber-900">
               <AlertTriangle size={18} className="text-amber-600 shrink-0" />
@@ -2606,7 +2624,7 @@ function HypothesisEditor({
     if (!hasProse || sectionStatus === 'Approved') return
     setIsApproving(true)
     try {
-      await approveSection(projectId, '4.4')
+      await approveSection(projectId, '4.4', !CONFIRM_APPROVAL_ISSUES)
       toast.success('Section 4.4 approved.')
     } catch (err) {
       const message = (err as { message?: string } | undefined)?.message
@@ -4106,7 +4124,7 @@ function ChapterWriterView({
   // The audit itself is the readiness gate now (methodology-aware, not a hypothesis-only
   // heuristic that could never fire for a qualitative thesis) — the panel is always available
   // once the project isn't already a thesis, and the user triggers the audit on demand.
-  const showThesisAuditPanel = !isThesisOrDissertation
+  const showThesisAuditPanel = SHOW_THESIS_AUDIT_BANNER && !isThesisOrDissertation
 
   // Special section codes that use their own UI instead of the textarea editor
   const isSpecialSection = selectedCode === '4.4' || selectedCode === 'defence'
@@ -4297,6 +4315,7 @@ function ChapterWriterView({
         researchState:        project.researchState,
         methodologyConfirmed: !!project.confirmedMethodology,
         draftAhead:           isDraftAheadOn(project.sectionContent),
+        chapterOrder:         REQUIRE_CHAPTER_ORDER,
       })
     : null
 
@@ -4423,7 +4442,8 @@ function ChapterWriterView({
     }
   }
 
-  const handleApprove = async (acknowledgeConflicts = false) => {
+  // With CONFIRM_APPROVAL_ISSUES off (default) Approve is already the "Approve anyway" call: no issues popup.
+  const handleApprove = async (acknowledgeConflicts = !CONFIRM_APPROVAL_ISSUES) => {
     // A double mousedown/click on the Approve button (DocumentSurface.tsx) has no button-level
     // guard of its own — each overlapping call would otherwise reach the same 409 and stack a
     // duplicate "unresolved citation issue" toast. Only blocks concurrent invocations; a
@@ -5168,12 +5188,14 @@ function ChapterWriterView({
                   </ConfirmActionModal>
                 )}
 
-                <ReviewNotesPanel
-                  projectId={project.id}
-                  sectionCode={activeSection.code}
-                  refreshKey={`${activeSection.status}:${activeSection.citationsPendingVerification}`}
-                />
-                {activeSection.code === '2.0' && (
+                {SHOW_REVIEW_NOTES && (
+                  <ReviewNotesPanel
+                    projectId={project.id}
+                    sectionCode={activeSection.code}
+                    refreshKey={`${activeSection.status}:${activeSection.citationsPendingVerification}`}
+                  />
+                )}
+                {SHOW_LIT_REVIEW_EVIDENCE_TABLES && activeSection.code === '2.0' && (
                   <LiteratureReviewEvidenceTablesPanel
                     projectId={project.id}
                     refreshKey={`${activeSection.status}:${activeSection.citationsPendingVerification}`}
@@ -5569,86 +5591,76 @@ export default function ResearchAgentPage() {
             ))}
           </div>
 
-          {/* Save and exit — makes the already-real autosave explicit before leaving. */}
+          {/* One primary action (Export); everything else is quiet or in the "More" menu. Autosave is
+              shown by the Saved indicator, so leaving is just "Exit". */}
           <button
             onClick={handleSaveAndExit}
-            className="shrink-0 hidden sm:flex items-center gap-1.5 text-[12px] hover:bg-slate-50 transition-colors"
-            style={{ height: 28, border: '0.5px solid var(--border-strong)', borderRadius: 6, padding: '0 10px', color: 'var(--text-secondary)' }}
+            className="shrink-0 hidden sm:flex items-center text-[12px] rounded-md hover:bg-slate-50 transition-colors"
+            style={{ height: 28, padding: '0 8px', color: 'var(--text-secondary)' }}
           >
-            Save and exit
+            Exit
           </button>
 
-          {/* Check alignment / Export .docx — chapter writer view only. The handlers
-              live inside ChapterWriterView (they close over isDirty/handleSave/project.id);
-              this topbar just triggers them through chapterActionsRef. */}
-          {view === 'document' && (
-            <>
+          {(view === 'document' || stepType === 'chapter') && (() => {
+            const docView = view === 'document'
+            const exporting = docView ? documentActionsState.isExporting : chapterActionsState.isExporting
+            const thesis = docView ? documentActionsState.isThesisOrDissertation : chapterActionsState.isThesisOrDissertation
+            return (
               <button
-                onClick={() => documentActionsRef.current?.validate()}
-                disabled={documentActionsState.isValidating}
-                className="shrink-0 hidden sm:flex items-center gap-1.5 text-[12px] hover:bg-slate-50 transition-colors disabled:opacity-50"
-                style={{ height: 28, border: '0.5px solid var(--border-strong)', borderRadius: 6, padding: '0 10px', color: 'var(--text-secondary)' }}
+                onClick={() => (docView ? documentActionsRef.current : chapterActionsRef.current)?.export()}
+                disabled={exporting}
+                className="shrink-0 flex items-center gap-1.5 text-[12px] font-semibold rounded-md transition-colors disabled:opacity-60 bg-purple-accent hover:bg-purple-deep text-white"
+                style={{ height: 28, padding: '0 12px' }}
               >
-                {documentActionsState.isValidating ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
-                Check alignment
+                {exporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                {thesis ? 'Export thesis' : 'Export .docx'}
               </button>
-              <button
-                onClick={() => documentActionsRef.current?.export()}
-                disabled={documentActionsState.isExporting}
-                className="shrink-0 hidden sm:flex items-center gap-1.5 text-[12px] hover:bg-slate-50 transition-colors disabled:opacity-50"
-                style={{ height: 28, border: '0.5px solid var(--border-strong)', borderRadius: 6, padding: '0 10px', color: 'var(--text-secondary)' }}
-              >
-                {documentActionsState.isExporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                {documentActionsState.isThesisOrDissertation ? 'Export Thesis' : 'Export .docx'}
-              </button>
-            </>
-          )}
+            )
+          })()}
 
-          {view === 'guided' && stepType === 'chapter' && (
-            <>
-              <button
-                onClick={() => chapterActionsRef.current?.validate()}
-                disabled={chapterActionsState.isValidating}
-                className="shrink-0 flex items-center gap-1.5 text-[12px] hover:bg-slate-50 transition-colors disabled:opacity-50"
-                style={{ height: 28, border: '0.5px solid var(--border-strong)', borderRadius: 6, padding: '0 10px', color: 'var(--text-secondary)' }}
-              >
-                {chapterActionsState.isValidating ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
-                Check alignment
-              </button>
-
-              <button
-                onClick={() => chapterActionsRef.current?.export()}
-                disabled={chapterActionsState.isExporting}
-                className="shrink-0 flex items-center gap-1.5 text-[12px] hover:bg-slate-50 transition-colors disabled:opacity-50"
-                style={{ height: 28, border: '0.5px solid var(--border-strong)', borderRadius: 6, padding: '0 10px', color: 'var(--text-secondary)' }}
-              >
-                {chapterActionsState.isExporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                {chapterActionsState.isThesisOrDissertation ? 'Export Thesis' : 'Export .docx'}
-              </button>
-            </>
-          )}
-
-          {/* Citation selector */}
+          {/* More: alignment check and citation style */}
           <div className="relative shrink-0">
             <button
               onClick={() => setCiteMenuOpen(v => !v)}
-              className="flex items-center gap-1.5 text-[12px] hover:bg-slate-50 transition-colors"
-              style={{ height: 28, border: '0.5px solid var(--border-strong)', borderRadius: 6, padding: '0 10px', color: 'var(--text-secondary)' }}
+              aria-haspopup="menu"
+              aria-expanded={citeMenuOpen}
+              aria-label="More actions"
+              className="flex items-center justify-center rounded-md hover:bg-slate-50 transition-colors"
+              style={{ width: 28, height: 28, border: '0.5px solid var(--border-strong)', color: 'var(--text-secondary)' }}
             >
-              {CITATION_LABELS[project.citationStyle]} <ChevronDown size={11} />
+              <MoreHorizontal size={14} />
             </button>
             {citeMenuOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setCiteMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl z-20 py-1 overflow-hidden" style={{ border: '0.5px solid var(--border-hairline)' }}>
+                <div role="menu" className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-xl z-20 py-1 overflow-hidden" style={{ border: '0.5px solid var(--border-hairline)' }}>
+                  {(view === 'document' || stepType === 'chapter') && (() => {
+                    const docView = view === 'document'
+                    const validating = docView ? documentActionsState.isValidating : chapterActionsState.isValidating
+                    return (
+                      <>
+                        <button role="menuitem" disabled={validating}
+                          onClick={() => { setCiteMenuOpen(false); (docView ? documentActionsRef.current : chapterActionsRef.current)?.validate() }}
+                          className="w-full flex items-center gap-2 text-left px-3 py-2 text-[12px] hover:bg-slate-50 disabled:opacity-50"
+                          style={{ color: 'var(--text-primary)' }}>
+                          {validating ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
+                          Check alignment
+                        </button>
+                        <div className="my-1" style={{ borderTop: '0.5px solid var(--border-hairline)' }} />
+                      </>
+                    )
+                  })()}
+                  <div className="px-3 pt-1 pb-1 text-[10px] font-semibold tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>CITATION STYLE</div>
                   {(Object.keys(CITATION_LABELS) as CitationStyle[]).map(s => (
-                    <button key={s} onClick={() => setCite(s)}
-                      className={cn('w-full text-left px-3 py-1.5 text-[12px] transition-colors',
+                    <button key={s} role="menuitemradio" aria-checked={s === project.citationStyle}
+                      onClick={() => setCite(s)}
+                      className={cn('w-full flex items-center justify-between text-left px-3 py-1.5 text-[12px] transition-colors',
                         s === project.citationStyle
                           ? 'text-purple-accent bg-purple-tint font-medium'
                           : 'hover:bg-slate-50')}
                       style={s === project.citationStyle ? undefined : { color: 'var(--text-secondary)' }}>
                       {CITATION_LABELS[s]}
+                      {s === project.citationStyle && <Check size={12} />}
                     </button>
                   ))}
                 </div>
@@ -5658,7 +5670,9 @@ export default function ResearchAgentPage() {
         </div>
 
         {/* Content area */}
-        <div className="flex-1 overflow-hidden relative" style={{ background: 'var(--surface-page)' }}>
+        {/* overflow-clip, not hidden: a hidden box can still be scrolled by scrollIntoView/focus,
+            which slid the whole Document view up and left a dead band at the bottom. */}
+        <div className="flex-1 overflow-clip relative" style={{ background: 'var(--surface-page)' }}>
 
           {/* Wizard / output steps */}
           <AnimatePresence mode="wait">

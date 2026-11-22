@@ -9,7 +9,7 @@ const note = (over: Partial<QualityFlag> = {}): QualityFlag => ({
 })
 
 const render = (notes: QualityFlag[], showDismissed = false) => renderToStaticMarkup(
-  <ReviewNotesList notes={notes} onDismiss={() => {}} onRestore={() => {}} showDismissed={showDismissed} onToggleDismissed={() => {}} />,
+  <ReviewNotesList notes={notes} onDismiss={() => {}} onRestore={() => {}} showDismissed={showDismissed} onToggleDismissed={() => {}} dismissedGroupEnabled />,
 )
 
 describe('ReviewNotesList', () => {
@@ -40,6 +40,15 @@ describe('ReviewNotesList', () => {
   it('offers Restore once the dismissed list is expanded', () => {
     const html = render([note({ dismissed: true })], true)
     expect(html).toContain('Restore</button>')
+  })
+
+  it('hides dismissed notes entirely when the dismissed group is switched off in config', () => {
+    const list = (notes: QualityFlag[]) => renderToStaticMarkup(
+      <ReviewNotesList notes={notes} onDismiss={() => {}} onRestore={() => {}} dismissedGroupEnabled={false} />)
+    expect(list([note({ dismissed: true })])).toBe('')
+    const html = list([note(), note({ id: 'n2', dismissed: true })])
+    expect(html).toContain('Review note')
+    expect(html).not.toContain('Dismissed (')
   })
 
   it('falls back to a spaced-out code for an unlisted note type', () => {

@@ -10,6 +10,7 @@ import { sectionEditorExtensions, stripLeadingHeadingLines } from './sectionEdit
 import { describeCitation, swapCitationText, type CitationCardEntry, type CitationContext } from '../../../lib/citationCard'
 import { CitationDecorations, citationAt, citationDecorationsKey, type LocatedCitation } from './citationDecorations'
 import { CitationCard } from './CitationCard'
+import { PendingCells } from './pendingCells'
 import { CitationDataContext } from './citationDataContext'
 
 export interface SectionEditorProps {
@@ -104,7 +105,7 @@ export function SectionEditor({ projectId, code, content, editable, label, onDem
   const autosave = useSectionAutosave({ save, onError })
   const { schedule, flush, hasUnsaved } = autosave
 
-  const extensions = useMemo(() => [...sectionEditorExtensions(), CitationDecorations(citationRef)], [])
+  const extensions = useMemo(() => [...sectionEditorExtensions(), CitationDecorations(citationRef), PendingCells], [])
 
   // Opens the card for the citation at `pos`, anchored under `rect` (viewport coordinates).
   const openCardAt = useCallback((pos: number, rect: { bottom: number; left: number }, viaKeyboard: boolean) => {

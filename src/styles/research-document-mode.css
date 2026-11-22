@@ -17,8 +17,17 @@
 .dm-prose ul { list-style: disc; }
 .dm-prose ol { list-style: decimal; }
 .dm-prose li { margin: 4px 0; }
-.dm-prose table { border-collapse: collapse; margin: 0 0 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; display: block; overflow-x: auto; }
-.dm-prose th, .dm-prose td { border: 0.5px solid var(--border-strong); padding: 6px 8px; text-align: left; vertical-align: top; }
+.dm-prose table { border-collapse: collapse; margin: 0 0 14px; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; width: 100%; table-layout: auto; line-height: 1.5; }
+.dm-prose .tableWrapper { overflow-x: auto; }
+.dm-prose th, .dm-prose td { border: 0.5px solid var(--border-strong); padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: normal; }
+.dm-prose th { background: var(--surface-rail); font-weight: 600; }
+.dm-prose td > p, .dm-prose th > p { margin: 0; }
+/* Short values (units, quantities, amounts) stay on one line so prose columns get the width. */
+.dm-prose .dm-cell-short { white-space: nowrap; }
+/* The last column (e.g. a budget's Basis) gets a readable minimum width instead of one word per line. */
+.dm-prose td:last-child:not(.dm-cell-short) { min-width: 10em; }
+/* "Not yet costed": an open placeholder, not a value. */
+.dm-prose td.dm-cell-pending { color: var(--text-muted); font-style: italic; white-space: normal; min-width: 5.5em; background: repeating-linear-gradient(135deg, transparent 0 6px, var(--surface-rail) 6px 7px); }
 .dm-prose img { max-width: 100%; height: auto; }
 .dm-prose blockquote { border-left: 2px solid var(--border-strong); margin: 0 0 14px; padding-left: 12px; color: var(--text-secondary); }
 

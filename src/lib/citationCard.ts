@@ -30,8 +30,9 @@ export interface CitationCardEntry {
   literatureId?:  string
 }
 
-const CLAIM_NOT_SUPPORTED = new Set(['ClaimContentMismatch'])
-const CLAIM_PARTLY = new Set(['ClaimPartialMatch', 'GeneralizationBeyondSample', 'PopulationScopeViolation', 'GeographicMismatch'])
+const CLAIM_NOT_SUPPORTED = new Set(['ClaimContentMismatch', 'Contradicted'])
+const CLAIM_PARTLY = new Set(['ClaimPartialMatch', 'GeneralizationBeyondSample', 'PopulationScopeViolation', 'GeographicMismatch',
+  'WeaklySupported', 'Overstated', 'OverclaimedFinding', 'CausalOverreach'])
 
 const NOTE_TEXT: Partial<Record<string, string>> = {
   ClaimContentMismatch:       'The source may not support this claim.',
@@ -43,6 +44,10 @@ const NOTE_TEXT: Partial<Record<string, string>> = {
   AuthorMismatch:             'The authors named do not match the source.',
   UnresolvedCitation:         'No pinned source matches this citation.',
   MissingSourceData:          'The source has no text to check the claim against.',
+  WeaklySupported:            'The source only weakly supports this claim.',
+  Overstated:                 'The claim says more than the source shows.',
+  Contradicted:               'The source contradicts this claim.',
+  OverusedAcrossDocument:     'This source is also cited in several other sections.',
 }
 
 function supportFrom(flag: CitationFlag | undefined, pending: boolean, sourceExists: boolean): ClaimSupport {
@@ -68,8 +73,17 @@ export interface CitationContext {
   pending:      boolean
 }
 
+// A project can hold thousands of sources and the editor scans every text node on redraw, so the
+// surname set is built once per literature array, not once per text node.
+const mlaSurnameCache = new WeakMap<readonly FetchedLiterature[], Set<string>>()
+
 export function knownMlaSurnames(literature: FetchedLiterature[]): Set<string> {
-  return new Set(literature.map(l => extractSurnamesFromAuthors(l.authors)[0]).filter((s): s is string => !!s))
+  let set = mlaSurnameCache.get(literature)
+  if (!set) {
+    set = new Set(literature.map(l => extractSurnamesFromAuthors(l.authors)[0]).filter((s): s is string => !!s))
+    mlaSurnameCache.set(literature, set)
+  }
+  return set
 }
 
 /** Citation hits in one run of text (a text node), with offsets relative to it. */

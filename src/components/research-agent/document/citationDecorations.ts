@@ -37,34 +37,43 @@ export function citationAt(doc: PmNode, pos: number, ctx: CitationContext): Loca
   return found
 }
 
+function buildDecorations(doc: PmNode, ctx: CitationContext): DecorationSet {
+  const decorations: Decoration[] = []
+  doc.descendants((node, pos, parent) => {
+    if (!node.isText || !node.text) return
+    for (const hit of findCitations(node.text, ctx)) {
+      const flagged = describeCitation(hit, parent?.textContent ?? '', ctx)
+        .some(e => e.support === 'partly' || e.support === 'not_supported' || !e.sourceExists)
+      decorations.push(Decoration.inline(pos + hit.from, pos + hit.to, {
+        class: flagged ? 'dm-cite dm-cite--flagged' : 'dm-cite',
+      }))
+    }
+  })
+  return DecorationSet.create(doc, decorations)
+}
+
 /**
  * Marks citations in the text (class "dm-cite"; "dm-cite--flagged" when the claim check raised a
  * problem). Display only: nothing is written into the document, so stored markdown is unchanged.
- * Reads live data through `dataRef`; dispatch any transaction after changing it to redraw.
+ * Reads live data through `dataRef`; dispatch a transaction with citationDecorationsKey meta after
+ * changing it to redraw. The set is kept in plugin state and rebuilt only when the text changes
+ * or on that refresh, not on every selection move (a long thesis has many editors open at once).
  */
 export function CitationDecorations(dataRef: { current: CitationContext }) {
   return Extension.create({
     name: 'dmCitations',
     addProseMirrorPlugins() {
       return [
-        new Plugin({
+        new Plugin<DecorationSet>({
           key: citationDecorationsKey,
+          state: {
+            init: (_config, state) => buildDecorations(state.doc, dataRef.current),
+            apply: (tr, previous) => (tr.docChanged || tr.getMeta(citationDecorationsKey) !== undefined
+              ? buildDecorations(tr.doc, dataRef.current)
+              : previous),
+          },
           props: {
-            decorations(state) {
-              const ctx = dataRef.current
-              const decorations: Decoration[] = []
-              state.doc.descendants((node, pos, parent) => {
-                if (!node.isText || !node.text) return
-                for (const hit of findCitations(node.text, ctx)) {
-                  const flagged = describeCitation(hit, parent?.textContent ?? '', ctx)
-                    .some(e => e.support === 'partly' || e.support === 'not_supported' || !e.sourceExists)
-                  decorations.push(Decoration.inline(pos + hit.from, pos + hit.to, {
-                    class: flagged ? 'dm-cite dm-cite--flagged' : 'dm-cite',
-                  }))
-                }
-              })
-              return DecorationSet.create(state.doc, decorations)
-            },
+            decorations(state) { return citationDecorationsKey.getState(state) as DecorationSet | undefined },
           },
         }),
       ]

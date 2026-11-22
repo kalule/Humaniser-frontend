@@ -1,7 +1,6 @@
-import { memo } from 'react'
-import { AlertTriangle, Check, Circle, Square, X } from 'lucide-react'
+import { memo, useState } from 'react'
+import { ArrowDown, Check, Circle, Square, X } from 'lucide-react'
 import type { ProjectSection } from '../../../types/research'
-import type { SectionFlag } from '../../../lib/documentOutline'
 import type { DraftAction } from '../../../lib/draftPlan'
 import { useLiveDraft } from '../../../lib/liveDraftStore'
 import type { ActivityEntry } from './DocumentModeView'
@@ -9,7 +8,9 @@ import type { ActivityEntry } from './DocumentModeView'
 interface Props {
   projectId:    string
   writing:      ProjectSection[]
-  flags:        SectionFlag[]
+  /** Flagged sections in reading order (empty when flag counts are hidden). */
+  flagGroups:   FlagGroup[]
+  onNextFlag:   () => void
   /** First section waiting for review, if any. */
   nextReview:   ProjectSection | null
   /** The next chapter (or section) to draft, with whether it may be drafted now. */
@@ -21,7 +22,6 @@ interface Props {
   stoppingCode: string | null
   targetWords:  number
   activity:     ActivityEntry[]
-  lockedNote:   string | null
   onJump:       (code: string) => void
   /** Sections drafted or edited since the last alignment check. */
   staleAlignment: string[]
@@ -30,6 +30,54 @@ interface Props {
   /** The opt-in "draft ahead, review later" setting for Chapters 1-3. */
   draftAhead:   boolean
   onToggleDraftAhead: () => void
+}
+
+export interface FlagGroup { code: string; label: string; count: number }
+
+/** Rows shown before "Show all": enough to act on, short enough not to crowd Up next. */
+const FLAG_ROWS = 5
+
+/** Things to check, by section, in reading order. Calm styling: a to-do list, not an alarm. */
+function FlagsCard({ groups, onJump, onNextFlag }: { groups: FlagGroup[]; onJump: (key: string) => void; onNextFlag: () => void }) {
+  const [expanded, setExpanded] = useState(false)
+  const total = groups.reduce((n, g) => n + g.count, 0)
+  const shown = expanded ? groups : groups.slice(0, FLAG_ROWS)
+  return (
+    <section aria-label="Things to check" className="rounded-[10px] p-3.5" style={{ border: '0.5px solid var(--border-strong)' }}>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-amber)' }} />
+            {total} thing{total === 1 ? '' : 's'} to check
+          </div>
+          <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>in {groups.length} section{groups.length === 1 ? '' : 's'}</div>
+        </div>
+        <button type="button" onClick={onNextFlag}
+          className="dm-action shrink-0 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold"
+          style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
+          Next <ArrowDown size={12} aria-hidden="true" />
+        </button>
+      </div>
+      <ul className="list-none m-0 p-0 flex flex-col">
+        {shown.map(g => (
+          <li key={g.code}>
+            <button type="button" onClick={() => onJump(g.code)}
+              aria-label={`${g.label}: ${g.count} to check`}
+              className="dm-action w-full flex items-center gap-2 rounded-md px-1.5 py-1 text-left text-[12px] hover:bg-slate-50">
+              <span className="flex-1 min-w-0 truncate" style={{ color: 'var(--text-secondary)' }}>{g.label}</span>
+              <span className="shrink-0 text-[11px] font-semibold rounded-full px-1.5" style={{ background: 'var(--color-amber-tint)', color: 'var(--color-amber-text)' }}>{g.count}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {groups.length > FLAG_ROWS && (
+        <button type="button" onClick={() => setExpanded(e => !e)} aria-expanded={expanded}
+          className="dm-action mt-1 px-1.5 text-[12px] font-semibold hover:underline" style={{ color: 'var(--color-purple-text)' }}>
+          {expanded ? 'Show fewer' : `Show all ${groups.length} sections`}
+        </button>
+      )}
+    </section>
+  )
 }
 
 const label = (s: ProjectSection) => `${s.displayCode || s.code} ${s.title}`
@@ -86,11 +134,9 @@ function NowDrafting({ projectId, section, targetWords, queued, onJump, onStop, 
 }
 
 function DocumentAgentPanelImpl({
-  projectId, writing, flags, nextReview, draftAction, queued, onDraftAction, onStop, stoppingCode, targetWords,
-  activity, lockedNote, onJump, staleAlignment, isValidating, onCheckAlignment, draftAhead, onToggleDraftAhead,
+  projectId, writing, flagGroups, onNextFlag, nextReview, draftAction, queued, onDraftAction, onStop, stoppingCode, targetWords,
+  activity, onJump, staleAlignment, isValidating, onCheckAlignment, draftAhead, onToggleDraftAhead,
 }: Props) {
-  const bySection = new Map<string, number>()
-  for (const f of flags) bySection.set(f.sectionCode, (bySection.get(f.sectionCode) ?? 0) + 1)
   const busy = writing.length > 0 || queued.length > 0
 
   return (
@@ -126,29 +172,17 @@ function DocumentAgentPanelImpl({
         </div>
       )}
 
-      {flags.length > 0 && (
-        <div className="rounded-[10px] px-3.5 py-3" style={{ background: 'var(--color-amber-tint)', border: '1px solid var(--color-amber)' }}>
-          <div className="flex items-center gap-1.5 text-[13px] font-semibold mb-1.5" style={{ color: 'var(--color-amber-text)' }}>
-            <AlertTriangle size={13} aria-hidden="true" /> {flags.length} open flag{flags.length === 1 ? '' : 's'}
-          </div>
-          <ul className="list-none m-0 p-0 flex flex-col gap-1">
-            {[...bySection.entries()].slice(0, 6).map(([code, count]) => (
-              <li key={code}>
-                <button type="button" onClick={() => onJump(code)} className="dm-action text-left text-[12px] hover:underline" style={{ color: 'var(--color-amber-text)' }}>
-                  {code}: {count} flag{count === 1 ? '' : 's'}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {flagGroups.length > 0 && <FlagsCard groups={flagGroups} onJump={onJump} onNextFlag={onNextFlag} />}
 
       <div className="mt-auto rounded-[10px] p-3.5 flex flex-col gap-2.5" style={{ border: '0.5px solid var(--border-strong)' }}>
         <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>Up next</div>
         {nextReview && (
-          <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
-            Review <button type="button" onClick={() => onJump(nextReview.code)} className="dm-action font-semibold hover:underline" style={{ color: 'var(--text-primary)' }}>{label(nextReview)}</button> and approve it, or rewrite it.
-          </p>
+          <button type="button" onClick={() => onJump(nextReview.code)}
+            className="dm-action rounded-lg px-3.5 py-2 text-[13px] text-left hover:bg-slate-50"
+            style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
+            <span className="block font-semibold truncate">Review {label(nextReview)}</span>
+            <span className="block text-[12px]" style={{ color: 'var(--text-secondary)' }}>Approve it, or rewrite it.</span>
+          </button>
         )}
         {draftAction ? (
           <>
@@ -169,7 +203,6 @@ function DocumentAgentPanelImpl({
         ) : !nextReview && (
           <p className="m-0 text-[12px]" style={{ color: 'var(--text-secondary)' }}>Every available section is drafted.</p>
         )}
-        {lockedNote && <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-muted)' }}>{lockedNote}</p>}
         <div className="flex items-start gap-2.5 pt-2.5" style={{ borderTop: '0.5px solid var(--border-hairline)' }}>
           <button type="button" role="switch" aria-checked={draftAhead} onClick={onToggleDraftAhead}
             aria-describedby="draft-ahead-help"

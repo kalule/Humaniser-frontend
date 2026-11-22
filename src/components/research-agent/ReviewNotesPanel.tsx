@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight, Info } from 'lucide-react'
 import { researchApi } from '../../api/research'
 import type { QualityFlag } from '../../types/research'
+import { SHOW_DISMISSED_REVIEW_NOTES } from '../../config/features'
 
 // Plain-language names for the issue codes. Anything unlisted falls back to a spaced-out code.
 const NOTE_TITLES: Record<string, string> = {
@@ -25,6 +26,8 @@ interface ReviewNotesListProps {
   /** Dismissed notes start collapsed; exposed so the collapsed state can be rendered in tests. */
   showDismissed?: boolean
   onToggleDismissed?: () => void
+  /** Whether the "Dismissed (n)" group is shown at all (config: VITE_SHOW_DISMISSED_REVIEW_NOTES). */
+  dismissedGroupEnabled?: boolean
 }
 
 /**
@@ -33,10 +36,11 @@ interface ReviewNotesListProps {
  */
 export function ReviewNotesList({
   notes, busyId = null, onDismiss, onRestore, showDismissed = false, onToggleDismissed,
+  dismissedGroupEnabled = SHOW_DISMISSED_REVIEW_NOTES,
 }: ReviewNotesListProps) {
   const active = notes.filter(n => !n.dismissed)
-  const dismissed = notes.filter(n => n.dismissed)
-  if (notes.length === 0) return null
+  const dismissed = dismissedGroupEnabled ? notes.filter(n => n.dismissed) : []
+  if (active.length === 0 && dismissed.length === 0) return null
 
   return (
     <section aria-label="Review notes" className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">

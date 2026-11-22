@@ -60,6 +60,22 @@ const FLAG_LABELS: Record<CitationMismatchType, string> = {
   GeneralizationBeyondSample: 'The claim generalises beyond the verified sample',
   PopulationScopeViolation: 'The source population or institutional scope does not match the claim',
   AmbiguousCitation: 'Several papers share this author and year; confirm which one you cited',
+  OverusedAcrossDocument: 'This source is also cited in several other sections',
+  UnderCitedStrengthClaim: 'The sentence says "many studies" but cites at most one',
+  SecondaryDataPresentedAsPrimary: 'Secondary data is described as if you collected it',
+  WeaklySupported: 'The source only weakly supports this claim',
+  Overstated: 'The claim says more than the source shows',
+  Contradicted: 'The source contradicts this claim',
+  RetractedSource: 'This source has been retracted',
+  SourceStaleness: 'This source may be out of date for this claim',
+  SourceDiversityWarning: 'This section leans on too few sources',
+  OverclaimedFinding: 'The finding is stated more strongly than the source allows',
+  StatisticUnknownIdentifier: 'This statistic does not match any analysis result',
+  StatisticValueMismatch: 'This number does not match the analysis result',
+  StatisticDirectionMismatch: 'This effect direction does not match the analysis result',
+  StatisticUnverifiableQualitative: 'This statistical claim cannot be checked against the analysis',
+  CausalOverreach: 'The claim is causal but the source is not',
+  InsufficientEvidence: 'There is not enough evidence to check this claim',
 }
 
 export const getActiveCitationFlags = (flags: CitationFlag[]) =>

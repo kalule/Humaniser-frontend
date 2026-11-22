@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AlignmentIssue, CitationFlag, ProjectSection, SectionStatus } from '../types/research'
-import { buildOutline, guidedParamsFor, outlineProgress, sectionFlags, THESIS_UNLOCK_REASON } from './documentOutline'
+import { buildOutline, guidedParamsFor, outlineProgress, sectionFlags, THESIS_UNLOCK_REASON, THESIS_PLACEHOLDER_TITLE } from './documentOutline'
 import { readStoredView, resolveView, storeView } from './researchAgentView'
 
 let order = 0
@@ -32,9 +32,9 @@ describe('buildOutline', () => {
     expect(outline[3].sections.map(s => s.code)).toEqual(['3.1', '3.2'])
   })
 
-  it('shows Results, Discussion and Conclusion as locked chapters for a proposal', () => {
+  it('shows Results, Discussion and Conclusion as one locked row for a proposal', () => {
     const locked = buildOutline([section('1.0')], 'Proposal').filter(c => c.lockedReason)
-    expect(locked.map(c => c.title)).toEqual(['Results', 'Discussion', 'Conclusion'])
+    expect(locked.map(c => c.title)).toEqual([THESIS_PLACEHOLDER_TITLE])
     expect(locked.every(c => c.sections.length === 0 && c.lockedReason === THESIS_UNLOCK_REASON)).toBe(true)
   })
 
@@ -61,6 +61,22 @@ describe('sectionFlags', () => {
     const flags = sectionFlags(s, [flag('5.2'), flag('5.2', { id: 'closed', status: 'Dismissed' })], issues)
     expect(flags.map(f => f.kind)).toEqual(['interrupted', 'alignment', 'alignment', 'citation'])
     expect(flags[3].message).toBe('(Braun & Clarke, 2006): the source may not support the claim.')
+  })
+
+  it('words every server flag type, and merges one-flag-per-source duplicates of a grouped citation', () => {
+    const raw = '(Klishi, 2024; Mabunda, Mukonza and Mudzanani, 2023; Musabayana, 2024)'
+    const flags = sectionFlags(section('5.4', 'Draft'), [
+      flag('5.4', { id: 'a', citationRawText: raw, mismatchTypes: ['OverusedAcrossDocument'], sourceAuthors: 'Mabunda, T., Mukonza, R.', sourceYear: 2023 }),
+      flag('5.4', { id: 'b', citationRawText: raw, mismatchTypes: ['OverusedAcrossDocument'], sourceAuthors: 'Musabayana, G.', sourceYear: 2024 }),
+      flag('5.4', { id: 'c', citationRawText: raw, mismatchTypes: ['WeaklySupported'], sourceAuthors: 'Klishi, A.', sourceYear: 2024 }),
+      flag('5.4', { id: 'd', citationRawText: '(Zunckel, 2018)', mismatchTypes: ['Overstated'] }),
+    ], [])
+    expect(flags.map(f => f.message)).toEqual([
+      `${raw}: the source is also cited in several other sections. Sources concerned: Mabunda (2023), Musabayana (2024).`,
+      `${raw}: the source only weakly supports the claim. Sources concerned: Klishi (2024).`,
+      '(Zunckel, 2018): the claim says more than the source shows.',
+    ])
+    expect(flags.some(f => f.message.includes('needs checking'))).toBe(false)
   })
 
   it('reports a stop by the student as stopped, not as a failure', () => {

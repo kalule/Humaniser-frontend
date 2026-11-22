@@ -33,3 +33,56 @@ export function useIsToolEnabled(): (id: ToolId) => boolean {
   const isAdmin = useAuthStore((s) => s.user?.role === 'Admin')
   return (id) => isToolEnabled(id, isAdmin)
 }
+
+// Optional panels, off unless switched on in the env (.env.development.local, or the build env):
+//   VITE_SHOW_DISMISSED_REVIEW_NOTES=true      — the "Dismissed (n)" group under Review notes
+//   VITE_SHOW_LIT_REVIEW_EVIDENCE_TABLES=true  — the "Evidence tables" panel on 2.0 Literature Review
+//   VITE_SHOW_REVIEW_NOTES=true                — the Review notes strip above a section's editor
+//   VITE_SHOW_THESIS_AUDIT_BANNER=true         — the "Ready for thesis? Run the readiness audit." banner
+//                                                (the audit can still be run from the project Dashboard)
+//   VITE_SHOW_METHODOLOGY_REFINEMENT=true      — Methodology Type step's "Refine further" details and the
+//                                                explicit "Confirm Methodology" box; off = choosing an
+//                                                approach confirms it straight away
+//   VITE_CONFIRM_APPROVAL_ISSUES=true          — Approve first stops on citation/fact issues and asks
+//                                                "Approve anyway"; off = Approve approves straight away
+//   VITE_REQUIRE_CHAPTER_ORDER=true            — a later chapter can't be drafted until every earlier
+//                                                chapter is approved; off = any chapter can be drafted
+export const SHOW_DISMISSED_REVIEW_NOTES = import.meta.env.VITE_SHOW_DISMISSED_REVIEW_NOTES === 'true'
+export const SHOW_LIT_REVIEW_EVIDENCE_TABLES = import.meta.env.VITE_SHOW_LIT_REVIEW_EVIDENCE_TABLES === 'true'
+export const SHOW_REVIEW_NOTES = import.meta.env.VITE_SHOW_REVIEW_NOTES === 'true'
+export const SHOW_THESIS_AUDIT_BANNER = import.meta.env.VITE_SHOW_THESIS_AUDIT_BANNER === 'true'
+export const CONFIRM_APPROVAL_ISSUES = import.meta.env.VITE_CONFIRM_APPROVAL_ISSUES === 'true'
+export const REQUIRE_CHAPTER_ORDER = import.meta.env.VITE_REQUIRE_CHAPTER_ORDER === 'true'
+export const SHOW_METHODOLOGY_REFINEMENT =import.meta.env.VITE_SHOW_METHODOLOGY_REFINEMENT === 'true'
+
+//   VITE_SHOW_CITATION_FLAGS=true              — open citation-check flags ("Citation: (Smith, 2020): …",
+//                                                flag counts, flagged citation cards) in Guided and Document.
+//                                                On in .env.development; off in production builds, where only
+//                                                admins see them. The server still records every flag.
+const CITATION_FLAGS_ENV = import.meta.env.VITE_SHOW_CITATION_FLAGS === 'true'
+
+/** Whether the signed-in user is shown open citation flags (read at call time, so login changes apply). */
+export function showCitationFlags(): boolean {
+  return CITATION_FLAGS_ENV || useAuthStore.getState().user?.role === 'Admin'
+}
+
+//   VITE_SHOW_FLAG_COUNTS=true                 — flag counts in Document view: the outline's "3 flags" badges,
+//                                                the Agent panel's "N open flags" box and the mobile "Agent · N
+//                                                flags" button. Same rule: on in dev, off in production except admins.
+//                                                The flags themselves still show on their sections.
+const FLAG_COUNTS_ENV = import.meta.env.VITE_SHOW_FLAG_COUNTS === 'true'
+
+export function showFlagCounts(): boolean {
+  return FLAG_COUNTS_ENV || useAuthStore.getState().user?.role === 'Admin'
+}
+
+//   VITE_SHOW_PROPOSAL_ISSUES=true             — the Download step's "Issues in your proposal (N)" list with
+//                                                "Fix issues and download" (and its fallback "Citation Warnings
+//                                                Found" scan). Off: the step just offers the download, and the
+//                                                .docx tile acknowledges citation issues instead of stopping on
+//                                                them. Same rule: on in dev, off in production except admins.
+const PROPOSAL_ISSUES_ENV = import.meta.env.VITE_SHOW_PROPOSAL_ISSUES === 'true'
+
+export function showProposalIssues(): boolean {
+  return PROPOSAL_ISSUES_ENV || useAuthStore.getState().user?.role === 'Admin'
+}

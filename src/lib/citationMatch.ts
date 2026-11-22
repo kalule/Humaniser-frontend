@@ -125,17 +125,46 @@ function parseYearStyleInner(inner: string): { surname: string; year: string } |
   return { surname: surnameFirst, year: yearMatch[1].replace(/[a-z]$/, '') }
 }
 
+interface LiteratureIndex {
+  /** First surname -> sources, in literature order. */
+  bySurname: Map<string, FetchedLiterature[]>
+  /** "surname|year" -> sources, in literature order. */
+  bySurnameYear: Map<string, FetchedLiterature[]>
+}
+
+// Parsing every source's author string is the expensive part, and the Document view resolves each
+// citation on every redraw against projects with thousands of sources. Build the lookup once per
+// literature array (a new array from a refetch gets a new index; the old one is collected).
+const literatureIndexCache = new WeakMap<readonly FetchedLiterature[], LiteratureIndex>()
+
+function indexLiterature(literature: readonly FetchedLiterature[]): LiteratureIndex {
+  const cached = literatureIndexCache.get(literature)
+  if (cached) return cached
+  const index: LiteratureIndex = { bySurname: new Map(), bySurnameYear: new Map() }
+  for (const l of literature) {
+    const surname = firstSurname(l.authors)
+    if (surname === null) continue
+    const bySurname = index.bySurname.get(surname)
+    if (bySurname) bySurname.push(l); else index.bySurname.set(surname, [l])
+    const key = `${surname}|${l.year}`
+    const byKey = index.bySurnameYear.get(key)
+    if (byKey) byKey.push(l); else index.bySurnameYear.set(key, [l])
+  }
+  literatureIndexCache.set(literature, index)
+  return index
+}
+
 function resolveOne(clauseText: string, style: CitationStyle, literature: FetchedLiterature[]): ResolvedCitation | null {
   let match: FetchedLiterature | undefined
   let sameKey: FetchedLiterature[] = []
+  const index = indexLiterature(literature)
 
   if (style === 'mla') {
-    match = literature.find(l => firstSurname(l.authors) === foldNamePunctuation(clauseText))
+    match = index.bySurname.get(foldNamePunctuation(clauseText))?.[0]
   } else {
     const parsed = parseYearStyleInner(clauseText)
     if (!parsed) return null
-    sameKey = literature.filter(l =>
-      firstSurname(l.authors) === parsed.surname && String(l.year) === parsed.year)
+    sameKey = index.bySurnameYear.get(`${parsed.surname}|${parsed.year}`) ?? []
     match = sameKey[0]
   }
 

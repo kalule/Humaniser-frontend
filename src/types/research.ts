@@ -552,6 +552,13 @@ export type CitationMismatchType =
   // Several project papers share this citation's first author and year and the section's reference list
   // did not name one by DOI, so list order chose. Advisory only; answered with chooseCitationSource.
   | 'AmbiguousCitation'
+  // The rest of the server's CitationMismatchType names (CitationVerificationFlag.cs). Advisory
+  // checks and claim-support grades; listed so every flag gets real wording instead of a fallback.
+  | 'OverusedAcrossDocument' | 'UnderCitedStrengthClaim' | 'SecondaryDataPresentedAsPrimary'
+  | 'WeaklySupported' | 'Overstated' | 'Contradicted' | 'RetractedSource' | 'SourceStaleness'
+  | 'SourceDiversityWarning' | 'OverclaimedFinding' | 'StatisticUnknownIdentifier'
+  | 'StatisticValueMismatch' | 'StatisticDirectionMismatch' | 'StatisticUnverifiableQualitative'
+  | 'CausalOverreach' | 'InsufficientEvidence'
 
 export type CitationFlagStatus = 'Open' | 'AutoCorrected' | 'Dismissed' | 'Removed' | 'Superseded'
 export type CitationFixAction = 'RewriteClaim' | 'ReplaceCitation' | 'MarkResearcherProposed'

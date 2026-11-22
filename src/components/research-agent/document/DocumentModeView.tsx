@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ListTree, Bot, X, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { CONFIRM_APPROVAL_ISSUES, REQUIRE_CHAPTER_ORDER, showCitationFlags, showFlagCounts } from '../../../config/features'
 import type { ApiError } from '../../../types'
 import type { AlignmentIssue, CitationFlag, FetchedLiterature, ProjectSection, ResearchProject } from '../../../types/research'
 import type { ParsedReference } from '../../../lib/citationFormat'
@@ -19,7 +20,8 @@ import { nextDraftAction } from '../../../lib/draftPlan'
 import { followDraft, forgetDraft } from '../../../lib/liveDraftStore'
 import { DocumentOutlineRail, type OutlineRow } from './DocumentOutlineRail'
 import { DocumentSectionBlock } from './DocumentSectionBlock'
-import { DocumentAgentPanel } from './DocumentAgentPanel'
+import { DocumentAgentPanel, type FlagGroup } from './DocumentAgentPanel'
+import { DocumentEndCard } from './DocumentEndCard'
 import { CitationDataContext, type CitationData } from './citationDataContext'
 import '../../../styles/research-agent-editor.css'
 import '../../../styles/research-document-mode.css'
@@ -46,8 +48,8 @@ const POLL_MS = 3000
 /** Offset from the top of the document column at which a section counts as "current". */
 const ACTIVE_OFFSET = 120
 
-// Approval refusals whose fix lives in Guided's citation/fact tools. Document mode never offers
-// "Approve anyway": the gates stay where they are.
+// Approval refusals whose fix lives in Guided's citation/fact tools. The checks can be wrong, so
+// the ones the server lets a student acknowledge get an "Approve anyway" button (same as Guided).
 const APPROVE_BLOCK_TEXT: Record<string, string> = {
   APPROVAL_HARD_BLOCKED:      'This section has problems that must be fixed before it can be approved.',
   FACT_CONFLICT:              'This section states a fact that contradicts an earlier chapter.',
@@ -58,6 +60,10 @@ const APPROVE_BLOCK_TEXT: Record<string, string> = {
   METHODOLOGY_VIOLATION:      'This section contradicts your confirmed methodology.',
   METHODOLOGY_NOT_CONFIRMED:  'Confirm your methodology in Setup before approving this section.',
 }
+/** Refusals the server lifts when the approval is retried as acknowledged. */
+const OVERRIDABLE_BLOCKS = new Set([
+  'FACT_CONFLICT', 'CITATION_INTEGRITY_BLOCKED', 'UNRESOLVED_CITATION_GAP', 'CITATION_TARGET_SHORTFALL', 'PROSE_BODY_MISSING',
+])
 
 export function DocumentModeView({ project, actionsRef, onActionsStateChange, onOpenGuided }: Props) {
   const navigate = useNavigate()
@@ -117,6 +123,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     researchState:        project.researchState,
     methodologyConfirmed: !!project.confirmedMethodology,
     draftAhead:           isDraftAheadOn(project.sectionContent),
+    chapterOrder:         REQUIRE_CHAPTER_ORDER,
   }), [sections, project.documentType, project.researchState, project.confirmedMethodology, project.sectionContent])
 
   // "Draft ahead, review later": stored on the project (synced sectionContent), off by default.
@@ -148,19 +155,21 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const view = useMemo(() => {
     const bySection: Record<string, { status: ReturnType<typeof documentStatus>; flags: SectionFlag[]; draft: ReturnType<typeof canDraft> }> = {}
     for (const s of sections) {
-      bySection[s.code] = { status: documentStatus(s, ctx), flags: sectionFlags(s, citationFlags, alignmentIssues), draft: canDraft(s, ctx) }
+      bySection[s.code] = { status: documentStatus(s, ctx), flags: sectionFlags(s, citationFlags, alignmentIssues, showCitationFlags()), draft: canDraft(s, ctx) }
     }
     return bySection
   }, [sections, ctx, citationFlags, alignmentIssues])
 
+  // Flag counts (outline badges, Agent panel box, mobile button) are off for end users in production.
+  const countFlags = showFlagCounts()
   const rows = useMemo(() => {
     const out: Record<string, OutlineRow> = {}
     for (const s of sections) {
       const v = view[s.code]
-      if (v) out[s.code] = { status: v.status, flagCount: v.flags.length, notApplicable: s.isApplicableForMethodology === false }
+      if (v) out[s.code] = { status: v.status, flagCount: countFlags ? v.flags.length : 0, notApplicable: s.isApplicableForMethodology === false }
     }
     return out
-  }, [view, sections])
+  }, [view, sections, countFlags])
 
   const ordered = useMemo(() => outline.flatMap(c => c.sections), [outline])
   const writing = useMemo(() => ordered.filter(s => view[s.code]?.status === 'writing'), [ordered, view])
@@ -168,6 +177,15 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     const v = view[s.code]
     return v && (v.status === 'needs_review' || v.status === 'approved') ? v.flags : []
   }), [ordered, view])
+  // Flags grouped by section in reading order, with the section's name, so the Agent panel can
+  // list "1.2 Background · 3" and jump straight to that section's flag list.
+  const flagGroups = useMemo((): FlagGroup[] => {
+    if (!countFlags) return []
+    const counts = new Map<string, number>()
+    for (const f of allFlags) counts.set(f.sectionCode, (counts.get(f.sectionCode) ?? 0) + 1)
+    return ordered.filter(s => counts.has(s.code))
+      .map(s => ({ code: s.code, label: `${s.displayCode || s.code} ${s.title}`, count: counts.get(s.code)! }))
+  }, [countFlags, allFlags, ordered])
   const nextReview = useMemo(() => ordered.find(s => view[s.code]?.status === 'needs_review') ?? null, [ordered, view])
   const draftAction = useMemo(() => nextDraftAction(outline, ctx, targetWords), [outline, ctx, targetWords])
 
@@ -246,18 +264,35 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     const el = anchors.current.get(key)
     if (!el) return
     const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    el.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' })
+    // Scroll only the document pane. scrollIntoView also scrolls overflow-hidden ancestors once
+    // this pane hits its end, which shifted the whole view up and left a dead band at the bottom.
+    const root = scrollRef.current
+    if (root) {
+      const top = el.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop - 16
+      root.scrollTo?.({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' })
+    }
     el.querySelector<HTMLElement>('.dm-heading')?.focus({ preventScroll: true })
     if (!key.startsWith('chapter:')) setActiveCode(key)
     setOutlineOpen(false)
     setAgentOpen(false)
   }, [])
 
+  // "Next flag": the first flagged section after the one being read, wrapping to the top.
+  const activeRef = useRef(activeCode)
+  activeRef.current = activeCode
+  const handleNextFlag = useCallback(() => {
+    if (!flagGroups.length) return
+    const at = ordered.findIndex(s => s.code === activeRef.current)
+    const pos = (code: string) => ordered.findIndex(s => s.code === code)
+    const next = flagGroups.find(g => pos(g.code) > at) ?? flagGroups[0]
+    scrollToAnchor(next.code)
+  }, [flagGroups, ordered, scrollToAnchor])
+
   // ── Actions (the same store calls Guided uses, so both views update together) ──
   const latest = useRef({ project, sections, ctx })
   latest.current = { project, sections, ctx }
 
-  const handleApprove = useCallback(async (code: string) => {
+  const handleApprove = useCallback(async (code: string, acknowledge = !CONFIRM_APPROVAL_ISSUES): Promise<void> => {
     const { project: p } = latest.current
     setApprovingCode(code)
     try {
@@ -267,18 +302,22 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       }
       // Same rule as Guided: Agent-mode projects approve without the human acknowledgement step;
       // the server still runs and records every integrity check.
-      await useResearchStore.getState().approveSection(p.id, code, p.generatorMode === 'AGENT')
+      await useResearchStore.getState().approveSection(p.id, code, acknowledge || p.generatorMode === 'AGENT')
       toast.success(`Section ${code} approved.`)
     } catch (err) {
       const apiErr = err as ApiError | undefined
       const reasons = (apiErr?.details as { reasons?: string[] } | undefined)?.reasons ?? []
       const text = APPROVE_BLOCK_TEXT[apiErr?.code ?? ''] ?? apiErr?.message ?? 'Approval failed.'
+      const canOverride = !acknowledge && OVERRIDABLE_BLOCKS.has(apiErr?.code ?? '')
       toast(t => (
         <div className="flex max-w-[420px] flex-col gap-2 text-[13px]">
           <span className="font-semibold" style={{ color: 'var(--color-amber-text)' }}>{code} was not approved.</span>
           <span style={{ color: 'var(--text-secondary)' }}>{text}</span>
           {reasons.length > 0 && <ul className="list-disc pl-5" style={{ color: 'var(--text-secondary)' }}>{reasons.map(r => <li key={r}>{r}</li>)}</ul>}
           <div className="flex gap-3">
+            {canOverride && (
+              <button onClick={() => { toast.dismiss(t.id); void handleApproveRef.current(code, true) }} className="font-semibold" style={{ color: 'var(--color-purple-text)' }}>Approve anyway</button>
+            )}
             <button onClick={() => { toast.dismiss(t.id); onOpenGuided(code) }} className="font-semibold" style={{ color: 'var(--color-purple-text)' }}>Review in Guided</button>
             <button onClick={() => toast.dismiss(t.id)} style={{ color: 'var(--text-muted)' }}>Close</button>
           </div>
@@ -288,6 +327,8 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       setApprovingCode(null)
     }
   }, [onOpenGuided])
+  const handleApproveRef = useRef(handleApprove)
+  handleApproveRef.current = handleApprove
 
   // Credits for `count` drafts, and (for a proposal bound to a study design) an accepted design.
   const preflight = useCallback(async (count: number): Promise<boolean> => {
@@ -506,17 +547,15 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     onActionsStateChange?.({ isValidating, isExporting, isThesisOrDissertation: isThesis })
   }, [onActionsStateChange, isValidating, isExporting, isThesis])
 
-  const lockedNote = isThesis ? null : 'Results, Discussion and Conclusion unlock after the readiness audit passes.'
-
   const rail = (
     <DocumentOutlineRail chapters={outline} rows={rows} activeCode={activeCode} progress={progress}
       onSelect={scrollToAnchor} onSelectChapter={key => scrollToAnchor(`chapter:${key}`)} />
   )
   const agent = (
-    <DocumentAgentPanel projectId={project.id} writing={writing} flags={allFlags} nextReview={nextReview}
+    <DocumentAgentPanel projectId={project.id} writing={writing} flagGroups={flagGroups} onNextFlag={handleNextFlag} nextReview={nextReview}
       draftAction={draftAction} queued={draftQueue} onDraftAction={handleDraftAction} onStop={handleStop}
       stoppingCode={stoppingCode} targetWords={targetWords} activity={activity}
-      lockedNote={lockedNote} onJump={scrollToAnchor}
+      onJump={scrollToAnchor}
       draftAhead={draftAhead} onToggleDraftAhead={handleToggleDraftAhead}
       staleAlignment={staleAlignment} isValidating={isValidating} onCheckAlignment={handleValidate} />
   )
@@ -536,28 +575,33 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
           </button>
           <button type="button" onClick={() => setAgentOpen(true)} className="dm-action inline-flex items-center gap-1.5 text-[12px] rounded-md px-2.5 py-1.5"
             style={{ border: '0.5px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
-            <Bot size={13} aria-hidden="true" /> Agent{allFlags.length ? ` · ${allFlags.length} flags` : ''}
+            <Bot size={13} aria-hidden="true" /> Agent{countFlags && allFlags.length ? ` · ${allFlags.length} flags` : ''}
           </button>
         </div>
 
         <article className="max-w-[760px] mx-auto bg-white my-4 sm:my-7 px-4 sm:px-14 py-8 sm:py-9 rounded-xl"
           style={{ border: '0.5px solid var(--border-hairline)' }}>
           {!sections.length && <p className="text-[13px] m-0" style={{ color: 'var(--text-secondary)' }}>Loading your sections…</p>}
-          {outline.map(chapter => (
-            <div key={chapter.key} ref={el => registerAnchor(`chapter:${chapter.key}`, el)} className="mb-8 last:mb-0">
-              {(chapter.number === null ? !!chapter.lockedReason : chapter.title !== `Chapter ${chapter.number}`) && (
+          {outline.map(chapter => chapter.lockedReason ? (
+            // A proposal has no Results/Discussion/Conclusion: one quiet line, not three full chapters.
+            <div key={chapter.key} ref={el => registerAnchor(`chapter:${chapter.key}`, el)}
+              className="flex items-start gap-2.5 mb-8 rounded-lg px-3.5 py-3" style={{ background: 'var(--surface-rail)' }}>
+              <Lock size={13} className="mt-[3px] shrink-0" aria-hidden="true" style={{ color: 'var(--text-muted)' }} />
+              <div className="min-w-0">
+                <h2 tabIndex={-1} className="dm-heading m-0 text-[13px] font-semibold" style={{ color: 'var(--text-secondary)' }}>{chapter.title}</h2>
+                <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-muted)' }}>{chapter.lockedReason}</p>
+              </div>
+            </div>
+          ) : (
+            <div key={chapter.key} ref={el => registerAnchor(`chapter:${chapter.key}`, el)} className="mb-8">
+              {chapter.number !== null && chapter.title !== `Chapter ${chapter.number}` && (
                 <div className="text-[11px] font-semibold tracking-[0.08em] mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                  {chapter.number !== null ? `CHAPTER ${chapter.number}` : 'LOCKED'}
+                  CHAPTER {chapter.number}
                 </div>
               )}
-              <h2 tabIndex={-1} className="dm-heading m-0 mb-4 text-[26px] leading-tight font-semibold" style={{ fontFamily: 'Georgia, serif', color: chapter.lockedReason ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+              <h2 tabIndex={-1} className="dm-heading m-0 mb-4 text-[26px] leading-tight font-semibold" style={{ fontFamily: 'Georgia, serif', color: 'var(--text-primary)' }}>
                 {chapter.title}
               </h2>
-              {chapter.lockedReason && (
-                <p className="flex items-start gap-2 m-0 text-[13px] rounded-lg px-3 py-2.5" style={{ background: 'var(--surface-rail)', color: 'var(--text-secondary)' }}>
-                  <Lock size={13} className="mt-0.5 shrink-0" aria-hidden="true" /> {chapter.lockedReason}
-                </p>
-              )}
               {chapter.sections.map(s => {
                 const v = view[s.code]
                 if (!v) return null
@@ -572,6 +616,11 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
               })}
             </div>
           ))}
+          {sections.length > 0 && (
+            <DocumentEndCard progress={progress} flagGroups={flagGroups} nextReview={nextReview}
+              isExporting={isExporting} onJump={scrollToAnchor} onNextFlag={handleNextFlag} onExport={handleExport}
+              onTop={() => scrollRef.current?.scrollTo?.({ top: 0, behavior: 'smooth' })} />
+          )}
         </article>
       </main>
 

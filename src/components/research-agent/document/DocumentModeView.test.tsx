@@ -26,6 +26,13 @@ vi.mock('../../../api/research', async importOriginal => {
   return { ...actual, researchApi: { ...actual.researchApi, getSectionCitationFlags: vi.fn().mockResolvedValue([]), getLiterature: vi.fn().mockResolvedValue([]) } }
 })
 
+const confirmIssues = { value: false }
+vi.mock('../../../config/features', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../../config/features')>()
+  // The chapter-order gate is exercised here, so these tests run with it on.
+  return { ...actual, get CONFIRM_APPROVAL_ISSUES() { return confirmIssues.value }, REQUIRE_CHAPTER_ORDER: true }
+})
+
 vi.mock('../../../lib/liveDraftStore', () => ({
   followDraft: vi.fn(), forgetDraft: vi.fn(),
   useLiveDraft: () => ({ text: '', words: 0, sourcesRead: null, activities: [], streamEnded: false }),
@@ -99,16 +106,39 @@ describe('DocumentModeView', () => {
     expect(sectionRegion('1.2').getByText('Needs review')).toBeTruthy()
   })
 
-  it('shows Results, Discussion and Conclusion as locked with what unlocks them', () => {
+  it('shows Results, Discussion and Conclusion as one locked row with what unlocks them', () => {
     renderView()
-    expect(outline().getByRole('button', { name: /Results, locked/ })).toBeTruthy()
-    expect(screen.getAllByText(/Unlocks after the readiness audit passes/).length).toBeGreaterThan(0)
+    expect(outline().getByRole('button', { name: /Results · Discussion · Conclusion, locked/ })).toBeTruthy()
+    expect(screen.getAllByText(/after the readiness audit passes/).length).toBe(2)
   })
 
-  it('approves through the same store call Guided uses', async () => {
+  it('ends the document with progress and the next thing to do', () => {
+    renderView()
+    const end = within(screen.getByRole('region', { name: 'End of document' }))
+    expect(end.getByText(/1 of 4 sections approved/)).toBeTruthy()
+    expect(end.getByRole('button', { name: /^Review 1\.2/ })).toBeTruthy()
+    expect(end.getByRole('button', { name: /Export \.docx/ })).toBeTruthy()
+  })
+
+  it('approves straight away (acknowledged) when issue confirmation is off', async () => {
     renderView()
     await act(async () => { fireEvent.click(sectionRegion('1.2').getByRole('button', { name: 'Approve' })) })
+    expect(approveSection).toHaveBeenCalledWith('p1', '1.2', true)
+  })
+
+  it('offers Approve anyway on an overridable refusal and retries as acknowledged', async () => {
+    confirmIssues.value = true
+    approveSection.mockRejectedValueOnce({ code: 'CITATION_INTEGRITY_BLOCKED', message: 'blocked' })
+    window.matchMedia ??= ((q: string) => ({ matches: false, media: q, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent: () => false })) as typeof window.matchMedia
+    const { Toaster } = await import('react-hot-toast')
+    render(<Toaster />)
+    renderView()
+    await act(async () => { fireEvent.click(sectionRegion('1.2').getByRole('button', { name: 'Approve' })) })
+    const anyway = await screen.findByRole('button', { name: 'Approve anyway' })
+    await act(async () => { fireEvent.click(anyway) })
     expect(approveSection).toHaveBeenCalledWith('p1', '1.2', false)
+    expect(approveSection).toHaveBeenLastCalledWith('p1', '1.2', true)
+    confirmIssues.value = false
   })
 
   it('saves pending edits before approving, and does not approve over an unsaved edit', async () => {

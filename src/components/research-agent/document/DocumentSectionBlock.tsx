@@ -8,6 +8,7 @@ import { useNearViewport } from '../../../hooks/useNearViewport'
 import { SectionStatusChip } from './SectionStatusMark'
 import { SectionEditor } from './SectionEditor'
 import { LiveDraftBody, WritingChip } from './LiveDraft'
+import { countUncostedRows } from './pendingCells'
 
 export interface DocumentSectionBlockProps {
   projectId:     string
@@ -63,6 +64,7 @@ function DocumentSectionBlockImpl({
   }, [near, hasBody])
 
   const review = status === 'needs_review'
+  const uncosted = hasBody ? countUncostedRows(section.content) : 0
   const blockedRewrite = !draft.allowed
 
   return (
@@ -98,6 +100,26 @@ function DocumentSectionBlockImpl({
         </button>
       </div>
 
+      {hasBody && flags.length > 0 && (
+        // Above the text, not after it: a flag at the end of a 500-word section is a flag nobody sees.
+        <ul className="list-none m-0 p-0 mb-3 flex flex-col gap-1.5" aria-label={`${flags.length} flag${flags.length === 1 ? '' : 's'} on ${label}`}>
+          {flags.map(flag => (
+            <li key={flag.id} className="flex items-start gap-2 text-[13px] leading-[1.45] rounded-lg px-3 py-2 bg-white"
+              style={{ border: '1px solid var(--color-amber)', color: 'var(--color-amber-text)' }}>
+              <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <span><b className="font-semibold">{FLAG_LABEL[flag.kind]}:</b> {flag.message}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {uncosted > 0 && (
+        <p className="m-0 mb-3 text-[13px] leading-[1.45] rounded-lg px-3 py-2" style={{ background: 'var(--surface-rail)', color: 'var(--text-secondary)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+          <b className="font-semibold" style={{ color: 'var(--text-primary)' }}>{uncosted} budget line{uncosted === 1 ? '' : 's'} still need{uncosted === 1 ? 's' : ''} a cost.</b>{' '}
+          Type your rates into the table below; the subtotal covers costed items only until then.
+        </p>
+      )}
+
       <div ref={bodyRef}>
         {status === 'locked' && (
           <p className="flex items-start gap-2 text-[13px] m-0" style={{ color: 'var(--text-secondary)' }}>
@@ -130,18 +152,6 @@ function DocumentSectionBlockImpl({
               citationsPending={section.citationsPendingVerification} />
           : <div aria-hidden="true" style={{ height: measured.current ?? estimateHeight(section.wordCount) }} />)}
       </div>
-
-      {hasBody && flags.length > 0 && (
-        <ul className="list-none m-0 p-0 mt-3 flex flex-col gap-1.5" aria-label={`${flags.length} flag${flags.length === 1 ? '' : 's'} on ${label}`}>
-          {flags.map(flag => (
-            <li key={flag.id} className="flex items-start gap-2 text-[13px] leading-[1.45] rounded-lg px-3 py-2 bg-white"
-              style={{ border: '1px solid var(--color-amber)', color: 'var(--color-amber-text)' }}>
-              <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-              <span><b className="font-semibold">{FLAG_LABEL[flag.kind]}:</b> {flag.message}</span>
-            </li>
-          ))}
-        </ul>
-      )}
 
       {review && (
         <div className="mt-3">
