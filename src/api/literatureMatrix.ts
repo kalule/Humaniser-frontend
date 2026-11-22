@@ -8,9 +8,7 @@ import type { PaperSearchResult } from '../types/webLibrary'
 const data = <T>(response: { data: T }) => response.data
 const base = '/api/v1/literature-matrix'
 
-/** A project's research questions, numbered, for prefilling a matrix's question (research-platform W1.2). */
-export const projectResearchQuestions = (projectId: string) =>
-  client.get<{ number: number; questionText: string }[]>(`/api/v1/research/projects/${projectId}/research-questions`).then(data)
+export { projectResearchQuestions } from './projectContext'
 
 const fileForm = (file: File, fields: Record<string, string | undefined>) => {
   const form = new FormData()

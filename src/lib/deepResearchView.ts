@@ -754,3 +754,9 @@ export function groupLimitations(lines: string[]): string[] {
   const first = lines.findIndex(l => SOURCE_CAP_NOTE.test(l.trim()))
   return lines.flatMap((l, i) => (SOURCE_CAP_NOTE.test(l.trim()) ? (i === first ? [merged] : []) : [l]))
 }
+
+/** Sources the student added here, plus those the project already holds by another route: neither needs an Add button. */
+export function withProjectSources(addedIds: Set<string>, sources: EvidenceSource[]): Set<string> {
+  const inProject = sources.filter(s => s.inProject).map(s => s.id)
+  return inProject.length === 0 ? addedIds : new Set([...addedIds, ...inProject])
+}

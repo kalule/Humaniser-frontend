@@ -216,3 +216,13 @@ describe('results screen helpers', () => {
     expect(sessionStatusChip('Stopped').tone).toBe('warning')
   })
 })
+
+describe('withProjectSources (research-platform W1.3)', () => {
+  it('treats sources the project already holds as added, and keeps what the student added', async () => {
+    const { withProjectSources } = await import('./deepResearchView')
+    const src = (id: string, inProject?: boolean) => ({ id, inProject }) as unknown as import('../api/deepResearch').EvidenceSource
+    expect([...withProjectSources(new Set(['a']), [src('a'), src('b', true), src('c', false)])].sort()).toEqual(['a', 'b'])
+    const same = new Set(['a'])
+    expect(withProjectSources(same, [src('c')])).toBe(same)
+  })
+})

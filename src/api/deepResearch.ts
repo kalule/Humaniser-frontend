@@ -208,6 +208,8 @@ export interface EvidenceSource {
   stance?: 'Supports' | 'Contradicts' | 'NoEffect' | 'Background' | 'OffTopic' | 'NotUsed' | null
   relevance?: 'Relevant' | 'OffTopic' | 'Unknown'
   relevanceReason?: string | null
+  /** Already in the project's literature, by any route (research-platform W1.3). */
+  inProject?: boolean
 }
 
 export interface DeepResearchSessionSummary {

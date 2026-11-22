@@ -7,9 +7,10 @@ import { BindEvidenceModal } from '../../components/app/BindEvidenceModal'
 import { DeepResearchPrompt, type ModeChoice } from '../../components/app/DeepResearchPrompt'
 import { DEFAULT_DEPTH, guessIntent, suggestQuestions, type DepthId } from '../../lib/deepResearchIntake'
 import { DeepResearchResults } from '../../components/app/DeepResearchResults'
-import { statusBanner, type Prefill, type SourceGroup } from '../../lib/deepResearchView'
+import { statusBanner, withProjectSources, type Prefill, type SourceGroup } from '../../lib/deepResearchView'
 import { unwatchSession, watchSession } from '../../lib/deepResearchWatch'
 import { researchApi } from '../../api/research'
+import { projectResearchQuestions } from '../../api/projectContext'
 import type { ResearchProject } from '../../types/research'
 import {
   deepResearchApi,
@@ -56,7 +57,20 @@ function StartForm({ projects, initialProjectId, prefill, sessions, onStarted, o
   const detected = guess.label
   const resolvedMode: DeepResearchMode = mode === 'Auto' ? guess.mode : mode
   const project = projects.find(p => p.id === projectId)
-  const suggestions = project ? suggestQuestions(project.title ?? '') : []
+  // The project's own research questions come first (W1.3); title-based ideas fill in after them.
+  const [projectQuestions, setProjectQuestions] = useState<string[]>([])
+  useEffect(() => {
+    setProjectQuestions([])
+    if (!projectId) return
+    let cancelled = false
+    projectResearchQuestions(projectId)
+      .then(rqs => { if (!cancelled) setProjectQuestions([...rqs].sort((a, b) => a.number - b.number).map(q => q.questionText.trim()).filter(Boolean)) })
+      .catch(() => { /* optional: title-based suggestions still show */ })
+    return () => { cancelled = true }
+  }, [projectId])
+  const suggestions = project
+    ? [...new Set([...projectQuestions, ...suggestQuestions(project.title ?? '')])].slice(0, Math.max(3, projectQuestions.length))
+    : []
 
   // The server allows one unfinished session per project, so say so up front and point at it,
   // instead of letting the student fill the form in and be refused.
@@ -591,7 +605,7 @@ export default function DeepResearchPage() {
           </div>
         ) : (
           <DeepResearchResults
-            session={session} rows={sources} busyId={busyId} addedIds={addedIds}
+            session={session} rows={sources} busyId={busyId} addedIds={withProjectSources(addedIds, sources)}
             onDecide={decide} onAdd={add} onAddMany={addMany}
             onUse={(g: SourceGroup) => setBindFor(sources.find(r => r.id === g.id) ?? null)}
             onExport={() => void exportPackage()} exporting={exporting}
