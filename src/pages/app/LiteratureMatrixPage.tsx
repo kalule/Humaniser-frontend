@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { literatureMatrixApi } from '../../api/literatureMatrix'
+import { literatureMatrixApi, projectResearchQuestions } from '../../api/literatureMatrix'
 import { researchApi } from '../../api/research'
 import { ComingSoon } from '../../components/app/ToolGate'
 import { Skeleton } from '../../components/ui/Skeleton'
@@ -87,6 +87,7 @@ function NewMatrixForm({ presets, onCreated }: { presets: MatrixPreset[]; onCrea
   const [question, setQuestion] = useState('')
   const [preset, setPreset] = useState('general')
   const [projectId, setProjectId] = useState('')
+  const [questionFromProject, setQuestionFromProject] = useState(false)
   const [projects, setProjects] = useState<{ id: string; title: string }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
@@ -94,6 +95,19 @@ function NewMatrixForm({ presets, onCreated }: { presets: MatrixPreset[]; onCrea
 
   // Linking a project is optional; if the list cannot be loaded the matrix can still be created.
   useEffect(() => { researchApi.list().then(p => setProjects(p.map(x => ({ id: x.id, title: x.title || 'Untitled project' })))).catch(() => setProjects([])) }, [])
+
+  // Linking a project fills an empty question from its research questions (W1.2); the student can still edit or clear it.
+  const chooseProject = (id: string) => {
+    setProjectId(id)
+    if (!id || question.trim()) return
+    projectResearchQuestions(id).then(rqs => {
+      const text = rqs.length === 1 ? rqs[0].questionText.trim()
+        : [...rqs].sort((a, b) => a.number - b.number).map(q => `RQ${q.number}: ${q.questionText.trim()}`).join(' ')
+      if (!text) return
+      setQuestion(prev => prev.trim() ? prev : text.slice(0, MAX_QUESTION_CHARS))
+      setQuestionFromProject(true)
+    }).catch(() => { /* optional prefill: the form works without it */ })
+  }
 
   const nameError = submitted ? validateName(name) : null
   const submit = async (e: React.FormEvent) => {
@@ -121,9 +135,9 @@ function NewMatrixForm({ presets, onCreated }: { presets: MatrixPreset[]; onCrea
       </div>
       <div>
         <label htmlFor="lm-question" className="block text-[14px] font-medium text-slate-900">Research question <span className="font-normal text-slate-600">(optional)</span></label>
-        <textarea id="lm-question" value={question} maxLength={MAX_QUESTION_CHARS} rows={2} onChange={e => setQuestion(e.target.value)} aria-describedby="lm-question-help"
+        <textarea id="lm-question" value={question} maxLength={MAX_QUESTION_CHARS} rows={2} onChange={e => { setQuestion(e.target.value); setQuestionFromProject(false) }} aria-describedby="lm-question-help"
           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-[14px]" />
-        <p id="lm-question-help" className="mt-1 text-[12px] text-slate-600">Used only for the Relevance column. Without it, that column stays empty.</p>
+        <p id="lm-question-help" className="mt-1 text-[12px] text-slate-600">{questionFromProject ? "Filled from your project's research questions. Edit it if you like. " : ''}Used only for the Relevance column. Without it, that column stays empty.</p>
       </div>
       <fieldset>
         <legend className="text-[14px] font-medium text-slate-900">Kind of studies</legend>
@@ -140,7 +154,7 @@ function NewMatrixForm({ presets, onCreated }: { presets: MatrixPreset[]; onCrea
       {projects.length > 0 ? (
         <div>
           <label htmlFor="lm-project" className="block text-[14px] font-medium text-slate-900">Project <span className="font-normal text-slate-600">(optional)</span></label>
-          <select id="lm-project" value={projectId} onChange={e => setProjectId(e.target.value)} className="mt-1 w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-[14px]">
+          <select id="lm-project" value={projectId} onChange={e => chooseProject(e.target.value)} className="mt-1 w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-[14px]">
             <option value="">No project</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
           </select>

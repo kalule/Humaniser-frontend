@@ -8,6 +8,10 @@ import type { PaperSearchResult } from '../types/webLibrary'
 const data = <T>(response: { data: T }) => response.data
 const base = '/api/v1/literature-matrix'
 
+/** A project's research questions, numbered, for prefilling a matrix's question (research-platform W1.2). */
+export const projectResearchQuestions = (projectId: string) =>
+  client.get<{ number: number; questionText: string }[]>(`/api/v1/research/projects/${projectId}/research-questions`).then(data)
+
 const fileForm = (file: File, fields: Record<string, string | undefined>) => {
   const form = new FormData()
   form.append('file', file)
@@ -29,6 +33,8 @@ export const literatureMatrixApi = {
   // Rows (a matrix holds at most a few hundred, so the table loads them all and pages on screen)
   studies: (id: string) => client.get<MatrixStudyPage>(`${base}/matrices/${id}/studies`, { params: { pageSize: 500 } }).then(data),
   addSaved: (id: string, documentIds: string[]) => client.post<AddSourcesResult>(`${base}/matrices/${id}/sources/saved`, { documentIds }).then(data),
+  /** The linked project's papers; no ids means every paper the student included there. */
+  addProject: (id: string, literatureIds?: string[]) => client.post<AddSourcesResult>(`${base}/matrices/${id}/sources/project`, { literatureIds: literatureIds ?? null }).then(data),
   addSearch: (id: string, query: string, results: PaperSearchResult[]) =>
     client.post<AddSourcesResult>(`${base}/matrices/${id}/sources/search`, {
       query,

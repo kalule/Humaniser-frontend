@@ -206,6 +206,7 @@ export function originLabel(p: Provenance): string {
     case 'SavedSource': return `Saved Sources${via}${p.query ? `, found by searching "${p.query}"` : ''}`
     case 'SearchResult': return `Literature search${via}${p.query ? ` for "${p.query}"` : ''}`
     case 'Upload': return `Uploaded file${p.fileName ? ` ${p.fileName}` : ''}`
+    case 'ProjectLiterature': return `Your project's sources${via}${p.fileName ? ', with the full text your project holds' : ''}`
     default: return p.origin
   }
 }

@@ -6,7 +6,7 @@ import type { PaperSearchResult, ResearchDocument } from '../../types/webLibrary
 import { Skeleton } from '../ui/Skeleton'
 import { ConsentNotice, Dialog, ErrorAlert, buttonClass } from './parts'
 
-type Tab = 'saved' | 'search' | 'upload'
+type Tab = 'project' | 'saved' | 'search' | 'upload'
 
 /** What happened, in one sentence, with merges and possible duplicates named. */
 export function resultMessage(r: AddSourcesResult): string {
@@ -20,8 +20,13 @@ export function resultMessage(r: AddSourcesResult): string {
 }
 
 export function AddSourcesDialog({ matrix, onClose, onAdded }: { matrix: Matrix; onClose: () => void; onAdded: (message: string) => void }) {
-  const [tab, setTab] = useState<Tab>('saved')
-  const tabs: { id: Tab; label: string }[] = [{ id: 'saved', label: 'Saved Sources' }, { id: 'search', label: 'Search' }, { id: 'upload', label: 'Upload a file' }]
+  // A matrix linked to a project starts on that project's papers, so they are not re-found by hand (W1.2).
+  const linked = Boolean(matrix.researchProjectId)
+  const [tab, setTab] = useState<Tab>(linked ? 'project' : 'saved')
+  const tabs: { id: Tab; label: string }[] = [
+    ...(linked ? [{ id: 'project' as Tab, label: 'From your project' }] : []),
+    { id: 'saved', label: 'Saved Sources' }, { id: 'search', label: 'Search' }, { id: 'upload', label: 'Upload a file' },
+  ]
   const done = (r: AddSourcesResult) => { onAdded(resultMessage(r)); onClose() }
   return (
     <Dialog title="Add sources" onClose={onClose}>
@@ -34,9 +39,29 @@ export function AddSourcesDialog({ matrix, onClose, onAdded }: { matrix: Matrix;
         ))}
       </div>
       <div role="tabpanel" id={`lm-panel-${tab}`} aria-labelledby={`lm-tab-${tab}`}>
-        {tab === 'saved' ? <SavedTab matrixId={matrix.id} onDone={done} /> : tab === 'search' ? <SearchTab matrixId={matrix.id} onDone={done} /> : <UploadTab matrix={matrix} onDone={done} />}
+        {tab === 'project' ? <ProjectTab matrixId={matrix.id} onDone={done} /> : tab === 'saved' ? <SavedTab matrixId={matrix.id} onDone={done} /> : tab === 'search' ? <SearchTab matrixId={matrix.id} onDone={done} /> : <UploadTab matrix={matrix} onDone={done} />}
       </div>
     </Dialog>
+  )
+}
+
+function ProjectTab({ matrixId, onDone }: { matrixId: string; onDone: (r: AddSourcesResult) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const add = async () => {
+    setBusy(true)
+    setError(null)
+    try { onDone(await literatureMatrixApi.addProject(matrixId)) } catch (e) { setError(failureMessage(e, 'add')); setBusy(false) }
+  }
+  return (
+    <div className="space-y-3">
+      <p className="text-[13px] text-slate-800">
+        Adds every paper you included in the linked project. Papers already in this matrix are merged, not repeated. Where your project already holds a paper's full text, it comes along.
+      </p>
+      <p className="text-[12px] text-slate-600">A paper that is not in your Saved Sources yet is saved there too, because every matrix row is a saved source.</p>
+      {error ? <ErrorAlert message={error} /> : null}
+      <button type="button" disabled={busy} onClick={add} className={buttonClass.primary}>{busy ? 'Adding…' : 'Add project papers'}</button>
+    </div>
   )
 }
 

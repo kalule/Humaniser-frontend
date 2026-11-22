@@ -151,6 +151,8 @@ describe('messages', () => {
     expect(originLabel({ origin: 'SearchResult', provider: 'OpenAlex', providerRecordId: 'W1', query: 'digital learning', retrievedAt: null, fileName: null, mergedBy: null, addedAt: '' }))
       .toBe('Literature search via OpenAlex for "digital learning"')
     expect(originLabel({ origin: 'Upload', provider: null, providerRecordId: null, query: null, retrievedAt: null, fileName: 'a.pdf', mergedBy: null, addedAt: '' })).toBe('Uploaded file a.pdf')
+    expect(originLabel({ origin: 'ProjectLiterature', provider: null, providerRecordId: null, query: null, retrievedAt: null, fileName: 'Full text from your project', mergedBy: null, addedAt: '' }))
+      .toBe("Your project's sources, with the full text your project holds")
     expect(mergeLabel('TitleYear')).toBe('same title and year')
   })
 
