@@ -529,17 +529,20 @@ export default function WebLibraryPage() {
     reorderColumns(next)
   }
 
+  // Saved Sources has no file storage yet. A browser blob URL dies on reload, so storing one (and
+  // claiming full text) left records that pointed at nothing. Record the reference honestly instead.
   const handleUpload = (files: File[], folderId: string | null = null) => {
     files.forEach(file => {
       void useWebLibraryStore.getState().addDocument({
         title:    cleanUploadTitle(file.name),
         docType:  'Journal Article',
-        filePath: URL.createObjectURL(file),
-        isFullText: true,
+        isFullText: false,
         folderId,
       })
     })
-    toast.success(`${files.length} file${files.length !== 1 ? 's' : ''} uploaded`)
+    toast.success(
+      `${files.length} reference${files.length !== 1 ? 's' : ''} added. The PDF itself isn't stored here yet — add its details, or attach the file in a Literature Matrix or project.`,
+    )
   }
 
   // ── Shared row-action handlers (Library View, Reference table, details panel) ──

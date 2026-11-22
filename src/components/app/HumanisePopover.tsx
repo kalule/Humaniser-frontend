@@ -20,7 +20,7 @@ export function HumanisePopover({ sentence, onAccept, onClose, onOpenInEditor }:
   const [error, setError] = useState<string | null>(null)
 
   // Full is the Humaniser's thorough rewrite level and gives the best results. It is gated server-side to
-  // paid plans (mirrors EditorPage's canUseFullMode), so other plans keep the Fluency paraphrase.
+  // paid plans (mirrors HumaniserPage's canUseFullMode), so other plans keep the Fluency paraphrase.
   const canUseFull = useAuthStore(s => s.user?.plan === 'Pro' || s.user?.plan === 'Unlimited')
 
   const generate = async () => {

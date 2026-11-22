@@ -20,7 +20,7 @@ const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'))
-const EditorPage = lazy(() => import('./pages/app/EditorPage'))
+const HumaniserPage = lazy(() => import('./pages/app/HumaniserPage'))
 const HistoryPage = lazy(() => import('./pages/app/HistoryPage'))
 const AccountPage = lazy(() => import('./pages/app/AccountPage'))
 const BillingPage = lazy(() => import('./pages/app/BillingPage'))
@@ -229,7 +229,7 @@ function AppInner() {
           <Route path="/app" element={<AppShell />}>
             <Route index element={<Navigate to="/app/humaniser" replace />} />
             <Route element={<ToolGate tool="humanise" />}>
-              <Route path="humaniser" element={<EditorPage />} />
+              <Route path="humaniser" element={<HumaniserPage />} />
             </Route>
             <Route element={<ToolGate tool="paraphraser" />}>
               <Route path="paraphrase" element={<ParaphrasePage />} />
@@ -287,7 +287,9 @@ function AppInner() {
             <Route element={<ToolGate tool="lecture-notes" />}>
               <Route path="lecture"       element={<LecturePage />} />
             </Route>
-            <Route path="workbench"     element={<WorkbenchPage />} />
+            <Route element={<ToolGate tool="data-analyst" />}>
+              <Route path="workbench"     element={<WorkbenchPage />} />
+            </Route>
             <Route element={<ToolGate tool="documents" />}>
               <Route path="library"       element={<LibraryPage />} />
             </Route>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
 import { researchDesignApi as api } from '../../api/researchDesign'
@@ -21,12 +21,6 @@ const confirmations: Partial<Record<DesignAction, { title: string; body: string 
   Revise: { title: 'Create a new revision?', body: 'We’ll reconsider your design using your current research details. Your accepted version stays unchanged until you accept a new one. This may use credits.' },
   Restart: { title: 'Try building your design again?', body: 'Your saved work remains available. A new attempt may use credits.' },
   Cancel: { title: 'Stop building this research design?', body: 'Your saved work remains available. Completed evidence will be kept where permitted.' },
-}
-
-export default function ResearchDesignPage() {
-  const { projectId = '' } = useParams()
-  const userId = useAuthStore(s => s.user?.id ?? '')
-  return <ResearchDesignWorkspace key={`${userId}:${projectId}`} projectId={projectId} />
 }
 
 export function ResearchDesignWorkspace({ projectId, embedded = false, onAccepted }: { projectId: string; embedded?: boolean; onAccepted?: () => void }) {
