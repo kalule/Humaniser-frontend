@@ -8,6 +8,8 @@ export const CREDIT_COSTS = {
   // Raised from 5 (2026-07 citation-count remediation) — mirrors
   // HumaniseAI.Domain.Constants.CreditCosts.ProposalSectionGeneration; see its comment for why.
   proposalSectionGeneration: 7,
+  // Minimums: the server charges these two per paper (1 credit per 10 papers, never below this),
+  // see CreditCosts.PerPaperScreeningCredits. A larger pool can still be refused with a 402.
   systematicReviewTitleAbstractScreening: 8,
   systematicReviewScreeningAgreementCheck: 8,
   systematicReviewFullTextScreening: 8,

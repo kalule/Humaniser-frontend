@@ -37,8 +37,9 @@ function kappaInterpretation(kappa: number): { label: string; tone: string } {
 }
 
 // ── Screening agreement check (dual-reviewer QA overlay) ────────────────────
-// A read-only second-opinion pass, run on demand: an independent AI reviewer re-screens every
-// already-resolved (paper, criterion) pair and this panel reports how often it agreed with the
+// A read-only second-opinion pass, run on demand: an independent AI reviewer re-screens a
+// deterministic sample of the screened papers (backend ScreeningAgreementSample) and this panel
+// reports how often it agreed with the
 // primary pass — Cohen's kappa is the standard inter-rater reliability statistic for exactly
 // this two-rater, categorical-verdict setup. Disagreements are listed for manual reconciliation
 // via the existing per-cell override in the table below; this panel never changes a verdict itself.
@@ -131,9 +132,9 @@ function AgreementCheckPanel({ reviewId }: { reviewId: string }) {
       {expanded && (
         <div className="px-4 pb-4 pt-1 border-t border-slate-100">
           <p className="text-[12px] text-slate-500 mb-3 mt-3 leading-relaxed">
-            Re-screens every already-resolved paper/criterion pair with a fresh, independent AI reviewer that has
-            not seen the first pass's verdicts, then compares the two. This is a QA signal, not a decision — it
-            never changes an actual screening verdict.
+            Re-screens a fixed random sample of the screened papers (all of them up to 50, otherwise 10%, at most
+            200) with a fresh, independent AI reviewer that has not seen the first pass's verdicts, then compares
+            the two. This is a QA signal, not a decision — it never changes an actual screening verdict.
           </p>
 
           <div className="flex items-center gap-3 mb-4">
