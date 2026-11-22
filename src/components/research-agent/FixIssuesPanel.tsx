@@ -96,6 +96,7 @@ const SECTION_RULE_LABELS: Record<string, string> = {
   sampling_technique: 'Sampling technique',
   collection_mode: 'Collection mode',
   anonymity_claim: 'Anonymous vs pseudonymised',
+  decision_needed: 'Decision needed',
   abstract_optional: 'Abstract (optional)',
   abstract_not_required: 'Abstract (not required)',
 }
