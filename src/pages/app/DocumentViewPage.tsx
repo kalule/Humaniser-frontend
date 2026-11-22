@@ -81,7 +81,9 @@ export default function DocumentViewPage() {
     setExporting(true)
     try {
       await syncProject(project.id)
-      if (project.documentMode === 'DISSERTATION') {
+      // The proposal→thesis transition sets documentType only (documentMode stays
+      // PROPOSAL), so branch on documentType like the rest of the app does.
+      if (isThesisOrDissertation) {
         await exportThesisDocx(project.id)
       } else {
         await exportDocx(project.id)
