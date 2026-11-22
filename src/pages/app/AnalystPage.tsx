@@ -32,6 +32,8 @@ import {
   RUN_STAGES, cleaningMethodsText, describeRun, dtypeLabel, formatElapsed, suggestQuestions, terminalLines,
 } from '../../lib/analystRun'
 import { researchApi } from '../../api/research'
+import { projectResearchQuestions } from '../../api/projectContext'
+import type { ProjectHypothesis } from '../../types/research'
 import type {
   AnalystResult, ColumnSchema, WorkbenchMode,
   AcademicStyleGuide, RegressionTelemetry, FormattedCitations,
@@ -2591,6 +2593,14 @@ const OBJECTIVE_CARDS: {
   { id: 'custom',            label: 'Custom intent',        sub: 'Describe your own research goal',     icon: Lightbulb,     accent: 'text-violet-600', selectedCls: 'border-amber-400 bg-amber-50'  },
 ]
 
+/** One hypothesis as a goal the analyst can act on: the alternative, its variables and the test the proposal planned. */
+export function projectHypothesisGoal(h: ProjectHypothesis): string {
+  const vars = [h.dependentVariable && `outcome: ${h.dependentVariable}`, h.independentVariable && `predictor: ${h.independentVariable}`].filter(Boolean).join(', ')
+  const test = h.plannedStatisticalTest ? `; planned test: ${h.plannedStatisticalTest}` : ''
+  const text = (h.alternativeHypothesis || h.nullHypothesis || '').trim()
+  return text ? `Test H${h.number}: ${text}${vars ? ` (${vars}${test})` : test ? ` (${test.slice(2)})` : ''}` : ''
+}
+
 function ObjectivesWizard() {
   const wizardStep            = useAnalystStore((s) => s.wizardStep)
   const blueprint             = useAnalystStore((s) => s.blueprint)
@@ -2612,6 +2622,31 @@ function ObjectivesWizard() {
 
   const [selectedObjective,   setSelectedObjective]   = useState<AnalyticalMethod | null>(null)
   const [customIntent,        setCustomIntent]         = useState('')
+  const projectId    = useAnalystStore((s) => s.projectId)
+  const setProjectId = useAnalystStore((s) => s.setProjectId)
+  const [projectOptions, setProjectOptions] = useState<Array<{ id: string; title: string }>>([])
+  const [projectGoals,   setProjectGoals]   = useState<string[]>([])
+  useEffect(() => {
+    researchApi.list().then(list => setProjectOptions(list.map(p => ({ id: p.id, title: p.title || 'Untitled research project' })))).catch(() => setProjectOptions([]))
+  }, [])
+  // The project's hypotheses (with their variables and planned test) and research questions become one-click goals,
+  // so the student does not restate them (research-platform W1.5).
+  useEffect(() => {
+    setProjectGoals([])
+    if (!projectId) return
+    let cancelled = false
+    Promise.all([
+      researchApi.getHypotheses(projectId).catch(() => []),
+      projectResearchQuestions(projectId).catch(() => []),
+    ]).then(([hypotheses, questions]) => {
+      if (cancelled) return
+      setProjectGoals([
+        ...[...hypotheses].sort((a, b) => a.number - b.number).map(projectHypothesisGoal),
+        ...[...questions].sort((a, b) => a.number - b.number).map(q => `Answer RQ${q.number}: ${q.questionText.trim()}`),
+      ].filter(Boolean).slice(0, 6))
+    })
+    return () => { cancelled = true }
+  }, [projectId])
   const [targetVariable,      setTargetVariable]       = useState('')
   const [predictorVariables,  setPredictorVariables]   = useState<string[]>([])
   const [groupingVariable,    setGroupingVariable]     = useState('')
@@ -2786,6 +2821,28 @@ function ObjectivesWizard() {
         {/* ── Step 1: select objective ────────────────────────── */}
         {wizardStep === 'objectives' && (
           <div className="space-y-5">
+            <div>
+              <label htmlFor="analyst-project" className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Which project is this for? (optional)</label>
+              <select id="analyst-project" value={projectId ?? ''} onChange={e => setProjectId(e.target.value || null)}
+                className="mt-1 w-full rounded-xl px-3 py-2 text-[13px] text-slate-700 bg-white" style={{ border: '0.5px solid #e0e0da' }}>
+                <option value="">No project</option>
+                {projectOptions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+              </select>
+              {projectId && <p className="text-[12px] text-slate-500 mt-1">Your analysis is linked to this project after the first result, so your thesis Results chapter can use it.</p>}
+            </div>
+            {projectGoals.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">From your project</p>
+                <div className="flex flex-col gap-1.5">
+                  {projectGoals.map(goal => (
+                    <button key={goal} type="button" onClick={() => { setSelectedObjective('custom'); setCustomIntent(goal) }}
+                      className="text-left rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-[12px] text-violet-900 hover:bg-violet-100">
+                      {goal}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               <p className="text-base font-semibold text-slate-800">What is your research objective?</p>
               <p className="text-[13px] text-slate-500 mt-1 leading-relaxed">
@@ -3454,10 +3511,30 @@ export default function AnalystPage() {
       .finally(() => setLoadingProjects(false))
   }, [sessionId, stepCount])
 
+  const contextProjectId = useAnalystStore((s) => s.projectId)
+  // Opened from a project (?projectId=) sets the project this analysis is for.
+  useEffect(() => {
+    const fromLink = searchParams.get('projectId')
+    if (fromLink && !searchParams.get('sessionId')) useAnalystStore.getState().setProjectId(fromLink)
+  }, [searchParams])
+
   useEffect(() => {
     setLinkedProjectId('')
-    setSelectedProjectId('')
-  }, [sessionId])
+    setSelectedProjectId(contextProjectId ?? '')
+  }, [sessionId, contextProjectId])
+
+  // A session started for a project is linked to it once it has a completed step (W1.5): before, the student had to
+  // find the link control and choose the project a second time, and an unlinked session never reached the thesis.
+  const autoLinkTried = useRef<string | null>(null)
+  useEffect(() => {
+    if (!sessionId || stepCount < 1 || !contextProjectId || linkedProjectId) return
+    const key = `${sessionId}:${contextProjectId}`
+    if (autoLinkTried.current === key) return
+    autoLinkTried.current = key
+    researchApi.linkSession(contextProjectId, sessionId)
+      .then(() => { setLinkedProjectId(contextProjectId); toast.success('Analysis linked to your research project.') })
+      .catch(() => { /* the manual Link analysis control stays available */ })
+  }, [sessionId, stepCount, contextProjectId, linkedProjectId])
 
   const linkAnalysisToProject = async () => {
     if (!sessionId || !selectedProjectId) return

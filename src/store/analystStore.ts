@@ -45,6 +45,11 @@ interface AnalystStore {
   isCleaned:     boolean
   isExporting:   boolean
 
+  // The research project this analysis is for (research-platform W1.5). Chosen in the wizard or passed as ?projectId=;
+  // the session is linked to it after its first completed step. Kept across sessions: it describes the student's work.
+  projectId:    string | null
+  setProjectId: (projectId: string | null) => void
+
   // Session state
   sessionId:    string | null
   academicLevel: AcademicLevel
@@ -108,6 +113,9 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
   isCleaning:   false,
   isCleaned:    false,
   isExporting:  false,
+
+  projectId:    null,
+  setProjectId: (projectId) => set({ projectId }),
 
   sessionId:    null,
   academicLevel: 'masters',
