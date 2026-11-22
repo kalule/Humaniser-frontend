@@ -18,4 +18,5 @@ export const CREDIT_COSTS = {
   systematicReviewRobinsI: 8,
   systematicReviewEvidenceGrading: 8,
   systematicReviewManuscriptGeneration: 10,
+  systematicReviewEffectDataExtraction: 8,
 } as const

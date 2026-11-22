@@ -129,7 +129,7 @@ export default function PrismaFlowDiagram({ reviewId, onClose }: PrismaFlowDiagr
               excluded={
                 <ExcludedNote
                   lines={[
-                    { label: 'Duplicates removed (DOI)', value: flow.duplicatesRemovedByDoi },
+                    { label: 'Duplicates removed (identifier: DOI, PubMed, OpenAlex)', value: flow.duplicatesRemovedByDoi },
                     { label: 'Duplicates removed (title)', value: flow.duplicatesRemovedByTitle },
                     { label: 'No abstract', value: flow.excludedWithoutAbstract },
                     { label: 'Outside date range', value: flow.excludedByPublicationDate },

@@ -86,7 +86,15 @@ export default function LedgerScreeningSection({ reviewId, stage, onChanged, chi
           <span className="text-[11px] text-slate-400">Not screening decisions. Never counted, exported as decisions, or used to train the order.</span>
           <span className="ml-auto">{showAi ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}</span>
         </button>
-        {showAi && <div className="px-4 pb-4 pt-2 border-t border-slate-100">{children}</div>}
+        {showAi && (
+          <div className="px-4 pb-4 pt-2 border-t border-slate-100">
+            <p className="text-[12px] text-slate-500 mb-3 leading-relaxed">
+              In reviewer-led screening, Run AI Screening suggests verdicts for the next 100 unresolved records in the suggested
+              order that have none yet, the ones you are about to see, rather than for the whole pool.
+            </p>
+            {children}
+          </div>
+        )}
       </div>
     </>
   )

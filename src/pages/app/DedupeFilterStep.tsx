@@ -191,7 +191,7 @@ export default function DedupeFilterStep({ reviewId, detail, onSaved }: DedupeFi
             <h3 className="text-[12px] font-bold text-slate-800">Stage breakdown</h3>
           </div>
           <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-            <BreakdownRow label="Duplicates removed by DOI"      value={run?.duplicatesRemovedByDoi ?? 0} />
+            <BreakdownRow label="Duplicates removed by identifier (DOI, PubMed ID, OpenAlex ID)" value={run?.duplicatesRemovedByDoi ?? 0} />
             <BreakdownRow label="Duplicates removed by title"    value={run?.duplicatesRemovedByTitle ?? 0} />
             <BreakdownRow label="Excluded without abstract"      value={run?.excludedWithoutAbstract ?? 0} />
             <BreakdownRow label="Excluded by publication date"   value={run?.excludedByPublicationDate ?? 0} />

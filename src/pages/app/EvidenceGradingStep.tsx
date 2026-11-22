@@ -6,6 +6,7 @@ import { useSystematicReviewStore } from '../../store/systematicReviewStore'
 import { useCreditGate } from '../../hooks/useCreditGate'
 import { CREDIT_COSTS } from '../../config/creditCosts'
 import ConfirmActionModal from '../../components/app/ConfirmActionModal'
+import MetaAnalysisPanel from '../../components/app/MetaAnalysisPanel'
 import type {
   EvidenceGradeRecord, EvidenceGradingRunStatus, EvidenceGradingSummary, GradeDomain,
   GradeDomainRating, GradeRating, GradeUpgradeFactor, GradeUpgradeRating, GradeUpgradeRatingRecord,
@@ -279,6 +280,8 @@ export default function EvidenceGradingStep({ reviewId, detail, onSaved }: Evide
           <h2 className="text-[20px] font-bold text-slate-900 mb-1">Evidence Grading</h2>
           <p className="text-[13px] text-slate-500">Assess certainty of evidence per outcome across the included studies.</p>
         </div>
+
+        <MetaAnalysisPanel reviewId={reviewId} onChanged={() => { loadRecords() }} />
 
         <div className="border border-slate-200 rounded-xl p-4 mb-4 bg-slate-50/50">
           {records.length > 0 ? (
