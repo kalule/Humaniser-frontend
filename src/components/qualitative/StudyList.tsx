@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { researchApi } from '../../api/research'
 import { errorMessage, qualApi, type AiMode, type QualAvailability, type QualMethod, type QualStudy } from '../../api/qualitativeAnalysis'
 import { LANGUAGES, METHOD_LABELS, METHOD_NOTES, languageLabel } from '../../lib/qualitative'
 import { Skeleton } from '../ui/Skeleton'
@@ -52,7 +53,24 @@ export function StudyList({ features }: { features: QualAvailability }) {
 
 function NewStudyForm({ features }: { features: QualAvailability }) {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [title, setTitle] = useState('')
+  // Linking a study to a research project (research-platform W1.1). The backend always accepted a project; the form never
+  // offered one, so every study was an island. Optional: a study without a project works exactly as before.
+  const [projects, setProjects] = useState<{ id: string; title: string }[] | null>(null)
+  const [projectId, setProjectId] = useState(params.get('projectId') ?? '')
+  useEffect(() => {
+    let cancelled = false
+    researchApi.list()
+      .then(list => { if (!cancelled) setProjects(list.map(p => ({ id: p.id, title: p.title || 'Untitled project' }))) })
+      .catch(() => { if (!cancelled) setProjects([]) })
+    return () => { cancelled = true }
+  }, [])
+  const chooseProject = (id: string) => {
+    setProjectId(id)
+    const chosen = projects?.find(p => p.id === id)
+    if (chosen && !title.trim()) setTitle(chosen.title.slice(0, 200))
+  }
   const [method, setMethod] = useState<QualMethod>('ReflexiveTA')
   const [language, setLanguage] = useState('en')
   const [aiMode, setAiMode] = useState<AiMode>('ManualOnly')
@@ -74,13 +92,24 @@ function NewStudyForm({ features }: { features: QualAvailability }) {
     if (!consent) { invalid('consent', 'Confirm the statement about your data before creating the study.'); return }
     setBusy(true)
     try {
-      const study = await qualApi.createStudy({ title: title.trim(), method, analysisLanguage: language, aiMode, consentAccepted: true })
+      const linked = projectId && projects?.some(p => p.id === projectId) ? projectId : null
+      const study = await qualApi.createStudy({ title: title.trim(), method, analysisLanguage: language, aiMode, consentAccepted: true, projectId: linked })
       navigate(`/app/qualitative-analysis/${study.id}`)
     } catch (err) { setError(errorMessage(err, 'The study could not be created.')) } finally { setBusy(false) }
   }
 
   return (
     <form onSubmit={submit} className="max-w-2xl space-y-4 rounded-xl border border-slate-200 p-4" noValidate>
+      <div>
+        <label htmlFor="qa-project" className={labelClass}>Research project</label>
+        {projects === null ? <Skeleton lines={1} tone="light" /> : (
+          <select id="qa-project" value={projectId} onChange={e => chooseProject(e.target.value)} className={inputClass} aria-describedby="qa-project-hint">
+            <option value="">No project</option>
+            {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+          </select>
+        )}
+        <p id="qa-project-hint" className="mt-1 text-[12px] text-slate-700">Optional. Linking keeps this study with your proposal or thesis.</p>
+      </div>
       <div>
         <label htmlFor="qa-title" className={labelClass}>Title</label>
         <input id="qa-title" value={title} onChange={e => setTitle(e.target.value)} maxLength={200} className={inputClass} aria-describedby={errorField === 'title' ? 'qa-title-hint qa-error' : 'qa-title-hint'} aria-invalid={errorField === 'title' || undefined} />

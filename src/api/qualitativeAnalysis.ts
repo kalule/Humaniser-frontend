@@ -182,7 +182,7 @@ export const qualApi = {
   // Studies
   listStudies: () => client.get<QualStudy[]>(`${base}/studies`).then(data),
   getStudy: (id: string) => client.get<QualStudy>(`${base}/studies/${id}`).then(data),
-  createStudy: (body: { title: string; method: QualMethod; analysisLanguage: string; aiMode: AiMode; consentAccepted: boolean }) => client.post<QualStudy>(`${base}/studies`, body).then(data),
+  createStudy: (body: { title: string; method: QualMethod; analysisLanguage: string; aiMode: AiMode; consentAccepted: boolean; projectId?: string | null }) => client.post<QualStudy>(`${base}/studies`, body).then(data),
   updateStudy: (id: string, body: { title?: string; method?: QualMethod; aiMode?: AiMode }) => client.patch<QualStudy>(`${base}/studies/${id}`, body).then(data),
   deleteStudy: (id: string) => client.delete(`${base}/studies/${id}`).then(() => undefined),
   discardIdentifierKey: (id: string) => client.delete<QualStudy>(`${base}/studies/${id}/identifier-key`).then(data),
