@@ -7,6 +7,8 @@ import { useSystematicReviewStore } from '../../store/systematicReviewStore'
 import { useCreditGate } from '../../hooks/useCreditGate'
 import { CREDIT_COSTS } from '../../config/creditCosts'
 import ConfirmActionModal from '../../components/app/ConfirmActionModal'
+import RobFiguresSection from '../../components/app/RobFiguresSection'
+import { buildRobinsIFigureData, fetchAllPages, hasAnyRating } from '../../lib/robFigures'
 import type {
   RiskOfBiasDomainRobinsI, RiskOfBiasFilter, RobinsIDomainRating, RobinsIRatingValue, RobinsIRecord,
   RobinsIRunStatus, RobinsISummary, SystematicReviewDetail,
@@ -424,6 +426,17 @@ export default function RobinsIStep({ reviewId, onSaved }: RobinsIStepProps) {
 
         {runError && (
           <p className="text-[12px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">{runError}</p>
+        )}
+
+        {/* Figures: robvis-style plots over every study, shown once anything is rated */}
+        {(hasAnyRating(records) || (summary !== null && summary.low + summary.moderate + summary.serious + summary.critical + summary.noInformation > 0)) && (
+          <RobFiguresSection
+            loadAll={() => fetchAllPages((p, size) => getRobinsIRecords(reviewId, { filter: 'all', page: p, pageSize: size }))}
+            pageRecords={records}
+            refreshKey={summary ? JSON.stringify(summary) : ''}
+            toFigure={buildRobinsIFigureData}
+            filePrefix="robins-i"
+          />
         )}
 
         {/* Matrix table */}

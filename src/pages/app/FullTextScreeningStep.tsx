@@ -12,6 +12,7 @@ import type {
   FullTextScreeningSummary, OverallScreeningDecision, ScreeningVerdict, SystematicReviewDetail,
 } from '../../types/systematicReview'
 import LedgerScreeningSection from '../../components/app/screening/LedgerScreeningSection'
+import OpenAccessFinder from '../../components/app/OpenAccessFinder'
 
 interface FullTextScreeningStepProps {
   reviewId: string
@@ -349,10 +350,11 @@ export default function FullTextScreeningStep({ reviewId, detail, onSaved }: Ful
                 <div className="flex items-start gap-2">
                   <AlertTriangle size={16} className="text-amber-text shrink-0 mt-0.5" />
                   <p className="text-[12px] text-amber-text leading-relaxed">
-                    We couldn't access the PDF for {summary.needsPdf} papers during screening. Upload PDFs from the main
-                    table below to use their full text, or use abstracts for those papers instead.
+                    We couldn't access the PDF for {summary.needsPdf} papers during screening. Find free, legal copies
+                    automatically, upload PDFs from the main table below, or use abstracts for those papers instead.
                   </p>
                 </div>
+                <OpenAccessFinder reviewId={reviewId} onFound={() => { loadRecords(); loadDetail(reviewId).catch(() => {}) }} />
                 <button
                   onClick={() => setPendingBulkFallback(true)}
                   className="shrink-0 px-3 py-1.5 rounded-lg bg-white border border-amber-accent/40 text-amber-text text-[12px] font-semibold hover:bg-amber-tint/60 transition-colors whitespace-nowrap"
@@ -479,7 +481,9 @@ export default function FullTextScreeningStep({ reviewId, detail, onSaved }: Ful
                                       {OVERALL_LABEL[r.overall]}
                                     </span>
                                     <span className="text-[10px] font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded">
-                                      screened by {r.fullTextStatus === 'PdfUploaded' ? 'full text' : 'abstract'}
+                                      screened by {r.fullTextStatus === 'PdfUploaded'
+                                        ? (r.fullTextSource && r.fullTextSource !== 'Uploaded PDF' ? 'full text (open-access copy)' : 'full text')
+                                        : 'abstract'}
                                     </span>
                                     <span className="text-[10px] font-semibold bg-amber-tint text-amber-text px-2 py-0.5 rounded">
                                       {matchCount}/{criteria.length} criteria met

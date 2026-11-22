@@ -1514,6 +1514,9 @@ function RiskOfBiasSection({ reviewId, detail, onSaved }: {
           </button>
         </div>
       </div>
+      {detail.riskOfBiasToolNote && (
+        <p className="px-6 pt-2 text-[11px] text-slate-500 leading-relaxed">{detail.riskOfBiasToolNote}</p>
+      )}
       <div className="flex-1 min-h-0">
         {detail.riskOfBiasTool === 'RobinsI'
           ? <RobinsIStep reviewId={reviewId} detail={detail} onSaved={onSaved} />

@@ -7,6 +7,8 @@ import { useSystematicReviewStore } from '../../store/systematicReviewStore'
 import { useCreditGate } from '../../hooks/useCreditGate'
 import { CREDIT_COSTS } from '../../config/creditCosts'
 import ConfirmActionModal from '../../components/app/ConfirmActionModal'
+import RobFiguresSection from '../../components/app/RobFiguresSection'
+import { buildRob2FigureData, fetchAllPages, hasAnyRating } from '../../lib/robFigures'
 import type {
   RiskOfBiasDomain, RiskOfBiasDomainRating, RiskOfBiasFilter, RiskOfBiasRating, RiskOfBiasRecord,
   RiskOfBiasRunStatus, RiskOfBiasSummary, SystematicReviewDetail,
@@ -435,6 +437,17 @@ export default function RiskOfBiasStep({ reviewId, detail, onSaved }: RiskOfBias
 
         {runError && (
           <p className="text-[12px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">{runError}</p>
+        )}
+
+        {/* Figures: robvis-style plots over every study, shown once anything is rated */}
+        {(hasAnyRating(records) || (summary !== null && summary.low + summary.someConcerns + summary.high > 0)) && (
+          <RobFiguresSection
+            loadAll={() => fetchAllPages((p, size) => getRiskOfBiasRecords(reviewId, { filter: 'all', page: p, pageSize: size }))}
+            pageRecords={records}
+            refreshKey={summary ? JSON.stringify(summary) : ''}
+            toFigure={buildRob2FigureData}
+            filePrefix="rob2"
+          />
         )}
 
         {/* Matrix table */}

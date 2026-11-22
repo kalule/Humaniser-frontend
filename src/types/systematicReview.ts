@@ -54,6 +54,8 @@ export interface SystematicReviewDetail extends SystematicReview {
   // stepId -> ISO timestamp a reviewer last confirmed that step — informational, never gates "Next".
   checkpoints:              Record<string, string>
   riskOfBiasTool:           RiskOfBiasTool
+  /** Why the appraisal tool is what it is, from the included studies' designs; null when they say nothing either way. */
+  riskOfBiasToolNote?:      string | null
 }
 
 export interface SuggestedCriterion {
@@ -271,6 +273,8 @@ export interface FullTextScreeningRecord {
   useAbstractFallback: boolean
   overall:             OverallScreeningDecision
   decisions:           ScreeningDecision[]
+  /** "Uploaded PDF" or "Open-access copy (found automatically)". Null when there is no full text. */
+  fullTextSource?:     string | null
 }
 
 export interface FullTextScreeningSummary extends ScreeningSummary {

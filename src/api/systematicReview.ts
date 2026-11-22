@@ -204,6 +204,14 @@ export const systematicReviewApi = {
       `/api/v1/systematicreview/${id}/papers/${paperId}/use-abstract-fallback`,
     )),
 
+  findOpenAccess: async (id: string): Promise<{ jobId: string }> =>
+    unwrap(await client.post<Wrap<{ jobId: string }>>(`/api/v1/systematicreview/${id}/screening/full-text/find-open-access`)),
+
+  getOpenAccessLookupStatus: async (id: string): Promise<{ isRunning: boolean; stillWithoutFullText: number; foundAutomatically: number }> =>
+    unwrap(await client.get<Wrap<{ isRunning: boolean; stillWithoutFullText: number; foundAutomatically: number }>>(
+      `/api/v1/systematicreview/${id}/screening/full-text/find-open-access/status`,
+    )),
+
   useAbstractFallbackForAll: async (id: string): Promise<{ affectedCount: number }> =>
     unwrap(await client.post<Wrap<{ affectedCount: number }>>(
       `/api/v1/systematicreview/${id}/screening/full-text/use-abstract-for-all`,
