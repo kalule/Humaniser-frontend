@@ -182,7 +182,13 @@ export interface ConsistencyResult {
   }
 }
 
+/** A fact written to the project from a calculation (research-platform W4.1). */
+export interface AppliedFact { factKey: string; value: string; previousValue: string | null }
+
 export const studyDesignApi = {
+  /** Use a saved calculation's sample size in the project; replace overwrites a different confirmed value. */
+  applyToProject: (projectId: string, id: string, replace = false) =>
+    client.post<{ calculationId: string; facts: AppliedFact[] }>(`${base}/projects/${projectId}/calculations/${id}/apply`, null, { params: replace ? { replace: true } : undefined }).then(data),
   availability: () => client.get<StudyDesignAvailability>(`${base}/availability`).then(data),
   /** Nothing is stored. */
   calculate: (request: CalculateRequest) => client.post<CalculationResult>(`${base}/calculate`, request).then(data),

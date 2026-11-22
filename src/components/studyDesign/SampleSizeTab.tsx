@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Check, Copy, Info, Plus, Star, Trash2 } from 'lucide-react'
-import { studyDesignApi, type StoredCalculation } from '../../api/studyDesign'
+import { studyDesignApi, type AppliedFact, type StoredCalculation } from '../../api/studyDesign'
 import {
   BASIS_OPTIONS, CALCULATORS, GROUP_LABELS, asPercentHint, buildRequest, calculatorById, emptyAdjustments, errorSummaryText, fieldErrors, headline, inputRows, percent,
   type AdjustmentValues, type ApiFieldError, type CalculationResult, type CalculatorDef, type CalculatorId, type EffectBasis, type FormState,
@@ -30,6 +30,12 @@ function Field({ id, label, help, error, hint, optional, children }: {
   )
 }
 
+/** "Your project's sample size is now 84 and its recruitment target 105 (was 200)." */
+export function describeApplied(facts: AppliedFact[]): string {
+  const part = (f: AppliedFact) => `${f.factKey === 'RecruitmentTarget' ? 'recruitment target' : 'sample size'} ${f.value}${f.previousValue ? ` (was ${f.previousValue})` : ''}`
+  return facts.length === 0 ? 'Nothing was changed.' : `Saved to your project: ${facts.map(part).join(', ')}. Sections that state another figure will be flagged.`
+}
+
 const blankForm = (calculator: CalculatorId): FormState => ({ calculator, values: {}, basis: '', justification: '', adjustments: emptyAdjustments() })
 
 export function SampleSizeTab({ projectId, projectTitle }: { projectId: string; projectTitle: string | null }) {
@@ -38,6 +44,10 @@ export function SampleSizeTab({ projectId, projectTitle }: { projectId: string; 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState<string | null>(null)
   const [busy, setBusy] = useState<'calculate' | 'save' | null>(null)
+  // Using the stored calculation in the project (W4.1): a status line, or the server's reason with a Replace offer.
+  const [applyNote, setApplyNote] = useState<string | null>(null)
+  const [applyClash, setApplyClash] = useState<string | null>(null)
+  const [applying, setApplying] = useState(false)
   const [result, setResult] = useState<CalculationResult | null>(null)
   const [shown, setShown] = useState<StoredCalculation | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -125,7 +135,21 @@ export function SampleSizeTab({ projectId, projectTitle }: { projectId: string; 
     catch { (document.getElementById(fid('methods')) as HTMLTextAreaElement | null)?.select() }
   }
 
-  const show = (c: StoredCalculation) => { setResult(c.result); setShown(c); setTexts({}); setDirty(false); requestAnimationFrame(() => resultRef.current?.focus()) }
+  const applyToProject = async (replace: boolean) => {
+    if (!shown || applying) return
+    setApplying(true); setApplyNote(null); setApplyClash(null)
+    try {
+      const r = await studyDesignApi.applyToProject(shown.projectId, shown.id, replace)
+      setApplyNote(describeApplied(r.facts))
+    } catch (err) {
+      const e = err as { code?: string; details?: { code?: string; message: string }[] }
+      const clash = e?.details?.find(d => d.code === 'CONFIRMED_VALUE_DIFFERS')
+      if (clash) setApplyClash(e.details!.filter(d => d.code === 'CONFIRMED_VALUE_DIFFERS').map(d => d.message).join(' '))
+      else fail(err)
+    } finally { setApplying(false) }
+  }
+
+  const show = (c: StoredCalculation) => { setApplyNote(null); setApplyClash(null); setResult(c.result); setShown(c); setTexts({}); setDirty(false); requestAnimationFrame(() => resultRef.current?.focus()) }
   const makePrimary = async (c: StoredCalculation) => { try { await studyDesignApi.update(c.projectId, c.id, { isPrimary: true }); await loadSaved() } catch (err) { fail(err) } }
   const remove = async (c: StoredCalculation) => {
     try {
@@ -346,8 +370,20 @@ export function SampleSizeTab({ projectId, projectTitle }: { projectId: string; 
                       <button type="button" onClick={() => void copy()} className={cn(buttonClass, 'border border-slate-300 text-slate-800 hover:bg-slate-50')}>
                         {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />} {copied ? 'Copied' : 'Copy as methods text'}
                       </button>
-                      <span role="status" className="text-[12px] text-slate-600">{copied ? 'Copied to the clipboard.' : ''}</span>
+                      {shown ? (
+                        <button type="button" disabled={applying} onClick={() => void applyToProject(false)} className={cn(buttonClass, 'border border-purple-300 text-purple-deep hover:bg-purple-50 disabled:opacity-50')}>
+                          {applying ? 'Saving…' : 'Use this sample size in my project'}
+                        </button>
+                      ) : null}
+                      <span role="status" className="text-[12px] text-slate-600">{copied ? 'Copied to the clipboard.' : applyNote ?? ''}</span>
                     </div>
+                    {applyClash ? (
+                      <div role="alert" className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-[13px] text-amber-900">
+                        {applyClash}{' '}
+                        <button type="button" disabled={applying} onClick={() => void applyToProject(true)} className="font-semibold underline">Replace</button>
+                      </div>
+                    ) : null}
+                    {!shown ? <p className="mt-1 text-[12px] text-slate-600">Save the calculation with your project to use its sample size there.</p> : null}
                   </>
                 )}
             </div>
