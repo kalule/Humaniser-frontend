@@ -18,7 +18,10 @@ const unwrap = <T>(res: { data: Wrap<T> }): T => res.data.data ?? (res.data as u
 export interface CreateSystematicReviewPayload {
   researchQuestion?: string | null
   creationPath:      ReviewCreationPath
+  researchProjectId?: string | null
 }
+
+export interface SendToProjectResult { projectId: string; added: number; alreadyInProject: number; included: number }
 
 export interface CriterionPayload {
   type:            CriterionType
@@ -37,6 +40,10 @@ export const systematicReviewApi = {
 
   create: async (payload: CreateSystematicReviewPayload): Promise<SystematicReview> =>
     unwrap(await client.post<Wrap<SystematicReview>>('/api/v1/systematicreview', payload)),
+
+  /** Adds the studies included at full text to the linked project's literature (W1.4). */
+  sendToProject: async (id: string): Promise<SendToProjectResult> =>
+    unwrap(await client.post<Wrap<SendToProjectResult>>(`/api/v1/systematicreview/${id}/send-to-project`)),
 
   delete: async (id: string): Promise<void> => {
     await client.delete(`/api/v1/systematicreview/${id}`)

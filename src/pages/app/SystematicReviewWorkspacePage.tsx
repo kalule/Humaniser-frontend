@@ -9,6 +9,7 @@ import {
 import { cn, downloadBlob, formatDate } from '../../lib/utils'
 import { computeStepStaleness } from '../../lib/reviewStaleness'
 import { useSystematicReviewStore } from '../../store/systematicReviewStore'
+import { systematicReviewApi } from '../../api/systematicReview'
 import type {
   CriterionType, EligibilityCriterion, ReviewProtocol, SearchStringItem, SearchStringUse,
   SuggestedCriterion, SystematicReviewDetail,
@@ -271,13 +272,17 @@ function WorkspaceHeader({ detail, lastSavedAt, nextStepLabel, nextDisabled, cur
         >
           PRISMA Diagram
         </button>
-        <button
-          disabled
-          title="Not available yet"
-          className="px-3 py-2 rounded-lg border border-slate-200 text-slate-400 text-[12px] font-medium cursor-not-allowed"
-        >
-          📖 Save to Library
-        </button>
+        {detail.researchProjectId ? (
+          <SendToProjectButton reviewId={detail.id} />
+        ) : (
+          <button
+            disabled
+            title="Not available yet"
+            className="px-3 py-2 rounded-lg border border-slate-200 text-slate-400 text-[12px] font-medium cursor-not-allowed"
+          >
+            📖 Save to Library
+          </button>
+        )}
         <ExportMenu reviewId={detail.id} hasManuscript={detail.manuscript !== null} />
         <button
           onClick={onAutoRun}
@@ -1658,5 +1663,30 @@ export default function SystematicReviewWorkspacePage() {
         )}
       </AnimatePresence>
     </div>
+  )
+}
+
+/** Sends the studies included at full text to the linked research project's sources (research-platform W1.4). */
+function SendToProjectButton({ reviewId }: { reviewId: string }) {
+  const [busy, setBusy] = useState(false)
+  const send = async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      const r = await systematicReviewApi.sendToProject(reviewId)
+      toast.success(`${r.included} included ${r.included === 1 ? 'study' : 'studies'}: ${r.added} added to your project, ${r.alreadyInProject} already there.`)
+    } catch (err) {
+      const message = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data
+      toast.error(message?.error ?? message?.message ?? 'Could not send the included studies to your project.')
+    } finally { setBusy(false) }
+  }
+  return (
+    <button
+      onClick={() => void send()}
+      disabled={busy}
+      className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 text-[12px] font-medium transition-colors disabled:opacity-50"
+    >
+      {busy ? 'Sending…' : 'Send included studies to project'}
+    </button>
   )
 }

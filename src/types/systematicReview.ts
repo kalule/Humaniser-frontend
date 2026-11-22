@@ -9,6 +9,8 @@ export interface SystematicReview {
   paperCount:       number
   createdAt:        string
   updatedAt:        string
+  /** Optional link to a research project (research-platform W1.4). */
+  researchProjectId?: string | null
 }
 
 // ── Eligibility Criteria step ────────────────────────────────────────────────

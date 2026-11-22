@@ -10,6 +10,8 @@ import { useSystematicReviewStore } from '../../store/systematicReviewStore'
 import { DocumentList, type DocumentListEntry } from '../../components/app/DocumentList'
 import type { ReviewCreationPath, SystematicReview, SystematicReviewStatus } from '../../types/systematicReview'
 import { screeningLedgerApi } from '../../api/screeningLedger'
+import { researchApi } from '../../api/research'
+import { projectResearchQuestions } from '../../api/projectContext'
 import type { SharedReview } from '../../types/screeningLedger'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -152,6 +154,25 @@ function NewReviewModal({
   const store = useSystematicReviewStore()
   const [question, setQuestion] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  // Starting from a research project (research-platform W1.4): optional, and an empty question is filled from the
+  // project's first research question, which the student can edit.
+  const [projects, setProjects] = useState<{ id: string; title: string }[]>([])
+  const [projectId, setProjectId] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    researchApi.list()
+      .then(list => { if (!cancelled) setProjects(list.map(p => ({ id: p.id, title: p.title || 'Untitled project' }))) })
+      .catch(() => { if (!cancelled) setProjects([]) })
+    return () => { cancelled = true }
+  }, [])
+  const chooseProject = (id: string) => {
+    setProjectId(id)
+    if (!id || question.trim()) return
+    projectResearchQuestions(id).then(rqs => {
+      const first = [...rqs].sort((a, b) => a.number - b.number)[0]?.questionText.trim()
+      if (first) setQuestion(prev => (prev.trim() ? prev : first))
+    }).catch(() => { /* optional prefill */ })
+  }
   const [error, setError] = useState<string | null>(null)
 
   const trimmed = question.trim()
@@ -170,7 +191,7 @@ function NewReviewModal({
     setSubmitting(true)
     setError(null)
     try {
-      const review = await store.createReview({ researchQuestion: trimmed, creationPath })
+      const review = await store.createReview({ researchQuestion: trimmed, creationPath, researchProjectId: projectId || null })
       onCreated(review)
     } catch {
       setError('Could not create the review. Please try again.')
@@ -238,6 +259,19 @@ function NewReviewModal({
             ? 'Looks like a well-formed question.'
             : "Tip: include who, what you're testing, and the outcome."}
         </p>
+        {projects.length > 0 && (
+          <div className="mt-4">
+            <label htmlFor="sr-project" className="block text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+              Research project <span className="normal-case font-normal tracking-normal">(optional)</span>
+            </label>
+            <select id="sr-project" value={projectId} disabled={submitting} onChange={e => chooseProject(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-[14px] text-slate-800 outline-none focus:border-[var(--color-purple)] bg-white disabled:opacity-60">
+              <option value="">No project</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+            <p className="text-[11px] mt-1 text-slate-500">Linking lets you send the studies you include to that project's sources.</p>
+          </div>
+        )}
 
         {visibleExamples.length > 0 && (
           <div className="mt-3 mb-5">
