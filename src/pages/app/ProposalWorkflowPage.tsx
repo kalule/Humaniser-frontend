@@ -15,6 +15,8 @@ import { GenerationPanel } from '../../components/app/AutonomousProposalTools'
 import toast from 'react-hot-toast'
 import { proposalWorkflowApi as api } from '../../api/proposalWorkflow'
 import { researchApi } from '../../api/research'
+import { gapFinderApi } from '../../api/gapFinder'
+import { dossierFromGap, fillEmpty, pickGapCard } from '../../lib/gapDossierPrefill'
 import ResearchSpecificationEditor, { ResearchField, ResearchLinks } from '../../components/research-agent/ResearchSpecificationEditor'
 import type { GapDossier, WorkflowHistory, WorkflowSource, WorkflowState } from '../../types/proposalWorkflow'
 import type { LiteratureSearchQuery } from '../../types/research'
@@ -52,6 +54,20 @@ export default function ProposalWorkflowPage() {
   const [purpose, setPurpose] = useState('Support')
   const [passage, setPassage] = useState({ start: 0, quote: '' })
   const [gap, setGap] = useState<GapDossier>(emptyGap)
+  // W4.4: start the dossier from the student's Research Gap Finder result; only empty fields are filled.
+  const [gapPrefilled, setGapPrefilled] = useState(false)
+  useEffect(() => {
+    setGapPrefilled(false)
+    if (!projectId) return
+    let cancelled = false
+    gapFinderApi.listForProject(projectId).then(runs => {
+      const picked = pickGapCard(runs)
+      if (cancelled || !picked) return
+      setGap(g => fillEmpty(g, dossierFromGap(picked.run, picked.card)))
+      setGapPrefilled(true)
+    }).catch(() => { /* optional prefill */ })
+    return () => { cancelled = true }
+  }, [projectId])
   const [selectedSection, setSelectedSection] = useState('')
   const [editedContent, setEditedContent] = useState('')
   const [editedEvidence, setEditedEvidence] = useState<string[]>([])
@@ -152,7 +168,7 @@ export default function ProposalWorkflowPage() {
         <div className="space-y-3 pt-4">{state.evidence.map(e => <article key={e.id} className="rounded-xl border p-4"><p className="text-sm font-semibold">{e.sectionCode} · {e.status} · {e.purpose}</p><p className="mt-1 text-sm">{e.claim}</p><p className="mt-2 text-xs text-slate-500">{e.message}</p></article>)}</div>
         </div></details><details><summary className="text-sm cursor-pointer">Research gap and search coverage</summary><Button variant="ghost" onClick={() => openTab('gap')}>Review the research gap</Button></details>
       </div>}
-      {tab === 'gap' && <div className="space-y-4"><h2 className="text-lg font-semibold">Scoped research gap dossier</h2><p className="text-sm text-slate-600">Complete literature discovery in the research workspace first. Record supporting studies, counterevidence and the limits of the search. A missing search result alone does not establish novelty.</p>{(['gap', 'type', 'scope', 'coverageLimitations', 'counterEvidenceAssessment'] as const).map(key => <ResearchField key={key} label={key.replace(/([A-Z])/g, ' $1')} value={gap[key]} multiline onChange={value => setGap(g => ({ ...g, [key]: value }))} />)}
+      {tab === 'gap' && <div className="space-y-4"><h2 className="text-lg font-semibold">Scoped research gap dossier</h2><p className="text-sm text-slate-600">Complete literature discovery in the research workspace first. Record supporting studies, counterevidence and the limits of the search. A missing search result alone does not establish novelty.</p>{gapPrefilled && <p className="rounded-lg border border-violet-200 bg-violet-50 p-2.5 text-sm text-violet-900">Filled from your Research Gap Finder result. Check and edit it, then link the reviewed evidence below.</p>}{(['gap', 'type', 'scope', 'coverageLimitations', 'counterEvidenceAssessment'] as const).map(key => <ResearchField key={key} label={key.replace(/([A-Z])/g, ' $1')} value={gap[key]} multiline onChange={value => setGap(g => ({ ...g, [key]: value }))} />)}
         <div className="grid gap-3 md:grid-cols-2"><ResearchLinks label="Supporting evidence" options={state.evidence.filter(e => e.status === 'Pass' && e.purpose === 'Support').map(e => ({ id: e.id, text: e.claim }))} selected={gap.evidenceIds} onChange={evidenceIds => setGap(g => ({ ...g, evidenceIds }))} /><ResearchLinks label="Counterevidence" options={state.evidence.filter(e => e.status === 'Pass' && e.purpose === 'CounterEvidence').map(e => ({ id: e.id, text: e.claim }))} selected={gap.counterEvidenceIds} onChange={counterEvidenceIds => setGap(g => ({ ...g, counterEvidenceIds }))} /></div>
         <ResearchLinks label="Completed search queries" options={queries.filter(q => q.enabled).map(q => ({ id: q.id, text: q.queryText }))} selected={gap.searchQueryIds} onChange={searchQueryIds => setGap(g => ({ ...g, searchQueryIds }))} />
         <button className={button} disabled={busy || !state.accepted} onClick={() => void run(() => api.gap(projectId, gap))}>Assess Research Gap</button>
