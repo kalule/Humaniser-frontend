@@ -43,6 +43,8 @@ const ISSUE_LABELS: Record<string, string> = {
   fact_conflict: 'Conflicting facts',
   presentation_latex_math: 'Math markup',
   presentation_glued_citation: 'Broken citation',
+  presentation_locale_spelling: 'Spelling convention',
+  presentation_undefined_cell: 'Unfilled table cell',
 }
 
 /** The proposal business rules (docs/specs/business-rules.md) arrive as quality_brNN. */
