@@ -14,7 +14,7 @@ import { CREDIT_COSTS } from '../../../config/creditCosts'
 import { researchApi } from '../../../api/research'
 import { proposalJourneyApi } from '../../../api/proposalJourney'
 import { useConfirm } from '../../ui/ConfirmDialog'
-import { canDraft, dedupeSections, documentStatus, DRAFT_AHEAD_KEY, hasSectionBody, isDraftAheadOn, isThesisDocument, withReviewMarks, type DraftContext } from '../../../lib/sectionWorkflow'
+import { canDraft, dedupeSections, documentStatus, DRAFT_AHEAD_KEY, hasSectionBody, isDraftAheadOn, isThesisDocument, needsKeyDecisions, withReviewMarks, type DraftContext } from '../../../lib/sectionWorkflow'
 import { buildOutline, documentCounts, sectionFlags, type SectionFlag } from '../../../lib/documentOutline'
 import { nextDraftAction } from '../../../lib/draftPlan'
 import { followDraft, forgetDraft } from '../../../lib/liveDraftStore'
@@ -29,8 +29,8 @@ import { DesignContractPanel } from './DesignContractPanel'
 import { ReviewIssuesCard } from './ReviewIssuesCard'
 import { RewriteReviewDialog } from './RewriteReviewDialog'
 import {
-  CONTRACT_FIELD, DESIGN_CONTRACT_KEY, EDITED_AFTER_APPROVAL_KEY, STALE_KEY, changedFields, clearStale, propagateStale,
-  readContract, readEditedAfterApproval, readStale, serializeCodes, serializeContract, type DesignContract,
+  CONTRACT_FIELD, DESIGN_CONTRACT_KEY, EDITED_AFTER_APPROVAL_KEY, STALE_KEY, changedFields, clearStale, keyDecisionsSet, propagateStale,
+  readContract, readEditedAfterApproval, readStale, serializeCodes, serializeContract, suggestedDecisions, withSuggestedDefaults, type DesignContract,
 } from '../../../lib/designContract'
 import { openIssueCount, runDocumentReview, type ReviewIssue } from '../../../lib/documentReview'
 import { useSectionCitationChecks } from '../../../lib/sectionCitationCheck'
@@ -166,17 +166,35 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     try {
       const ok = await persistContent({ [DESIGN_CONTRACT_KEY]: serializeContract(next), [STALE_KEY]: JSON.stringify(stale) })
       const fields = changed.map(k => CONTRACT_FIELD[k].label).join(', ')
-      logActivity(`Design contract changed: ${fields}`)
+      logActivity(`Study decisions changed: ${fields}`)
       if (ok) {
         toast.success(newlyStale.length
-          ? `Design contract saved. ${newlyStale.length} drafted section${newlyStale.length === 1 ? '' : 's'} may be out of date: ${newlyStale.join(', ')}.`
-          : 'Design contract saved. New drafts will follow it.', { duration: 7000 })
+          ? `Study decisions saved. ${newlyStale.length} drafted section${newlyStale.length === 1 ? '' : 's'} may be out of date: ${newlyStale.join(', ')}.`
+          : 'Study decisions saved. New drafts will follow them.', { duration: 7000 })
       }
       return ok
     } finally {
       setSavingContract(false)
     }
   }, [persistContent, logActivity])
+
+  // Suggested values for the key decisions, from the project's own setup answers and confirmed methodology.
+  const suggestions = useMemo(() => {
+    const m = project.confirmedMethodology
+    return suggestedDecisions({
+      methodologyType:    m?.methodologyType || project.methodologyType,
+      methodologySubType: m?.methodologySubType || project.methodologySubType,
+      researchDesign:     m?.researchDesign || project.sectionContent?.['methodology-design'],
+      dataCollection:     m?.dataCollectionApproach || project.sectionContent?.['methodology-data-collection'],
+    })
+  }, [project.confirmedMethodology, project.methodologyType, project.methodologySubType, project.sectionContent])
+
+  // "Use suggested defaults": writes the values into the decisions, so they show as set and can be edited.
+  const handleUseDefaults = useCallback(async () => {
+    const current = readContract(latest.current.project.sectionContent)
+    const next = withSuggestedDefaults(current, suggestions)
+    if (await handleSaveContract(next)) toast('Suggested decisions saved. Check them and change any that differ from your study.', { duration: 7000 })
+  }, [handleSaveContract, suggestions])
 
   // Clears the stale and edited-after-approval marks of one section (approved, reviewed or rewritten).
   const clearMarks = useCallback(async (code: string, which: { stale?: boolean; edited?: boolean }) => {
@@ -190,7 +208,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   }, [persistContent])
 
   const handleMarkReviewed = useCallback((code: string) => {
-    void clearMarks(code, { stale: true }).then(() => logActivity(`Checked ${code} against the design contract`))
+    void clearMarks(code, { stale: true }).then(() => logActivity(`Checked ${code} against the study decisions`))
   }, [clearMarks, logActivity])
 
   const handleEditedApproved = useCallback((code: string) => {
@@ -216,7 +234,9 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     methodologyConfirmed: !!project.confirmedMethodology,
     draftAhead:           isDraftAheadOn(project.sectionContent),
     chapterOrder:         REQUIRE_CHAPTER_ORDER,
-  }), [sections, project.documentType, project.researchState, project.confirmedMethodology, project.sectionContent])
+    decisionsReady:       keyDecisionsSet(contract),
+  }), [sections, project.documentType, project.researchState, project.confirmedMethodology, project.sectionContent, contract])
+  const decisionsReady = ctx.decisionsReady === true
 
   // "Draft ahead, review later": stored on the project (synced sectionContent), off by default.
   const draftAhead = ctx.draftAhead === true
@@ -574,13 +594,20 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
 
   // Chapter drafting: start the next queued section once nothing is being written. Each start is
   // gated again, so a section that became undraftable meanwhile ends the run with its reason.
+  // The queue holds (it is not cleared) at the first section that waits for the key study decisions,
+  // and carries on by itself once they are set.
+  const queueHeldForDecisions = useMemo(() => {
+    if (decisionsReady || !draftQueue.length) return false
+    const head = sections.find(s => s.code === draftQueue[0])
+    return !!head && needsKeyDecisions(head)
+  }, [decisionsReady, draftQueue, sections])
   useEffect(() => {
-    if (writing.length > 0 || draftQueue.length === 0 || startingRef.current) return
+    if (writing.length > 0 || draftQueue.length === 0 || startingRef.current || queueHeldForDecisions) return
     const [next, ...rest] = draftQueue
     startingRef.current = true
     setDraftQueue(rest)
     void startDraft(next).then(ok => { if (!ok) setDraftQueue([]) }).finally(() => { startingRef.current = false })
-  }, [writing.length, draftQueue, startDraft])
+  }, [writing.length, draftQueue, startDraft, queueHeldForDecisions])
 
   const handleStop = useCallback(async (code: string) => {
     const { project: p, sections: list } = latest.current
@@ -842,7 +869,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
         setAgentOpen(true)
         const override = await confirm({
           title: `${open} open review issue${open === 1 ? '' : 's'}`,
-          message: `Review found ${open} issue${open === 1 ? '' : 's'} (placeholders, design-contract mismatches or variable-role conflicts). They are listed under Review in the Agent panel. Fix them first, or export anyway; the override is recorded.`,
+          message: `Review found ${open} issue${open === 1 ? '' : 's'} (placeholders, study-decision mismatches or variable conflicts). They are listed under Review in the Agent panel. Fix them first, or export anyway; the override is recorded.`,
           confirmLabel: 'Export anyway',
           tone: 'warning',
         })
@@ -876,14 +903,42 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     onActionsStateChange?.({ isValidating, isExporting, isThesisOrDissertation: isThesis })
   }, [onActionsStateChange, isValidating, isExporting, isThesis])
 
+  // ── Study decisions gate: where drafting waits, and the server run's own pause at the same point ──
+  const runHeldForDecisions = useMemo(() => {
+    if (decisionsReady || runStatus?.status !== 'NeedsReview' || !runStatus.currentSection) return false
+    const s = sections.find(x => x.code === runStatus.currentSection)
+    return !!s && needsKeyDecisions(s) && !s.content.trim()
+  }, [decisionsReady, runStatus, sections])
+  const decisionsPausedAt = queueHeldForDecisions ? sectionLabel(draftQueue[0])
+    : runHeldForDecisions ? sectionLabel(runStatus?.currentSection) : null
+  // Sections after 1.1 still to draft: while any are left and a key decision is missing, setting them is the next step.
+  const decisionsNeeded = useMemo(() => !decisionsReady && sections.some(s =>
+    needsKeyDecisions(s) && s.isApplicableForMethodology !== false && !s.content.trim() && s.status !== 'Generating'
+    && canDraft(s, ctx).blocker === 'decisions'), [decisionsReady, sections, ctx])
+
+  // The run paused for the decisions picks up by itself once they are set (the student already started it).
+  const runWasHeld = useRef(false)
+  useEffect(() => {
+    if (runHeldForDecisions) { runWasHeld.current = true; return }
+    if (runWasHeld.current && decisionsReady && runStatus?.status === 'NeedsReview') {
+      runWasHeld.current = false
+      logActivity('Study decisions set; drafting resumes')
+      handleRunResume()
+    }
+  }, [runHeldForDecisions, decisionsReady, runStatus?.status, logActivity, handleRunResume])
+
   const rail = (
     <DocumentOutlineRail chapters={outline} rows={rows} activeCode={activeCode} progress={progress}
       onSelect={scrollToAnchor} onSelectChapter={key => scrollToAnchor(`chapter:${key}`)} />
   )
-  const contractHints = useMemo(() => ({ designType: project.methodologyType ? `e.g. ${project.methodologyType}` : undefined }), [project.methodologyType])
+  const contractHints = useMemo(() => ({
+    designType: `e.g. ${suggestions.designType}`, dataSources: `e.g. ${suggestions.dataSources}`, sampleSize: `e.g. ${suggestions.sampleSize}`,
+    software: `e.g. ${suggestions.software}`, dataCollector: `e.g. ${suggestions.dataCollector}`,
+  }), [suggestions])
   const staleCount = Object.keys(staleMarks).length
   const contractPanel = (
-    <DesignContractPanel contract={contract} hints={contractHints} saving={savingContract} staleCount={staleCount} onSave={handleSaveContract} />
+    <DesignContractPanel contract={contract} hints={contractHints} saving={savingContract} staleCount={staleCount} onSave={handleSaveContract}
+      onUseDefaults={() => { void handleUseDefaults() }} isNextStep={decisionsNeeded} pausedAt={decisionsPausedAt} />
   )
   const reviewCard = (
     <ReviewIssuesCard issues={reviewIssues} running={reviewing} outdated={reviewIssues !== null && reviewedKey !== contentKey}

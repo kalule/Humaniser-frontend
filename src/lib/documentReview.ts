@@ -26,8 +26,8 @@ export interface ReviewIssue {
 
 export const REVIEW_KIND_LABEL: Record<ReviewIssueKind, string> = {
   placeholder:   'Placeholder',
-  contract:      'Design contract',
-  variable_role: 'Variable roles',
+  contract:      'Study decisions',
+  variable_role: 'Variables',
 }
 
 type Section = Pick<ProjectSection, 'code' | 'title' | 'content' | 'status' | 'displayCode'>
@@ -127,7 +127,7 @@ export function contractIssues(sections: readonly Section[], contract: DesignCon
         const m = pkg.re.exec(body)
         if (!m) continue
         out.push({ id: `ct:software:${s.code}:${pkg.name}`, kind: 'contract', sectionCode: s.code, evidence: m[0], blocking: true, origin: 'document',
-          message: `${labelOf(s, s.code)} names ${pkg.name}, but the design contract's software is “${contract.software}”.` })
+          message: `${labelOf(s, s.code)} names ${pkg.name}, but the study decisions give the software as “${contract.software}”.` })
       }
     }
   }
@@ -142,7 +142,7 @@ export function contractIssues(sections: readonly Section[], contract: DesignCon
       const hit = contractSaysAssistants ? RESEARCHER_ONLY.exec(body) : ASSISTANTS.exec(body)
       if (!hit) continue
       out.push({ id: `ct:collector:${code}`, kind: 'contract', sectionCode: code, evidence: sentenceAt(body, hit.index), blocking: true, origin: 'document',
-        message: `${labelOf(s, code)} says “${hit[0]}” collect${contractSaysAssistants ? 's' : ''} data, but the design contract says “${contract.dataCollector}”.` })
+        message: `${labelOf(s, code)} says “${hit[0]}” collect${contractSaysAssistants ? 's' : ''} data, but the study decisions say “${contract.dataCollector}”.` })
     }
   }
 
@@ -157,7 +157,7 @@ export function contractIssues(sections: readonly Section[], contract: DesignCon
         const n = (m[1] ?? m[2] ?? m[3] ?? '').replace(/[\s,]/g, '')
         if (!n || allowedNumbers.has(n)) continue
         out.push({ id: `ct:sample:${code}:${n}`, kind: 'contract', sectionCode: code, evidence: m[0], blocking: true, origin: 'document',
-          message: `${labelOf(s, code)} gives a sample of ${n}, but the design contract's sample size is “${contract.sampleSize}”.` })
+          message: `${labelOf(s, code)} gives a sample of ${n}, but the study decisions give the sample size as “${contract.sampleSize}”.` })
         break
       }
     }
@@ -195,7 +195,7 @@ export function variableRoleIssues(sections: readonly Section[], contract: Desig
   for (const iv of ivs) {
     const clash = controls.find(c => c === lower(iv) || lower(iv).includes(c) || c.includes(lower(iv)))
     if (clash) out.push({ id: `vr:ivcontrol:${iv}`, kind: 'variable_role', sectionCode: anchor, evidence: null, blocking: true, origin: 'document',
-      message: `“${iv}” is an independent variable and also a control (“${clash}”) in the design contract. A variable has one role.` })
+      message: `“${iv}” is an independent variable and also a control (“${clash}”) in the study decisions. A variable has one role.` })
   }
   for (const m of mediators) {
     if (moderators.some(x => lower(x) === lower(m))) out.push({ id: `vr:medmod:${m}`, kind: 'variable_role', sectionCode: anchor, evidence: null, blocking: true, origin: 'document',
@@ -211,7 +211,7 @@ export function variableRoleIssues(sections: readonly Section[], contract: Desig
       for (const iv of ivs) {
         if (lower(sentence).includes(lower(iv))) {
           out.push({ id: `vr:text:${iv}`, kind: 'variable_role', sectionCode: '5.7', evidence: sentence.trim(), blocking: true, origin: 'document',
-            message: `5.7 treats “${iv}” as a control, but it is an independent variable in the design contract.` })
+            message: `5.7 treats “${iv}” as a control, but it is an independent variable in the study decisions.` })
         }
       }
     }

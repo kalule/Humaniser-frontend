@@ -20,7 +20,7 @@ export type DocumentSectionStatus =
   | 'edited_after_approval' | 'stale'
 
 /** Why a section cannot be drafted right now. `locked` is a gate; the rest are "not yet". */
-export type DraftBlocker = 'writing' | 'not_applicable' | 'locked' | 'prerequisite' | 'methodology' | 'design'
+export type DraftBlocker = 'writing' | 'not_applicable' | 'locked' | 'prerequisite' | 'methodology' | 'design' | 'decisions'
 
 export interface DraftDecision {
   allowed: boolean
@@ -52,7 +52,22 @@ export interface DraftContext {
    * false (the app default, see REQUIRE_CHAPTER_ORDER) lets any chapter be drafted at any time.
    */
   chapterOrder?:         boolean
+  /**
+   * Whether every key study decision is set (lib/designContract KEY_FIELDS). False holds every
+   * section after 1.1 Background; undefined means "not checked here" (Guided). The server's
+   * whole-proposal run applies the same rule (StudyDecisionGate).
+   */
+  decisionsReady?:       boolean
 }
+
+/** Sections drafted before the key study decisions are needed: Introduction and Background (code 1.2, shown as 1.1). */
+const PRE_DECISION_CODES: ReadonlySet<string> = new Set(['1.0', '1.2'])
+
+/** True when this section waits for the key study decisions (everything after 1.1 Background). */
+export const needsKeyDecisions = (section: Pick<ProjectSection, 'code' | 'displayCode'>) =>
+  !PRE_DECISION_CODES.has(section.code) && section.displayCode !== '1.1'
+
+export const DECISIONS_REASON = 'Set the key study decisions first, so every section states them the same way.'
 
 /** Last chapter "draft ahead" covers. Chapter 4 onward always waits for approval. */
 export const DRAFT_AHEAD_LAST_CHAPTER = 3
@@ -172,6 +187,7 @@ export function canDraft(section: ProjectSection, ctx: DraftContext): DraftDecis
   }
   const lock = lockReason(section, ctx)
   if (lock) return blocked('locked', lock)
+  if (ctx.decisionsReady === false && needsKeyDecisions(section)) return blocked('decisions', DECISIONS_REASON)
   const waiting = ctx.chapterOrder === false ? [] : unapprovedPrerequisites(section, ctx.sections, ctx.draftAhead)
   if (waiting.length > 0) return blocked('prerequisite', describeWaiting(waiting))
   if (METHODOLOGY_SENSITIVE_SECTIONS.has(section.code) && !ctx.methodologyConfirmed) {

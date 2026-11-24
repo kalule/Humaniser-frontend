@@ -153,7 +153,7 @@ function DocumentSectionBlockImpl({
         <p className="m-0 mb-3 flex items-start gap-2 text-[13px] leading-[1.45] rounded-lg px-3 py-2 bg-white"
           style={{ border: '1px solid var(--color-amber)', color: 'var(--color-amber-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
           <History size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <span><b className="font-semibold">May be out of date:</b> the design contract changed ({staleFields.join(', ')}). Check that this section still matches it; nothing was rewritten.</span>
+          <span><b className="font-semibold">May be out of date:</b> the study decisions changed ({staleFields.join(', ')}). Check that this section still matches it; nothing was rewritten.</span>
         </p>
       )}
 

@@ -34,15 +34,21 @@ export interface ContractFieldDef {
   sections:    readonly string[]
   /** Comma-separated list (variables): compared as a set, not as text. */
   list?:       boolean
+  /**
+   * A key decision: must be set before the agent drafts anything after 1.1 Background, because several
+   * chapters state it and a guessed default drifts between them. Same list as the server's
+   * StudyDecisionGate.KeyFields. (Named isKey: `key` is the field's id.)
+   */
+  isKey?:      boolean
   group:       'Design' | 'Variables' | 'Sample' | 'Delivery'
 }
 
 export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
-  { key: 'designType', group: 'Design', label: 'Design type', placeholder: 'e.g. Explanatory sequential mixed methods, cross-sectional survey',
+  { key: 'designType', group: 'Design', isKey: true, label: 'Design type', placeholder: 'e.g. Explanatory sequential mixed methods, cross-sectional survey',
     sections: ['0.0', '3.3', '5.2', '5.6', '5.8', '5.10', '5.12'] },
   { key: 'strands', group: 'Design', label: 'Strands and order', placeholder: 'e.g. Survey first, then interviews with a subset of respondents',
     sections: ['5.2', '5.6', '5.8', '5.10', '6.1', '6.2'] },
-  { key: 'dataSources', group: 'Design', label: 'Data sources', placeholder: 'e.g. Owner-manager questionnaire; semi-structured interviews',
+  { key: 'dataSources', group: 'Design', isKey: true, label: 'Data sources', placeholder: 'e.g. Owner-manager questionnaire; semi-structured interviews',
     sections: ['5.8', '5.9', '5.10', '6.1', '6.2'] },
   { key: 'unitOfAnalysis', group: 'Design', label: 'Unit of analysis', placeholder: 'e.g. The firm (SME), reported by its owner-manager',
     sections: ['3.3', '5.3', '5.7'] },
@@ -56,7 +62,7 @@ export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
     sections: ['3.3', '4.4', '5.7', '5.10'] },
   { key: 'controls', group: 'Variables', label: 'Control variables', list: true, placeholder: 'Comma-separated, or leave empty',
     sections: ['5.7', '5.10'] },
-  { key: 'sampleSize', group: 'Sample', label: 'Sample size', placeholder: 'e.g. 384 SMEs; 12 interviews',
+  { key: 'sampleSize', group: 'Sample', isKey: true, label: 'Sample size', placeholder: 'e.g. 384 SMEs; 12 interviews',
     sections: ['0.0', '5.5', '5.6', '5.10', '6.1', '6.2'] },
   { key: 'sampleSizeBasis', group: 'Sample', label: 'Sample size basis', placeholder: 'e.g. Cochran formula, 95% confidence, 5% margin',
     sections: ['5.5'] },
@@ -64,15 +70,96 @@ export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
     sections: ['5.3', '5.4', '5.6'] },
   { key: 'populationDefinition', group: 'Sample', label: 'Population definition (e.g. SME)', placeholder: 'e.g. 5 to 250 employees, turnover under R220m',
     sections: ['1.2', '5.3', '5.4'] },
-  { key: 'software', group: 'Delivery', label: 'Analysis software', placeholder: 'e.g. SPSS for the survey, NVivo for interviews',
+  { key: 'software', group: 'Delivery', isKey: true, label: 'Analysis software', placeholder: 'e.g. SPSS for the survey, NVivo for interviews',
     sections: ['5.9', '5.10', '6.2'] },
-  { key: 'dataCollector', group: 'Delivery', label: 'Who collects the data', placeholder: 'e.g. The researcher, personally',
+  { key: 'dataCollector', group: 'Delivery', isKey: true, label: 'Who collects the data', placeholder: 'e.g. The researcher, personally',
     sections: ['5.8', '5.9', '5.10', '5.11', '6.2'] },
   { key: 'ethicsStatus', group: 'Delivery', label: 'Ethics status', placeholder: 'e.g. To be submitted to the faculty ethics committee',
     sections: ['5.11', '6.1'] },
   { key: 'projectLength', group: 'Delivery', label: 'Project length', placeholder: 'e.g. 12 months',
     sections: ['6.1', '6.2'] },
 ]
+
+/** The key decisions, in the order the Study decisions card lists them. */
+export const KEY_FIELDS: readonly ContractFieldDef[] = CONTRACT_FIELDS.filter(f => f.isKey)
+/** Everything else: optional, under "More decisions". */
+export const MORE_FIELDS: readonly ContractFieldDef[] = CONTRACT_FIELDS.filter(f => !f.isKey)
+
+export const missingKeyDecisions = (contract: DesignContract): ContractFieldKey[] =>
+  KEY_FIELDS.filter(f => !contract[f.key]?.trim()).map(f => f.key)
+
+export const keyDecisionsSet = (contract: DesignContract) => missingKeyDecisions(contract).length === 0
+
+/** What the project already says about its method (setup answers and the confirmed methodology). */
+export interface DecisionSources {
+  methodologyType?:    string | null
+  methodologySubType?: string | null
+  researchDesign?:     string | null
+  dataCollection?:     string | null
+}
+
+type Approach = 'quantitative' | 'qualitative' | 'mixed'
+
+function approachOf(src: DecisionSources): Approach {
+  const t = `${src.methodologyType ?? ''} ${src.methodologySubType ?? ''} ${src.researchDesign ?? ''}`.toLowerCase()
+  if (t.includes('mixed')) return 'mixed'
+  if (t.includes('qualitative') || t.includes('case study') || t.includes('phenomenolog') || t.includes('grounded')) return 'qualitative'
+  return 'quantitative'
+}
+
+type KeyDecisions = Record<'designType' | 'dataSources' | 'sampleSize' | 'software' | 'dataCollector', string>
+
+const SUGGESTED: Record<Approach, Omit<KeyDecisions, 'dataCollector'>> = {
+  quantitative: {
+    designType:  'Cross-sectional survey',
+    dataSources: 'Structured questionnaire',
+    sampleSize:  '384 respondents (Cochran formula, 95% confidence, 5% margin of error)',
+    software:    'SPSS',
+  },
+  qualitative: {
+    designType:  'Qualitative case study',
+    dataSources: 'Semi-structured interviews',
+    sampleSize:  '12 to 15 participants, until data saturation',
+    software:    'NVivo',
+  },
+  mixed: {
+    designType:  'Explanatory sequential mixed methods (survey, then interviews)',
+    dataSources: 'Structured questionnaire; semi-structured interviews',
+    sampleSize:  '384 survey respondents; 12 interviews with a subset',
+    software:    'SPSS for the survey, NVivo for the interviews',
+  },
+}
+
+const usable = (v: string | null | undefined) => {
+  const t = v?.trim()
+  return t && !['unspecified', 'other', 'not sure'].includes(t.toLowerCase()) ? t : undefined
+}
+
+/**
+ * Suggested values for the key decisions, from what the project already says about its method.
+ * These are the planning defaults drafting used to fall back on silently; "Use suggested defaults"
+ * writes them into the decisions so they are visible and editable.
+ */
+export function suggestedDecisions(src: DecisionSources): KeyDecisions {
+  const base = SUGGESTED[approachOf(src)]
+  return {
+    designType:    usable(src.researchDesign) ?? usable(src.methodologySubType) ?? base.designType,
+    dataSources:   usable(src.dataCollection) ?? base.dataSources,
+    sampleSize:    base.sampleSize,
+    software:      base.software,
+    dataCollector: 'The researcher, personally',
+  }
+}
+
+/** The contract with every empty key decision filled from the suggestions. Values already set are never changed. */
+export function withSuggestedDefaults(contract: DesignContract, suggestions: Partial<DesignContract>): DesignContract {
+  const next: DesignContract = { ...contract }
+  for (const f of KEY_FIELDS) {
+    const v = suggestions[f.key]?.trim()
+    if (!next[f.key]?.trim() && v) next[f.key] = v
+  }
+  return next
+}
 
 export const CONTRACT_FIELD = Object.fromEntries(CONTRACT_FIELDS.map(f => [f.key, f])) as Record<ContractFieldKey, ContractFieldDef>
 

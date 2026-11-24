@@ -62,6 +62,8 @@ function section(code: string, status: SectionStatus, content = '', extra: Parti
 const project = {
   id: 'p1', title: 'Load-shedding', documentType: 'Proposal', documentMode: 'PROPOSAL', generatorMode: 'GENERATOR',
   citationStyle: 'harvard', confirmedMethodology: { id: 'm' }, researchState: 'Proposal',
+  // Every key study decision set, so tests of the other drafting gates are not held at the decisions gate.
+  sectionContent: { designContract: JSON.stringify({ designType: 'Survey', dataSources: 'Questionnaire', sampleSize: '384', software: 'SPSS', dataCollector: 'The researcher' }) },
 } as unknown as ResearchProject
 
 const approveSection = vi.fn().mockResolvedValue(undefined)
@@ -322,17 +324,18 @@ describe('DocumentModeView', () => {
     expect(setContent).toHaveBeenCalledWith('p1', 'editedAfterApproval', '[]')
   })
 
-  it('marks dependent sections stale when a design-contract field changes, without touching their text', async () => {
+  it('marks dependent sections stale when a study decision changes, without touching their text', async () => {
     const setContent = vi.fn()
     const syncProject = vi.fn().mockResolvedValue(undefined)
     const saveSection = vi.fn()
     seed([section('5.5', 'Draft', 'A sample of 300.'), section('5.10', 'Approved', 'Analysed in SPSS.'), section('6.2', 'NotStarted')])
     act(() => { useResearchStore.setState({ setContent, syncProject, saveSection }) })
     renderView(vi.fn(), { ...project, sectionContent: { designContract: JSON.stringify({ sampleSize: '300' }) } } as ResearchProject)
-    const contract = within(screen.getAllByRole('region', { name: 'Design contract' })[0])
-    fireEvent.click(contract.getByRole('button', { name: 'Edit the design contract' }))
+    const contract = within(screen.getAllByRole('region', { name: 'Study decisions' })[0])
+    fireEvent.click(contract.getByRole('button', { name: 'Sample size: 300. Edit' }))
+    expect(document.activeElement).toBe(contract.getByLabelText('Sample size'))
     fireEvent.change(contract.getByLabelText('Sample size'), { target: { value: '384' } })
-    await act(async () => { fireEvent.click(contract.getByRole('button', { name: 'Save contract' })) })
+    await act(async () => { fireEvent.click(contract.getByRole('button', { name: 'Save decisions' })) })
     const staleCall = setContent.mock.calls.find(c => c[1] === 'designContractStale')
     expect(JSON.parse(staleCall![2])).toEqual({ '5.5': ['Sample size'], '5.10': ['Sample size'] })
     expect(JSON.parse(setContent.mock.calls.find(c => c[1] === 'designContract')![2])).toEqual({ sampleSize: '384' })
@@ -346,7 +349,7 @@ describe('DocumentModeView', () => {
     act(() => { useResearchStore.setState({ setContent, syncProject }) })
     renderView(vi.fn(), { ...project, sectionContent: { designContractStale: JSON.stringify({ '1.2': ['Analysis software'] }) } } as ResearchProject)
     expect(sectionRegion('1.2').getByText('May be out of date')).toBeTruthy()
-    expect(sectionRegion('1.2').getByText(/the design contract changed \(Analysis software\)/)).toBeTruthy()
+    expect(sectionRegion('1.2').getByText(/the study decisions changed \(Analysis software\)/)).toBeTruthy()
     await act(async () => { fireEvent.click(sectionRegion('1.2').getByRole('button', { name: 'Still matches' })) })
     expect(setContent).toHaveBeenCalledWith('p1', 'designContractStale', '{}')
   })
@@ -403,5 +406,50 @@ describe('DocumentModeView', () => {
     await act(async () => { fireEvent.click(dialog.getByRole('button', { name: 'Apply' })) })
     expect(saveSection).toHaveBeenLastCalledWith('p1', '1.2', 'Keep this.\n\nThe rewritten claim.')
     expect(screen.queryByRole('dialog', { name: /Review the rewrite/ })).toBeNull()
+  })
+  describe('study decisions', () => {
+    const KEY_SET = { designType: 'Cross-sectional survey', dataSources: 'Questionnaire', sampleSize: '384', software: 'SPSS', dataCollector: 'The researcher' }
+
+    it('holds every section after 1.1 until the key decisions are set, and shows them as the next step', async () => {
+      seed([section('1.0', 'Approved', 'Intro.'), section('1.2', 'NotStarted'), section('2.0', 'NotStarted')])
+      renderView(vi.fn(), { ...project, sectionContent: { designContract: JSON.stringify({ software: 'SPSS', sampleSize: '384' }) } } as ResearchProject)
+      await act(async () => {})
+      const card = within(screen.getAllByRole('region', { name: 'Study decisions' })[0])
+      expect(card.getByText('NEXT STEP')).toBeTruthy()
+      expect(card.getByText(/2 of 5 set/)).toBeTruthy()
+      expect(card.getByRole('button', { name: 'Design type: not set. Edit' })).toBeTruthy()
+      // 1.1 Background (code 1.2) may still be drafted; 2.0 waits.
+      expect((sectionRegion('1.2').getByRole('button', { name: /^Draft/ }) as HTMLButtonElement).disabled).toBe(false)
+      const blocked = sectionRegion('2.0').getByRole('button', { name: /^Draft/ }) as HTMLButtonElement
+      expect(blocked.disabled).toBe(true)
+      expect(sectionRegion('2.0').getByText(/Set the key study decisions first/)).toBeTruthy()
+      fireEvent.click(blocked)
+      expect(generateSection).not.toHaveBeenCalled()
+    })
+
+    it('lets drafting past 1.1 go ahead once every key decision is set', async () => {
+      seed([section('1.0', 'Approved', 'Intro.'), section('1.2', 'Approved', 'Background.'), section('2.0', 'NotStarted')])
+      renderView(vi.fn(), { ...project, sectionContent: { designContract: JSON.stringify(KEY_SET) } } as ResearchProject)
+      await act(async () => {})
+      expect(screen.queryByText('NEXT STEP')).toBeNull()
+      expect((sectionRegion('2.0').getByRole('button', { name: /^Draft/ }) as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    it('"Use suggested defaults" writes explicit values for every missing key decision and keeps the ones set', async () => {
+      const setContent = vi.fn()
+      const syncProject = vi.fn().mockResolvedValue(undefined)
+      seed([section('1.0', 'Approved', 'Intro.'), section('2.0', 'NotStarted')])
+      act(() => { useResearchStore.setState({ setContent, syncProject }) })
+      renderView(vi.fn(), { ...project, methodologyType: 'Quantitative', sectionContent: { designContract: JSON.stringify({ software: 'Stata' }) } } as unknown as ResearchProject)
+      const card = within(screen.getAllByRole('region', { name: 'Study decisions' })[0])
+      await act(async () => { fireEvent.click(card.getByRole('button', { name: 'Use suggested defaults' })) })
+      const saved = JSON.parse(setContent.mock.calls.find(c => c[1] === 'designContract')![2])
+      expect(saved).toEqual({
+        designType: 'Cross-sectional survey', dataSources: 'Structured questionnaire',
+        sampleSize: '384 respondents (Cochran formula, 95% confidence, 5% margin of error)',
+        software: 'Stata', dataCollector: 'The researcher, personally',
+      })
+      expect(syncProject).toHaveBeenCalledWith('p1')
+    })
   })
 })

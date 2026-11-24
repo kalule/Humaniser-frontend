@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   changedFields, clearStale, DESIGN_CONTRACT_KEY, propagateStale, readContract, readEditedAfterApproval, readStale,
   serializeCodes, serializeContract, STALE_KEY, EDITED_AFTER_APPROVAL_KEY,
+  KEY_FIELDS, keyDecisionsSet, missingKeyDecisions, suggestedDecisions, withSuggestedDefaults,
 } from './designContract'
 
 const section = (code: string, content = 'Some text.', status: 'Draft' | 'Approved' | 'NotStarted' | 'Generating' | 'Edited' = 'Draft') =>
@@ -65,5 +66,30 @@ describe('stale propagation from contract edits', () => {
     expect(cleared['5.9']).toBeUndefined()
     expect(cleared['5.10']).toEqual(['Analysis software'])
     expect(clearStale(cleared, 'nope')).toBe(cleared)
+  })
+})
+
+describe('key study decisions', () => {
+  it('marks exactly five fields as key, matching the server gate', () => {
+    expect(KEY_FIELDS.map(f => f.key)).toEqual(['designType', 'dataSources', 'sampleSize', 'software', 'dataCollector'])
+    expect(missingKeyDecisions({ software: 'SPSS', sampleSize: '  ' })).toEqual(['designType', 'dataSources', 'sampleSize', 'dataCollector'])
+  })
+
+  it('suggests values from the project method, and the setup answers win over the generic default', () => {
+    expect(suggestedDecisions({ methodologyType: 'Qualitative' }).software).toBe('NVivo')
+    expect(suggestedDecisions({ methodologyType: 'Mixed Methods' }).dataSources).toBe('Structured questionnaire; semi-structured interviews')
+    const s = suggestedDecisions({ methodologyType: 'Quantitative', researchDesign: 'Correlational', dataCollection: 'Unspecified' })
+    expect(s.designType).toBe('Correlational')
+    expect(s.dataSources).toBe('Structured questionnaire')
+  })
+
+  it('defaults fill only the empty key decisions, as explicit values, and the result counts as set', () => {
+    const before = { software: 'Stata', moderators: 'Firm size' }
+    const after = withSuggestedDefaults(before, suggestedDecisions({ methodologyType: 'Quantitative' }))
+    expect(after.software).toBe('Stata')
+    expect(after.moderators).toBe('Firm size')
+    expect(after.dataCollector).toBe('The researcher, personally')
+    expect(keyDecisionsSet(after)).toBe(true)
+    expect(JSON.parse(serializeContract(after)).designType).toBe('Cross-sectional survey')
   })
 })

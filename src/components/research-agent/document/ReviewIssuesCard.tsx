@@ -13,7 +13,7 @@ interface Props {
   sectionLabel: (code: string) => string
 }
 
-/** "Review": placeholders, design-contract mismatches and variable-role conflicts, each one click from its text. */
+/** "Review": placeholders, study-decision mismatches and variable conflicts, each one click from its text. */
 function ReviewIssuesCardImpl({ issues, running, outdated, onRun, onOpen, sectionLabel }: Props) {
   const open = issues?.filter(i => i.blocking) ?? []
   const advisory = issues?.filter(i => !i.blocking) ?? []
@@ -25,7 +25,7 @@ function ReviewIssuesCardImpl({ issues, running, outdated, onRun, onOpen, sectio
             <ClipboardCheck size={13} aria-hidden="true" style={{ color: 'var(--color-purple-text)' }} /> Review
           </div>
           <div className="text-[12px]" style={{ color: 'var(--text-muted)' }} aria-live="polite">
-            {issues === null ? 'Placeholders, design contract, variable roles'
+            {issues === null ? 'Placeholders, study decisions, variables'
               : open.length === 0 ? 'No open issues'
               : `${open.length} open issue${open.length === 1 ? '' : 's'}`}
             {issues !== null && outdated && ' · text changed since'}
