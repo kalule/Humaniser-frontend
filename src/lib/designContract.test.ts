@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   changedFields, clearStale, DESIGN_CONTRACT_KEY, propagateStale, readContract, readEditedAfterApproval, readStale,
   serializeCodes, serializeContract, STALE_KEY, EDITED_AFTER_APPROVAL_KEY,
-  KEY_FIELDS, keyDecisionsSet, missingKeyDecisions, suggestedDecisions, withSuggestedDefaults,
+  KEY_FIELDS, isProbabilitySampling, keyDecisionsSet, missingKeyDecisions, suggestedDecisions, withSuggestedDefaults,
 } from './designContract'
 
 const section = (code: string, content = 'Some text.', status: 'Draft' | 'Approved' | 'NotStarted' | 'Generating' | 'Edited' = 'Draft') =>
@@ -70,9 +70,37 @@ describe('stale propagation from contract edits', () => {
 })
 
 describe('key study decisions', () => {
-  it('marks exactly five fields as key, matching the server gate', () => {
-    expect(KEY_FIELDS.map(f => f.key)).toEqual(['designType', 'dataSources', 'sampleSize', 'software', 'dataCollector'])
-    expect(missingKeyDecisions({ software: 'SPSS', sampleSize: '  ' })).toEqual(['designType', 'dataSources', 'sampleSize', 'dataCollector'])
+  it('marks the same key fields as the server gate, in the same order', () => {
+    // Must equal HumaniseAI.Application.Services.StudyDecisionGate.KeyFields.
+    expect(KEY_FIELDS.map(f => f.key)).toEqual([
+      'designType', 'studySetting', 'dataSources', 'populationDefinition', 'samplingMethod', 'samplingFrame',
+      'sampleSize', 'sampleSizeBasis', 'analysisApproach', 'software', 'dataCollector',
+    ])
+    expect(missingKeyDecisions({ software: 'SPSS', sampleSize: '  ' })).toEqual([
+      'designType', 'studySetting', 'dataSources', 'populationDefinition', 'samplingMethod', 'sampleSize',
+      'sampleSizeBasis', 'analysisApproach', 'dataCollector',
+    ])
+  })
+
+  it('asks for a sampling frame only for probability sampling (design-aware)', () => {
+    expect(isProbabilitySampling('Stratified random sampling')).toBe(true)
+    expect(isProbabilitySampling('multi-stage sampling strategy combining probability sampling; purposive sampling')).toBe(true)
+    expect(isProbabilitySampling('Non-probability purposive sampling')).toBe(false)
+    expect(isProbabilitySampling('Purposive sampling')).toBe(false)
+    expect(missingKeyDecisions({ samplingMethod: 'Stratified random sampling' })).toContain('samplingFrame')
+    expect(missingKeyDecisions({ samplingMethod: 'Purposive sampling' })).not.toContain('samplingFrame')
+  })
+
+  it('never invents a setting or population, and its sampling default needs no frame', () => {
+    const none = suggestedDecisions({ methodologyType: 'Quantitative' })
+    expect(none.studySetting).toBeUndefined()
+    expect(none.populationDefinition).toBeUndefined()
+    expect(isProbabilitySampling(none.samplingMethod)).toBe(false)
+    const given = suggestedDecisions({ methodologyType: 'Quantitative', studyLocation: 'The named city', studyPopulation: 'Registered owners' })
+    expect(given.studySetting).toBe('The named city')
+    expect(given.populationDefinition).toBe('Registered owners')
+    // Without a setting the defaults alone cannot complete the decisions: the student must enter it.
+    expect(missingKeyDecisions(withSuggestedDefaults({}, none))).toEqual(['studySetting', 'populationDefinition'])
   })
 
   it('suggests values from the project method, and the setup answers win over the generic default', () => {
@@ -85,7 +113,9 @@ describe('key study decisions', () => {
 
   it('defaults fill only the empty key decisions, as explicit values, and the result counts as set', () => {
     const before = { software: 'Stata', moderators: 'Firm size' }
-    const after = withSuggestedDefaults(before, suggestedDecisions({ methodologyType: 'Quantitative' }))
+    const after = withSuggestedDefaults(before, suggestedDecisions({
+      methodologyType: 'Quantitative', studyLocation: 'The named city', studyPopulation: 'Registered owners',
+    }))
     expect(after.software).toBe('Stata')
     expect(after.moderators).toBe('Firm size')
     expect(after.dataCollector).toBe('The researcher, personally')

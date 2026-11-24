@@ -199,8 +199,11 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       methodologySubType: m?.methodologySubType || project.methodologySubType,
       researchDesign:     m?.researchDesign || project.sectionContent?.['methodology-design'],
       dataCollection:     m?.dataCollectionApproach || project.sectionContent?.['methodology-data-collection'],
+      studyLocation:      project.studyLocation || project.sectionContent?.['location'],
+      studyPopulation:    project.studyPopulation,
     })
-  }, [project.confirmedMethodology, project.methodologyType, project.methodologySubType, project.sectionContent])
+  }, [project.confirmedMethodology, project.methodologyType, project.methodologySubType, project.sectionContent,
+      project.studyLocation, project.studyPopulation])
 
   // "Use suggested defaults": writes the values into the decisions, so they show as set and can be edited.
   const handleUseDefaults = useCallback(async () => {

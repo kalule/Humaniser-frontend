@@ -64,7 +64,7 @@ const project = {
   citationStyle: 'harvard', confirmedMethodology: { id: 'm' }, researchState: 'Proposal',
   // Every key study decision set, so tests of the other drafting gates are not held at the decisions gate.
   sectionContent: {
-    designContract: JSON.stringify({ designType: 'Survey', dataSources: 'Questionnaire', sampleSize: '384', software: 'SPSS', dataCollector: 'The researcher' }),
+    designContract: JSON.stringify({ designType: 'Survey', studySetting: 'The named city', dataSources: 'Questionnaire', populationDefinition: 'Registered owners', samplingMethod: 'Purposive sampling', sampleSize: '384', sampleSizeBasis: 'Cochran formula', analysisApproach: 'Regression', software: 'SPSS', dataCollector: 'The researcher' }),
     // The student approved 1.0 and 1.2 (generatedAt null in these fixtures), so a server Approved shows as Approved.
     studentApproved: JSON.stringify({ '1.0': '', '1.2': '' }),
   },
@@ -424,7 +424,7 @@ describe('DocumentModeView', () => {
     expect(screen.queryByRole('dialog', { name: /Review the rewrite/ })).toBeNull()
   })
   describe('study decisions', () => {
-    const KEY_SET = { designType: 'Cross-sectional survey', dataSources: 'Questionnaire', sampleSize: '384', software: 'SPSS', dataCollector: 'The researcher' }
+    const KEY_SET = { designType: 'Cross-sectional survey', studySetting: 'The named city', dataSources: 'Questionnaire', populationDefinition: 'Registered owners', samplingMethod: 'Purposive sampling', sampleSize: '384', sampleSizeBasis: 'Cochran formula', analysisApproach: 'Regression', software: 'SPSS', dataCollector: 'The researcher' }
 
     it('holds every section after 1.1 until the key decisions are set, and shows them as the next step', async () => {
       seed([section('1.0', 'Approved', 'Intro.'), section('1.2', 'NotStarted'), section('2.0', 'NotStarted')])
@@ -432,7 +432,7 @@ describe('DocumentModeView', () => {
       await act(async () => {})
       const card = within(screen.getAllByRole('region', { name: 'Study decisions' })[0])
       expect(card.getByText('NEXT STEP')).toBeTruthy()
-      expect(card.getByText(/2 of 5 set/)).toBeTruthy()
+      expect(card.getByText(/2 of 10 set/)).toBeTruthy()
       expect(card.getByRole('button', { name: 'Design type: not set. Edit' })).toBeTruthy()
       // 1.1 Background (code 1.2) may still be drafted; 2.0 waits.
       expect((sectionRegion('1.2').getByRole('button', { name: /^Draft/ }) as HTMLButtonElement).disabled).toBe(false)
@@ -456,13 +456,16 @@ describe('DocumentModeView', () => {
       const syncProject = vi.fn().mockResolvedValue(undefined)
       seed([section('1.0', 'Approved', 'Intro.'), section('2.0', 'NotStarted')])
       act(() => { useResearchStore.setState({ setContent, syncProject }) })
-      renderView(vi.fn(), { ...project, methodologyType: 'Quantitative', sectionContent: { designContract: JSON.stringify({ software: 'Stata' }) } } as unknown as ResearchProject)
+      renderView(vi.fn(), { ...project, methodologyType: 'Quantitative', studyLocation: 'The named city', studyPopulation: 'Registered owners',
+        sectionContent: { designContract: JSON.stringify({ software: 'Stata' }) } } as unknown as ResearchProject)
       const card = within(screen.getAllByRole('region', { name: 'Study decisions' })[0])
       await act(async () => { fireEvent.click(card.getByRole('button', { name: 'Use suggested defaults' })) })
       const saved = JSON.parse(setContent.mock.calls.find(c => c[1] === 'designContract')![2])
       expect(saved).toEqual({
-        designType: 'Cross-sectional survey', dataSources: 'Structured questionnaire',
-        sampleSize: '384 respondents (Cochran formula, 95% confidence, 5% margin of error)',
+        designType: 'Cross-sectional survey', studySetting: 'The named city', dataSources: 'Structured questionnaire',
+        populationDefinition: 'Registered owners', samplingMethod: 'Non-probability purposive sampling of eligible respondents',
+        sampleSize: '384 respondents', sampleSizeBasis: 'Cochran formula: 95% confidence, 5% margin of error, p = 0.5',
+        analysisApproach: 'Descriptive statistics, correlation and multiple regression',
         software: 'Stata', dataCollector: 'The researcher, personally',
       })
       expect(syncProject).toHaveBeenCalledWith('p1')

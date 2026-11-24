@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, ChevronRight, FileSignature, Pencil } from 'lucide-react'
 import {
-  KEY_FIELDS, MORE_FIELDS, type ContractFieldDef, type ContractFieldKey, type DesignContract,
+  KEY_FIELDS, MORE_FIELDS, requiredKeyFields, type ContractFieldDef, type ContractFieldKey, type DesignContract,
 } from '../../../lib/designContract'
 
 interface Props {
@@ -42,9 +42,11 @@ function DesignContractPanelImpl({ contract, hints = {}, saving, staleCount, onS
   const focusKey = useRef<ContractFieldKey | null>(null)
   useEffect(() => { if (!editing) setDraft(contract) }, [contract, editing])
 
-  const keySet = KEY_FIELDS.filter(f => contract[f.key])
+  // The sampling frame is a key decision only for probability sampling (same rule as the server gate).
+  const required = requiredKeyFields(contract)
+  const keySet = required.filter(f => contract[f.key])
   const moreSet = MORE_FIELDS.filter(f => contract[f.key])
-  const missing = KEY_FIELDS.length - keySet.length
+  const missing = required.length - keySet.length
   // The card cannot be folded away while it is the thing to do next.
   const expanded = isNextStep || open
   const toggle = () => { setOpen(o => { writeOpen(!o); return !o }) }
@@ -57,7 +59,7 @@ function DesignContractPanelImpl({ contract, hints = {}, saving, staleCount, onS
   }, [editing, moreOpen])
 
   const startEditing = (key?: ContractFieldKey) => {
-    const target = key ?? KEY_FIELDS.find(f => !contract[f.key])?.key ?? KEY_FIELDS[0].key
+    const target = key ?? required.find(f => !contract[f.key])?.key ?? KEY_FIELDS[0].key
     focusKey.current = target
     if (MORE_FIELDS.some(f => f.key === target)) setMoreOpen(true)
     if (!open) { setOpen(true); writeOpen(true) }
@@ -89,7 +91,7 @@ function DesignContractPanelImpl({ contract, hints = {}, saving, staleCount, onS
             <h3 className="m-0 flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
               <FileSignature size={13} aria-hidden="true" style={{ color: 'var(--color-purple-text)' }} />
               Study decisions
-              <span className="font-normal text-[12px]" style={{ color: 'var(--text-muted)' }}>· {keySet.length} of {KEY_FIELDS.length} set</span>
+              <span className="font-normal text-[12px]" style={{ color: 'var(--text-muted)' }}>· {keySet.length} of {required.length} set</span>
             </h3>
           </div>
         ) : (
@@ -98,7 +100,7 @@ function DesignContractPanelImpl({ contract, hints = {}, saving, staleCount, onS
             {expanded ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
             <FileSignature size={13} aria-hidden="true" style={{ color: 'var(--color-purple-text)' }} />
             <span className="truncate">Study decisions</span>
-            <span className="font-normal text-[12px]" style={{ color: 'var(--text-muted)' }}>· {keySet.length} of {KEY_FIELDS.length} set</span>
+            <span className="font-normal text-[12px]" style={{ color: 'var(--text-muted)' }}>· {keySet.length} of {required.length} set</span>
           </button>
         )}
         {expanded && !editing && missing === 0 && (
@@ -129,7 +131,7 @@ function DesignContractPanelImpl({ contract, hints = {}, saving, staleCount, onS
           {!editing ? (
             <>
               <ul className="list-none m-0 p-0 flex flex-wrap gap-1.5" aria-label="Key decisions">
-                {KEY_FIELDS.map(f => {
+                {required.map(f => {
                   const value = contract[f.key]
                   return (
                     <li key={f.key} className="max-w-full">

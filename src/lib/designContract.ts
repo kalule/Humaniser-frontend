@@ -19,10 +19,10 @@ export const STALE_KEY = 'designContractStale'
 export const EDITED_AFTER_APPROVAL_KEY = 'editedAfterApproval'
 
 export type ContractFieldKey =
-  | 'designType' | 'strands' | 'dataSources' | 'unitOfAnalysis'
+  | 'designType' | 'studySetting' | 'strands' | 'dataSources' | 'unitOfAnalysis'
   | 'independentVariables' | 'dependentVariables' | 'moderators' | 'mediators' | 'controls'
-  | 'sampleSize' | 'sampleSizeBasis' | 'samplingFrame' | 'populationDefinition'
-  | 'software' | 'dataCollector' | 'ethicsStatus' | 'projectLength'
+  | 'samplingMethod' | 'sampleSize' | 'sampleSizeBasis' | 'samplingFrame' | 'populationDefinition'
+  | 'analysisApproach' | 'software' | 'dataCollector' | 'ethicsStatus' | 'projectLength'
 
 export type DesignContract = Partial<Record<ContractFieldKey, string>>
 
@@ -46,9 +46,11 @@ export interface ContractFieldDef {
 export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
   { key: 'designType', group: 'Design', isKey: true, label: 'Design type', placeholder: 'e.g. Explanatory sequential mixed methods, cross-sectional survey',
     sections: ['0.0', '3.3', '5.2', '5.6', '5.8', '5.10', '5.12'] },
+  { key: 'studySetting', group: 'Design', isKey: true, label: 'Study setting or data source', placeholder: 'e.g. The city or region studied; or the corpus or dataset analysed',
+    sections: ['1.2', '5.1', '5.3'] },
   { key: 'strands', group: 'Design', label: 'Strands and order', placeholder: 'e.g. Survey first, then interviews with a subset of respondents',
     sections: ['5.2', '5.6', '5.8', '5.10', '6.1', '6.2'] },
-  { key: 'dataSources', group: 'Design', isKey: true, label: 'Data sources', placeholder: 'e.g. Owner-manager questionnaire; semi-structured interviews',
+  { key: 'dataSources', group: 'Design', isKey: true, label: 'Data collection mode', placeholder: 'e.g. Online questionnaire; semi-structured interviews; existing records',
     sections: ['5.8', '5.9', '5.10', '6.1', '6.2'] },
   { key: 'unitOfAnalysis', group: 'Design', label: 'Unit of analysis', placeholder: 'e.g. The firm (SME), reported by its owner-manager',
     sections: ['3.3', '5.3', '5.7'] },
@@ -62,14 +64,18 @@ export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
     sections: ['3.3', '4.4', '5.7', '5.10'] },
   { key: 'controls', group: 'Variables', label: 'Control variables', list: true, placeholder: 'Comma-separated, or leave empty',
     sections: ['5.7', '5.10'] },
-  { key: 'sampleSize', group: 'Sample', isKey: true, label: 'Sample size', placeholder: 'e.g. 384 SMEs; 12 interviews',
-    sections: ['0.0', '5.5', '5.6', '5.10', '6.1', '6.2'] },
-  { key: 'sampleSizeBasis', group: 'Sample', label: 'Sample size basis', placeholder: 'e.g. Cochran formula, 95% confidence, 5% margin',
-    sections: ['5.5'] },
-  { key: 'samplingFrame', group: 'Sample', label: 'Sampling frame', placeholder: 'e.g. Provincial SME register (SEDA database)',
-    sections: ['5.3', '5.4', '5.6'] },
-  { key: 'populationDefinition', group: 'Sample', label: 'Population definition (e.g. SME)', placeholder: 'e.g. 5 to 250 employees, turnover under R220m',
+  { key: 'populationDefinition', group: 'Sample', isKey: true, label: 'Population and unit definition', placeholder: 'Who or what is studied, and how a unit qualifies',
     sections: ['1.2', '5.3', '5.4'] },
+  { key: 'samplingMethod', group: 'Sample', isKey: true, label: 'Sampling method', placeholder: 'e.g. Purposive sampling; stratified random sampling',
+    sections: ['5.4', '5.6', '5.10'] },
+  { key: 'samplingFrame', group: 'Sample', isKey: true, label: 'Sampling frame (needed for probability sampling)', placeholder: 'The list the sample is drawn from',
+    sections: ['5.3', '5.4', '5.6'] },
+  { key: 'sampleSize', group: 'Sample', isKey: true, label: 'Sample size', placeholder: 'e.g. 384 respondents; 12 interviews',
+    sections: ['0.0', '5.5', '5.6', '5.10', '6.1', '6.2'] },
+  { key: 'sampleSizeBasis', group: 'Sample', isKey: true, label: 'Sample size basis', placeholder: 'e.g. Power analysis inputs; precision formula; saturation',
+    sections: ['5.5'] },
+  { key: 'analysisApproach', group: 'Delivery', isKey: true, label: 'Analysis approach', placeholder: 'e.g. Multiple regression; reflexive thematic analysis',
+    sections: ['5.10', '5.12'] },
   { key: 'software', group: 'Delivery', isKey: true, label: 'Analysis software', placeholder: 'e.g. SPSS for the survey, NVivo for interviews',
     sections: ['5.9', '5.10', '6.2'] },
   { key: 'dataCollector', group: 'Delivery', isKey: true, label: 'Who collects the data', placeholder: 'e.g. The researcher, personally',
@@ -85,8 +91,22 @@ export const KEY_FIELDS: readonly ContractFieldDef[] = CONTRACT_FIELDS.filter(f 
 /** Everything else: optional, under "More decisions". */
 export const MORE_FIELDS: readonly ContractFieldDef[] = CONTRACT_FIELDS.filter(f => !f.isKey)
 
+/**
+ * True when the sampling method draws units by chance, so it needs a sampling frame. Same rule as the server's
+ * StudyDecisionGate.IsProbabilitySampling: "non-probability" never counts.
+ */
+export function isProbabilitySampling(method: string | null | undefined): boolean {
+  if (!method?.trim()) return false
+  const t = method.replace(/\bnon[-\s]?probability\b/gi, ' ')
+  return /\bprobability\b|\brandom(?:ly|ised|ized)?\b|\bstratified\b|\bcluster\s+sampl\w*|\bsystematic\s+sampl\w*|\bmulti[-\s]?stage\b/i.test(t)
+}
+
+/** The key decisions this contract needs: the sampling frame only for probability sampling (design-aware). */
+export const requiredKeyFields = (contract: DesignContract): ContractFieldDef[] =>
+  KEY_FIELDS.filter(f => f.key !== 'samplingFrame' || isProbabilitySampling(contract.samplingMethod))
+
 export const missingKeyDecisions = (contract: DesignContract): ContractFieldKey[] =>
-  KEY_FIELDS.filter(f => !contract[f.key]?.trim()).map(f => f.key)
+  requiredKeyFields(contract).filter(f => !contract[f.key]?.trim()).map(f => f.key)
 
 export const keyDecisionsSet = (contract: DesignContract) => missingKeyDecisions(contract).length === 0
 
@@ -96,6 +116,10 @@ export interface DecisionSources {
   methodologySubType?: string | null
   researchDesign?:     string | null
   dataCollection?:     string | null
+  /** The setting the student entered (location step or project field); never guessed. */
+  studyLocation?:      string | null
+  /** The population the student entered; never guessed. */
+  studyPopulation?:    string | null
 }
 
 type Approach = 'quantitative' | 'qualitative' | 'mixed'
@@ -107,26 +131,39 @@ function approachOf(src: DecisionSources): Approach {
   return 'quantitative'
 }
 
-type KeyDecisions = Record<'designType' | 'dataSources' | 'sampleSize' | 'software' | 'dataCollector', string>
+type SuggestedKey = 'designType' | 'dataSources' | 'samplingMethod' | 'sampleSize' | 'sampleSizeBasis'
+  | 'analysisApproach' | 'software' | 'dataCollector'
+type KeyDecisions = Record<SuggestedKey, string> & Partial<Record<'studySetting' | 'populationDefinition', string>>
 
-const SUGGESTED: Record<Approach, Omit<KeyDecisions, 'dataCollector'>> = {
+// Generic planning defaults by approach, never topic terms. The sampling method is non-probability so a default can never
+// claim random sampling without a frame (PR 2); a student who has a frame changes it and is then asked for the frame.
+const SUGGESTED: Record<Approach, Omit<KeyDecisions, 'dataCollector' | 'studySetting' | 'populationDefinition'>> = {
   quantitative: {
-    designType:  'Cross-sectional survey',
-    dataSources: 'Structured questionnaire',
-    sampleSize:  '384 respondents (Cochran formula, 95% confidence, 5% margin of error)',
-    software:    'SPSS',
+    designType:       'Cross-sectional survey',
+    dataSources:      'Structured questionnaire',
+    samplingMethod:   'Non-probability purposive sampling of eligible respondents',
+    sampleSize:       '384 respondents',
+    sampleSizeBasis:  'Cochran formula: 95% confidence, 5% margin of error, p = 0.5',
+    analysisApproach: 'Descriptive statistics, correlation and multiple regression',
+    software:         'SPSS',
   },
   qualitative: {
-    designType:  'Qualitative case study',
-    dataSources: 'Semi-structured interviews',
-    sampleSize:  '12 to 15 participants, until data saturation',
-    software:    'NVivo',
+    designType:       'Qualitative case study',
+    dataSources:      'Semi-structured interviews',
+    samplingMethod:   'Purposive sampling',
+    sampleSize:       '12 to 15 participants',
+    sampleSizeBasis:  'Data saturation and information power, reviewed after each interview',
+    analysisApproach: 'Reflexive thematic analysis',
+    software:         'NVivo',
   },
   mixed: {
-    designType:  'Explanatory sequential mixed methods (survey, then interviews)',
-    dataSources: 'Structured questionnaire; semi-structured interviews',
-    sampleSize:  '384 survey respondents; 12 interviews with a subset',
-    software:    'SPSS for the survey, NVivo for the interviews',
+    designType:       'Explanatory sequential mixed methods (survey, then interviews)',
+    dataSources:      'Structured questionnaire; semi-structured interviews',
+    samplingMethod:   'Non-probability purposive sampling for the survey; interviewees chosen from survey respondents who agree to be contacted',
+    sampleSize:       '384 survey respondents; 12 interviews with a subset',
+    sampleSizeBasis:  'Survey: Cochran formula, 95% confidence, 5% margin of error; interviews: data saturation',
+    analysisApproach: 'Descriptive statistics and multiple regression for the survey; reflexive thematic analysis for the interviews, integrated in a joint display',
+    software:         'SPSS for the survey, NVivo for the interviews',
   },
 }
 
@@ -143,11 +180,14 @@ const usable = (v: string | null | undefined) => {
 export function suggestedDecisions(src: DecisionSources): KeyDecisions {
   const base = SUGGESTED[approachOf(src)]
   return {
+    ...base,
     designType:    usable(src.researchDesign) ?? usable(src.methodologySubType) ?? base.designType,
     dataSources:   usable(src.dataCollection) ?? base.dataSources,
-    sampleSize:    base.sampleSize,
-    software:      base.software,
     dataCollector: 'The researcher, personally',
+    // Setting and population are the student's own: suggested only when the project already states them, never invented,
+    // so "Use suggested defaults" leaves them for the student when nothing is recorded.
+    studySetting:         usable(src.studyLocation),
+    populationDefinition: usable(src.studyPopulation),
   }
 }
 
