@@ -429,10 +429,11 @@ export const researchApi = {
     )),
 
   // PR 9: the export has no DRAFT banner unless asDraft ("Export as draft") is set.
-  exportDocx: async (projectId: string, acknowledgeCitationIssues = false, asDraft = false): Promise<Blob> => {
+  // PR 10: includeCitationAudit adds the "Citation audit" appendix after the References.
+  exportDocx: async (projectId: string, acknowledgeCitationIssues = false, asDraft = false, includeCitationAudit = false): Promise<Blob> => {
     const res = await client.get<Blob>(
       `/api/v1/research/projects/${projectId}/export-docx`,
-      { responseType: 'blob', params: asDraft ? { acknowledgeCitationIssues, asDraft } : { acknowledgeCitationIssues } },
+      { responseType: 'blob', params: { acknowledgeCitationIssues, ...(asDraft ? { asDraft } : {}), ...(includeCitationAudit ? { includeCitationAudit } : {}) } },
     )
     return res.data
   },

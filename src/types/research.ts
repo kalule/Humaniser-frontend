@@ -485,6 +485,15 @@ export interface FetchedLiterature {
   citedInSections:   string[]
   /** The source's full text is held (fetched or uploaded), not only its abstract. */
   hasFullText?:      boolean
+  // PR 10: shown on the citation card.
+  journal?:          string | null
+  isRetracted?:      boolean
+  /** NoDoi | Verified | SingleRegistry | Mismatch | NotFound | LookupFailed; null = not checked. */
+  doiVerification?:  string | null
+  /** retracted | preprint | protocol | conference_abstract | low_visibility_venue | non_english_title */
+  qualityFlags?:     string[]
+  /** e.g. "Systematic review or meta-analysis"; null when the paper type is unknown. */
+  evidenceLevel?:    string | null
 }
 
 export interface UnresolvedCitation {
@@ -607,6 +616,9 @@ export interface CitationFlag {
   // Which repair actions can actually resolve THIS flag. Optional so a cached/older response still
   // renders — treat a missing list as "all available", which is the pre-2026-09-04 behaviour.
   fixActions?:           CitationFixOption[]
+  /** PR 10: the passage the claim check read, when it kept one. */
+  evidenceQuote?:        string | null
+  evidenceLocation?:     string | null
 }
 
 // `reason` is null exactly when `available` — it explains why the action cannot resolve this flag,

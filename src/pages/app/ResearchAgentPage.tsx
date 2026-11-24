@@ -2098,8 +2098,10 @@ function DownloadStep({ project }: { project: ResearchProject }) {
   // A thesis downloads through the thesis export (its own server gates and chapter order); the proposal
   // export would silently produce a proposal-shaped document for a thesis (Stage A finding).
   const isThesisProject = project.documentType === 'Thesis' || project.documentType === 'Dissertation'
+  // PR 10: optional "Citation audit" appendix (proposals only).
+  const [includeCitationAudit, setIncludeCitationAudit] = useState(false)
   const downloadDocument = (acknowledgeCitationIssues: boolean) =>
-    isThesisProject ? exportThesisDocx(project.id) : exportDocx(project.id, acknowledgeCitationIssues)
+    isThesisProject ? exportThesisDocx(project.id) : exportDocx(project.id, acknowledgeCitationIssues, false, includeCitationAudit)
   const [, setSearchParams] = useSearchParams()
   // dedupeSections — see its doc comment; the downloaded .docx must never silently
   // pick up an empty/stale duplicate row instead of the real generated content.
@@ -2364,7 +2366,7 @@ function DownloadStep({ project }: { project: ResearchProject }) {
             onJump={key => setSearchParams({ step: String(stepIndexFor(key)) })}
             prepare={() => syncProject(project.id)}
             download={() => downloadDocument(true)}
-            downloadDraft={isThesisProject ? undefined : () => exportDocx(project.id, true, true)}
+            downloadDraft={isThesisProject ? undefined : () => exportDocx(project.id, true, true, includeCitationAudit)}
             title={project.title}
             onRepaired={async () => {
               const store = useResearchStore.getState()
@@ -2407,6 +2409,16 @@ function DownloadStep({ project }: { project: ResearchProject }) {
               <span className="font-semibold">Optional review:</span> Click <span className="font-medium text-[#7c3aed]">Jump to section</span> to fix or dismiss the citation warning. These warnings do not prevent download.
             </p>
           </div>
+        )}
+
+        {!isThesisProject && (
+          <label className="mb-4 flex items-start gap-2 text-[12.5px] text-slate-700">
+            <input type="checkbox" className="mt-0.5" checked={includeCitationAudit} onChange={e => setIncludeCitationAudit(e.target.checked)} />
+            <span>
+              Include a citation audit appendix
+              <span className="block text-[11.5px] text-slate-500">Lists each cited source with its metadata check, claim check and quality flags, after the References.</span>
+            </span>
+          </label>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

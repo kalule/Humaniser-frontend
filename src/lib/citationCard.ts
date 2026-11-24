@@ -32,6 +32,47 @@ export interface CitationCardEntry {
   qualityFlags?:  string[]
   /** Where the verdict came from: the in-place "Check citations" run, or the automatic post-draft check. */
   checkedBy?:     'section_check' | 'auto'
+  // PR 10: the source card.
+  doi?:           string
+  journal?:       string | null
+  evidenceLevel?: string | null
+  verification?:  CitationVerification
+  /** The passage the claim check read, when it kept one. */
+  passage?:       { quote: string; location: string | null } | null
+}
+
+/**
+ * PR 10: one status per cited source. "Claim supported" only when a check said so (the in-place check's Supported
+ * verdict); the automatic check records problems only, so its silence is "metadata verified" at most.
+ */
+export type CitationVerification = 'mismatch' | 'claim_supported' | 'metadata_verified' | 'unchecked'
+
+export const VERIFICATION_LABEL: Record<CitationVerification, string> = {
+  mismatch:          'Mismatch',
+  claim_supported:   'Claim supported',
+  metadata_verified: 'Metadata verified',
+  unchecked:         'Unchecked',
+}
+
+const METADATA_MISMATCH = new Set(['JournalMismatch', 'AuthorMismatch', 'VenueMismatch', 'BibliographicDetailMismatch'])
+
+export function verificationOf(support: ClaimSupport, lit: FetchedLiterature | undefined, flag: CitationFlag | undefined,
+  check: SectionCheckVerdict | undefined): CitationVerification {
+  if (support === 'not_supported' || support === 'partly' || lit?.doiVerification === 'Mismatch'
+    || flag?.mismatchTypes.some(t => METADATA_MISMATCH.has(t))) return 'mismatch'
+  if (check?.verdict === 'Supported') return 'claim_supported'
+  if (lit?.doiVerification === 'Verified' || lit?.doiVerification === 'SingleRegistry') return 'metadata_verified'
+  return 'unchecked'
+}
+
+/** The server's source-quality flags (SourceQuality), as the card words them. */
+export const SERVER_QUALITY_LABEL: Record<string, string> = {
+  retracted:            'Retracted',
+  preprint:             'May not be peer reviewed',
+  protocol:             'Protocol, not results',
+  conference_abstract:  'Conference paper or abstract',
+  low_visibility_venue: 'Low-visibility venue',
+  non_english_title:    'Non-English title',
 }
 
 /** The dot shown on each in-text citation. */
@@ -203,6 +244,14 @@ export function sourceQualityFlags(lit: FetchedLiterature | undefined, clause: s
     out.push('Different population, place or field')
   }
   if (lit && (NOT_PEER_REVIEWED.test(`${lit.url ?? ''} ${lit.source ?? ''}`) || (lit.doi && PREPRINT_DOI.test(lit.doi)))) out.push('May not be peer reviewed')
+  // PR 10: the server's flags (retracted first). Flags are for the student; nothing is excluded.
+  for (const f of lit?.qualityFlags ?? []) {
+    const label = SERVER_QUALITY_LABEL[f]
+    if (!label || out.includes(label)) continue
+    if (f === 'retracted') out.unshift(label)
+    else out.push(label)
+  }
+  if (lit?.isRetracted && !out.includes('Retracted')) out.unshift('Retracted')
   return out
 }
 
@@ -245,6 +294,11 @@ export function describeCitation(hit: CitationHit & { text?: string }, surroundi
       literatureId:   lit?.id,
       qualityFlags:   sourceQualityFlags(lit, clause, flag, check),
       checkedBy:      check ? 'section_check' : 'auto',
+      doi:            lit?.doi ?? r.doi ?? undefined,
+      journal:        lit?.journal ?? null,
+      evidenceLevel:  lit?.evidenceLevel ?? null,
+      verification:   r.matchedSource ? verificationOf(support, lit, flag, check) : 'unchecked',
+      passage:        flag?.evidenceQuote ? { quote: flag.evidenceQuote, location: flag.evidenceLocation ?? null } : null,
     }
   })
 }

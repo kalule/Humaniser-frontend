@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { ExternalLink, Repeat, Trash2 } from 'lucide-react'
 import type { FetchedLiterature } from '../../../types/research'
-import type { CitationCardEntry, ClaimSupport } from '../../../lib/citationCard'
+import { VERIFICATION_LABEL, type CitationCardEntry, type CitationVerification, type ClaimSupport } from '../../../lib/citationCard'
+
+const VERIFICATION_TONE: Record<CitationVerification, 'good' | 'warn' | 'bad' | 'neutral'> = {
+  mismatch: 'bad', claim_supported: 'good', metadata_verified: 'good', unchecked: 'neutral',
+}
 
 
 const SUPPORT: Record<ClaimSupport, { text: string; tone: 'good' | 'warn' | 'bad' | 'neutral' }> = {
@@ -64,16 +68,31 @@ export function CitationCard({ entries, swapTo, canSwap, onSwap, onRemove, onClo
       {entries.map((entry, i) => (
         <div key={`${entry.clause}-${i}`} className="relative flex flex-col gap-2" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
           <div className="text-[13px] font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>{heading(entry)}</div>
+          {entry.sourceExists && (entry.authors || entry.journal || entry.doi || entry.evidenceLevel) && (
+            <div className="text-[11.5px] leading-[1.45] flex flex-col gap-0.5" style={{ color: 'var(--text-secondary)' }} data-testid="citation-source-meta">
+              {entry.authors && <span>{entry.authors}</span>}
+              {(entry.journal || entry.doi) && <span>{[entry.journal, entry.doi ? `DOI ${entry.doi}` : null].filter(Boolean).join(' · ')}</span>}
+              {entry.evidenceLevel && <span>Evidence: {entry.evidenceLevel}</span>}
+            </div>
+          )}
           <div className="flex flex-wrap gap-1.5">
+            {entry.verification && entry.sourceExists && (
+              <Chip tone={VERIFICATION_TONE[entry.verification]}>{VERIFICATION_LABEL[entry.verification]}</Chip>
+            )}
             <Chip tone={entry.sourceExists ? 'good' : 'bad'}>{entry.sourceExists ? (entry.ambiguous ? 'Source exists · same author and year as another' : 'Source exists') : 'Source not found'}</Chip>
             {entry.fullTextPinned !== null && <Chip tone={entry.fullTextPinned ? 'good' : 'neutral'}>{entry.fullTextPinned ? 'Full text pinned' : 'Abstract only'}</Chip>}
             <Chip tone={SUPPORT[entry.support].tone}>{SUPPORT[entry.support].text}</Chip>
-            {entry.qualityFlags?.filter(f => f !== 'Abstract only').map(f => <Chip key={f} tone="warn">{f}</Chip>)}
+            {entry.qualityFlags?.filter(f => f !== 'Abstract only').map(f => <Chip key={f} tone={f === 'Retracted' ? 'bad' : 'warn'}>{f}</Chip>)}
           </div>
           {entry.checkedBy === 'section_check' && (
             <p className="m-0 text-[11px]" style={{ color: 'var(--text-muted)' }}>From this section's citation check.</p>
           )}
           {entry.note && <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>{entry.note}</p>}
+          {entry.passage && (
+            <blockquote className="m-0 pl-2.5 text-[12px] leading-[1.5] italic" style={{ borderLeft: '2px solid var(--border-strong)', color: 'var(--text-secondary)' }}>
+              “{entry.passage.quote}”{entry.passage.location && <span className="not-italic" style={{ color: 'var(--text-muted)' }}> ({entry.passage.location})</span>}
+            </blockquote>
+          )}
           <div className="flex flex-wrap gap-2">
             {entry.viewUrl ? (
               <a href={entry.viewUrl} target="_blank" rel="noopener noreferrer"

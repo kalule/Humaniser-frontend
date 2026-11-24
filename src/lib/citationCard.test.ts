@@ -52,3 +52,32 @@ describe('citation card', () => {
     expect(swapCitationText('[3]', 0, nkohla, 'ieee')).toBeNull()
   })
 })
+
+describe('source card (PR 10)', () => {
+  const card = (l: FetchedLiterature, flags: CitationFlag[] = [], extra: Partial<CitationContext> = {}) => {
+    const c = ctx({ literature: [l], flags, ...extra })
+    const [hit] = findCitations('Costs rose (Klishi, 2024).', c)
+    return describeCitation(hit, 'Costs rose (Klishi, 2024).', c)[0]
+  }
+
+  it('shows journal, DOI, evidence level and "metadata verified" when the DOI was verified and nothing was flagged', () => {
+    const e = card(lit('klishi', 'Lindiwe Klishi', 2024, { journal: 'Journal of Retail', doiVerification: 'Verified', evidenceLevel: 'Observational study' }))
+    expect(e).toMatchObject({ journal: 'Journal of Retail', doi: '10.1/klishi', evidenceLevel: 'Observational study', verification: 'metadata_verified', passage: null })
+  })
+
+  it('is "unchecked" with no verification, "mismatch" on a flag, and "claim supported" only on a Supported check', () => {
+    const k = lit('klishi', 'Lindiwe Klishi', 2024)
+    expect(card(k).verification).toBe('unchecked')
+    const flagged = { ...flag('10.1/klishi', ['ClaimContentMismatch']), evidenceQuote: 'Costs fell in 2023.', evidenceLocation: 'p. 4' }
+    expect(card(k, [flagged])).toMatchObject({ verification: 'mismatch', passage: { quote: 'Costs fell in 2023.', location: 'p. 4' } })
+    expect(card(k, [flag('10.1/klishi', ['AuthorMismatch'])]).verification).toBe('mismatch')
+    const checks = [{ markerText: '(Klishi, 2024)', citedAuthors: 'Klishi', citedYear: '2024', claimText: 'Costs rose', verdict: 'Supported', failureType: null, reasoning: null, flags: [] }]
+    expect(card(k, [], { checks }).verification).toBe('claim_supported')
+  })
+
+  it('adds the server quality flags, retracted first, without excluding the source', () => {
+    const e = card(lit('klishi', 'Lindiwe Klishi', 2024, { hasFullText: true, isRetracted: true, qualityFlags: ['retracted', 'protocol', 'non_english_title'] }))
+    expect(e.qualityFlags).toEqual(['Retracted', 'Protocol, not results', 'Non-English title'])
+    expect(e.sourceExists).toBe(true)
+  })
+})
