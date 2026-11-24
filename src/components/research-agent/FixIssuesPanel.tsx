@@ -99,6 +99,19 @@ const SECTION_RULE_LABELS: Record<string, string> = {
   decision_needed: 'Decision needed',
   abstract_optional: 'Abstract (optional)',
   abstract_not_required: 'Abstract (not required)',
+  // PR 3 cross-section checks
+  power_mismatch: 'Sample size vs power inputs',
+  precision_mismatch: 'Sample size vs precision',
+  prevalence_power_basis: 'Prevalence study sized by power',
+  timeline_design_order: 'Timeline vs design order',
+  cross_reference_missing: 'Reference to a missing section',
+  question_without_analysis: 'Research question without analysis',
+  qualitative_sample_basis: 'Qualitative sample basis',
+  qualitative_method_uncited: 'Analysis method not cited',
+  reference_duplicate: 'Duplicate reference',
+  reference_year_mismatch: 'Citation year vs reference list',
+  reference_no_date: 'Undated reference',
+  absence_claim_unhedged: 'Unverified "no study" claim',
 }
 
 export function issueLabel(type: string): string {
@@ -219,6 +232,32 @@ export function FixIssuesPanel({
     }
   }
 
+  // "Re-check this proposal": runs every check on the saved text again. Nothing is rewritten.
+  const recheck = async () => {
+    const id = toast.loading('Checking your proposal…')
+    await refresh()
+    toast.success('Checked again. Your text was not changed.', { id })
+  }
+
+  // Dismiss a check the student judges wrong for this proposal. The server allows it only after one repair attempt
+  // (or at once when nothing can be repaired automatically) and records it; Restore brings it back.
+  const dismiss = async (issue: ProposalIssue): Promise<void> => {
+    try {
+      setIssues(await researchApi.dismissProposalIssue(projectId, issue))
+      toast.success('Dismissed. It no longer counts as an issue; you can restore it below.')
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not dismiss this issue.'), { duration: 9000 })
+    }
+  }
+
+  const restore = async (issue: ProposalIssue): Promise<void> => {
+    try {
+      setIssues(await researchApi.restoreProposalIssue(projectId, issue))
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not restore this issue.'), { duration: 9000 })
+    }
+  }
+
   const setSourceYear = async (issue: ProposalIssue, year: number): Promise<boolean> => {
     if (!issue.literatureId) return false
     try {
@@ -239,7 +278,7 @@ export function FixIssuesPanel({
   const renderRow = (issue: ProposalIssue, idx: number) => (
     <IssueRow key={`${issue.type}|${issue.sectionKey}|${issue.evidence}|${idx}`}
       issue={issue} canJump={canJump(issue.sectionKey)} onJump={onJump} disabled={busy}
-      onFill={fillPlaceholder} onSetYear={setSourceYear} />
+      onFill={fillPlaceholder} onSetYear={setSourceYear} onDismiss={dismiss} />
   )
 
   return (
@@ -273,6 +312,14 @@ export function FixIssuesPanel({
           >
             Download as is
           </button>
+          <button
+            type="button"
+            onClick={() => void recheck()}
+            disabled={busy}
+            className="text-[12px] font-medium text-slate-600 hover:text-slate-900 underline underline-offset-2 disabled:opacity-60"
+          >
+            Re-check this proposal
+          </button>
         </div>
 
         {!issues.repairsAvailable && issues.repairsUnavailableReason && issues.issues.length > 0 && (
@@ -284,6 +331,27 @@ export function FixIssuesPanel({
             {[...triaged.blocking, ...triaged.review].map((group, gIdx) => group.issues.length === 1
               ? renderRow(group.issues[0], gIdx)
               : <IssueGroupRow key={`${group.type}|${gIdx}`} group={group} renderRow={renderRow} />)}
+          </div>
+        )}
+
+        {issues.notApplicable && issues.notApplicable.length > 0 && (
+          <p className="text-[11.5px] text-slate-500" data-testid="fix-issues-not-applicable">
+            {issues.notApplicable.length} check{issues.notApplicable.length === 1 ? ' was' : 's were'} skipped because {issues.notApplicable.length === 1 ? 'it does' : 'they do'} not apply to this study's design.
+          </p>
+        )}
+
+        {triaged.dismissed.length > 0 && (
+          <div className="flex flex-col gap-1" data-testid="fix-issues-dismissed">
+            <p className="text-[11.5px] font-semibold text-slate-500 uppercase tracking-wide">Dismissed by you ({triaged.dismissed.length})</p>
+            {triaged.dismissed.map((d, idx) => (
+              <div key={`${d.type}|${d.sectionKey}|${idx}`} className="flex items-start justify-between gap-3 text-[12px] text-slate-600 leading-snug">
+                <span><span className="font-medium text-slate-700">{issueLabel(d.type)}</span> · {d.sectionKey} · {d.message}</span>
+                <button type="button" onClick={() => void restore(d)} disabled={busy}
+                  className="text-[11px] font-medium text-slate-600 hover:text-slate-900 underline underline-offset-2 shrink-0 disabled:opacity-60">
+                  Restore
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -368,13 +436,14 @@ export function parseYear(text: string): number | null {
   return y >= 1500 && y <= new Date().getFullYear() + 1 ? y : null
 }
 
-function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear }: {
+function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear, onDismiss }: {
   issue: ProposalIssue
   canJump: boolean
   onJump: (key: string) => void
   disabled: boolean
   onFill: (issue: ProposalIssue, value: string) => Promise<boolean>
   onSetYear: (issue: ProposalIssue, year: number) => Promise<boolean>
+  onDismiss?: (issue: ProposalIssue) => Promise<void>
 }) {
   const isBlocking = issue.severity === 'Blocking'
   const input = inlineInputFor(issue)
@@ -406,15 +475,28 @@ function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear }: {
           </span>
           <span className="block text-slate-700 leading-snug">{issue.message}</span>
         </div>
-        {canJump && (
-          <button
-            type="button"
-            onClick={() => onJump(issue.sectionKey)}
-            className="px-2.5 py-1 rounded bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-medium text-[11px] shrink-0 transition-colors"
-          >
-            Jump to {issue.sectionKey}
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {canJump && (
+            <button
+              type="button"
+              onClick={() => onJump(issue.sectionKey)}
+              className="px-2.5 py-1 rounded bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-medium text-[11px] shrink-0 transition-colors"
+            >
+              Jump to {issue.sectionKey}
+            </button>
+          )}
+          {onDismiss && (
+            <button
+              type="button"
+              onClick={() => void onDismiss(issue)}
+              disabled={disabled}
+              title="Dismiss this check if it is wrong for your proposal. Recorded; you can restore it."
+              className="text-[11px] font-medium text-slate-500 hover:text-slate-800 underline underline-offset-2 disabled:opacity-50"
+            >
+              Dismiss
+            </button>
+          )}
+        </div>
       </div>
       {input && (
         <form

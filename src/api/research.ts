@@ -1,7 +1,7 @@
 import client from './client'
 import { showCitationFlags } from '../config/features'
 import type {
-  ProposalIssues,
+  ProposalIssue, ProposalIssues,
   RepairReport,
   AcademicLevel,
   BibliographyResult,
@@ -457,6 +457,19 @@ export const researchApi = {
   setProposalSourceYear: async (projectId: string, literatureId: string, year: number): Promise<ProposalIssues> =>
     unwrap(await client.post<Wrap<ProposalIssues>>(
       `/api/v1/research/projects/${projectId}/proposal-issues/set-source-year`, { literatureId, year },
+    )),
+
+  // Dismiss one issue after a repair attempt (recorded on the server), or restore it.
+  dismissProposalIssue: async (projectId: string, issue: ProposalIssue, reason?: string): Promise<ProposalIssues> =>
+    unwrap(await client.post<Wrap<ProposalIssues>>(
+      `/api/v1/research/projects/${projectId}/proposal-issues/dismiss`,
+      { type: issue.type, sectionKey: issue.sectionKey, evidence: issue.evidence, reason: reason ?? null },
+    )),
+
+  restoreProposalIssue: async (projectId: string, issue: ProposalIssue): Promise<ProposalIssues> =>
+    unwrap(await client.post<Wrap<ProposalIssues>>(
+      `/api/v1/research/projects/${projectId}/proposal-issues/restore`,
+      { type: issue.type, sectionKey: issue.sectionKey, evidence: issue.evidence },
     )),
 
   getLiterature: async (projectId: string): Promise<FetchedLiterature[]> =>

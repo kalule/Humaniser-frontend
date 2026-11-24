@@ -42,3 +42,16 @@ describe('issueLabel for section rules', () => {
     expect(issueLabel('section_rule_brand_new')).toBe('brand new')
   })
 })
+
+describe('dismissed issues', () => {
+  it('are listed apart and never counted as open or blocking', () => {
+    const t = triageIssues([
+      { ...issue('section_rule_timeline_design_order', 'Blocking', '6.1'), dismissed: true },
+      issue('section_rule_cross_reference_missing', 'Blocking', '5.3'),
+      issue('section_rule_absence_claim_unhedged', 'Warning', '2.0'),
+    ])
+    expect(t.dismissed.map(i => i.type)).toEqual(['section_rule_timeline_design_order'])
+    expect(t.blocking.map(g => g.type)).toEqual(['section_rule_cross_reference_missing'])
+    expect(t.openCount).toBe(2)
+  })
+})

@@ -89,3 +89,11 @@ describe('quality-rule labels', () => {
     expect(issueLabel('quality_br99')).toBe('Quality check')
   })
 })
+
+describe('issueLabel for the cross-section checks', () => {
+  it('names them in plain words', () => {
+    expect(issueLabel('section_rule_timeline_design_order')).toBe('Timeline vs design order')
+    expect(issueLabel('section_rule_power_mismatch')).toBe('Sample size vs power inputs')
+    expect(issueLabel('section_rule_absence_claim_unhedged')).toBe('Unverified "no study" claim')
+  })
+})

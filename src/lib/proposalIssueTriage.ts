@@ -23,7 +23,9 @@ export interface TriagedIssues {
   blocking: IssueGroup[]
   review: IssueGroup[]
   notes: ProposalIssue[]
-  /** Open issues only: blocking plus to-review. Notes are excluded. */
+  /** Dismissed by the student after a repair attempt: listed apart, never counted. */
+  dismissed: ProposalIssue[]
+  /** Open issues only: blocking plus to-review. Notes and dismissed issues are excluded. */
   openCount: number
 }
 
@@ -41,9 +43,11 @@ export function triageIssues(issues: ProposalIssue[]): TriagedIssues {
     }
     return [...byType.values()]
   }
-  const notes = issues.filter(isInformational)
-  const open = issues.filter(i => !isInformational(i))
+  const dismissed = issues.filter(i => i.dismissed)
+  const live = issues.filter(i => !i.dismissed)
+  const notes = live.filter(isInformational)
+  const open = live.filter(i => !isInformational(i))
   const blocking = group(open.filter(i => i.severity === 'Blocking'))
   const review = group(open.filter(i => i.severity !== 'Blocking'))
-  return { blocking, review, notes, openCount: open.length }
+  return { blocking, review, notes, dismissed, openCount: open.length }
 }

@@ -1107,6 +1107,8 @@ export interface ProposalIssue {
   length?: number | null
   /** Set when the issue is about one specific project source (a citation that matches a source stored without a year). */
   literatureId?: string | null
+  /** The student dismissed it after a repair attempt (recorded on the server); it no longer counts as blocking. */
+  dismissed?: boolean
 }
 
 export interface ProposalIssues {
@@ -1114,6 +1116,9 @@ export interface ProposalIssues {
   blockingCount: number
   repairsAvailable: boolean
   repairsUnavailableReason: string | null
+  dismissedCount?: number
+  /** Checks this study's design does not apply (skipped, never failed). */
+  notApplicable?: string[] | null
 }
 
 export interface RepairedItem {
