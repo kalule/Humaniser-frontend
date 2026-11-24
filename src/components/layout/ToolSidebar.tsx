@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { Settings } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -12,7 +13,23 @@ export const TOOL_NAV: { id: ToolId; label: string; description: string; icon: R
     return { id, label, description, icon, link }
   })
 
+/**
+ * A tooltip to the right of a rail icon, shown on hover and on keyboard focus. Fixed-position, so the
+ * rail's own overflow does not clip it; the icon's accessible name stays its aria-label.
+ */
+interface RailTip { id: string; text: string; top: number }
+
+function railTipHandlers(id: string, text: string, setTip: (t: RailTip | null) => void) {
+  const show = (e: React.SyntheticEvent<HTMLElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    setTip({ id, text, top: r.top + r.height / 2 })
+  }
+  const hide = () => setTip(null)
+  return { onMouseEnter: show, onFocus: show, onMouseLeave: hide, onBlur: hide }
+}
+
 export function ToolSidebar() {
+  const [tip, setTip] = useState<RailTip | null>(null)
   const location = useLocation()
   const { user } = useAuthStore()
   const isEnabled = useIsToolEnabled()
@@ -27,12 +44,15 @@ export function ToolSidebar() {
 
   return (
     <aside
+      aria-label="Tools"
+      onKeyDown={e => { if (e.key === 'Escape') setTip(null) }}
       className="shrink-0 flex flex-col items-center overflow-hidden"
       style={{ width: 52, background: '#f8fafc', borderRight: '1px solid #e2e8f0' }}
     >
       {/* Logo mark */}
       <div className="w-full flex items-center justify-center py-3 shrink-0">
         <div
+          role="img" aria-label="HumaniseAI"
           className="flex items-center justify-center text-white font-semibold rounded-lg"
           style={{
             width: 32, height: 32,
@@ -56,7 +76,9 @@ export function ToolSidebar() {
               key={tool.label}
               to={tool.link}
               aria-label={tool.label}
-              title={`${tool.label} — ${tool.description}`}
+              aria-current={active ? 'page' : undefined}
+              aria-describedby={tip?.id === tool.id ? 'rail-tooltip' : undefined}
+              {...railTipHandlers(tool.id, `${tool.label} · ${tool.description}`, setTip)}
               className={cn(
                 'flex items-center justify-center rounded-lg transition-colors',
                 active
@@ -76,7 +98,7 @@ export function ToolSidebar() {
         <Link
           to="/app/account"
           aria-label="Settings"
-          title="Settings"
+          {...railTipHandlers('settings', 'Settings', setTip)}
           className="flex items-center justify-center rounded-lg text-[#94a3b8] hover:bg-[#f1f5f9] hover:text-[#475569] transition-colors"
           style={{ width: 36, height: 36 }}
         >
@@ -85,13 +107,21 @@ export function ToolSidebar() {
         <Link
           to="/app/account"
           aria-label="Account"
-          title="Account"
+          {...railTipHandlers('account', 'Account', setTip)}
           className="flex items-center justify-center rounded-full text-white font-semibold"
           style={{ width: 32, height: 32, background: '#7c3aed', fontSize: 12 }}
         >
           {userInitials}
         </Link>
       </div>
+
+      {tip && (
+        <span id="rail-tooltip" role="tooltip"
+          className="pointer-events-none fixed z-50 max-w-[260px] rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium leading-snug text-white shadow-lg"
+          style={{ left: 58, top: tip.top, transform: 'translateY(-50%)' }}>
+          {tip.text}
+        </span>
+      )}
     </aside>
   )
 }

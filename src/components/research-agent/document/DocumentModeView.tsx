@@ -28,6 +28,7 @@ import { DocumentReferences } from './DocumentReferences'
 import { CitationDataContext, type CitationData } from './citationDataContext'
 import { DesignContractPanel } from './DesignContractPanel'
 import { ReviewIssuesCard } from './ReviewIssuesCard'
+import { ModeHint } from './ModeHint'
 import { RewriteReviewDialog } from './RewriteReviewDialog'
 import {
   CONTRACT_FIELD, DESIGN_CONTRACT_KEY, EDITED_AFTER_APPROVAL_KEY, STALE_KEY, changedFields, clearStale, keyDecisionsSet, propagateStale,
@@ -1067,6 +1068,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
           </button>
         </div>
 
+        <ModeHint />
         <article className="max-w-[760px] mx-auto bg-white my-4 sm:my-7 px-4 sm:px-14 py-8 sm:py-9 rounded-xl"
           style={{ border: '0.5px solid var(--border-hairline)' }}>
           {!sections.length && <p className="text-[13px] m-0" style={{ color: 'var(--text-secondary)' }}>Loading your sections…</p>}

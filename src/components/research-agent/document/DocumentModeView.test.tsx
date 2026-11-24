@@ -531,4 +531,16 @@ describe('DocumentModeView', () => {
       }
     })
   })
+  it('explains Guided and Document once, until dismissed', () => {
+    localStorage.removeItem('dm.modeHint.dismissed')
+    renderView()
+    const hint = within(screen.getByRole('complementary', { name: 'About this view' }))
+    expect(hint.getByText(/one section at a time/)).toBeTruthy()
+    fireEvent.click(hint.getByRole('button', { name: 'Dismiss this tip' }))
+    expect(screen.queryByRole('complementary', { name: 'About this view' })).toBeNull()
+    expect(localStorage.getItem('dm.modeHint.dismissed')).toBe('1')
+    cleanup()
+    renderView()
+    expect(screen.queryByRole('complementary', { name: 'About this view' })).toBeNull()
+  })
 })
