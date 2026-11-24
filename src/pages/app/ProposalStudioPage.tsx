@@ -7,7 +7,7 @@ import { Modal } from '../../components/ui/Modal'
 import { btn } from '../../components/literatureReview/styles'
 import { DocumentList, type DocumentListEntry } from '../../components/app/DocumentList'
 import { ProposalSetupDialog, type ProposalSetup } from '../../components/research-design/ProposalSetupDialog'
-import { AutonomousProposalModal, GenerationPanel, useAutonomousProposalFlow } from '../../components/app/AutonomousProposalTools'
+import { AutonomousProposalModal, GenerationBanner, useAutonomousProposalFlow } from '../../components/app/AutonomousProposalTools'
 import type { AcademicLevel } from '../../types/research'
 import { researchApi } from '../../api/research'
 import { proposalJourneyApi } from '../../api/proposalJourney'
@@ -78,6 +78,7 @@ export default function ProposalStudioPage() {
   }
   return <div className="research-design h-full overflow-y-auto bg-white min-w-0 w-full px-4 sm:px-6 py-6 sm:py-8">
     <div className="flex flex-wrap items-center justify-between gap-4 mb-7"><p className="text-sm text-text-secondary">Write your proposal yourself with AI help, or let us draft it automatically.</p><button type="button" onClick={() => setCreating(true)} className={`${btn.primary} !min-h-0`}><Plus size={16} aria-hidden /> New proposal</button></div>
+    {auto.gen && <div className="mb-6"><GenerationBanner gen={auto.gen} onCancel={auto.onCancelGeneration} onClose={auto.onCloseGeneration} onOpenDocument={auto.onOpenGeneratedDocument} onResume={() => void auto.onResumeGeneration()} resuming={auto.resuming} /></div>}
     {(projects.error || journeys.error) && <div role="alert" className="text-sm mb-5"><p>We could not check the latest proposal status. Your saved proposals remain available.</p><Button variant="ghost" onClick={() => { void projects.refetch(); void journeys.refetch() }}>Refresh proposals</Button></div>}
     {projects.isPending && <p role="status" className="mb-4 text-sm">Loading your proposals...</p>}
     <DocumentList entries={rows} totalCount={allEntries.length} search={search} onSearchChange={setSearch} searchPlaceholder="Search proposals..."
@@ -85,7 +86,6 @@ export default function ProposalStudioPage() {
       headerRight={<select aria-label="Sort proposals" className="rounded-lg border border-border bg-card p-2 text-sm" value={sort} onChange={e => setSort(e.target.value)}><option value="updated">Last modified</option><option value="title">Title</option><option value="created">Created</option></select>}
       emptyIcon={<FileText size={22} />} emptyTitle="No proposals here yet" emptySubtitle="Start a proposal or change the filter to find your saved work." />
     {entries.length > limit && <div className="flex justify-center mt-5"><Button variant="secondary" onClick={() => setLimit(v => v + 25)}>Load more ({entries.length - limit} remaining)</Button></div>}
-    {auto.gen && <div className="mt-6"><GenerationPanel gen={auto.gen} onToggleArticleView={auto.onToggleArticleView} onCancel={auto.onCancelGeneration} onClose={auto.onCloseGeneration} onOpenDocument={auto.onOpenGeneratedDocument} onResume={() => void auto.onResumeGeneration()} resuming={auto.resuming} /></div>}
     {creating && <ProposalSetupDialog onClose={() => setCreating(false)} onCreate={create} onAutomate={s => { setCreating(false); setQuick({ topic: s.topic, level: s.academicLevel }) }} />}
     {quick && <AutonomousProposalModal initialTitle={quick.topic} initialLevel={quick.level} onClose={() => setQuick(null)}
       onCreate={async config => { await auto.handleCreate(config); setQuick(null); void projects.refetch(); void journeys.refetch() }} />}

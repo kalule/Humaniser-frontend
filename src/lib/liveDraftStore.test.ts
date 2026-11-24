@@ -127,3 +127,17 @@ describe('live drafts', () => {
     expect(otherRenders).toBe(before)
   })
 })
+
+describe('countBodyWords', () => {
+  it('leaves the References block out, like the saved word count', async () => {
+    const { countBodyWords } = await import('./liveDraftStore')
+    const text = 'One two three four.\n\n### References (2)\n1. Smith, J. (2020) A long title here.\n2. Lee, K. (2021) Another long title.'
+    expect(countBodyWords(text)).toBe(4)
+    expect(countBodyWords('Body words here.\n\n**References**\nSmith (2020).')).toBe(3)
+  })
+
+  it('does not stop at a body sentence that starts with "References"', async () => {
+    const { countBodyWords } = await import('./liveDraftStore')
+    expect(countBodyWords('Intro line.\nReferences to policy are common here.')).toBe(8)
+  })
+})

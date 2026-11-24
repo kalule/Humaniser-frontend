@@ -58,3 +58,24 @@
 /* Inline citations (Phase 5): resolved to pinned sources on display; text itself unchanged. */
 .dm-cite { color: var(--color-purple-text); background: var(--color-purple-tint); border-radius: 3px; padding: 0 2px; cursor: help; }
 .dm-cite--flagged { text-decoration: underline wavy var(--color-amber); text-underline-offset: 3px; }
+
+/* Verdict dot after every citation. Always drawn (grey when unchecked), so a verdict change never
+   shifts the text; the colour is backed by the card's text label and the span's aria-label. */
+.dm-cite::after {
+  content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  margin-left: 3px; vertical-align: 0.15em; background: var(--text-muted); opacity: .55;
+}
+.dm-cite--v-supports::after      { background: var(--color-green); opacity: 1; }
+.dm-cite--v-partly::after        { background: var(--color-amber); opacity: 1; }
+.dm-cite--v-not_supported::after { background: var(--color-red); opacity: 1; box-shadow: 0 0 0 1px white, 0 0 0 2px var(--color-red); }
+
+/* Read-only while the agent streams into this section: quiet, no chrome. */
+.dm-editor .ProseMirror[contenteditable="false"] { color: var(--text-secondary); }
+
+/* Selection menu and rewrite suggestion (Inter, small, floating over the page). */
+.dm-floating { font-family: 'Inter', system-ui, sans-serif; box-shadow: 0 8px 24px rgba(28,26,43,.14); border: 1px solid var(--border-strong); }
+.dm-suggest-old { text-decoration: line-through; color: var(--text-muted); }
+.dm-suggest-new { background: var(--color-green-tint); }
+
+/* Review issue: the words an issue points at, selected when it is opened from the list. */
+.dm-section--reviewing { box-shadow: 0 0 0 2px var(--color-amber); border-radius: 8px; }

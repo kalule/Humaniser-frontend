@@ -28,8 +28,17 @@ describe('buildOutline', () => {
     const outline = buildOutline(sections, 'Proposal')
     expect(outline.map(c => c.key).slice(0, 4)).toEqual(['abstract', 'chapter-1', 'chapter-2', 'chapter-3'])
     expect(outline[1].title).toBe('Title 1.0')
-    expect(outline[3].title).toBe('Chapter 3')
+    expect(outline[1].leadCode).toBe('1.0')
+    expect(outline[3].title).toBe('Problem Statement and Justification')
+    expect(outline[3].leadCode).toBeUndefined()
     expect(outline[3].sections.map(s => s.code)).toEqual(['3.1', '3.2'])
+  })
+
+  it('names chapters without an N.0 section, and keeps an N.0 title such as thesis Results', () => {
+    const outline = buildOutline([section('4.1'), section('5.1'), section('6.0', 'NotStarted', { title: 'Results' }), section('9.1')], 'Thesis')
+    expect(outline.filter(c => c.number !== null).map(c => [c.title, c.leadCode])).toEqual([
+      ['Research Questions and Objectives', undefined], ['Methodology', undefined], ['Results', '6.0'], ['Chapter 9', undefined],
+    ])
   })
 
   it('shows Results, Discussion and Conclusion as one locked row for a proposal', () => {

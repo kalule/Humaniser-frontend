@@ -28,6 +28,50 @@ export interface CitationCardEntry {
   note:           string | null
   viewUrl?:       string
   literatureId?:  string
+  /** Source-quality warnings: "n.d.", "Abstract only", "Different population or field", "Not peer reviewed". */
+  qualityFlags?:  string[]
+  /** Where the verdict came from: the in-place "Check citations" run, or the automatic post-draft check. */
+  checkedBy?:     'section_check' | 'auto'
+}
+
+/** The dot shown on each in-text citation. */
+export type CitationVerdictDot = 'supports' | 'partly' | 'not_supported' | 'unchecked'
+
+export const VERDICT_DOT_LABEL: Record<CitationVerdictDot, string> = {
+  supports:      'Supports the claim',
+  partly:        'Partly supports the claim',
+  not_supported: 'Does not support the claim',
+  unchecked:     'Not checked',
+}
+
+export function verdictDot(support: ClaimSupport): CitationVerdictDot {
+  if (support === 'no_issues') return 'supports'
+  if (support === 'partly') return 'partly'
+  if (support === 'not_supported') return 'not_supported'
+  return 'unchecked'
+}
+
+/** Worst verdict across the sources one citation names ("(A, 2020; B, 2021)"). */
+export function worstDot(entries: readonly Pick<CitationCardEntry, 'support'>[]): CitationVerdictDot {
+  const dots = entries.map(e => verdictDot(e.support))
+  for (const d of ['not_supported', 'partly', 'unchecked'] as const) if (dots.includes(d)) return d
+  return dots.length ? 'supports' : 'unchecked'
+}
+
+/**
+ * One citation's result from the in-place "Check citations" run (the Citation Checker's judge run
+ * on this section). Kept for the session; the dots read it before the automatic flags.
+ */
+export interface SectionCheckVerdict {
+  markerText:    string
+  citedAuthors?: string | null
+  citedYear?:    string | null
+  claimText:     string
+  /** Supported | PartiallySupported | NotSupported | Contradicted | CannotVerify; null = not reached. */
+  verdict:       string | null
+  failureType:   string | null
+  reasoning:     string | null
+  flags:         string[]
 }
 
 const CLAIM_NOT_SUPPORTED = new Set(['ClaimContentMismatch', 'Contradicted'])
@@ -71,6 +115,8 @@ export interface CitationContext {
   flags:        CitationFlag[]
   /** The section's claim-support check has not finished yet. */
   pending:      boolean
+  /** Results of this section's in-place "Check citations" run, if one finished this session. */
+  checks?:      SectionCheckVerdict[]
 }
 
 // A project can hold thousands of sources and the editor scans every text node on redraw, so the
@@ -97,8 +143,73 @@ function literatureFor(resolved: ResolvedCitation, literature: FetchedLiterature
     || (l.title === resolved.displayTitle && String(l.year) === String(resolved.year)))
 }
 
+const words = (t: string) => new Set(t.toLowerCase().match(/[a-z0-9]{4,}/g) ?? [])
+const overlap = (a: string, b: string) => {
+  const x = words(a), y = words(b)
+  if (!x.size || !y.size) return 0
+  let n = 0
+  for (const w of x) if (y.has(w)) n++
+  return n / Math.min(x.size, y.size)
+}
+const squash = (t: string) => t.replace(/\\/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
+
+/** The in-place check result for one cited source in this citation, matched on marker, author/year and claim. */
+export function findCheckFor(checks: readonly SectionCheckVerdict[] | undefined, hitText: string, clause: string,
+  surname: string | undefined, year: string | number | undefined, surroundingText: string): SectionCheckVerdict | undefined {
+  if (!checks?.length) return undefined
+  const marker = squash(hitText)
+  const candidates = checks.filter(c => {
+    const m = squash(c.markerText)
+    if (!(m === marker || m.includes(squash(clause)) || marker.includes(m))) return false
+    if (surname && c.citedAuthors && !c.citedAuthors.toLowerCase().includes(surname.toLowerCase())) return false
+    if (year && c.citedYear && String(c.citedYear) !== String(year)) return false
+    return true
+  })
+  if (candidates.length <= 1) return candidates[0]
+  // The same citation in several paragraphs: the one whose checked claim is in this paragraph.
+  return [...candidates].sort((a, b) => overlap(b.claimText, surroundingText) - overlap(a.claimText, surroundingText))[0]
+}
+
+function supportFromCheck(check: SectionCheckVerdict): ClaimSupport {
+  switch (check.verdict) {
+    case 'Supported':          return 'no_issues'
+    case 'PartiallySupported': return 'partly'
+    case 'NotSupported':
+    case 'Contradicted':       return 'not_supported'
+    case null:                 return 'checking'
+    default:                   return 'not_checked'
+  }
+}
+
+const CHECK_FAILURE_NOTE: Partial<Record<string, string>> = {
+  OutcomePredictorInversion: 'Cause and effect are the other way round in the source.',
+  DesignTypeMismatch:        'The source’s study design cannot support this claim.',
+  HedgeInversion:            'The claim is more certain than the source.',
+  PopulationBleed:           'The source studied a different population.',
+  CrossDomainBleed:          'The source is about a different field.',
+}
+
+const OFF_SECTOR = new Set(['PopulationScopeViolation', 'GeographicMismatch', 'GeneralizationBeyondSample'])
+const NOT_PEER_REVIEWED = /arxiv|ssrn|researchgate|preprint|repository|handle\.net|biorxiv|medrxiv|osf\.io|zenodo|figshare|academia\.edu|scribd/i
+const PREPRINT_DOI = /^10\.(?:48550|2139|31219|31235|1101|5281|6084|21203|20944)\//
+
+/** Source-quality warnings for one cited source, from what the project holds about it. */
+export function sourceQualityFlags(lit: FetchedLiterature | undefined, clause: string, flag: CitationFlag | undefined,
+  check: SectionCheckVerdict | undefined): string[] {
+  const out: string[] = []
+  if (/\bn\.\s?d\./i.test(clause) || (lit && (!lit.year || lit.year <= 0))) out.push('n.d. (no year)')
+  if (lit && lit.hasFullText === false) out.push('Abstract only')
+  if (flag?.mismatchTypes.some(t => OFF_SECTOR.has(t)) || check?.failureType === 'PopulationBleed' || check?.failureType === 'CrossDomainBleed') {
+    out.push('Different population, place or field')
+  }
+  if (lit && (NOT_PEER_REVIEWED.test(`${lit.url ?? ''} ${lit.source ?? ''}`) || (lit.doi && PREPRINT_DOI.test(lit.doi)))) out.push('May not be peer reviewed')
+  return out
+}
+
 /** One entry per cited source in the hit ("(A, 2020; B, 2021)" gives two). */
-export function describeCitation(hit: CitationHit, surroundingText: string, ctx: CitationContext): CitationCardEntry[] {
+const hitTextOf = (hit: CitationHit & { text?: string }) => hit.text ?? `(${hit.inner})`
+
+export function describeCitation(hit: CitationHit & { text?: string }, surroundingText: string, ctx: CitationContext, dirty = false): CitationCardEntry[] {
   const resolved = ctx.style === 'ieee'
     ? (() => { const r = resolveIeeeHit(hit, ctx.bibliography, ctx.literature); return r ? [r] : [] })()
     : resolveHitAgainstLiterature(hit, ctx.style, ctx.literature) ?? []
@@ -107,21 +218,33 @@ export function describeCitation(hit: CitationHit, surroundingText: string, ctx:
     return [{ clause: hit.inner, title: `(${hit.inner})`, sourceExists: false, ambiguous: false, fullTextPinned: null,
       support: 'not_checked', note: ctx.style === 'ieee' ? 'This number is not in the reference list yet.' : 'No pinned source matches this citation.' }]
   }
+  const hitText = hitTextOf(hit)
   return resolved.map((r, i) => {
     const flag = r.matchedSource ? findFlagForHit(r.doi, surroundingText, ctx.flags) : undefined
     const lit = literatureFor(r, ctx.literature)
+    const clause = clauses[i] ?? hit.inner
+    const surname = r.authors ? extractSurnamesFromAuthors(r.authors)[0] : undefined
+    const check = findCheckFor(ctx.checks, hitText, clause, surname, r.year, surroundingText)
+    let support = check ? supportFromCheck(check) : supportFrom(flag, ctx.pending, r.matchedSource)
+    let note = check
+      ? (CHECK_FAILURE_NOTE[check.failureType ?? ''] ?? check.reasoning?.split(/(?<=\.)\s/)[0] ?? null)
+      : (noteFrom(flag) ?? (r.matchedSource ? null : 'No pinned source matches this citation.'))
+    // The text around the citation changed after it was checked: the verdict no longer applies.
+    if (dirty && r.matchedSource) { support = 'not_checked'; note = 'The text around this citation changed since it was checked. Run Check citations again.' }
     return {
-      clause:         clauses[i] ?? hit.inner,
+      clause,
       title:          r.displayTitle,
       authors:        r.authors,
       year:           r.year,
       sourceExists:   r.matchedSource,
       ambiguous:      (r.candidates?.length ?? 0) > 1,
       fullTextPinned: lit ? lit.hasFullText === true : null,
-      support:        supportFrom(flag, ctx.pending, r.matchedSource),
-      note:           noteFrom(flag) ?? (r.matchedSource ? null : 'No pinned source matches this citation.'),
+      support,
+      note,
       viewUrl:        r.viewUrl,
       literatureId:   lit?.id,
+      qualityFlags:   sourceQualityFlags(lit, clause, flag, check),
+      checkedBy:      check ? 'section_check' : 'auto',
     }
   })
 }
@@ -149,4 +272,27 @@ export function swapCitationText(hitText: string, clauseIndex: number, replaceme
   if (clauseIndex < 0 || clauseIndex >= clauses.length) return formatted
   clauses[clauseIndex] = inner
   return `(${clauses.join('; ')})`
+}
+
+/**
+ * The citation text with one cited source taken out: "(A, 2020; B, 2021)" minus B gives
+ * "(A, 2020)"; the only source of a parenthetical citation gives "" (the whole citation goes).
+ * Null for a narrative citation ("Klishi (2024) found..."), where removing the name breaks the
+ * sentence, and for IEEE numbers.
+ */
+export function removeCitationText(hitText: string, clauseIndex: number, style: CitationStyle): string | null {
+  if (style === 'ieee' || !hitText.startsWith('(') || !hitText.endsWith(')')) return null
+  const clauses = hitText.slice(1, -1).split(';').map(c => c.trim()).filter(Boolean)
+  if (clauseIndex < 0 || clauseIndex >= clauses.length) return null
+  clauses.splice(clauseIndex, 1)
+  return clauses.length ? `(${clauses.join('; ')})` : ''
+}
+
+/** A new parenthetical citation for a pinned source ("(Klishi, 2024)"); null for IEEE, whose numbers come from the compiled list. */
+export function inTextCitationFor(source: FetchedLiterature, style: CitationStyle): string | null {
+  if (style === 'ieee') return null
+  const surnames = extractSurnamesFromAuthors(source.authors)
+  if (surnames.length === 0) return null
+  const ref: ParsedReference = { id: 0, surnames, year: source.year ? String(source.year) : 'n.d.', raw: source.title }
+  return formatInTextCitation(ref, style, 0)
 }

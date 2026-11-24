@@ -14,7 +14,10 @@ import { isAbstractStepLocked } from '../pages/app/abstractStepStatus'
  *   NotStarted, gate shut  -> locked        (a gate such as Research State or the Abstract's rule)
  *   NotStarted otherwise   -> queued
  */
-export type DocumentSectionStatus = 'queued' | 'writing' | 'needs_review' | 'approved' | 'locked'
+export type DocumentSectionStatus =
+  | 'queued' | 'writing' | 'needs_review' | 'approved' | 'locked'
+  // Review marks layered over the server status (see withReviewMarks); never returned by documentStatus.
+  | 'edited_after_approval' | 'stale'
 
 /** Why a section cannot be drafted right now. `locked` is a gate; the rest are "not yet". */
 export type DraftBlocker = 'writing' | 'not_applicable' | 'locked' | 'prerequisite' | 'methodology' | 'design'
@@ -200,6 +203,27 @@ export const DOCUMENT_STATUS_LABELS: Record<DocumentSectionStatus, string> = {
   needs_review: 'Needs review',
   approved:     'Approved',
   locked:       'Locked',
+  edited_after_approval: 'Edited after approval',
+  stale:        'May be out of date',
+}
+
+/** A section with text the student can read and edit (everything except queued, writing and locked). */
+export const hasSectionBody = (status: DocumentSectionStatus) =>
+  status === 'needs_review' || status === 'approved' || status === 'edited_after_approval' || status === 'stale'
+
+/**
+ * The status shown for a section: the server-derived status, plus two review marks the student
+ * should see. Writing, queued and locked always win (there is no text to review). Stale (a design
+ * contract field it states changed) outranks "edited after approval", which only applies while the
+ * server still has the section approved or demoted it to Edited after an approval.
+ */
+export function withReviewMarks(
+  status: DocumentSectionStatus, marks: { stale: boolean; editedAfterApproval: boolean },
+): DocumentSectionStatus {
+  if (!hasSectionBody(status)) return status
+  if (marks.stale) return 'stale'
+  if (marks.editedAfterApproval) return 'edited_after_approval'
+  return status
 }
 
 // Shared by every view that reads sections (Guided rail, Guided editor, Document view, exports):

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countBodyWords } from './wordCount'
+import { countBodyWords, splitTrailingReferences } from './wordCount'
 
 describe('countBodyWords', () => {
   it('counts all words when there is no references section', () => {
@@ -29,5 +29,24 @@ describe('countBodyWords', () => {
     const referenceList = 'Body text here.\n\nreference list (3)\nSmith 2020.'
     expect(countBodyWords(bibliography)).toBe(3)
     expect(countBodyWords(referenceList)).toBe(3)
+  })
+})
+
+describe('splitTrailingReferences', () => {
+  it('splits off the References block so body + tail is the original text', () => {
+    const content = 'Body text here.\n\n---\n\n### References (2)\n\n1. A (2020). One.\n2. B (2021). Two.'
+    const { body, tail } = splitTrailingReferences(content)
+    expect(body).toBe('Body text here.')
+    expect(tail.startsWith('\n\n---\n\n### References (2)')).toBe(true)
+    expect(body + tail).toBe(content)
+  })
+
+  it('recognises a bold References heading', () => {
+    const { body } = splitTrailingReferences('Body.\n\n**References**\n\nA (2020). One.')
+    expect(body).toBe('Body.')
+  })
+
+  it('returns the whole text as body when there is no References block', () => {
+    expect(splitTrailingReferences('Just body.')).toEqual({ body: 'Just body.', tail: '' })
   })
 })

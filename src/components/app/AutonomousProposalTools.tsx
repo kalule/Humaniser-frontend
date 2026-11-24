@@ -643,6 +643,57 @@ const NO_SECTIONS: ProjectSection[] = []
 // Sections carry full section text, so refreshing them is much heavier than the status poll.
 const SECTIONS_REFRESH_MS = 6000
 
+/**
+ * Proposal Studio's notice for an automatic run found on the list page: one line and a way into
+ * the document, where the run is shown live (the full progress dialog is not used there anymore).
+ */
+export function GenerationBanner({ gen, onOpenDocument, onResume, onCancel, onClose, resuming }: {
+  gen:            GenerationState
+  onOpenDocument: () => void
+  onResume:       () => void
+  onCancel:       () => void
+  onClose:        () => void
+  resuming:       boolean
+}) {
+  const active = gen.phase === 'Starting' || gen.phase === 'Generating'
+  const [confirmStop, setConfirmStop] = useState(false)
+  const total = gen.totalCount ?? PROPOSAL_SECTION_COUNT
+  const pct = Math.min(100, Math.round((gen.index / Math.max(1, total)) * 100))
+  const headline = active ? (gen.stalled ? 'Waiting for the writing worker' : `Writing ${gen.currentLabel || 'your proposal'}`)
+    : gen.phase === 'NeedsReview' ? `Paused at ${gen.currentLabel || 'a section'} for your review`
+    : gen.phase === 'Completed' ? 'Proposal written'
+    : gen.phase === 'Cancelled' ? 'Run stopped' : 'Run stopped by an error'
+  return (
+    <div role="status" aria-live="polite" className="rounded-2xl border border-slate-200 bg-white shadow-sm px-5 py-3.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+      {active ? <Loader2 size={16} className="animate-spin text-[#7c3aed] shrink-0" aria-hidden />
+        : <span aria-hidden className={cn('w-2 h-2 rounded-full shrink-0', gen.phase === 'Completed' ? 'bg-emerald-500' : 'bg-amber-500')} />}
+      <div className="min-w-0 flex-1 basis-60">
+        <p className="text-[13px] font-semibold text-slate-800 truncate">{headline}</p>
+        <p className="text-[12px] text-slate-500 truncate">{gen.title} · {gen.index} of {total} sections · {gen.words.toLocaleString()} words</p>
+        <div className="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+          <div className="h-full bg-[#7c3aed] transition-all duration-500" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <button type="button" onClick={onOpenDocument} className="rounded-full bg-[#7c3aed] px-4 py-1.5 text-[13px] font-semibold text-white hover:bg-[#6d28d9]">
+          {active ? 'Watch it write' : 'Open document'}
+        </button>
+        {!active && gen.phase !== 'Completed' && (
+          <button type="button" onClick={onResume} disabled={resuming} className="rounded-full border border-slate-300 px-4 py-1.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+            {resuming ? 'Resuming…' : 'Resume'}
+          </button>
+        )}
+        {active && (confirmStop ? (
+          <button type="button" onClick={() => { setConfirmStop(false); onCancel() }} className="rounded-full border border-red-300 px-4 py-1.5 text-[13px] font-semibold text-red-700 hover:bg-red-50">Stop the run?</button>
+        ) : (
+          <button type="button" onClick={() => setConfirmStop(true)} className="rounded-full border border-slate-300 px-4 py-1.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50">Stop</button>
+        ))}
+        <button type="button" onClick={onClose} aria-label="Hide" className="rounded-md p-1.5 text-slate-400 hover:text-slate-600"><X size={15} /></button>
+      </div>
+    </div>
+  )
+}
+
 export function GenerationPanel({ gen, onToggleArticleView, onCancel, onClose, onOpenDocument, onResume, resuming }: {
   gen:                 GenerationState
   onToggleArticleView: () => void
@@ -733,6 +784,9 @@ function writeDismissedSignature(projectId: string, signature: string) {
   }
 }
 
+/** The workspace's Document view, where an automatic run is watched as it writes. */
+const documentViewUrl = (projectId: string) => `/app/research-agent/${projectId}?view=document`
+
 export function useAutonomousProposalFlow() {
   const navigate      = useNavigate()
   const researchStore = useResearchStore()
@@ -743,6 +797,8 @@ export function useAutonomousProposalFlow() {
   const [gen, setGen] = useState<GenerationState | null>(null)
   const [resuming, setResuming] = useState(false)
   const resumePending = useRef(false)
+  // Where the run was paused when the student pressed Resume, so a pause on the same section can be explained.
+  const resumeCheck = useRef<{ projectId: string; section: string | null | undefined; completed: number } | null>(null)
   const explicitOpenRevision = useRef(0)
   const [pollRevision, setPollRevision] = useState(0)
 
@@ -845,6 +901,14 @@ export function useAutonomousProposalFlow() {
         if (status.status === 'Starting' || status.status === 'Generating') {
           timer = window.setTimeout(poll, 2500)
         } else {
+          // Resume re-checks the paused section; if it pauses on the same one again, its review items are
+          // still open (for example citations that fail the integrity check) and Resume cannot clear them.
+          const before = resumeCheck.current
+          resumeCheck.current = null
+          if (before && before.projectId === projectId && status.status === 'NeedsReview'
+              && status.currentSection === before.section && status.completedCount <= before.completed) {
+            toast.error(`${labelForSectionCode(status.currentSection)} is still waiting for your review. It has citation or evidence issues that Resume cannot fix. Choose "Review in workspace", fix or remove the flagged citations (or approve the section), then resume.`, { duration: 12000 })
+          }
           researchStore.loadProjects().catch(() => {})
         }
       } catch {
@@ -920,14 +984,12 @@ export function useAutonomousProposalFlow() {
       // citationStyle/sectionContent set here once syncProject actually
       // pushes them, so this must happen before starting the job.
       await researchStore.syncProject(project.id)
-      const status = await startAutonomousProposal(project.id, { methodologyType: config.methodologyType, dataCollectionApproach: config.dataCollectionApproach }, perSectionWords)
+      await startAutonomousProposal(project.id, { methodologyType: config.methodologyType, dataCollectionApproach: config.dataCollectionApproach }, perSectionWords)
       setShowCreateModal(false)
-      setGen({ projectId: project.id, title: config.title, phase: status.status, index: status.completedCount, currentLabel: labelForSectionCode(status.currentSection), currentSection: status.currentSection, totalCount: status.totalCount, words: status.wordsWritten, failedCount: status.failedCount, articleView: false, stalled: false, startedAt: Date.now(), perSectionWords })
-      researchStore.loadProject(project.id).catch(() => {})
-      // Enqueues ProposalGenerationJob server-side (Hangfire) and returns
-      // immediately — the polling effect above picks up progress from here.
-      // Runs independently of this page: closing the tab, navigating away, or
-      // refreshing no longer stops generation.
+      // Enqueues ProposalGenerationJob server-side (Hangfire) and returns immediately. The student
+      // watches it in the document itself: the workspace's Document view streams each section in
+      // place and shows the run in its Agent panel (stop, pause for review, resume).
+      navigate(documentViewUrl(project.id))
     } catch (error) {
       setShowCreateModal(false)
       setGen({ projectId: project.id, title: config.title, phase: 'Error', index: 0, currentLabel: '', words: 0, failedCount: 0, articleView: false, stalled: false })
@@ -949,6 +1011,7 @@ export function useAutonomousProposalFlow() {
     resumePending.current = true
     setResuming(true)
     const projectId = gen.projectId
+    resumeCheck.current = { projectId, section: gen.currentSection, completed: gen.index }
     try {
       await researchStore.loadProject(projectId)
       const stored = useResearchStore.getState().projects.find(p => p.id === projectId)?.sectionContent?.targetSectionWordCount
@@ -958,6 +1021,8 @@ export function useAutonomousProposalFlow() {
       progressRef.current = { projectId, key: `${status.completedCount}|${status.currentSection}|${status.wordsWritten}`, since: Date.now() }
       setGen(g => g?.projectId === projectId ? { ...g, phase: status.status, index: status.completedCount, currentSection: status.currentSection, currentLabel: labelForSectionCode(status.currentSection), totalCount: status.totalCount, words: status.wordsWritten, failedCount: status.failedCount, stalled: false, articleView: false, startedAt: Date.now(), perSectionWords: target } : g)
       setPollRevision(v => v + 1)
+      // Watch the resumed run where it writes: in the document.
+      navigate(documentViewUrl(projectId))
     } catch (error) {
       const apiError = error as { response?: { data?: { message?: string } }; message?: string }
       toast.error(apiError.response?.data?.message || apiError.message || 'Could not resume generation. Try again.')
@@ -983,13 +1048,8 @@ export function useAutonomousProposalFlow() {
         navigate(`/app/research-agent/${projectId}${status.status === 'Completed' ? '?section=1.0' : ''}`)
         return
       }
-      progressRef.current = { projectId, key: `${status.completedCount}|${status.currentSection}|${status.wordsWritten}`, since: Date.now() }
-      setGen({ projectId, title: project.title, phase: status.status, index: status.completedCount,
-        currentLabel: labelForSectionCode(status.currentSection), currentSection: status.currentSection,
-        totalCount: status.totalCount, words: status.wordsWritten, failedCount: status.failedCount,
-        articleView: false, stalled: false, startedAt: Date.now(), perSectionWords: target })
-      setPollRevision(v => v + 1)
-      void researchStore.loadProjects()
+      // Running or paused: open the document, where the run is shown live.
+      navigate(documentViewUrl(projectId))
     } catch (error) {
       const apiError = error as { response?: { data?: { message?: string } }; message?: string }
       toast.error(apiError.response?.data?.message || apiError.message || 'Generation could not resume. Review the proposal workspace.')
@@ -1018,8 +1078,7 @@ export function useAutonomousProposalFlow() {
       navigate(`/app/research-agent/${gen.projectId}?section=1.0`)
       return
     }
-    const suffix = gen.currentSection ? `?section=${encodeURIComponent(gen.currentSection)}` : ''
-    navigate(`/app/research-agent/${gen.projectId}${suffix}`)
+    navigate(documentViewUrl(gen.projectId))
   }
 
   return {

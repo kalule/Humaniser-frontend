@@ -41,7 +41,18 @@ export function parseDraftFrames(buffer: string, incoming: string): { frames: Dr
   return { frames, remainder }
 }
 
-const countWords = (text: string) => (text.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu) ?? []).length
+/** A References / Bibliography heading line (the model ends each draft with one, often listing dozens of sources). */
+const REFERENCES_HEADING = /^[ \t]*(?:#{1,6}[ \t]*)?\**[ \t]*(?:references|reference list|bibliography)[ \t]*(?:\(\d+\))?[ \t:*]*$/im
+
+/**
+ * Words in the section body, the References block excluded — the same rule the server uses for the saved word count
+ * (StripTrailingReferences). Counting the block made the live counter read 1,746 for a 596-word body (2026-11-23).
+ */
+export const countBodyWords = (text: string) => {
+  const heading = text.search(REFERENCES_HEADING)
+  const body = heading >= 0 ? text.slice(0, heading) : text
+  return (body.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu) ?? []).length
+}
 
 interface Live {
   draft:     LiveDraft
@@ -75,7 +86,7 @@ function flush(live: Live) {
   if (!live.pending) return
   const text = live.draft.text + live.pending
   live.pending = ''
-  publish(live, { text, words: countWords(text) })
+  publish(live, { text, words: countBodyWords(text) })
 }
 
 function connect(projectId: string, code: string, live: Live) {

@@ -1,9 +1,10 @@
 import { memo, useEffect, useRef, type RefObject } from 'react'
-import { AlertTriangle, ExternalLink, Lock, SearchCheck, Square } from 'lucide-react'
+import { AlertTriangle, ExternalLink, GitCompare, History, Loader2, Lock, SearchCheck, Square } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { sectionCheckLink } from '../../../lib/citationCheckView'
 import type { ProjectSection } from '../../../types/research'
-import { isSectionHeld, type DocumentSectionStatus, type DraftDecision } from '../../../lib/sectionWorkflow'
+import { hasSectionBody, isSectionHeld, type DocumentSectionStatus, type DraftDecision } from '../../../lib/sectionWorkflow'
+import type { SectionCheckState } from '../../../lib/sectionCitationCheck'
 import type { SectionFlag } from '../../../lib/documentOutline'
 import { SECTION_PROMPTS } from '../../../data/proposalOutline'
 import { useNearViewport } from '../../../hooks/useNearViewport'
@@ -31,6 +32,21 @@ export interface DocumentSectionBlockProps {
   onStop:        (code: string) => void
   isStopping:    boolean
   registerFlush: (code: string, flush: (() => Promise<boolean>) | null) => void
+  /** The chapter heading already shows this section's title ("1.0 Introduction" under "Introduction"). */
+  hideHeading?:  boolean
+  /** Design-contract fields that changed since this section was last reviewed (status stale). */
+  staleFields?:  string[]
+  onMarkReviewed?: (code: string) => void
+  onEditedApproved?: (code: string) => void
+  registerReveal?: (code: string, reveal: ((text: string | null) => boolean) | null) => void
+  /** In-place claim-source check of this section's citations. */
+  onCheckCitations?: (code: string) => void
+  checkState?:   SectionCheckState
+  /** A rewrite over the student's edited text is waiting for their per-change review. */
+  rewriteReviewPending?: boolean
+  onOpenRewriteReview?: (code: string) => void
+  /** The server still has this section approved (edited-after-approval needs no new approval). */
+  serverApproved?: boolean
 }
 
 const FLAG_LABEL: Record<SectionFlag['kind'], string> = {
@@ -48,13 +64,15 @@ const actionClass = 'dm-action rounded-lg text-[13px] px-4 py-2 transition-color
 function DocumentSectionBlockImpl({
   projectId, section, status, flags, draft, lockedReason, isApproving, scrollRoot, registerAnchor,
   onApprove, onRewrite, onOpenGuided, onDemoted, registerFlush, onDraft, onStop, isStopping,
+  hideHeading = false, staleFields, onMarkReviewed, onEditedApproved, registerReveal, onCheckCitations, checkState,
+  rewriteReviewPending = false, onOpenRewriteReview, serverApproved = false,
 }: DocumentSectionBlockProps) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const measured = useRef<number | null>(null)
   const near = useNearViewport(bodyRef, scrollRoot)
   const label = `${section.displayCode || section.code} ${section.title}`
   const headingId = `doc-heading-${section.code}`
-  const hasBody = status === 'needs_review' || status === 'approved'
+  const hasBody = hasSectionBody(status)
 
   // Remember the real height while mounted so the placeholder keeps the same size off-screen.
   useEffect(() => {
@@ -65,7 +83,7 @@ function DocumentSectionBlockImpl({
     return () => observer.disconnect()
   }, [near, hasBody])
 
-  const review = status === 'needs_review'
+  const review = status === 'needs_review' || status === 'stale' || status === 'edited_after_approval'
   const uncosted = hasBody ? countUncostedRows(section.content) : 0
   const blockedRewrite = !draft.allowed
 
@@ -74,11 +92,13 @@ function DocumentSectionBlockImpl({
       aria-labelledby={headingId}
       ref={el => registerAnchor(section.code, el)}
       data-section-code={section.code}
-      className={review ? 'rounded-[10px] -mx-3 sm:-mx-5 px-3 sm:px-5 pt-3.5 pb-4 my-3' : 'py-2 my-1'}
-      style={review ? { background: 'color-mix(in srgb, var(--color-amber-tint) 40%, white)', border: '1px solid var(--color-amber)' } : undefined}
+      className="rounded-[10px] -mx-3 sm:-mx-5 px-3 sm:px-5 pt-3 pb-3 my-2"
+      style={review
+        ? { background: 'color-mix(in srgb, var(--color-amber-tint) 40%, white)', border: '1px solid var(--color-amber)' }
+        : { border: '1px solid transparent' }}
     >
       <div className="flex items-center gap-2.5 flex-wrap mb-2">
-        <h3 id={headingId} tabIndex={-1} className="dm-heading m-0 text-[18px] font-semibold" style={{ fontFamily: 'Georgia, serif', color: 'var(--text-primary)' }}>
+        <h3 id={headingId} tabIndex={-1} className={hideHeading ? 'sr-only' : 'dm-heading m-0 text-[18px] font-semibold'} style={{ fontFamily: 'Georgia, serif', color: 'var(--text-primary)' }}>
           {label}
         </h3>
         {status === 'writing' ? <WritingChip projectId={projectId} code={section.code} /> : <SectionStatusChip status={status} />}
@@ -100,7 +120,24 @@ function DocumentSectionBlockImpl({
         >
           <ExternalLink size={12} aria-hidden="true" /> Open in Guided
         </button>
-        {hasBody && section.content.trim() && (
+        {hasBody && section.content.trim() && (onCheckCitations ? (
+          <>
+            <button type="button" onClick={() => onCheckCitations(section.code)} disabled={checkState === 'running'}
+              className="dm-action inline-flex items-center gap-1 text-[12px] rounded-md px-2 py-1 hover:bg-white/60 disabled:opacity-70"
+              style={{ color: 'var(--text-secondary)' }}
+              aria-label={checkState === 'running' ? `Checking the citations in ${label}` : `Check the citations in ${label}`}>
+              {checkState === 'running' ? <Loader2 size={12} className="animate-spin" aria-hidden="true" /> : <SearchCheck size={12} aria-hidden="true" />}
+              {checkState === 'running' ? 'Checking…' : 'Check citations'}
+            </button>
+            {checkState === 'done' && (
+              <Link to={sectionCheckLink(projectId, section.code, label)}
+                className="dm-action text-[12px] rounded-md px-1 py-1 hover:underline" style={{ color: 'var(--text-muted)' }}
+                aria-label={`Open the full citation check page for ${label}`}>
+                Full report
+              </Link>
+            )}
+          </>
+        ) : (
           <Link
             to={sectionCheckLink(projectId, section.code, label)}
             className="dm-action inline-flex items-center gap-1 text-[12px] rounded-md px-2 py-1 hover:bg-white/60"
@@ -109,8 +146,28 @@ function DocumentSectionBlockImpl({
           >
             <SearchCheck size={12} aria-hidden="true" /> Check citations
           </Link>
-        )}
+        ))}
       </div>
+
+      {status === 'stale' && staleFields && staleFields.length > 0 && (
+        <p className="m-0 mb-3 flex items-start gap-2 text-[13px] leading-[1.45] rounded-lg px-3 py-2 bg-white"
+          style={{ border: '1px solid var(--color-amber)', color: 'var(--color-amber-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+          <History size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span><b className="font-semibold">May be out of date:</b> the design contract changed ({staleFields.join(', ')}). Check that this section still matches it; nothing was rewritten.</span>
+        </p>
+      )}
+
+      {rewriteReviewPending && (
+        <div className="m-0 mb-3 flex flex-wrap items-center gap-2 text-[13px] leading-[1.45] rounded-lg px-3 py-2 bg-white"
+          style={{ border: '1px solid var(--color-purple)', color: 'var(--text-primary)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+          <GitCompare size={13} className="shrink-0" aria-hidden="true" style={{ color: 'var(--color-purple-text)' }} />
+          <span className="flex-1 min-w-[12rem]">The rewrite is ready. Your edited version is kept until you choose which changes to accept.</span>
+          <button type="button" onClick={() => onOpenRewriteReview?.(section.code)}
+            className="dm-action rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white" style={{ background: 'var(--color-purple)' }}>
+            Review changes
+          </button>
+        </div>
+      )}
 
       {hasBody && flags.length > 0 && (
         // Above the text, not after it: a flag at the end of a 500-word section is a flag nobody sees.
@@ -141,7 +198,9 @@ function DocumentSectionBlockImpl({
 
         {status === 'queued' && (
           <div className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-            <p className="m-0 italic" style={{ fontFamily: 'Georgia, serif' }}>{SECTION_PROMPTS[section.code]?.prompt ?? 'Not drafted yet.'}</p>
+            {section.isApplicableForMethodology === false
+              ? <p className="m-0">{section.notApplicableReason || 'This section is not needed for this study.'}</p>
+              : <p className="m-0 italic" style={{ fontFamily: 'Georgia, serif' }}>{SECTION_PROMPTS[section.code]?.prompt ?? 'Not drafted yet.'}</p>}
             {section.isApplicableForMethodology !== false && (
               <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
                 <button type="button" onClick={() => onDraft(section.code)} disabled={!draft.allowed}
@@ -160,7 +219,8 @@ function DocumentSectionBlockImpl({
 
         {hasBody && (near
           ? <SectionEditor projectId={projectId} code={section.code} content={section.content} label={label}
-              editable={!isSectionHeld(section)} onDemoted={onDemoted} registerFlush={registerFlush}
+              editable={!isSectionHeld(section) && !rewriteReviewPending} onDemoted={onDemoted} registerFlush={registerFlush}
+              onEditedApproved={onEditedApproved} registerReveal={registerReveal} onCheckClaim={onCheckCitations}
               citationsPending={section.citationsPendingVerification} />
           : <div aria-hidden="true" style={{ height: measured.current ?? estimateHeight(section.wordCount) }} />)}
       </div>
@@ -170,8 +230,15 @@ function DocumentSectionBlockImpl({
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => onApprove(section.code)} disabled={isApproving}
               className={`${actionClass} font-semibold text-white disabled:opacity-60`} style={{ background: 'var(--color-purple)' }}>
-              {isApproving ? 'Approving…' : 'Approve'}
+              {isApproving ? 'Approving…' : status === 'needs_review' || !serverApproved ? 'Approve' : 'Approve again'}
             </button>
+            {status === 'stale' && onMarkReviewed && (
+              <button type="button" onClick={() => onMarkReviewed(section.code)}
+                className={`${actionClass} bg-white hover:bg-slate-50`}
+                style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
+                Still matches
+              </button>
+            )}
             <button type="button" onClick={() => onRewrite(section.code)} disabled={blockedRewrite}
               title={draft.reason ?? undefined}
               className={`${actionClass} bg-white hover:bg-slate-50 disabled:opacity-60`}
@@ -203,6 +270,7 @@ const flagsKey = (flags: SectionFlag[]) => flags.map(f => `${f.id}:${f.message}`
  */
 export const DocumentSectionBlock = memo(DocumentSectionBlockImpl, (a, b) =>
   a.status === b.status
+  && a.hideHeading === b.hideHeading
   && a.isApproving === b.isApproving
   && a.lockedReason === b.lockedReason
   && a.draft.allowed === b.draft.allowed && a.draft.reason === b.draft.reason
@@ -217,5 +285,9 @@ export const DocumentSectionBlock = memo(DocumentSectionBlockImpl, (a, b) =>
   && a.onDemoted === b.onDemoted && a.registerFlush === b.registerFlush
   && a.onDraft === b.onDraft && a.onStop === b.onStop && a.isStopping === b.isStopping
   && flagsKey(a.flags) === flagsKey(b.flags)
+  && (a.staleFields ?? []).join('|') === (b.staleFields ?? []).join('|')
+  && a.checkState === b.checkState && a.rewriteReviewPending === b.rewriteReviewPending && a.serverApproved === b.serverApproved
+  && a.onMarkReviewed === b.onMarkReviewed && a.onEditedApproved === b.onEditedApproved && a.registerReveal === b.registerReveal
+  && a.onCheckCitations === b.onCheckCitations && a.onOpenRewriteReview === b.onOpenRewriteReview
   && a.onApprove === b.onApprove && a.onRewrite === b.onRewrite && a.onOpenGuided === b.onOpenGuided
   && a.registerAnchor === b.registerAnchor && a.scrollRoot === b.scrollRoot)

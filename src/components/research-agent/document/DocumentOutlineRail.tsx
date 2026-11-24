@@ -78,13 +78,30 @@ function DocumentOutlineRailImpl({ chapters, rows, activeCode, progress, onSelec
               </button>
             ) : (
               <>
-                <div className="text-[12px] font-semibold px-2 py-1.5" style={{ color: 'var(--text-primary)' }}>
-                  {chapter.number !== null && chapter.title !== `Chapter ${chapter.number}` ? `${chapter.number}  ${chapter.title}` : chapter.title}
-                </div>
+                {(() => {
+                  const heading = chapter.number !== null ? `${chapter.number}  ${chapter.title}` : chapter.title
+                  const lead = chapter.leadCode ? chapter.sections.find(s => s.code === chapter.leadCode) : undefined
+                  const leadRow = lead ? rows[lead.code] : undefined
+                  if (!lead || !leadRow) {
+                    return <div className="text-[12px] font-semibold px-2 py-1.5" style={{ color: 'var(--text-primary)' }}>{heading}</div>
+                  }
+                  // The chapter heading is the N.0 section's row, so "1.0 Introduction" is not listed twice.
+                  const active = lead.code === activeCode
+                  return (
+                    <button type="button" data-outline-item onClick={() => onSelect(lead.code)}
+                      aria-current={active ? 'location' : undefined}
+                      className="dm-outline-item w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] font-semibold hover:bg-slate-50"
+                      style={active ? { background: 'var(--color-purple-tint)', color: 'var(--text-primary)' } : { color: 'var(--text-primary)' }}>
+                      <SectionStatusMark status={leadRow.status} />
+                      <span className="flex-1 min-w-0 truncate">{heading}<span className="sr-only"> ({lead.displayCode || lead.code})</span></span>
+                      {trailing(leadRow, lead.wordCount)}
+                    </button>
+                  )
+                })()}
                 <ul className="list-none m-0 p-0">
                   {chapter.sections.map(s => {
                     const row = rows[s.code]
-                    if (!row) return null
+                    if (!row || s.code === chapter.leadCode) return null
                     const active = s.code === activeCode
                     return (
                       <li key={s.code}>

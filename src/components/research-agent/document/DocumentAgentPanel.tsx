@@ -1,11 +1,25 @@
-import { memo, useState } from 'react'
-import { ArrowDown, Check, Circle, Square, X } from 'lucide-react'
-import type { ProjectSection } from '../../../types/research'
+import { memo, useEffect, useState, type ReactNode } from 'react'
+import { ArrowDown, Check, Circle, Play, Square, X } from 'lucide-react'
+import type { GenerationStatus, ProjectSection } from '../../../types/research'
 import type { DraftAction } from '../../../lib/draftPlan'
 import { useLiveDraft } from '../../../lib/liveDraftStore'
+import { isRunActive } from '../../../lib/proposalRun'
+import type { DocumentCounts } from '../../../lib/documentOutline'
 import type { ActivityEntry } from './DocumentModeView'
 
+/** The automatic whole-proposal run, when this project has one. */
+export interface RunInfo {
+  status:   GenerationStatus
+  /** Section label for the run's current section ("1.2 Background"), if known. */
+  currentLabel: string | null
+  resuming: boolean
+  stopping: boolean
+  onResume: () => void
+  onStop:   () => void
+}
+
 interface Props {
+  run?:         RunInfo | null
   projectId:    string
   writing:      ProjectSection[]
   /** Flagged sections in reading order (empty when flag counts are hidden). */
@@ -18,8 +32,6 @@ interface Props {
   /** Sections still waiting in the chapter being drafted. */
   queued:       string[]
   onDraftAction: () => void
-  onStop:       (code: string) => void
-  stoppingCode: string | null
   targetWords:  number
   activity:     ActivityEntry[]
   onJump:       (code: string) => void
@@ -30,6 +42,15 @@ interface Props {
   /** The opt-in "draft ahead, review later" setting for Chapters 1-3. */
   draftAhead:   boolean
   onToggleDraftAhead: () => void
+  /** The document's own section counts: the same numbers the outline shows. */
+  counts:       DocumentCounts
+  /** Stops everything: the whole-proposal run, every section being drafted, and the queue. */
+  onStopAll:    () => void
+  stoppingAll:  boolean
+  /** Pinned design contract panel, shown first. */
+  contract?:    ReactNode
+  /** Review issues card. */
+  review?:      ReactNode
 }
 
 export interface FlagGroup { code: string; label: string; count: number }
@@ -89,9 +110,9 @@ function Mark({ state }: { state: ActivityEntry['state'] }) {
 }
 
 /** The section being drafted: progress, sources read, and what the run is doing. Watches only its own stream. */
-function NowDrafting({ projectId, section, targetWords, queued, onJump, onStop, stopping }: {
+function NowDrafting({ projectId, section, targetWords, queued, onJump }: {
   projectId: string; section: ProjectSection; targetWords: number; queued: string[]
-  onJump: (code: string) => void; onStop: (code: string) => void; stopping: boolean
+  onJump: (code: string) => void
 }) {
   const live = useLiveDraft(projectId, section.code)
   const pct = Math.min(100, Math.round((live.words / Math.max(1, targetWords)) * 100))
@@ -109,11 +130,6 @@ function NowDrafting({ projectId, section, targetWords, queued, onJump, onStop, 
             {label(section)}
           </button>
         </div>
-        <button type="button" onClick={() => onStop(section.code)} disabled={stopping}
-          className="dm-action shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60"
-          style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }} aria-label={`Stop drafting ${label(section)}`}>
-          <Square size={10} aria-hidden="true" /> {stopping ? 'Stopping…' : 'Stop'}
-        </button>
       </div>
       <div className="h-1.5 rounded-full mt-2.5" style={{ background: 'var(--surface-rail)' }}
         role="progressbar" aria-valuemin={0} aria-valuemax={targetWords} aria-valuenow={live.words} aria-label={`${live.words} of about ${targetWords} words`}>
@@ -133,20 +149,117 @@ function NowDrafting({ projectId, section, targetWords, queued, onJump, onStop, 
   )
 }
 
+const clock = (ms: number) => {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/**
+ * The whole-proposal run at a glance: what it is writing, how far it is, and, when it pauses for
+ * review, which section to look at and a Resume button. The section text itself streams into the
+ * document, not here.
+ */
+function RunCard({ run, counts, onJump }: { run: RunInfo; counts: DocumentCounts; onJump: (code: string) => void }) {
+  const { status } = run
+  const active = isRunActive(status)
+  const started = status.runStartedAt ? Date.parse(status.runStartedAt) : NaN
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!active) return
+    const id = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [active])
+  // The document's count, not the run's: the run covers only the sections it writes (25 of 27).
+  const total = Math.max(counts.total, 1)
+  const done = Math.min(counts.drafted, total)
+  const pct = Math.min(100, Math.round((done / total) * 100))
+  const code = status.currentSection
+  const where = run.currentLabel ?? code
+
+  const title = active ? (status.status === 'Starting' ? 'Starting the run' : 'Writing your proposal')
+    : status.status === 'NeedsReview' ? 'Paused for your review'
+    : status.status === 'Completed' ? 'Proposal written'
+    : status.status === 'Cancelled' ? 'Run stopped'
+    : 'Run stopped by an error'
+  const note = status.status === 'NeedsReview'
+    ? `${where ?? 'A section'} needs your review before the run can go on. Read it, fix or approve it, then resume.`
+    : status.status === 'Error' ? 'The run could not continue. Your written sections are kept; you can try again.'
+    : status.status === 'Cancelled' ? 'Written sections are kept. Resume to carry on from the next unwritten section.'
+    : status.status === 'Completed' ? 'Every section is drafted. Review each one and approve it.'
+    : null
+  const dot = active ? 'var(--color-purple)' : status.status === 'Completed' ? 'var(--color-green)' : 'var(--color-amber)'
+
+  return (
+    <section aria-label="Whole-proposal run" className="rounded-[10px] p-3.5" style={{ border: '0.5px solid var(--border-strong)' }}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }} aria-live="polite">
+            <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full shrink-0 ${active ? 'dm-pulse' : ''}`} style={{ background: dot }} />
+            <span className="truncate">{title}</span>
+          </div>
+          <div className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {done} of {total} sections drafted · {status.wordsWritten.toLocaleString()} words
+            {active && Number.isFinite(started) && <> · {clock(now - started)}</>}
+          </div>
+        </div>
+        {!active && status.status !== 'Completed' && (
+          <button type="button" onClick={run.onResume} disabled={run.resuming}
+            className="dm-action shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
+            style={{ background: 'var(--color-purple)' }}>
+            <Play size={10} aria-hidden="true" /> {run.resuming ? 'Resuming…' : 'Resume'}
+          </button>
+        )}
+      </div>
+      <div className="h-1.5 rounded-full mt-2.5" style={{ background: 'var(--surface-rail)' }}
+        role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label={`${done} of ${total} sections drafted`}>
+        <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: dot, transition: 'width .3s' }} />
+      </div>
+      {active && status.lastActivity && (
+        <p className="m-0 mt-2 text-[12px] leading-[1.45] truncate" style={{ color: 'var(--text-secondary)' }} title={status.lastActivity}>{status.lastActivity}</p>
+      )}
+      {note && <p className="m-0 mt-2 text-[12px] leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>{note}</p>}
+      {!active && code && status.status === 'NeedsReview' && (
+        <button type="button" onClick={() => onJump(code)}
+          className="dm-action mt-2 text-[12px] font-semibold hover:underline" style={{ color: 'var(--color-purple-text)' }}>
+          Go to {where}
+        </button>
+      )}
+    </section>
+  )
+}
+
 function DocumentAgentPanelImpl({
-  projectId, writing, flagGroups, onNextFlag, nextReview, draftAction, queued, onDraftAction, onStop, stoppingCode, targetWords,
+  run, projectId, writing, flagGroups, onNextFlag, nextReview, draftAction, queued, onDraftAction, targetWords,
   activity, onJump, staleAlignment, isValidating, onCheckAlignment, draftAhead, onToggleDraftAhead,
+  counts, onStopAll, stoppingAll, contract, review,
 }: Props) {
-  const busy = writing.length > 0 || queued.length > 0
+  const runActive = isRunActive(run?.status)
+  const busy = writing.length > 0 || queued.length > 0 || runActive
 
   return (
     <aside aria-label="Agent" className="h-full flex flex-col gap-4 p-[18px] overflow-y-auto dm-scroll">
-      <h2 className="m-0 text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>Agent</h2>
+      <div className="flex items-center justify-between gap-2 min-h-[30px]">
+        <h2 className="m-0 text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>Agent</h2>
+        {busy && (
+          <button type="button" onClick={onStopAll} disabled={stoppingAll}
+            className="dm-action shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60"
+            style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}
+            aria-label="Stop all drafting">
+            <Square size={10} aria-hidden="true" /> {stoppingAll ? 'Stopping…' : 'Stop all'}
+          </button>
+        )}
+      </div>
 
+      {contract}
+
+      {run && <RunCard run={run} counts={counts} onJump={onJump} />}
+
+      {/* One card per section being drafted (writing is already one entry per section code). */}
       {writing.length > 0 ? writing.map(s => (
-        <NowDrafting key={s.code} projectId={projectId} section={s} targetWords={targetWords} queued={queued}
-          onJump={onJump} onStop={onStop} stopping={stoppingCode === s.code} />
-      )) : (
+        <NowDrafting key={s.code} projectId={projectId} section={s} targetWords={targetWords} queued={queued} onJump={onJump} />
+      )) : runActive ? (
+        <p className="m-0 text-[13px]" style={{ color: 'var(--text-secondary)' }}>Checking the last section and preparing the next one…</p>
+      ) : (
         <p className="m-0 text-[13px]" style={{ color: 'var(--text-secondary)' }}>Nothing is being drafted right now.</p>
       )}
 
@@ -159,7 +272,7 @@ function DocumentAgentPanelImpl({
         </div>
       )}
 
-      {staleAlignment.length > 0 && (
+      {staleAlignment.length > 0 && !runActive && (
         <div className="rounded-[10px] px-3.5 py-3 flex flex-col gap-2" style={{ border: '0.5px solid var(--border-strong)' }}>
           <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
             Alignment has not been checked since {staleAlignment.join(', ')} {staleAlignment.length === 1 ? 'was' : 'were'} drafted or edited.
@@ -172,9 +285,12 @@ function DocumentAgentPanelImpl({
         </div>
       )}
 
+      {review}
+
       {flagGroups.length > 0 && <FlagsCard groups={flagGroups} onJump={onJump} onNextFlag={onNextFlag} />}
 
-      <div className="mt-auto rounded-[10px] p-3.5 flex flex-col gap-2.5" style={{ border: '0.5px solid var(--border-strong)' }}>
+      {/* While the whole-proposal run is writing, it owns drafting and approval: nothing here for the student to do. */}
+      {!runActive && <div className="mt-auto rounded-[10px] p-3.5 flex flex-col gap-2.5" style={{ border: '0.5px solid var(--border-strong)' }}>
         <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>Up next</div>
         {nextReview && (
           <button type="button" onClick={() => onJump(nextReview.code)}
@@ -218,7 +334,7 @@ function DocumentAgentPanelImpl({
             </p>
           </div>
         </div>
-      </div>
+      </div>}
     </aside>
   )
 }

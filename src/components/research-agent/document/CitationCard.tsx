@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ExternalLink, Repeat } from 'lucide-react'
+import { ExternalLink, Repeat, Trash2 } from 'lucide-react'
 import type { FetchedLiterature } from '../../../types/research'
 import type { CitationCardEntry, ClaimSupport } from '../../../lib/citationCard'
 
@@ -38,6 +38,8 @@ export interface CitationCardProps {
   swapTo:    FetchedLiterature[]
   canSwap:   boolean
   onSwap:    (entryIndex: number, source: FetchedLiterature) => void
+  /** Takes this source out of the citation; omitted when it cannot be removed cleanly (narrative or IEEE). */
+  onRemove?: (entryIndex: number) => void
   onClose:   () => void
   style:     React.CSSProperties
   onPointerEnter: () => void
@@ -49,7 +51,7 @@ export interface CitationCardProps {
  * does the source support the claim. Keyboard: it sits right after the editor, so Tab reaches its
  * buttons; Escape closes it.
  */
-export function CitationCard({ entries, swapTo, canSwap, onSwap, onClose, style, onPointerEnter, onPointerLeave }: CitationCardProps) {
+export function CitationCard({ entries, swapTo, canSwap, onSwap, onRemove, onClose, style, onPointerEnter, onPointerLeave }: CitationCardProps) {
   const [swapping, setSwapping] = useState<number | null>(null)
   const summary = entries.map(e => `${e.sourceExists ? 'Source found' : 'Source not found'}. ${SUPPORT[e.support].text}.`).join(' ')
   return (
@@ -66,7 +68,11 @@ export function CitationCard({ entries, swapTo, canSwap, onSwap, onClose, style,
             <Chip tone={entry.sourceExists ? 'good' : 'bad'}>{entry.sourceExists ? (entry.ambiguous ? 'Source exists · same author and year as another' : 'Source exists') : 'Source not found'}</Chip>
             {entry.fullTextPinned !== null && <Chip tone={entry.fullTextPinned ? 'good' : 'neutral'}>{entry.fullTextPinned ? 'Full text pinned' : 'Abstract only'}</Chip>}
             <Chip tone={SUPPORT[entry.support].tone}>{SUPPORT[entry.support].text}</Chip>
+            {entry.qualityFlags?.filter(f => f !== 'Abstract only').map(f => <Chip key={f} tone="warn">{f}</Chip>)}
           </div>
+          {entry.checkedBy === 'section_check' && (
+            <p className="m-0 text-[11px]" style={{ color: 'var(--text-muted)' }}>From this section's citation check.</p>
+          )}
           {entry.note && <p className="m-0 text-[12px] leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>{entry.note}</p>}
           <div className="flex flex-wrap gap-2">
             {entry.viewUrl ? (
@@ -83,6 +89,14 @@ export function CitationCard({ entries, swapTo, canSwap, onSwap, onClose, style,
                 className="dm-action inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium"
                 style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
                 <Repeat size={12} aria-hidden="true" /> Swap citation
+              </button>
+            )}
+            {onRemove && (
+              <button type="button" onClick={() => onRemove(i)}
+                className="dm-action inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium"
+                style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}
+                aria-label={`Remove ${entry.clause} from this citation`}>
+                <Trash2 size={12} aria-hidden="true" /> Remove
               </button>
             )}
           </div>

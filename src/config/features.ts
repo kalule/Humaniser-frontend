@@ -8,7 +8,7 @@ export type ToolId =
   | 'documents' | 'editor' | 'humanise' | 'ai-content-check' | 'paraphraser' | 'grammar' | 'summariser'
   | 'verify-citations' | 'similarity-check' | 'reviewer' | 'citation-generator'
   | 'proposal-studio' | 'thesis-studio' | 'systematic-review' | 'research-agent'
-  | 'saved-sources' | 'deep-research' | 'document-chat' | 'lecture-notes' | 'flashcards'
+  | 'literature-search' | 'saved-sources' | 'deep-research' | 'document-chat' | 'lecture-notes' | 'flashcards'
   | 'data-analyst' | 'study-design' | 'feedback-tracker' | 'literature-matrix' | 'qualitative-analysis' | 'authorship-evidence' | 'literature-review' | 'research-paper'
 
 export const LAUNCH_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>([
@@ -59,10 +59,13 @@ export const SHOW_METHODOLOGY_REFINEMENT =import.meta.env.VITE_SHOW_METHODOLOGY_
 //                                                flag counts, flagged citation cards) in Guided and Document.
 //                                                On in .env.development; off in production builds, where only
 //                                                admins see them. The server still records every flag.
-const CITATION_FLAGS_ENV = import.meta.env.VITE_SHOW_CITATION_FLAGS === 'true'
+//                                                Explicitly 'false' hides them for everyone, admins included.
+const CITATION_FLAGS_RAW = import.meta.env.VITE_SHOW_CITATION_FLAGS
+const CITATION_FLAGS_ENV = CITATION_FLAGS_RAW === 'true'
 
 /** Whether the signed-in user is shown open citation flags (read at call time, so login changes apply). */
 export function showCitationFlags(): boolean {
+  if (CITATION_FLAGS_RAW === 'false') return false
   return CITATION_FLAGS_ENV || useAuthStore.getState().user?.role === 'Admin'
 }
 
@@ -70,9 +73,12 @@ export function showCitationFlags(): boolean {
 //                                                the Agent panel's "N open flags" box and the mobile "Agent · N
 //                                                flags" button. Same rule: on in dev, off in production except admins.
 //                                                The flags themselves still show on their sections.
-const FLAG_COUNTS_ENV = import.meta.env.VITE_SHOW_FLAG_COUNTS === 'true'
+//                                                Explicitly 'false' hides them for everyone, admins included.
+const FLAG_COUNTS_RAW = import.meta.env.VITE_SHOW_FLAG_COUNTS
+const FLAG_COUNTS_ENV = FLAG_COUNTS_RAW === 'true'
 
 export function showFlagCounts(): boolean {
+  if (FLAG_COUNTS_RAW === 'false') return false
   return FLAG_COUNTS_ENV || useAuthStore.getState().user?.role === 'Admin'
 }
 
@@ -86,3 +92,12 @@ const PROPOSAL_ISSUES_ENV = import.meta.env.VITE_SHOW_PROPOSAL_ISSUES === 'true'
 export function showProposalIssues(): boolean {
   return PROPOSAL_ISSUES_ENV || useAuthStore.getState().user?.role === 'Admin'
 }
+
+//   VITE_REVIEW_EXPORT_GATE=block|warn|off     — Document view's "Export .docx" while Review has open issues
+//                                                (placeholders, design-contract mismatches, variable-role
+//                                                conflicts). block (default): export stops and asks for an
+//                                                explicit "Export anyway" override, which is logged. warn: a
+//                                                warning toast, then the export runs. off: no check.
+export type ReviewExportGate = 'block' | 'warn' | 'off'
+const REVIEW_GATE_RAW = import.meta.env.VITE_REVIEW_EXPORT_GATE
+export const REVIEW_EXPORT_GATE: ReviewExportGate = REVIEW_GATE_RAW === 'warn' || REVIEW_GATE_RAW === 'off' ? REVIEW_GATE_RAW : 'block'

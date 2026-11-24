@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ListTree, Bot, X, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { CONFIRM_APPROVAL_ISSUES, REQUIRE_CHAPTER_ORDER, showCitationFlags, showFlagCounts } from '../../../config/features'
+import { CONFIRM_APPROVAL_ISSUES, REQUIRE_CHAPTER_ORDER, REVIEW_EXPORT_GATE, showCitationFlags, showFlagCounts } from '../../../config/features'
 import type { ApiError } from '../../../types'
-import type { AlignmentIssue, CitationFlag, FetchedLiterature, ProjectSection, ResearchProject } from '../../../types/research'
+import type { AlignmentIssue, BibliographyEntry, CitationFlag, FetchedLiterature, ProjectSection, ResearchProject } from '../../../types/research'
 import type { ParsedReference } from '../../../lib/citationFormat'
 import { bibliographyReferences } from '../../../lib/bibliographyState'
 import { useResearchStore } from '../../../store/researchStore'
@@ -14,15 +14,27 @@ import { CREDIT_COSTS } from '../../../config/creditCosts'
 import { researchApi } from '../../../api/research'
 import { proposalJourneyApi } from '../../../api/proposalJourney'
 import { useConfirm } from '../../ui/ConfirmDialog'
-import { canDraft, dedupeSections, documentStatus, DRAFT_AHEAD_KEY, isDraftAheadOn, isThesisDocument, type DraftContext } from '../../../lib/sectionWorkflow'
-import { buildOutline, outlineProgress, sectionFlags, type SectionFlag } from '../../../lib/documentOutline'
+import { canDraft, dedupeSections, documentStatus, DRAFT_AHEAD_KEY, hasSectionBody, isDraftAheadOn, isThesisDocument, withReviewMarks, type DraftContext } from '../../../lib/sectionWorkflow'
+import { buildOutline, documentCounts, sectionFlags, type SectionFlag } from '../../../lib/documentOutline'
 import { nextDraftAction } from '../../../lib/draftPlan'
 import { followDraft, forgetDraft } from '../../../lib/liveDraftStore'
+import { isRunActive, isRunVisible, useProposalRun } from '../../../lib/proposalRun'
 import { DocumentOutlineRail, type OutlineRow } from './DocumentOutlineRail'
 import { DocumentSectionBlock } from './DocumentSectionBlock'
-import { DocumentAgentPanel, type FlagGroup } from './DocumentAgentPanel'
+import { DocumentAgentPanel, type FlagGroup, type RunInfo } from './DocumentAgentPanel'
 import { DocumentEndCard } from './DocumentEndCard'
+import { DocumentReferences } from './DocumentReferences'
 import { CitationDataContext, type CitationData } from './citationDataContext'
+import { DesignContractPanel } from './DesignContractPanel'
+import { ReviewIssuesCard } from './ReviewIssuesCard'
+import { RewriteReviewDialog } from './RewriteReviewDialog'
+import {
+  CONTRACT_FIELD, DESIGN_CONTRACT_KEY, EDITED_AFTER_APPROVAL_KEY, STALE_KEY, changedFields, clearStale, propagateStale,
+  readContract, readEditedAfterApproval, readStale, serializeCodes, serializeContract, type DesignContract,
+} from '../../../lib/designContract'
+import { openIssueCount, runDocumentReview, type ReviewIssue } from '../../../lib/documentReview'
+import { useSectionCitationChecks } from '../../../lib/sectionCitationCheck'
+import { readRewriteReviews, rewriteLanded, writeRewriteReviews, type RewriteReview } from '../../../lib/rewriteReview'
 import '../../../styles/research-agent-editor.css'
 import '../../../styles/research-document-mode.css'
 
@@ -75,6 +87,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   // Pinned sources (and, for IEEE, the numbered reference list) that inline citations resolve to.
   const [literature, setLiterature] = useState<FetchedLiterature[]>([])
   const [bibliography, setBibliography] = useState<ParsedReference[]>([])
+  const [referenceEntries, setReferenceEntries] = useState<BibliographyEntry[] | null>(null)
   const [literatureVersion, setLiteratureVersion] = useState(0)
   const [alignmentIssues, setAlignmentIssues] = useState<AlignmentIssue[]>([])
   const [approvingCode, setApprovingCode] = useState<string | null>(null)
@@ -87,6 +100,15 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const [draftQueue, setDraftQueue] = useState<string[]>([])
   const [stoppingCode, setStoppingCode] = useState<string | null>(null)
   const [activity, setActivity] = useState<ActivityEntry[]>([])
+  const [stoppingAll, setStoppingAll] = useState(false)
+  const [savingContract, setSavingContract] = useState(false)
+  const [reviewIssues, setReviewIssues] = useState<ReviewIssue[] | null>(null)
+  const [reviewing, setReviewing] = useState(false)
+  const [reviewedKey, setReviewedKey] = useState('')
+  // Rewrites over text the student edited, waiting for their per-change decision (kept across reloads).
+  const [rewriteReviews, setRewriteReviews] = useState<Record<string, RewriteReview>>(() => readRewriteReviews(project.id))
+  const [reviewingRewrite, setReviewingRewrite] = useState<string | null>(null)
+  const [applyingRewrite, setApplyingRewrite] = useState(false)
   const startingRef = useRef(false)
   const targetWords = Number(project.sectionContent?.['targetSectionWordCount']) || DEFAULT_SECTION_WORDS
 
@@ -106,6 +128,76 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     else flushers.current.delete(code)
   }, [])
   const flushAll = useCallback(() => Promise.all([...flushers.current.values()].map(f => f())), [])
+  // Each mounted editor's "select these words" — used to open a Review issue at its text.
+  const revealers = useRef(new Map<string, (text: string | null) => boolean>())
+  const registerReveal = useCallback((code: string, reveal: ((text: string | null) => boolean) | null) => {
+    if (reveal) revealers.current.set(code, reveal)
+    else revealers.current.delete(code)
+  }, [])
+
+  // ── Design contract, stale marks and "edited after approval": all on the synced sectionContent ──
+  const contract = useMemo(() => readContract(project.sectionContent), [project.sectionContent])
+  const staleMarks = useMemo(() => readStale(project.sectionContent), [project.sectionContent])
+  const editedApproved = useMemo(() => readEditedAfterApproval(project.sectionContent), [project.sectionContent])
+
+  /** Writes keys of the project's sectionContent and syncs them (the same path the wizard's answers take). */
+  const persistContent = useCallback(async (entries: Record<string, string>): Promise<boolean> => {
+    const id = latest.current.project.id
+    const store = useResearchStore.getState()
+    for (const [key, value] of Object.entries(entries)) store.setContent(id, key, value)
+    try {
+      await store.syncProject(id)
+      return true
+    } catch {
+      toast.error('The change is shown here but could not be saved yet. It will be saved with your next change.')
+      return false
+    }
+  }, [])
+
+  const handleSaveContract = useCallback(async (next: DesignContract): Promise<boolean> => {
+    const { project: p, sections: list } = latest.current
+    const before = readContract(p.sectionContent)
+    const changed = changedFields(before, next)
+    if (!changed.length) return true
+    const previous = readStale(p.sectionContent)
+    const stale = propagateStale(previous, changed, list)
+    const newlyStale = Object.keys(stale).filter(code => (stale[code]?.length ?? 0) !== (previous[code]?.length ?? 0))
+    setSavingContract(true)
+    try {
+      const ok = await persistContent({ [DESIGN_CONTRACT_KEY]: serializeContract(next), [STALE_KEY]: JSON.stringify(stale) })
+      const fields = changed.map(k => CONTRACT_FIELD[k].label).join(', ')
+      logActivity(`Design contract changed: ${fields}`)
+      if (ok) {
+        toast.success(newlyStale.length
+          ? `Design contract saved. ${newlyStale.length} drafted section${newlyStale.length === 1 ? '' : 's'} may be out of date: ${newlyStale.join(', ')}.`
+          : 'Design contract saved. New drafts will follow it.', { duration: 7000 })
+      }
+      return ok
+    } finally {
+      setSavingContract(false)
+    }
+  }, [persistContent, logActivity])
+
+  // Clears the stale and edited-after-approval marks of one section (approved, reviewed or rewritten).
+  const clearMarks = useCallback(async (code: string, which: { stale?: boolean; edited?: boolean }) => {
+    const p = latest.current.project
+    const entries: Record<string, string> = {}
+    const stale = readStale(p.sectionContent)
+    if (which.stale && stale[code]) entries[STALE_KEY] = JSON.stringify(clearStale(stale, code))
+    const edited = readEditedAfterApproval(p.sectionContent)
+    if (which.edited && edited.includes(code)) entries[EDITED_AFTER_APPROVAL_KEY] = serializeCodes(edited.filter(c => c !== code))
+    if (Object.keys(entries).length) await persistContent(entries)
+  }, [persistContent])
+
+  const handleMarkReviewed = useCallback((code: string) => {
+    void clearMarks(code, { stale: true }).then(() => logActivity(`Checked ${code} against the design contract`))
+  }, [clearMarks, logActivity])
+
+  const handleEditedApproved = useCallback((code: string) => {
+    const edited = readEditedAfterApproval(latest.current.project.sectionContent)
+    if (edited.includes(code)) return
+    void persistContent({ [EDITED_AFTER_APPROVAL_KEY]: serializeCodes([...edited, code]) })
+  }, [persistContent])
 
   // A material edit ends the approval (server rule, SectionEditPolicy) and makes the last
   // alignment result for that section out of date: drop it and ask for a re-check.
@@ -150,15 +242,21 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   }, [confirm])
 
   const outline = useMemo(() => buildOutline(sections, project.documentType), [sections, project.documentType])
-  const progress = useMemo(() => outlineProgress(sections), [sections])
+  // One count for the outline, the run card and the end card (fixes "27 approved" vs "25 sections").
+  const counts = useMemo(() => documentCounts(sections), [sections])
+  const progress = useMemo(() => ({ approved: counts.approved, total: counts.total }), [counts])
 
   const view = useMemo(() => {
     const bySection: Record<string, { status: ReturnType<typeof documentStatus>; flags: SectionFlag[]; draft: ReturnType<typeof canDraft> }> = {}
     for (const s of sections) {
-      bySection[s.code] = { status: documentStatus(s, ctx), flags: sectionFlags(s, citationFlags, alignmentIssues, showCitationFlags()), draft: canDraft(s, ctx) }
+      const status = withReviewMarks(documentStatus(s, ctx), {
+        stale: !!staleMarks[s.code],
+        editedAfterApproval: editedApproved.includes(s.code) && (s.status === 'Approved' || s.status === 'Edited'),
+      })
+      bySection[s.code] = { status, flags: sectionFlags(s, citationFlags, alignmentIssues, showCitationFlags()), draft: canDraft(s, ctx) }
     }
     return bySection
-  }, [sections, ctx, citationFlags, alignmentIssues])
+  }, [sections, ctx, citationFlags, alignmentIssues, staleMarks, editedApproved])
 
   // Flag counts (outline badges, Agent panel box, mobile button) are off for end users in production.
   const countFlags = showFlagCounts()
@@ -175,7 +273,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const writing = useMemo(() => ordered.filter(s => view[s.code]?.status === 'writing'), [ordered, view])
   const allFlags = useMemo(() => ordered.flatMap(s => {
     const v = view[s.code]
-    return v && (v.status === 'needs_review' || v.status === 'approved') ? v.flags : []
+    return v && hasSectionBody(v.status) ? v.flags : []
   }), [ordered, view])
   // Flags grouped by section in reading order, with the section's name, so the Agent panel can
   // list "1.2 Background · 3" and jump straight to that section's flag list.
@@ -188,6 +286,51 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   }, [countFlags, allFlags, ordered])
   const nextReview = useMemo(() => ordered.find(s => view[s.code]?.status === 'needs_review') ?? null, [ordered, view])
   const draftAction = useMemo(() => nextDraftAction(outline, ctx, targetWords), [outline, ctx, targetWords])
+
+  // ── The automatic whole-proposal run, if this project has one: shown live in the Agent panel ──
+  const proposalRun = useProposalRun(project.id, project.generation)
+  const { status: runStatus, resume: resumeRun, stop: stopRun, refresh: refreshRun } = proposalRun
+  const proposalRunStatusRef = useRef(runStatus)
+  proposalRunStatusRef.current = runStatus
+  const sectionLabel = useCallback((code: string | null | undefined) => {
+    if (!code) return null
+    const s = sections.find(x => x.code === code)
+    return s ? `${s.displayCode || s.code} ${s.title}` : code
+  }, [sections])
+  const handleRunResume = useCallback(() => {
+    resumeRun(targetWords).catch((err: ApiError | undefined) => toast.error(err?.message ?? 'The run could not resume. Try again.'))
+  }, [resumeRun, targetWords])
+  const handleRunStop = useCallback(async () => {
+    const ok = await confirm({
+      title: 'Stop the whole-proposal run?',
+      message: 'Sections already written are kept. The section being written now may still finish. You can resume later.',
+      confirmLabel: 'Stop the run',
+    })
+    if (!ok) return
+    try { await stopRun(); logActivity('Stopped the whole-proposal run') }
+    catch (err) { toast.error((err as ApiError | undefined)?.message ?? 'Could not stop the run.') }
+  }, [confirm, stopRun, logActivity])
+  const runInfo = useMemo((): RunInfo | null => runStatus && isRunVisible(runStatus) ? {
+    status: runStatus, currentLabel: sectionLabel(runStatus.currentSection),
+    resuming: proposalRun.resuming, stopping: proposalRun.stopping,
+    onResume: handleRunResume, onStop: () => { void handleRunStop() },
+  } : null, [runStatus, sectionLabel, proposalRun.resuming, proposalRun.stopping, handleRunResume, handleRunStop])
+
+  // Run milestones in the activity log ("Writing 1.2 Background", "Paused at 2.0 …"). Only changes
+  // seen while this view is open are logged; the run card always shows the current state.
+  const runMark = useRef<string | null>(null)
+  useEffect(() => {
+    if (!runStatus || !isRunVisible(runStatus)) return
+    const mark = `${runStatus.status}|${runStatus.currentSection ?? ''}`
+    const previous = runMark.current
+    runMark.current = mark
+    if (previous === null || previous === mark) return
+    const where = sectionLabel(runStatus.currentSection)
+    if (isRunActive(runStatus)) { if (where) logActivity(`Writing ${where}`, 'active') }
+    else if (runStatus.status === 'NeedsReview') logActivity(`Paused at ${where ?? 'a section'} for your review`, 'error')
+    else if (runStatus.status === 'Completed') logActivity('Finished writing the proposal')
+    else if (runStatus.status === 'Error') logActivity('The run stopped with an error', 'error')
+  }, [runStatus, sectionLabel, logActivity])
 
   // ── Data: citation flags for every section in one request, refreshed when sections change ──
   const flagsKey = sections.map(s => `${s.code}:${s.status}:${s.generatedAt ?? ''}:${s.citationsPendingVerification}`).join('|')
@@ -207,17 +350,49 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     researchApi.getLiterature(project.id)
       .then(list => { if (!cancelled) setLiterature(list) })
       .catch(() => { /* citations then show as unresolved; nothing is blocked */ })
-    if (project.citationStyle === 'ieee') {
-      researchApi.getBibliography(project.id)
-        .then(data => { if (!cancelled) setBibliography(bibliographyReferences({ status: 'ready', data }) ?? []) })
-        .catch(() => {})
-    }
     return () => { cancelled = true }
-  }, [project.id, project.citationStyle, literatureVersion])
+  }, [project.id, literatureVersion])
 
+  // The project's compiled reference list: shown once, at the end of the document (each section's
+  // own References block is hidden), and for IEEE also what numbered citations resolve to.
+  // Refetched when a section is drafted, rewritten or changes status, not on every keystroke.
+  const referencesKey = sections.map(s => `${s.code}:${s.status}:${s.generatedAt ?? ''}`).join('|')
+  useEffect(() => {
+    if (!sections.length) return
+    let cancelled = false
+    researchApi.getBibliography(project.id)
+      .then(data => {
+        if (cancelled) return
+        setReferenceEntries(data.entries)
+        setBibliography(project.citationStyle === 'ieee' ? bibliographyReferences({ status: 'ready', data }) ?? [] : [])
+      })
+      .catch(() => { /* the list is a convenience here; export compiles its own */ })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id, project.citationStyle, literatureVersion, referencesKey])
+
+  const sectionChecks = useSectionCitationChecks(project.id)
   const citationData = useMemo<CitationData>(() => ({
-    style: project.citationStyle, literature, bibliography, flags: citationFlags,
-  }), [project.citationStyle, literature, bibliography, citationFlags])
+    style: project.citationStyle, literature, bibliography, flags: showCitationFlags() ? citationFlags : [],
+    checks: sectionChecks.checks,
+  }), [project.citationStyle, literature, bibliography, citationFlags, sectionChecks.checks])
+
+  const runSectionCheck = sectionChecks.run
+  const handleCheckCitations = useCallback(async (code: string) => {
+    if ((await flushers.current.get(code)?.()) === false) {
+      toast.error(`Your latest edit to ${code} is not saved yet. Retry the save, then check again.`)
+      return
+    }
+    logActivity(`Checking the citations in ${code}`, 'active')
+    try {
+      const outcome = await runSectionCheck(code)
+      if (outcome === 'done') { logActivity(`Checked the citations in ${code}`); toast.success(`Citations in ${code} checked. Each citation's dot shows the result.`) }
+      else if (outcome === 'error') toast.error(`The citation check for ${code} did not finish. Try again.`)
+    } catch (err) {
+      toast.error((err as ApiError | undefined)?.message ?? `The citation check for ${code} could not run.`)
+    }
+  }, [runSectionCheck, logActivity])
+  const handleCheckCitationsCb = useCallback((code: string) => { void handleCheckCitations(code) }, [handleCheckCitations])
 
   // Poll while anything is being written, so a run started here or in Guided lands in place.
   const anyWriting = writing.length > 0
@@ -304,6 +479,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       // the server still runs and records every integrity check.
       await useResearchStore.getState().approveSection(p.id, code, acknowledge || p.generatorMode === 'AGENT')
       toast.success(`Section ${code} approved.`)
+      void clearMarks(code, { stale: true, edited: true })
     } catch (err) {
       const apiErr = err as ApiError | undefined
       const reasons = (apiErr?.details as { reasons?: string[] } | undefined)?.reasons ?? []
@@ -326,7 +502,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     } finally {
       setApprovingCode(null)
     }
-  }, [onOpenGuided])
+  }, [onOpenGuided, clearMarks])
   const handleApproveRef = useRef(handleApprove)
   handleApproveRef.current = handleApprove
 
@@ -422,6 +598,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
         })
         if (!ok) return
         await useResearchStore.getState().cancelGeneration(p.id)
+        refreshRun()
         logActivity('Stopped the whole-proposal run')
       } else {
         await useResearchStore.getState().stopSection(p.id, code)
@@ -433,7 +610,34 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     } finally {
       setStoppingCode(null)
     }
-  }, [confirm, logActivity])
+  }, [confirm, logActivity, refreshRun])
+
+  // One Stop for everything the agent is doing: the whole-proposal run, every section being drafted, the queue.
+  const handleStopAll = useCallback(async () => {
+    const { project: p, sections: list } = latest.current
+    const ok = await confirm({
+      title: 'Stop all drafting?',
+      message: 'Every section being drafted stops; the text written so far is kept for you to review. The whole-proposal run, if one is going, is cancelled and can be resumed later.',
+      confirmLabel: 'Stop all',
+    })
+    if (!ok) return
+    setDraftQueue([])
+    setStoppingAll(true)
+    try {
+      const store = useResearchStore.getState()
+      const jobs: Promise<unknown>[] = []
+      if (isRunActive(proposalRunStatusRef.current)) jobs.push(stopRun())
+      for (const s of list.filter(x => x.status === 'Generating' && x.lockedBy !== 'generation')) jobs.push(store.stopSection(p.id, s.code))
+      const results = await Promise.allSettled(jobs)
+      const failed = results.filter(r => r.status === 'rejected').length
+      logActivity(failed ? `Stopped drafting (${failed} could not be stopped)` : 'Stopped all drafting', failed ? 'error' : 'done')
+      if (failed) toast.error(`${failed} stop request${failed === 1 ? '' : 's'} failed. Try again.`)
+      else toast.success('Stopped. Text written so far is kept for review.')
+      refreshRun()
+    } finally {
+      setStoppingAll(false)
+    }
+  }, [confirm, stopRun, refreshRun, logActivity])
 
   // Follow every section being written; when one finishes, forget its stream (the saved section
   // is the truth now), log the outcome, and mark its alignment as not yet checked.
@@ -462,8 +666,15 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
         logActivity(`${label} stopped or interrupted; text kept for review`, 'error')
       } else {
         setLiteratureVersion(v => v + 1)
-        logActivity(`Drafted ${label}; ready for review`)
         setStaleAlignment(prev => (prev.includes(code) ? prev : [...prev, code]))
+        const pending = rewriteReviewsRef.current[code]
+        if (pending && !pending.after) {
+          // The student had edited this section: put their text back and hold the rewrite for review.
+          void holdRewriteForReview(code, pending.before, done.content)
+          logActivity(`Rewrote ${label}; your text is kept until you review the changes`)
+        } else {
+          logActivity(`Drafted ${label}; ready for review`)
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -477,6 +688,55 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     }
   }, [project.id])
 
+  const rewriteReviewsRef = useRef(rewriteReviews)
+  rewriteReviewsRef.current = rewriteReviews
+  const updateRewriteReviews = useCallback((fn: (prev: Record<string, RewriteReview>) => Record<string, RewriteReview>) => {
+    setRewriteReviews(prev => {
+      const next = fn(prev)
+      rewriteReviewsRef.current = next
+      writeRewriteReviews(latest.current.project.id, next)
+      return next
+    })
+  }, [])
+
+  // The rewrite landed over the student's edited text: put their text back and hold the rewrite for review.
+  const holdRewriteForReview = useCallback(async (code: string, before: string, after: string) => {
+    updateRewriteReviews(prev => ({ ...prev, [code]: { startedAt: prev[code]?.startedAt ?? new Date().toISOString(), before, after } }))
+    try {
+      await useResearchStore.getState().saveSection(latest.current.project.id, code, before)
+      toast(`The rewrite of ${code} is ready. Your text is kept; choose which changes to accept.`, { duration: 7000 })
+    } catch {
+      toast.error(`Your edited text of ${code} could not be put back, so the rewrite is showing. Review the changes to choose what to keep.`)
+    }
+    setReviewingRewrite(code)
+  }, [updateRewriteReviews])
+
+  const applyRewriteReview = useCallback(async (code: string, merged: string) => {
+    setApplyingRewrite(true)
+    try {
+      await useResearchStore.getState().saveSection(latest.current.project.id, code, merged)
+      updateRewriteReviews(prev => { const next = { ...prev }; delete next[code]; return next })
+      setReviewingRewrite(null)
+      logActivity(`Applied your choices to the rewrite of ${code}`)
+      toast.success(`${code} saved with the changes you chose.`)
+    } catch (err) {
+      toast.error((err as ApiError | undefined)?.message ?? `${code} could not be saved. Try again.`)
+    } finally {
+      setApplyingRewrite(false)
+    }
+  }, [updateRewriteReviews, logActivity])
+
+  // A rewrite that finished while this page was closed or not watching: hold it for review now.
+  useEffect(() => {
+    for (const [code, review] of Object.entries(rewriteReviewsRef.current)) {
+      const section = sections.find(s => s.code === code)
+      if (rewriteLanded(review, section)) void holdRewriteForReview(code, review.before, section!.content)
+      else if (review.after === null && section && section.status !== 'Generating' && section.generationError) {
+        updateRewriteReviews(prev => { const next = { ...prev }; delete next[code]; return next })
+      }
+    }
+  }, [sections, holdRewriteForReview, updateRewriteReviews])
+
   const handleRewrite = useCallback(async (code: string) => {
     const { project: p, sections: list, ctx: c } = latest.current
     const section = list.find(s => s.code === code)
@@ -485,10 +745,15 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     if (!decision.allowed) { toast.error(decision.reason ?? 'This section cannot be rewritten yet.'); return }
 
     const cost = CREDIT_COSTS.proposalSectionGeneration
+    // Text the student wrote or changed is never replaced silently: the rewrite comes back as a diff.
+    const editedByStudent = section.status === 'Edited' || !!section.lastEditedAt
+      || readEditedAfterApproval(p.sectionContent).includes(code)
     if (section.status === 'Edited' || section.status === 'Approved') {
       const ok = await confirm({
         title: 'Rewrite this section?',
-        message: `Your current draft of ${code}: ${section.title} will be replaced. A copy is saved to History, so you can restore it afterwards.${section.status === 'Approved' ? ' It is currently approved, so you will need to approve it again.' : ''}`,
+        message: editedByStudent
+          ? `The agent writes a new version of ${code}: ${section.title}. Your edited text stays in place: you then see each change and choose which to accept.${section.status === 'Approved' ? ' Accepting changes means approving the section again.' : ''}`
+          : `Your current draft of ${code}: ${section.title} will be replaced. A copy is saved to History, so you can restore it afterwards.${section.status === 'Approved' ? ' It is currently approved, so you will need to approve it again.' : ''}`,
         confirmLabel: `Rewrite · ${cost} credits`,
       })
       if (!ok) return
@@ -496,12 +761,22 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
 
     try {
       if (!(await preflight(1))) return
+      if ((await flushers.current.get(code)?.()) === false) {
+        toast.error(`Your latest edit to ${code} is not saved yet, so the rewrite did not start. Retry the save first.`)
+        return
+      }
+      if (editedByStudent) {
+        const before = latest.current.sections.find(s => s.code === code)?.content ?? section.content
+        updateRewriteReviews(prev => ({ ...prev, [code]: { before, after: null, startedAt: new Date().toISOString() } }))
+      }
       await useResearchStore.getState().regenerateSection(p.id, code)
+      void clearMarks(code, { stale: true })
       logActivity(`Started rewriting ${code} ${section.title}`, 'active')
     } catch (err) {
+      updateRewriteReviews(prev => { if (!prev[code] || prev[code].after) return prev; const next = { ...prev }; delete next[code]; return next })
       toast.error((err as ApiError | undefined)?.message ?? 'Rewrite failed.')
     }
-  }, [confirm, preflight, logActivity])
+  }, [confirm, preflight, logActivity, clearMarks, updateRewriteReviews])
 
   const handleValidate = useCallback(async () => {
     setIsValidating(true)
@@ -519,9 +794,63 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     }
   }, [flushAll])
 
+  // ── Review: deterministic checks (server release checks + text vs design contract) ──
+  const contentKey = useMemo(() => sections.map(s => `${s.code}:${s.content.length}:${s.lastEditedAt ?? ''}:${s.generatedAt ?? ''}`).join('|'), [sections])
+  const runReview = useCallback(async (): Promise<ReviewIssue[]> => {
+    setReviewing(true)
+    try {
+      await flushAll().catch(() => {})
+      const { project: p } = latest.current
+      const server = await researchApi.getProposalIssues(p.id).then(r => r.issues, () => [])
+      // Read sections after the flush, so text typed a moment ago is reviewed too.
+      const now = dedupeSections(useResearchStore.getState().sections[p.id] ?? [])
+      const issues = runDocumentReview(now.filter(s => s.isApplicableForMethodology !== false), readContract(p.sectionContent), server)
+      setReviewIssues(issues)
+      setReviewedKey(contentKeyRef.current)
+      return issues
+    } finally {
+      setReviewing(false)
+    }
+  }, [flushAll])
+  const contentKeyRef = useRef(contentKey)
+  contentKeyRef.current = contentKey
+
+  const handleReview = useCallback(async () => {
+    const issues = await runReview()
+    const open = openIssueCount(issues)
+    logActivity(open ? `Review found ${open} open issue${open === 1 ? '' : 's'}` : 'Review found no open issues', open ? 'error' : 'done')
+  }, [runReview, logActivity])
+
+  const openReviewIssue = useCallback((issue: ReviewIssue) => {
+    scrollToAnchor(issue.sectionCode)
+    // The editor mounts once the section is near the viewport; give the scroll a moment.
+    window.setTimeout(() => {
+      const reveal = revealers.current.get(issue.sectionCode)
+      if (reveal && !reveal(issue.evidence) && issue.evidence) toast(`Could not find “${issue.evidence.slice(0, 60)}” in ${issue.sectionCode}; it may have been fixed already.`)
+    }, 450)
+  }, [scrollToAnchor])
+
   const handleExport = useCallback(async () => {
     const p = latest.current.project
     await flushAll().catch(() => {})
+    if (REVIEW_EXPORT_GATE !== 'off') {
+      const issues = await runReview().catch(() => [] as ReviewIssue[])
+      const open = openIssueCount(issues)
+      if (open > 0 && REVIEW_EXPORT_GATE === 'warn') {
+        toast(`Exporting with ${open} open review issue${open === 1 ? '' : 's'}. They are listed under Review in the Agent panel.`, { duration: 7000 })
+      } else if (open > 0) {
+        setAgentOpen(true)
+        const override = await confirm({
+          title: `${open} open review issue${open === 1 ? '' : 's'}`,
+          message: `Review found ${open} issue${open === 1 ? '' : 's'} (placeholders, design-contract mismatches or variable-role conflicts). They are listed under Review in the Agent panel. Fix them first, or export anyway; the override is recorded.`,
+          confirmLabel: 'Export anyway',
+          tone: 'warning',
+        })
+        if (!override) return
+        console.warn('[document-export] exported with open review issues (override)', { projectId: p.id, open, issues: issues.filter(i => i.blocking).map(i => i.id) })
+        logActivity(`Exported with ${open} open review issue${open === 1 ? '' : 's'} (override)`, 'error')
+      }
+    }
     const thesis = isThesisDocument(p.documentType)
     setIsExporting(true)
     const toastId = toast.loading(thesis ? 'Building thesis .docx…' : 'Building .docx — this may take a moment…')
@@ -535,7 +864,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     } finally {
       setIsExporting(false)
     }
-  }, [flushAll])
+  }, [flushAll, runReview, confirm, logActivity])
 
   useEffect(() => {
     if (!actionsRef) return
@@ -551,10 +880,20 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     <DocumentOutlineRail chapters={outline} rows={rows} activeCode={activeCode} progress={progress}
       onSelect={scrollToAnchor} onSelectChapter={key => scrollToAnchor(`chapter:${key}`)} />
   )
+  const contractHints = useMemo(() => ({ designType: project.methodologyType ? `e.g. ${project.methodologyType}` : undefined }), [project.methodologyType])
+  const staleCount = Object.keys(staleMarks).length
+  const contractPanel = (
+    <DesignContractPanel contract={contract} hints={contractHints} saving={savingContract} staleCount={staleCount} onSave={handleSaveContract} />
+  )
+  const reviewCard = (
+    <ReviewIssuesCard issues={reviewIssues} running={reviewing} outdated={reviewIssues !== null && reviewedKey !== contentKey}
+      onRun={() => { void handleReview() }} onOpen={openReviewIssue} sectionLabel={code => sectionLabel(code) ?? code} />
+  )
   const agent = (
-    <DocumentAgentPanel projectId={project.id} writing={writing} flagGroups={flagGroups} onNextFlag={handleNextFlag} nextReview={nextReview}
-      draftAction={draftAction} queued={draftQueue} onDraftAction={handleDraftAction} onStop={handleStop}
-      stoppingCode={stoppingCode} targetWords={targetWords} activity={activity}
+    <DocumentAgentPanel run={runInfo} projectId={project.id} writing={writing} flagGroups={flagGroups} onNextFlag={handleNextFlag} nextReview={nextReview}
+      draftAction={draftAction} queued={draftQueue} onDraftAction={handleDraftAction}
+      counts={counts} onStopAll={() => { void handleStopAll() }} stoppingAll={stoppingAll} contract={contractPanel} review={reviewCard}
+      targetWords={targetWords} activity={activity}
       onJump={scrollToAnchor}
       draftAhead={draftAhead} onToggleDraftAhead={handleToggleDraftAhead}
       staleAlignment={staleAlignment} isValidating={isValidating} onCheckAlignment={handleValidate} />
@@ -564,6 +903,12 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     <CitationDataContext.Provider value={citationData}>
     <div className="absolute inset-0 flex" style={{ background: 'var(--surface-page)' }}>
       {dialog}
+      {reviewingRewrite && rewriteReviews[reviewingRewrite]?.after && (
+        <RewriteReviewDialog label={sectionLabel(reviewingRewrite) ?? reviewingRewrite}
+          before={rewriteReviews[reviewingRewrite].before} after={rewriteReviews[reviewingRewrite].after!}
+          applying={applyingRewrite} onApply={merged => { void applyRewriteReview(reviewingRewrite, merged) }}
+          onClose={() => setReviewingRewrite(null)} />
+      )}
 
       <div className="hidden lg:block w-[288px] shrink-0 bg-white" style={{ borderRight: '0.5px solid var(--border-hairline)' }}>{rail}</div>
 
@@ -594,7 +939,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
             </div>
           ) : (
             <div key={chapter.key} ref={el => registerAnchor(`chapter:${chapter.key}`, el)} className="mb-8">
-              {chapter.number !== null && chapter.title !== `Chapter ${chapter.number}` && (
+              {chapter.number !== null && (
                 <div className="text-[11px] font-semibold tracking-[0.08em] mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                   CHAPTER {chapter.number}
                 </div>
@@ -611,11 +956,17 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
                     isApproving={approvingCode === s.code} scrollRoot={scrollRef} registerAnchor={registerAnchor}
                     onApprove={handleApprove} onRewrite={handleRewrite} onOpenGuided={onOpenGuided}
                     onDemoted={handleDemoted} registerFlush={registerFlush}
-                    onDraft={handleDraftSection} onStop={handleStop} isStopping={stoppingCode === s.code} />
+                    onDraft={handleDraftSection} onStop={handleStop} isStopping={stoppingCode === s.code}
+                    hideHeading={s.code === chapter.leadCode}
+                    staleFields={staleMarks[s.code]} onMarkReviewed={handleMarkReviewed} onEditedApproved={handleEditedApproved}
+                    registerReveal={registerReveal} onCheckCitations={handleCheckCitationsCb} checkState={sectionChecks.state[s.code]}
+                    rewriteReviewPending={!!rewriteReviews[s.code]?.after} onOpenRewriteReview={setReviewingRewrite}
+                    serverApproved={s.status === 'Approved'} />
                 )
               })}
             </div>
           ))}
+          <DocumentReferences entries={referenceEntries} registerAnchor={registerAnchor} />
           {sections.length > 0 && (
             <DocumentEndCard progress={progress} flagGroups={flagGroups} nextReview={nextReview}
               isExporting={isExporting} onJump={scrollToAnchor} onNextFlag={handleNextFlag} onExport={handleExport}

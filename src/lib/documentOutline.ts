@@ -14,6 +14,11 @@ export interface OutlineChapter {
   number:   number | null
   title:    string
   sections: ProjectSection[]
+  /**
+   * The N.0 section whose title is the chapter title ("1.0 Introduction" in "Introduction").
+   * Its own heading is not repeated under the chapter heading.
+   */
+  leadCode?: string
   /** Set on a chapter that has no sections yet because a gate keeps it shut. */
   lockedReason?: string
 }
@@ -24,8 +29,23 @@ export const THESIS_UNLOCK_REASON = 'Added when this proposal becomes a thesis, 
 /** One combined row, not three repeats of the same sentence: a proposal does not have these chapters. */
 export const THESIS_PLACEHOLDER_TITLE = 'Results · Discussion · Conclusion'
 
+/**
+ * Names for chapters that have no N.0 section to take a title from. A chapter with an N.0 section
+ * (1.0 Introduction, 2.0 Literature Review, thesis 6.0 Results) keeps that section's title.
+ */
+export const CHAPTER_NAMES: Record<number, string> = {
+  1: 'Introduction',
+  2: 'Literature Review',
+  3: 'Problem Statement and Justification',
+  4: 'Research Questions and Objectives',
+  5: 'Methodology',
+  6: 'Work Plan and Budget',
+}
+
 /** Section codes that open their own tool instead of a document section. */
 const NON_DOCUMENT_CODES = new Set(['defence'])
+
+const sameTitle = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
 export function buildOutline(sections: readonly ProjectSection[], documentType?: string): OutlineChapter[] {
   const ordered = sections.filter(s => !NON_DOCUMENT_CODES.has(s.code)).sort((a, b) => a.order - b.order)
@@ -45,7 +65,11 @@ export function buildOutline(sections: readonly ProjectSection[], documentType?:
   for (const n of [...byChapter.keys()].sort((a, b) => a - b)) {
     const list = byChapter.get(n)!
     const lead = list.find(s => (s.displayCode || s.code) === `${n}.0`)
-    chapters.push({ key: `chapter-${n}`, number: n, title: lead?.title ?? `Chapter ${n}`, sections: list })
+    const title = lead?.title?.trim() || CHAPTER_NAMES[n] || `Chapter ${n}`
+    chapters.push({
+      key: `chapter-${n}`, number: n, title, sections: list,
+      ...(lead && sameTitle(lead.title, title) ? { leadCode: lead.code } : {}),
+    })
   }
   if (!isThesisDocument(documentType)) {
     chapters.push({ key: 'locked-thesis', number: null, title: THESIS_PLACEHOLDER_TITLE, sections: [], lockedReason: THESIS_UNLOCK_REASON })
@@ -55,9 +79,34 @@ export function buildOutline(sections: readonly ProjectSection[], documentType?:
 }
 
 /** "7 of 12 approved": applicable sections only, so a not-applicable 4.4 never blocks 100%. */
-export function outlineProgress(sections: readonly ProjectSection[]): { approved: number; total: number } {
+export interface DocumentCounts {
+  /** Sections the document has: applicable to the methodology, excluding tool-only codes. */
+  total:    number
+  approved: number
+  /** Sections with text (drafted, edited or approved), the number a drafting run has produced. */
+  drafted:  number
+  writing:  number
+}
+
+/**
+ * The one count of the document's sections. The outline ("N of total approved"), the whole-proposal
+ * run card ("N of total drafted") and the end card all read it, so they cannot disagree; the run's
+ * own server-side totalCount covers only the sections that run writes, which is why it said 25
+ * where the outline said 27.
+ */
+export function documentCounts(sections: readonly ProjectSection[]): DocumentCounts {
   const counted = sections.filter(s => !NON_DOCUMENT_CODES.has(s.code) && s.isApplicableForMethodology !== false)
-  return { approved: counted.filter(s => s.status === 'Approved').length, total: counted.length }
+  return {
+    total:    counted.length,
+    approved: counted.filter(s => s.status === 'Approved').length,
+    drafted:  counted.filter(s => s.status !== 'Generating' && (s.status !== 'NotStarted' || s.content.trim().length > 0)).length,
+    writing:  counted.filter(s => s.status === 'Generating').length,
+  }
+}
+
+export function outlineProgress(sections: readonly ProjectSection[]): { approved: number; total: number } {
+  const { approved, total } = documentCounts(sections)
+  return { approved, total }
 }
 
 export type SectionFlagKind = 'alignment' | 'citation' | 'interrupted' | 'stopped'
