@@ -88,6 +88,13 @@ export const METHODOLOGY_SENSITIVE_SECTIONS: ReadonlySet<string> =
 /** Sections that exist only after the proposal becomes a thesis (gated by the readiness audit). */
 export const THESIS_ONLY_SECTIONS: ReadonlySet<string> = new Set(['6.0', '7.0', '8.0', '8.1'])
 
+/**
+ * Sections that never hold back a later chapter. Hypotheses (4.4) are only needed when the
+ * analysis plan (5.7a) names a statistical test, and that plan is written in Chapter 5, so 4.4
+ * can be written after it; the server marks 4.4 not applicable once 5.7a is descriptive only.
+ */
+export const DEFERRABLE_SECTIONS: ReadonlySet<string> = new Set(['4.4'])
+
 /** Research States in which Results and Discussion may be written (ResearchStateSectionPolicy). */
 const EMPIRICAL_STATES: ReadonlySet<string> = new Set(['AnalysisCompleted', 'CompletedResearch'])
 
@@ -126,6 +133,7 @@ export function unapprovedPrerequisites(section: ProjectSection, sections: reado
   return sections
     .filter(s => s.code !== section.code
       && !THESIS_ONLY_SECTIONS.has(s.code)
+      && !DEFERRABLE_SECTIONS.has(s.code)
       && isApplicable(s)
       && s.status !== 'Approved')
     .filter(s => {

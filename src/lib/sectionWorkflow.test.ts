@@ -47,7 +47,7 @@ describe('canDraft', () => {
   })
 
   it('lets a later chapter be drafted when chapter order is switched off', () => {
-    const sections = [section('4.3', 'Approved'), section('4.4'), section('5.1')]
+    const sections = [section('4.2', 'Approved'), section('4.3'), section('5.1')]
     expect(canDraft(sections[2], ctx(sections)).blocker).toBe('prerequisite')
     expect(canDraft(sections[2], ctx(sections, { chapterOrder: false }))).toEqual({ allowed: true, reason: null, blocker: null })
     // the other gates still apply
@@ -58,6 +58,13 @@ describe('canDraft', () => {
   it('ignores sections that do not apply to the methodology', () => {
     const sections = [section('4.3', 'Approved'), section('4.4', 'NotStarted', { isApplicableForMethodology: false }), section('5.1')]
     expect(canDraft(sections[2], ctx(sections)).allowed).toBe(true)
+  })
+
+  it('does not hold Chapter 5 back for unwritten Hypotheses (4.4), which can follow the analysis plan', () => {
+    const sections = [section('4.3', 'Approved'), section('4.4', 'NotStarted'), section('5.1')]
+    expect(canDraft(sections[2], ctx(sections)).allowed).toBe(true)
+    const waiting = [section('4.3', 'Draft'), section('4.4', 'NotStarted'), section('5.1')]
+    expect(unapprovedPrerequisites(waiting[2], waiting).map(s => s.code)).toEqual(['4.3'])
   })
 
   it('ignores relocated appendix sections when gating thesis chapters', () => {

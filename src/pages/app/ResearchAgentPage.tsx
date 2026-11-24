@@ -53,7 +53,7 @@ import { FixIssuesPanel } from '../../components/research-agent/FixIssuesPanel'
 // chapter list and prompts without pulling in this whole page's module.
 import { STEPS, SECTION_PROMPTS, getStepLabel } from '../../data/proposalOutline'
 import { isAbstractStepLocked } from './abstractStepStatus'
-import { canDraft, dedupeSections, isDraftAheadOn, type DraftDecision } from '../../lib/sectionWorkflow'
+import { canDraft, dedupeSections, DEFERRABLE_SECTIONS, isDraftAheadOn, type DraftDecision } from '../../lib/sectionWorkflow'
 import { guidedParamsFor } from '../../lib/documentOutline'
 import { parseView, readStoredView, storeView, type ResearchAgentView } from '../../lib/researchAgentView'
 import { DocumentModeView, type DocumentModeActions, type DocumentModeActionsState } from '../../components/research-agent/document/DocumentModeView'
@@ -2730,6 +2730,19 @@ function HypothesisEditor({
           <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-full', STATUS_STYLES[sectionStatus])}>
             {STATUS_LABELS[sectionStatus]}
           </span>
+        </div>
+      )}
+
+      {/* When 4.4 is needed — it depends on the analysis plan, which comes later */}
+      {sectionStatus !== 'Approved' && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <AlertCircle size={13} className="mt-0.5 shrink-0 text-slate-400" />
+          <p className="text-[12px] leading-5 text-slate-600">
+            Hypotheses are only needed if your analysis plan (5.7) uses a statistical test, such as a
+            t-test, chi-square or regression. A descriptive study does not need them. You can write the
+            analysis plan first: if it is descriptive only, this section is marked not needed;
+            otherwise come back here before you export.
+          </p>
         </div>
       )}
 
@@ -5467,8 +5480,11 @@ export default function ResearchAgentPage() {
     return 'default'
   })()
 
-  // Next must stay locked on a chapter step until the active section is Approved.
-  const nextDisabledForChapter = stepType === 'chapter' && activeChapterSection?.status !== 'Approved'
+  // Next must stay locked on a chapter step until the active section is Approved — except
+  // Hypotheses (4.4), which can wait for the analysis plan (5.7) that decides whether it is needed.
+  const onDeferrableSection = stepType === 'chapter' && !!activeChapterSection
+    && DEFERRABLE_SECTIONS.has(activeChapterSection.code) && activeChapterSection.status !== 'Approved'
+  const nextDisabledForChapter = stepType === 'chapter' && activeChapterSection?.status !== 'Approved' && !onDeferrableSection
   // Next must stay locked on Research Title until a title is actually chosen or written —
   // previously nothing blocked moving on with no title at all (Research Agent UX audit).
   const nextDisabledForTitle = STEPS[currentStep]?.id === 'research-title'
@@ -5758,6 +5774,8 @@ export default function ResearchAgentPage() {
           <p className="flex-1 text-center text-[12px]" style={{ color: 'var(--text-secondary)' }}>
             {stepType === 'chapter' && nextStep && nextDisabledForChapter
               ? `Approve this section to unlock ${nextStep.label}`
+              : onDeferrableSection
+              ? 'Hypotheses can wait until your analysis plan (5.7) is written'
               : nextDisabledForTitle ? 'Choose or write a title to continue'
               : saveState === 'saving' ? 'Saving…'
               : saveState === 'saved' ? 'Saved'
