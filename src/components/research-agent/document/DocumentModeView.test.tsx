@@ -63,7 +63,11 @@ const project = {
   id: 'p1', title: 'Load-shedding', documentType: 'Proposal', documentMode: 'PROPOSAL', generatorMode: 'GENERATOR',
   citationStyle: 'harvard', confirmedMethodology: { id: 'm' }, researchState: 'Proposal',
   // Every key study decision set, so tests of the other drafting gates are not held at the decisions gate.
-  sectionContent: { designContract: JSON.stringify({ designType: 'Survey', dataSources: 'Questionnaire', sampleSize: '384', software: 'SPSS', dataCollector: 'The researcher' }) },
+  sectionContent: {
+    designContract: JSON.stringify({ designType: 'Survey', dataSources: 'Questionnaire', sampleSize: '384', software: 'SPSS', dataCollector: 'The researcher' }),
+    // The student approved 1.0 and 1.2 (generatedAt null in these fixtures), so a server Approved shows as Approved.
+    studentApproved: JSON.stringify({ '1.0': '', '1.2': '' }),
+  },
 } as unknown as ResearchProject
 
 const approveSection = vi.fn().mockResolvedValue(undefined)
@@ -119,7 +123,7 @@ describe('DocumentModeView', () => {
     expect(card.getByText('Writing your proposal')).toBeTruthy()
     // The document's own count (4 sections, 2 with text), not the run's 25: the outline says "of 4" too.
     expect(card.getByText(/2 of 4 sections drafted/)).toBeTruthy()
-    expect(outline().getByText('1 of 4 approved')).toBeTruthy()
+    expect(outline().getByText('1 approved · 1 to review · 2 to go')).toBeTruthy()
     // No Stop on the run card or the drafting card: one Pause, plus Stop on the section being streamed.
     expect(card.queryByRole('button', { name: /Stop/ })).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Pause drafting' }).length).toBeGreaterThan(0)
@@ -159,11 +163,11 @@ describe('DocumentModeView', () => {
 
   it('shows every section with a status that is not conveyed by colour alone', () => {
     renderView()
-    expect(outline().getByText('1 of 4 approved')).toBeTruthy()
-    for (const [code, status] of [['1.0', 'Approved'], ['1.2', 'Needs review'], ['2.0', 'Not started'], ['3.1', 'Writing']]) {
+    expect(outline().getByText('1 approved · 1 to review · 2 to go')).toBeTruthy()
+    for (const [code, status] of [['1.0', 'Approved'], ['1.2', 'Ready for review'], ['2.0', 'Not started'], ['3.1', 'Writing']]) {
       expect(outline().getByRole('button', { name: new RegExp(`${status}.*${code.replace('.', '\\.')}`) })).toBeTruthy()
     }
-    expect(sectionRegion('1.2').getByText('Needs review')).toBeTruthy()
+    expect(sectionRegion('1.2').getByText('Ready for review')).toBeTruthy()
   })
 
   it('shows Results, Discussion and Conclusion as one locked row with what unlocks them', () => {
@@ -482,6 +486,35 @@ describe('DocumentModeView', () => {
       generateSection.mockClear()
       await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: 'Resume drafting' })[0]) })
       expect(generateSection.mock.calls.map(c => c[1])).toEqual(['2.1'])
+    })
+  })
+  describe('approved vs ready for review', () => {
+    it('a section the whole-proposal run approved shows Ready for review until the student approves it', async () => {
+      seed([section('1.0', 'Approved', 'Run-approved intro.', { generatedAt: '2026-11-24T08:00:00Z' }), section('1.2', 'Approved', 'Student-approved background.')])
+      renderView()
+      expect(outline().getByRole('button', { name: /Ready for review.*1\.0/ })).toBeTruthy()
+      expect(outline().getByRole('button', { name: /Approved.*1\.2/ })).toBeTruthy()
+      expect(outline().getByText('1 approved · 1 to review · 0 to go')).toBeTruthy()
+      expect(sectionRegion('1.0').getByRole('button', { name: 'Approve' })).toBeTruthy()
+    })
+
+    it('a rewrite after the student approved needs their approval again', () => {
+      // studentApproved records 1.2 with generatedAt '' (the fixture); a newer draft has a new generatedAt.
+      seed([section('1.0', 'Approved', 'Intro.'), section('1.2', 'Approved', 'Redrafted background.', { generatedAt: '2026-11-24T09:00:00Z' })])
+      renderView()
+      expect(outline().getByRole('button', { name: /Ready for review.*1\.2/ })).toBeTruthy()
+    })
+
+    it('shows a locked section with a short reason, the full one in its tooltip, and a key of every state', () => {
+      seed([section('0.0', 'NotStarted'), section('1.0', 'Approved', 'Intro.'), section('3.1', 'NotStarted')])
+      renderView()
+      const row = outline().getByRole('button', { name: /Locked.*0\.0.*Unlocks after/ })
+      expect(row.getAttribute('title')).toMatch(/^Unlocks after/)
+      expect(within(row).getByText('Written last')).toBeTruthy()
+      const key = within(screen.getByRole('list', { name: 'Status key' }))
+      for (const label of ['Approved', 'Ready for review', 'Writing', 'Up next', 'Not started', 'Locked', 'Edited after approval', 'May be out of date']) {
+        expect(key.getAllByText(label).some(el => el.className.includes('truncate'))).toBe(true)
+      }
     })
   })
 })

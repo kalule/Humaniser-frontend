@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { DOCUMENT_STATUS_LABELS, hasSectionBody, withReviewMarks, type DocumentSectionStatus } from './sectionWorkflow'
+import { DOCUMENT_STATUS_LABELS, hasSectionBody, withApprovalSource, withReviewMarks, type DocumentSectionStatus } from './sectionWorkflow'
+import { isStudentApproved, readStudentApprovals, recordStudentApproval, STUDENT_APPROVED_KEY } from './studentApproval'
 
 const none = { stale: false, editedAfterApproval: false }
 
@@ -31,5 +32,25 @@ describe('status transitions with review marks', () => {
     for (const s of all) expect(DOCUMENT_STATUS_LABELS[s]).toMatch(/\w/)
     expect(DOCUMENT_STATUS_LABELS.edited_after_approval).toBe('Edited after approval')
     expect(DOCUMENT_STATUS_LABELS.stale).toBe('May be out of date')
+  })
+})
+
+describe('approved vs ready for review (status mapping)', () => {
+  it('server Approved shows Approved only when the student approved it', () => {
+    expect(withApprovalSource('approved', true)).toBe('approved')
+    expect(withApprovalSource('approved', false)).toBe('needs_review')
+    expect(DOCUMENT_STATUS_LABELS[withApprovalSource('approved', false)]).toBe('Ready for review')
+    for (const other of ['needs_review', 'writing', 'not_started', 'locked'] as DocumentSectionStatus[]) {
+      expect(withApprovalSource(other, false)).toBe(other)
+    }
+  })
+
+  it('records the version the student approved, so a later redraft needs approving again', () => {
+    const approvals = recordStudentApproval({}, { code: '1.0', generatedAt: '2026-11-24T08:00:00Z' })
+    expect(isStudentApproved(approvals, { code: '1.0', generatedAt: '2026-11-24T08:00:00Z' })).toBe(true)
+    expect(isStudentApproved(approvals, { code: '1.0', generatedAt: '2026-11-24T09:00:00Z' })).toBe(false)
+    expect(isStudentApproved(approvals, { code: '1.2', generatedAt: null })).toBe(false)
+    expect(readStudentApprovals({ [STUDENT_APPROVED_KEY]: JSON.stringify(approvals) })).toEqual(approvals)
+    expect(readStudentApprovals({ [STUDENT_APPROVED_KEY]: 'not json' })).toEqual({})
   })
 })

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { readStudentApprovals, recordStudentApproval, STUDENT_APPROVED_KEY } from '../lib/studentApproval'
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
 import { researchApi } from '../api/research'
 import { STEPS } from '../data/proposalOutline'
@@ -429,6 +430,15 @@ export const useResearchStore = create<ResearchStore>()(
           sections: updateSection(s.sections, projectId, updated),
           ethicsChecklist: invalidateEthicsChecklistIfRelevant(s.ethicsChecklist, projectId, updated.code),
         }))
+        // Record that the student approved this version (the whole-proposal run approves its own drafts
+        // too, and the Document view tells the two apart). Best-effort: a failed sync is retried with
+        // the next project save.
+        const project = get().projects.find(p => p.id === projectId)
+        if (project) {
+          const next = recordStudentApproval(readStudentApprovals(project.sectionContent), updated)
+          get().setContent(projectId, STUDENT_APPROVED_KEY, JSON.stringify(next))
+          get().syncProject(projectId).catch(() => { /* kept locally; saved with the next change */ })
+        }
       },
 
       regenerateSection: async (projectId, code) => {

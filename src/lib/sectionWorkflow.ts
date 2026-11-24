@@ -220,16 +220,40 @@ export const DOCUMENT_STATUS_LABELS: Record<DocumentSectionStatus, string> = {
   not_started:  'Not started',
   up_next:      'Up next',
   writing:      'Writing',
-  needs_review: 'Needs review',
+  needs_review: 'Ready for review',
   approved:     'Approved',
   locked:       'Locked',
   edited_after_approval: 'Edited after approval',
   stale:        'May be out of date',
 }
 
+/** The outline key's order: the states a student meets most, first. Every status appears once. */
+export const LEGEND_STATES: readonly DocumentSectionStatus[] = [
+  'approved', 'needs_review', 'writing', 'up_next', 'not_started', 'locked', 'edited_after_approval', 'stale',
+]
+
 /** A section with text the student can read and edit (everything except not started, up next, writing and locked). */
 export const hasSectionBody = (status: DocumentSectionStatus) =>
   status === 'needs_review' || status === 'approved' || status === 'edited_after_approval' || status === 'stale'
+
+/**
+ * Approved only when the student approved it. A section the server has Approved but the student
+ * did not (the whole-proposal run auto-approves its drafts) is still ready for their review.
+ */
+export const withApprovalSource = (status: DocumentSectionStatus, studentApproved: boolean): DocumentSectionStatus =>
+  status === 'approved' && !studentApproved ? 'needs_review' : status
+
+/** A few words for a locked section's outline row; the full reason goes in its tooltip. */
+export function shortLockLabel(code: string): string {
+  switch (code) {
+    case ABSTRACT_CODE: return 'Written last'
+    case '6.0':
+    case '7.0': return 'After analysis'
+    case '8.0': return 'After Discussion'
+    case '8.1': return 'After Conclusion'
+    default:    return 'Locked'
+  }
+}
 
 /** A not-started section the agent's current run will draft is shown as up next. */
 export const withRunMark = (status: DocumentSectionStatus, inRun: boolean): DocumentSectionStatus =>

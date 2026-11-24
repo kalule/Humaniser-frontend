@@ -94,6 +94,10 @@ export interface DocumentCounts {
  * own server-side totalCount covers only the sections that run writes, which is why it said 25
  * where the outline said 27.
  */
+/** Sections the document's counts include: real document sections that apply to this methodology. */
+export const isCountedSection = (s: Pick<ProjectSection, 'code' | 'isApplicableForMethodology'>) =>
+  !NON_DOCUMENT_CODES.has(s.code) && s.isApplicableForMethodology !== false
+
 export function documentCounts(sections: readonly ProjectSection[]): DocumentCounts {
   const counted = sections.filter(s => !NON_DOCUMENT_CODES.has(s.code) && s.isApplicableForMethodology !== false)
   return {

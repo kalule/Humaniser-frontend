@@ -14,9 +14,10 @@ import { CREDIT_COSTS } from '../../../config/creditCosts'
 import { researchApi } from '../../../api/research'
 import { proposalJourneyApi } from '../../../api/proposalJourney'
 import { useConfirm } from '../../ui/ConfirmDialog'
-import { canDraft, dedupeSections, documentStatus, DRAFT_AHEAD_KEY, hasSectionBody, isDraftAheadOn, isThesisDocument, needsKeyDecisions, withReviewMarks, withRunMark, type DraftContext } from '../../../lib/sectionWorkflow'
+import { canDraft, dedupeSections, documentStatus, DRAFT_AHEAD_KEY, hasSectionBody, isDraftAheadOn, isThesisDocument, needsKeyDecisions, withApprovalSource, withReviewMarks, withRunMark, type DraftContext } from '../../../lib/sectionWorkflow'
 import { sectionWordLimit } from '../../../data/proposalLengthBudget'
-import { buildOutline, documentCounts, sectionFlags, type SectionFlag } from '../../../lib/documentOutline'
+import { buildOutline, documentCounts, isCountedSection, sectionFlags, type SectionFlag } from '../../../lib/documentOutline'
+import { isStudentApproved, readStudentApprovals } from '../../../lib/studentApproval'
 import { nextDraftAction } from '../../../lib/draftPlan'
 import { followDraft, forgetDraft } from '../../../lib/liveDraftStore'
 import { isRunActive, isRunVisible, useProposalRun } from '../../../lib/proposalRun'
@@ -276,7 +277,6 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const outline = useMemo(() => buildOutline(sections, project.documentType), [sections, project.documentType])
   // One count for the outline, the run card and the end card (fixes "27 approved" vs "25 sections").
   const counts = useMemo(() => documentCounts(sections), [sections])
-  const progress = useMemo(() => ({ approved: counts.approved, total: counts.total }), [counts])
 
   const proposalRun = useProposalRun(project.id, project.generation)
   const { status: runStatus, resume: resumeRun, stop: stopRun, refresh: refreshRun } = proposalRun
@@ -288,19 +288,35 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   // undrafted section while the whole-proposal run is writing. A section held for the key study
   // decisions is outside the run until they are set, so it stays "Not started".
   const queueSet = useMemo(() => new Set(draftQueue), [draftQueue])
+  const studentApprovals = useMemo(() => readStudentApprovals(project.sectionContent), [project.sectionContent])
   const view = useMemo(() => {
     const bySection: Record<string, { status: ReturnType<typeof documentStatus>; flags: SectionFlag[]; draft: ReturnType<typeof canDraft> }> = {}
     for (const s of sections) {
       const held = !decisionsReady && needsKeyDecisions(s)
       const inRun = !held && s.isApplicableForMethodology !== false && (queueSet.has(s.code) || (runActive && s.code !== '0.0'))
-      const status = withReviewMarks(withRunMark(documentStatus(s, ctx), inRun), {
+      // Approved only when the student approved this version; one the whole-proposal run approved is ready for their review.
+      const base = withApprovalSource(documentStatus(s, ctx), isStudentApproved(studentApprovals, s))
+      const status = withReviewMarks(withRunMark(base, inRun), {
         stale: !!staleMarks[s.code],
         editedAfterApproval: editedApproved.includes(s.code) && (s.status === 'Approved' || s.status === 'Edited'),
       })
       bySection[s.code] = { status, flags: sectionFlags(s, citationFlags, alignmentIssues, showCitationFlags()), draft: canDraft(s, ctx) }
     }
     return bySection
-  }, [sections, ctx, citationFlags, alignmentIssues, staleMarks, editedApproved, decisionsReady, queueSet, runActive])
+  }, [sections, ctx, citationFlags, alignmentIssues, staleMarks, editedApproved, decisionsReady, queueSet, runActive, studentApprovals])
+
+  // Outline progress from the statuses the student sees: approved (by them), drafted and waiting for them, and the rest.
+  const progress = useMemo(() => {
+    let approved = 0, review = 0, total = 0
+    for (const s of sections) {
+      if (!isCountedSection(s)) continue
+      total++
+      const status = view[s.code]?.status
+      if (status === 'approved') approved++
+      else if (status === 'needs_review' || status === 'stale' || status === 'edited_after_approval') review++
+    }
+    return { approved, review, total }
+  }, [sections, view])
 
   // Flag counts (outline badges, Agent panel box, mobile button) are off for end users in production.
   const countFlags = showFlagCounts()
@@ -308,7 +324,10 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     const out: Record<string, OutlineRow> = {}
     for (const s of sections) {
       const v = view[s.code]
-      if (v) out[s.code] = { status: v.status, flagCount: countFlags ? v.flags.length : 0, notApplicable: s.isApplicableForMethodology === false }
+      if (v) out[s.code] = {
+        status: v.status, flagCount: countFlags ? v.flags.length : 0, notApplicable: s.isApplicableForMethodology === false,
+        lockedReason: v.draft.blocker === 'locked' ? v.draft.reason : null,
+      }
     }
     return out
   }, [view, sections, countFlags])

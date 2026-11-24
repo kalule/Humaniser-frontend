@@ -95,9 +95,11 @@ function DocumentSectionBlockImpl({
       ref={el => registerAnchor(section.code, el)}
       data-section-code={section.code}
       className="rounded-[10px] -mx-3 sm:-mx-5 px-3 sm:px-5 pt-3 pb-3 my-2"
-      style={review
+      style={status === 'stale'
         ? { background: 'color-mix(in srgb, var(--color-amber-tint) 40%, white)', border: '1px solid var(--color-amber)' }
-        : { border: '1px solid transparent' }}
+        : review
+          ? { background: 'color-mix(in srgb, var(--color-purple-tint) 35%, white)', border: '1px solid color-mix(in srgb, var(--color-purple) 45%, white)' }
+          : { border: '1px solid transparent' }}
     >
       <div className="flex items-center gap-2.5 flex-wrap mb-2">
         <h3 id={headingId} tabIndex={-1} className={hideHeading ? 'sr-only' : 'dm-heading m-0 text-[18px] font-semibold'} style={{ fontFamily: 'Georgia, serif', color: 'var(--text-primary)' }}>
