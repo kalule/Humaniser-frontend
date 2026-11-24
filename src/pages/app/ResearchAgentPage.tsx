@@ -47,6 +47,7 @@ import type {
 } from '../../types/research'
 import toast from 'react-hot-toast'
 import { AddSavedSourcesToProject } from '../../components/webLibrary/AddSavedSourcesToProject'
+import { QualityReportCard } from '../../components/research-agent/QualityReportCard'
 import { FixIssuesPanel } from '../../components/research-agent/FixIssuesPanel'
 // STEPS and SECTION_PROMPTS live in src/data/proposalOutline.ts — shared with
 // AutonomousProposalTools' autonomous generation flow, which needs the same
@@ -2100,6 +2101,8 @@ function DownloadStep({ project }: { project: ResearchProject }) {
   const isThesisProject = project.documentType === 'Thesis' || project.documentType === 'Dissertation'
   // PR 10: optional "Citation audit" appendix (proposals only).
   const [includeCitationAudit, setIncludeCitationAudit] = useState(false)
+  // PR 11: bumped after a repair so the quality report is fetched again.
+  const [qualityTick, setQualityTick] = useState(0)
   const downloadDocument = (acknowledgeCitationIssues: boolean) =>
     isThesisProject ? exportThesisDocx(project.id) : exportDocx(project.id, acknowledgeCitationIssues, false, includeCitationAudit)
   const [, setSearchParams] = useSearchParams()
@@ -2359,6 +2362,8 @@ function DownloadStep({ project }: { project: ResearchProject }) {
           </div>
         </div>
 
+        {showIssues && !isThesisProject && <QualityReportCard projectId={project.id} refreshKey={qualityTick} />}
+
         {showIssues && !issuePanelFailed && (
           <FixIssuesPanel
             projectId={project.id}
@@ -2371,6 +2376,7 @@ function DownloadStep({ project }: { project: ResearchProject }) {
             onRepaired={async () => {
               const store = useResearchStore.getState()
               await Promise.all([store.loadSections(project.id), store.loadProject(project.id)])
+              setQualityTick(t => t + 1)
             }}
             onUnavailable={() => setIssuePanelFailed(true)}
             onBusyChange={setIssuePanelBusy}
