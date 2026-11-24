@@ -112,6 +112,10 @@ const SECTION_RULE_LABELS: Record<string, string> = {
   reference_year_mismatch: 'Citation year vs reference list',
   reference_no_date: 'Undated reference',
   absence_claim_unhedged: 'Unverified "no study" claim',
+  // PR 4 introduction checks
+  purpose_design_mismatch: 'Purpose wording vs design',
+  temporal_claim_unverified: 'Dated claim about a cited study',
+  theme_coverage_missing: 'Research question without a review theme',
 }
 
 export function issueLabel(type: string): string {

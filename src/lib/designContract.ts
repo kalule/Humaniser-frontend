@@ -52,7 +52,7 @@ export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
     sections: ['5.2', '5.6', '5.8', '5.10', '6.1', '6.2'] },
   { key: 'dataSources', group: 'Design', isKey: true, label: 'Data collection mode', placeholder: 'e.g. Online questionnaire; semi-structured interviews; existing records',
     sections: ['5.8', '5.9', '5.10', '6.1', '6.2'] },
-  { key: 'unitOfAnalysis', group: 'Design', label: 'Unit of analysis', placeholder: 'e.g. The firm (SME), reported by its owner-manager',
+  { key: 'unitOfAnalysis', group: 'Design', label: 'Unit of analysis', placeholder: 'e.g. The organisation, reported by one respondent each; or the individual participant',
     sections: ['3.3', '5.3', '5.7'] },
   { key: 'independentVariables', group: 'Variables', label: 'Independent variables', list: true, placeholder: 'Comma-separated',
     sections: ['3.3', '4.1', '4.3', '4.4', '5.7', '5.10'] },
