@@ -77,6 +77,7 @@ const SECTION_RULE_LABELS: Record<string, string> = {
   causal_wording: 'Causal wording',
   qualitative_variable_language: 'Variable language',
   shared_definition: 'Shared definition',
+  definition_repeated: 'Definition repeated',
   repetition: 'Repeated sentence',
   repeated_statistic: 'Repeated statistic',
   calendar_month_one: 'Timeline start date',
