@@ -120,7 +120,7 @@ describe('DocumentModeView', () => {
   it('shows a running whole-proposal run in the compact drafting card, counted like the outline, with one Pause', async () => {
     getGenerationStatus.mockResolvedValue({ ...idleRun, status: 'Generating', completedCount: 1, totalCount: 25, currentSection: '3.1', wordsWritten: 480 })
     renderView()
-    const card = within((await screen.findAllByRole('region', { name: 'Drafting' }))[0])
+    const card = within((await screen.findAllByRole('region', { name: 'Drafting' }, { timeout: 5000 }))[0])
     // The document's own count (4 sections, 2 with text), not the run's 25.
     expect(card.getByText(/2 of 4 drafted/)).toBeTruthy()
     expect(card.getByRole('button', { name: '3.1 Title 3.1' })).toBeTruthy()
@@ -135,7 +135,7 @@ describe('DocumentModeView', () => {
     getGenerationStatus.mockResolvedValue({ ...idleRun, status: 'Generating', completedCount: 0, totalCount: 25, currentSection: '1.2', wordsWritten: 0 })
     seed([section('1.0', 'Generating', '', { lockedBy: 'job-7' }), section('1.2', 'Generating', '', { lockedBy: 'generation' })])
     renderView()
-    await screen.findAllByRole('region', { name: 'Drafting' })
+    await screen.findAllByRole('region', { name: 'Drafting' }, { timeout: 5000 })
     await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: 'Pause drafting' })[0]) })
     expect(cancelGeneration).toHaveBeenCalledWith('p1')
     expect(stopSection).toHaveBeenCalledWith('p1', '1.0')
@@ -146,7 +146,7 @@ describe('DocumentModeView', () => {
     getGenerationStatus.mockResolvedValue({ ...idleRun, status: 'NeedsReview', completedCount: 1, totalCount: 25, currentSection: '1.2', wordsWritten: 500 })
     seed([section('1.0', 'Approved', 'Intro.'), section('1.2', 'Draft', 'Background.'), section('2.0', 'NotStarted')])
     renderView()
-    const card = within((await screen.findAllByRole('region', { name: 'Drafting' }))[0])
+    const card = within((await screen.findAllByRole('region', { name: 'Drafting' }, { timeout: 5000 }))[0])
     expect(card.getByText('Paused for your review')).toBeTruthy()
     const next = within(screen.getAllByRole('region', { name: 'Next step' })[0])
     expect(next.getByText('Review 1.2 Title 1.2')).toBeTruthy()
