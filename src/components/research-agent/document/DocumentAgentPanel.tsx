@@ -1,5 +1,5 @@
 import { memo, useEffect, useState, type ReactNode } from 'react'
-import { ArrowDown, Check, Circle, Play, Square, X } from 'lucide-react'
+import { ArrowDown, Check, Circle, Pause, Play, X } from 'lucide-react'
 import type { GenerationStatus, ProjectSection } from '../../../types/research'
 import type { DraftAction } from '../../../lib/draftPlan'
 import { useLiveDraft } from '../../../lib/liveDraftStore'
@@ -32,7 +32,8 @@ interface Props {
   /** Sections still waiting in the chapter being drafted. */
   queued:       string[]
   onDraftAction: () => void
-  targetWords:  number
+  /** Words a section is drafted to (a proposal section: its share of the fixed length). */
+  wordsFor:     (code: string) => number
   activity:     ActivityEntry[]
   onJump:       (code: string) => void
   /** Sections drafted or edited since the last alignment check. */
@@ -44,9 +45,15 @@ interface Props {
   onToggleDraftAhead: () => void
   /** The document's own section counts: the same numbers the outline shows. */
   counts:       DocumentCounts
-  /** Stops everything: the whole-proposal run, every section being drafted, and the queue. */
-  onStopAll:    () => void
-  stoppingAll:  boolean
+  /** Pauses everything: the whole-proposal run, every section being drafted, and the queue. */
+  onPause:      () => void
+  pausing:      boolean
+  /** Something was paused (a queue or the whole-proposal run) and can be resumed. */
+  paused:       boolean
+  onResume:     () => void
+  /** Sections still to draft, for "Draft all remaining". */
+  remaining:    number
+  onDraftAll:   () => void
   /** Pinned design contract panel, shown first. */
   contract?:    ReactNode
   /** Review issues card. */
@@ -229,9 +236,9 @@ function RunCard({ run, counts, onJump }: { run: RunInfo; counts: DocumentCounts
 }
 
 function DocumentAgentPanelImpl({
-  run, projectId, writing, flagGroups, onNextFlag, nextReview, draftAction, queued, onDraftAction, targetWords,
+  run, projectId, writing, flagGroups, onNextFlag, nextReview, draftAction, queued, onDraftAction, wordsFor,
   activity, onJump, staleAlignment, isValidating, onCheckAlignment, draftAhead, onToggleDraftAhead,
-  counts, onStopAll, stoppingAll, contract, review,
+  counts, onPause, pausing, paused, onResume, remaining, onDraftAll, contract, review,
 }: Props) {
   const runActive = isRunActive(run?.status)
   const busy = writing.length > 0 || queued.length > 0 || runActive
@@ -240,15 +247,32 @@ function DocumentAgentPanelImpl({
     <aside aria-label="Agent" className="h-full flex flex-col gap-4 p-[18px] overflow-y-auto dm-scroll">
       <div className="flex items-center justify-between gap-2 min-h-[30px]">
         <h2 className="m-0 text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>Agent</h2>
-        {busy && (
-          <button type="button" onClick={onStopAll} disabled={stoppingAll}
-            className="dm-action shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60"
-            style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}
-            aria-label="Stop all drafting">
-            <Square size={10} aria-hidden="true" /> {stoppingAll ? 'Stopping…' : 'Stop all'}
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {busy ? (
+            <button type="button" onClick={onPause} disabled={pausing}
+              className="dm-action shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60"
+              style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}
+              aria-label="Pause drafting">
+              <Pause size={10} aria-hidden="true" /> {pausing ? 'Pausing…' : 'Pause'}
+            </button>
+          ) : paused ? (
+            <button type="button" onClick={onResume}
+              className="dm-action shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold"
+              style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}
+              aria-label="Resume drafting">
+              <Play size={10} aria-hidden="true" /> Resume
+            </button>
+          ) : null}
+        </div>
       </div>
+
+      {!busy && remaining > 0 && (
+        <button type="button" onClick={onDraftAll}
+          className="dm-action self-start inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold"
+          style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
+          Draft all remaining · {remaining} section{remaining === 1 ? '' : 's'}
+        </button>
+      )}
 
       {contract}
 
@@ -256,7 +280,7 @@ function DocumentAgentPanelImpl({
 
       {/* One card per section being drafted (writing is already one entry per section code). */}
       {writing.length > 0 ? writing.map(s => (
-        <NowDrafting key={s.code} projectId={projectId} section={s} targetWords={targetWords} queued={queued} onJump={onJump} />
+        <NowDrafting key={s.code} projectId={projectId} section={s} targetWords={wordsFor(s.code)} queued={queued} onJump={onJump} />
       )) : runActive ? (
         <p className="m-0 text-[13px]" style={{ color: 'var(--text-secondary)' }}>Checking the last section and preparing the next one…</p>
       ) : (

@@ -22,7 +22,7 @@ interface Props {
 }
 
 function trailing(row: OutlineRow, wordCount: number) {
-  if (row.notApplicable && row.status === 'queued') return <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Not needed</span>
+  if (row.notApplicable && row.status === 'not_started') return <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Not needed</span>
   if (row.status === 'writing') return <span className="text-[11px] font-semibold" style={{ color: 'var(--color-purple-text)' }}>Writing</span>
   if (row.status === 'locked') return <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Locked</span>
   if (row.flagCount > 0) {
@@ -32,7 +32,8 @@ function trailing(row: OutlineRow, wordCount: number) {
       </span>
     )
   }
-  if (row.status === 'queued') return <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Queued</span>
+  if (row.status === 'up_next') return <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Up next</span>
+  if (row.status === 'not_started') return <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Not started</span>
   if (row.status === 'needs_review') return <span className="text-[11px]" style={{ color: 'var(--color-amber-text)' }}>Review</span>
   return <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{wordCount.toLocaleString()}w</span>
 }
@@ -109,7 +110,7 @@ function DocumentOutlineRailImpl({ chapters, rows, activeCode, progress, onSelec
                           aria-current={active ? 'location' : undefined}
                           className="dm-outline-item w-full flex items-center gap-2 rounded-lg pl-4 pr-2 py-1.5 text-left text-[13px] hover:bg-slate-50"
                           style={active ? { background: 'var(--color-purple-tint)', color: 'var(--text-primary)', fontWeight: 600 }
-                            : { color: row.status === 'queued' || row.status === 'locked' ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+                            : { color: row.status === 'not_started' || row.status === 'up_next' || row.status === 'locked' ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
                           <SectionStatusMark status={row.status} />
                           <span className="flex-1 min-w-0 truncate">{s.displayCode || s.code} {s.title}</span>
                           {trailing(row, s.wordCount)}

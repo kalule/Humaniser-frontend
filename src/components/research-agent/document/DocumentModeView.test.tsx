@@ -120,9 +120,9 @@ describe('DocumentModeView', () => {
     // The document's own count (4 sections, 2 with text), not the run's 25: the outline says "of 4" too.
     expect(card.getByText(/2 of 4 sections drafted/)).toBeTruthy()
     expect(outline().getByText('1 of 4 approved')).toBeTruthy()
-    // No Stop on the run card or the drafting card: one Stop all, plus Stop on the section being streamed.
+    // No Stop on the run card or the drafting card: one Pause, plus Stop on the section being streamed.
     expect(card.queryByRole('button', { name: /Stop/ })).toBeNull()
-    expect(screen.getAllByRole('button', { name: 'Stop all drafting' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: 'Pause drafting' }).length).toBeGreaterThan(0)
     expect(sectionRegion('3.1').getByRole('button', { name: /Stop writing/ })).toBeTruthy()
     expect(loadSections).toHaveBeenCalledWith('p1')
   })
@@ -136,13 +136,12 @@ describe('DocumentModeView', () => {
     expect(panel.queryByText('Writing 3.1 Title 3.1')).toBeNull()
   })
 
-  it('Stop all cancels the run and stops every section the run does not hold', async () => {
+  it('Pause cancels the run and stops every section the run does not hold, then offers Resume', async () => {
     getGenerationStatus.mockResolvedValue({ ...idleRun, status: 'Generating', completedCount: 0, totalCount: 25, currentSection: '1.2', wordsWritten: 0 })
     seed([section('1.0', 'Generating', '', { lockedBy: 'job-7' }), section('1.2', 'Generating', '', { lockedBy: 'generation' })])
     renderView()
     await screen.findAllByRole('region', { name: 'Whole-proposal run' })
-    await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: 'Stop all drafting' })[0]) })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Stop all' })) })
+    await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: 'Pause drafting' })[0]) })
     expect(cancelGeneration).toHaveBeenCalledWith('p1')
     expect(stopSection).toHaveBeenCalledWith('p1', '1.0')
     expect(stopSection).not.toHaveBeenCalledWith('p1', '1.2')
@@ -155,13 +154,13 @@ describe('DocumentModeView', () => {
     expect(card.getByText('Paused for your review')).toBeTruthy()
     expect(card.getByRole('button', { name: 'Go to 1.2 Title 1.2' })).toBeTruthy()
     await act(async () => { fireEvent.click(card.getByRole('button', { name: 'Resume' })) })
-    expect(generateAutonomous).toHaveBeenCalledWith('p1', 500)
+    expect(generateAutonomous).toHaveBeenCalledWith('p1', 400)
   })
 
   it('shows every section with a status that is not conveyed by colour alone', () => {
     renderView()
     expect(outline().getByText('1 of 4 approved')).toBeTruthy()
-    for (const [code, status] of [['1.0', 'Approved'], ['1.2', 'Needs review'], ['2.0', 'Queued'], ['3.1', 'Writing']]) {
+    for (const [code, status] of [['1.0', 'Approved'], ['1.2', 'Needs review'], ['2.0', 'Not started'], ['3.1', 'Writing']]) {
       expect(outline().getByRole('button', { name: new RegExp(`${status}.*${code.replace('.', '\\.')}`) })).toBeTruthy()
     }
     expect(sectionRegion('1.2').getByText('Needs review')).toBeTruthy()
@@ -262,7 +261,7 @@ describe('DocumentModeView', () => {
     renderView()
     expect((sectionRegion('3.1').getByRole('button', { name: /Draft this section/ }) as HTMLButtonElement).disabled).toBe(true)
     await act(async () => { fireEvent.click(sectionRegion('2.0').getByRole('button', { name: 'Draft this section' })) })
-    expect(generateSection).toHaveBeenCalledWith('p1', '2.0', 500)
+    expect(generateSection).toHaveBeenCalledWith('p1', '2.0', 1400)
   })
 
   it('drafts a chapter one section at a time, each only after the previous finished', async () => {
@@ -450,6 +449,39 @@ describe('DocumentModeView', () => {
         software: 'Stata', dataCollector: 'The researcher, personally',
       })
       expect(syncProject).toHaveBeenCalledWith('p1')
+    })
+  })
+  describe('up next and not started', () => {
+    it('"Draft all remaining" queues every remaining section in order: the running one drafts, the rest show Up next with Draft now', async () => {
+      seed([section('1.0', 'Approved', 'Intro.'), section('2.0', 'NotStarted'), section('2.1', 'NotStarted'), section('2.2', 'NotStarted')])
+      renderView()
+      for (const code of ['2.0', '2.1', '2.2']) expect(outline().getByRole('button', { name: new RegExp(`Not started.*${code.replace('.', '\\.')}`) })).toBeTruthy()
+      // Not started sections offer the compact draft button; nothing is up next yet.
+      expect(sectionRegion('2.1').getByRole('button', { name: 'Draft this section' })).toBeTruthy()
+      await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: /^Draft all remaining · 3 sections/ })[0]) })
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Draft · \d+ credits/ })) })
+      expect(generateSection.mock.calls.map(c => c[1])).toEqual(['2.0'])
+      expect(outline().getByRole('button', { name: /Up next.*2\.1/ })).toBeTruthy()
+      expect(sectionRegion('2.1').queryByRole('button', { name: 'Draft this section' })).toBeNull()
+      // Draft now starts an up-next section straight away and takes it out of the queue.
+      await act(async () => { fireEvent.click(sectionRegion('2.2').getByRole('button', { name: 'Draft 2.2 Title 2.2 now' })) })
+      expect(generateSection.mock.calls.map(c => c[1])).toEqual(['2.0', '2.2'])
+    })
+
+    it('Pause turns the queue back into Not started, and Resume puts it back in the run', async () => {
+      seed([section('1.0', 'Approved', 'Intro.'), section('2.0', 'NotStarted'), section('2.1', 'NotStarted')])
+      renderView()
+      await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: /^Draft all remaining/ })[0]) })
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Draft · \d+ credits/ })) })
+      expect(outline().getByRole('button', { name: /Up next.*2\.1/ })).toBeTruthy()
+      await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: 'Pause drafting' })[0]) })
+      expect(stopSection).toHaveBeenCalledWith('p1', '2.0')
+      // The stopped section reverts; 2.1 is outside the run now.
+      await act(async () => { seed([section('1.0', 'Approved', 'Intro.'), section('2.0', 'NotStarted'), section('2.1', 'NotStarted')]) })
+      expect(outline().getByRole('button', { name: /Not started.*2\.1/ })).toBeTruthy()
+      generateSection.mockClear()
+      await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: 'Resume drafting' })[0]) })
+      expect(generateSection.mock.calls.map(c => c[1])).toEqual(['2.1'])
     })
   })
 })

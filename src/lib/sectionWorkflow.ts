@@ -12,10 +12,13 @@ import { isAbstractStepLocked } from '../pages/app/abstractStepStatus'
  *   Approved               -> approved
  *   NotStarted, has text   -> needs_review  (an interrupted run left text on it)
  *   NotStarted, gate shut  -> locked        (a gate such as Research State or the Abstract's rule)
- *   NotStarted otherwise   -> queued
+ *   NotStarted otherwise   -> not_started   (up_next once it is in the agent's current run: see withRunMark)
+ *
+ * There is no stored "queued" any more: a section waiting in the run is up_next, one outside it
+ * (no run, paused, or held for the key study decisions) is not_started.
  */
 export type DocumentSectionStatus =
-  | 'queued' | 'writing' | 'needs_review' | 'approved' | 'locked'
+  | 'not_started' | 'up_next' | 'writing' | 'needs_review' | 'approved' | 'locked'
   // Review marks layered over the server status (see withReviewMarks); never returned by documentStatus.
   | 'edited_after_approval' | 'stale'
 
@@ -205,7 +208,7 @@ export function documentStatus(section: ProjectSection, ctx: DraftContext): Docu
     case 'Edited':     return 'needs_review'
     default:
       if (section.content.trim()) return 'needs_review'
-      return lockReason(section, ctx) ? 'locked' : 'queued'
+      return lockReason(section, ctx) ? 'locked' : 'not_started'
   }
 }
 
@@ -214,7 +217,8 @@ export const isSectionHeld = (section: Pick<ProjectSection, 'status' | 'lockedBy
   section.status === 'Generating' || !!section.lockedBy
 
 export const DOCUMENT_STATUS_LABELS: Record<DocumentSectionStatus, string> = {
-  queued:       'Queued',
+  not_started:  'Not started',
+  up_next:      'Up next',
   writing:      'Writing',
   needs_review: 'Needs review',
   approved:     'Approved',
@@ -223,13 +227,17 @@ export const DOCUMENT_STATUS_LABELS: Record<DocumentSectionStatus, string> = {
   stale:        'May be out of date',
 }
 
-/** A section with text the student can read and edit (everything except queued, writing and locked). */
+/** A section with text the student can read and edit (everything except not started, up next, writing and locked). */
 export const hasSectionBody = (status: DocumentSectionStatus) =>
   status === 'needs_review' || status === 'approved' || status === 'edited_after_approval' || status === 'stale'
 
+/** A not-started section the agent's current run will draft is shown as up next. */
+export const withRunMark = (status: DocumentSectionStatus, inRun: boolean): DocumentSectionStatus =>
+  status === 'not_started' && inRun ? 'up_next' : status
+
 /**
  * The status shown for a section: the server-derived status, plus two review marks the student
- * should see. Writing, queued and locked always win (there is no text to review). Stale (a design
+ * should see. Writing, not started, up next and locked always win (there is no text to review). Stale (a design
  * contract field it states changed) outranks "edited after approval", which only applies while the
  * server still has the section approved or demoted it to Edited after an approval.
  */

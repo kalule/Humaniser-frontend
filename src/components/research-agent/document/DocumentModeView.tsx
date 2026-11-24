@@ -14,7 +14,8 @@ import { CREDIT_COSTS } from '../../../config/creditCosts'
 import { researchApi } from '../../../api/research'
 import { proposalJourneyApi } from '../../../api/proposalJourney'
 import { useConfirm } from '../../ui/ConfirmDialog'
-import { canDraft, dedupeSections, documentStatus, DRAFT_AHEAD_KEY, hasSectionBody, isDraftAheadOn, isThesisDocument, needsKeyDecisions, withReviewMarks, type DraftContext } from '../../../lib/sectionWorkflow'
+import { canDraft, dedupeSections, documentStatus, DRAFT_AHEAD_KEY, hasSectionBody, isDraftAheadOn, isThesisDocument, needsKeyDecisions, withReviewMarks, withRunMark, type DraftContext } from '../../../lib/sectionWorkflow'
+import { sectionWordLimit } from '../../../data/proposalLengthBudget'
 import { buildOutline, documentCounts, sectionFlags, type SectionFlag } from '../../../lib/documentOutline'
 import { nextDraftAction } from '../../../lib/draftPlan'
 import { followDraft, forgetDraft } from '../../../lib/liveDraftStore'
@@ -50,8 +51,15 @@ interface Props {
 }
 
 const EMPTY_SECTIONS: ProjectSection[] = []
-/** Fallback per-section length when the project set none (same default as Guided). */
+/** Fallback per-section length for a thesis that set none (same default as Guided). */
 const DEFAULT_SECTION_WORDS = 500
+
+/** A proposal's section length is its share of the fixed 10,000-word cap; a thesis keeps its stored per-section length. */
+function wordsForSection(project: Pick<ResearchProject, 'documentType' | 'sectionContent'>, code: string): number {
+  return isThesisDocument(project.documentType)
+    ? Number(project.sectionContent?.['targetSectionWordCount']) || DEFAULT_SECTION_WORDS
+    : sectionWordLimit(code)
+}
 /** Most recent entries kept in the agent panel's activity log. */
 const ACTIVITY_LIMIT = 8
 
@@ -98,6 +106,8 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const [agentOpen, setAgentOpen] = useState(false)
   // Sections still to draft in the chapter the student started (drafted one after another).
   const [draftQueue, setDraftQueue] = useState<string[]>([])
+  // What was left in the queue when the student paused, restored by Resume.
+  const [pausedQueue, setPausedQueue] = useState<string[]>([])
   const [stoppingCode, setStoppingCode] = useState<string | null>(null)
   const [activity, setActivity] = useState<ActivityEntry[]>([])
   const [stoppingAll, setStoppingAll] = useState(false)
@@ -110,7 +120,9 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const [reviewingRewrite, setReviewingRewrite] = useState<string | null>(null)
   const [applyingRewrite, setApplyingRewrite] = useState(false)
   const startingRef = useRef(false)
-  const targetWords = Number(project.sectionContent?.['targetSectionWordCount']) || DEFAULT_SECTION_WORDS
+  const wordsFor = useCallback((code: string) => wordsForSection(project, code), [project])
+  // The automated run takes one number; the server replaces it with each section's own share for a proposal.
+  const targetWords = wordsFor('')
 
   const logActivity = useCallback((text: string, state: ActivityEntry['state'] = 'done') => {
     setActivity(prev => [{ id: `${Date.now()}-${prev.length}`, text, state }, ...prev].slice(0, ACTIVITY_LIMIT))
@@ -266,17 +278,29 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const counts = useMemo(() => documentCounts(sections), [sections])
   const progress = useMemo(() => ({ approved: counts.approved, total: counts.total }), [counts])
 
+  const proposalRun = useProposalRun(project.id, project.generation)
+  const { status: runStatus, resume: resumeRun, stop: stopRun, refresh: refreshRun } = proposalRun
+  const proposalRunStatusRef = useRef(runStatus)
+  proposalRunStatusRef.current = runStatus
+  const runActive = isRunActive(runStatus)
+
+  // Sections in the agent's current run show as "Up next": the chapter queue started here, or every
+  // undrafted section while the whole-proposal run is writing. A section held for the key study
+  // decisions is outside the run until they are set, so it stays "Not started".
+  const queueSet = useMemo(() => new Set(draftQueue), [draftQueue])
   const view = useMemo(() => {
     const bySection: Record<string, { status: ReturnType<typeof documentStatus>; flags: SectionFlag[]; draft: ReturnType<typeof canDraft> }> = {}
     for (const s of sections) {
-      const status = withReviewMarks(documentStatus(s, ctx), {
+      const held = !decisionsReady && needsKeyDecisions(s)
+      const inRun = !held && s.isApplicableForMethodology !== false && (queueSet.has(s.code) || (runActive && s.code !== '0.0'))
+      const status = withReviewMarks(withRunMark(documentStatus(s, ctx), inRun), {
         stale: !!staleMarks[s.code],
         editedAfterApproval: editedApproved.includes(s.code) && (s.status === 'Approved' || s.status === 'Edited'),
       })
       bySection[s.code] = { status, flags: sectionFlags(s, citationFlags, alignmentIssues, showCitationFlags()), draft: canDraft(s, ctx) }
     }
     return bySection
-  }, [sections, ctx, citationFlags, alignmentIssues, staleMarks, editedApproved])
+  }, [sections, ctx, citationFlags, alignmentIssues, staleMarks, editedApproved, decisionsReady, queueSet, runActive])
 
   // Flag counts (outline badges, Agent panel box, mobile button) are off for end users in production.
   const countFlags = showFlagCounts()
@@ -305,13 +329,9 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       .map(s => ({ code: s.code, label: `${s.displayCode || s.code} ${s.title}`, count: counts.get(s.code)! }))
   }, [countFlags, allFlags, ordered])
   const nextReview = useMemo(() => ordered.find(s => view[s.code]?.status === 'needs_review') ?? null, [ordered, view])
-  const draftAction = useMemo(() => nextDraftAction(outline, ctx, targetWords), [outline, ctx, targetWords])
+  const draftAction = useMemo(() => nextDraftAction(outline, ctx, wordsFor), [outline, ctx, wordsFor])
 
   // ── The automatic whole-proposal run, if this project has one: shown live in the Agent panel ──
-  const proposalRun = useProposalRun(project.id, project.generation)
-  const { status: runStatus, resume: resumeRun, stop: stopRun, refresh: refreshRun } = proposalRun
-  const proposalRunStatusRef = useRef(runStatus)
-  proposalRunStatusRef.current = runStatus
   const sectionLabel = useCallback((code: string | null | undefined) => {
     if (!code) return null
     const s = sections.find(x => x.code === code)
@@ -562,7 +582,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     const decision = canDraft(section, c)
     if (!decision.allowed) { toast.error(decision.reason ?? `${code} cannot be drafted yet.`); return false }
     try {
-      await useResearchStore.getState().generateSection(p.id, code, Number(p.sectionContent?.['targetSectionWordCount']) || DEFAULT_SECTION_WORDS)
+      await useResearchStore.getState().generateSection(p.id, code, wordsForSection(p, code))
       logActivity(`Started drafting ${section.displayCode || code} ${section.title}`, 'active')
       return true
     } catch (err) {
@@ -575,6 +595,9 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     if (!(await preflight(1))) return
     await startDraft(code)
   }, [preflight, startDraft])
+
+  const draftQueueRef = useRef(draftQueue)
+  draftQueueRef.current = draftQueue
 
   const handleDraftAction = useCallback(async () => {
     const action = draftAction
@@ -639,15 +662,12 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     }
   }, [confirm, logActivity, refreshRun])
 
-  // One Stop for everything the agent is doing: the whole-proposal run, every section being drafted, the queue.
-  const handleStopAll = useCallback(async () => {
+  // Pause: everything the agent is doing stops now (the whole-proposal run, every section being
+  // drafted, the queue); text written so far is kept for review. Resume carries on from the next
+  // unwritten section.
+  const handlePause = useCallback(async () => {
     const { project: p, sections: list } = latest.current
-    const ok = await confirm({
-      title: 'Stop all drafting?',
-      message: 'Every section being drafted stops; the text written so far is kept for you to review. The whole-proposal run, if one is going, is cancelled and can be resumed later.',
-      confirmLabel: 'Stop all',
-    })
-    if (!ok) return
+    setPausedQueue(prev => [...new Set([...prev, ...draftQueueRef.current])])
     setDraftQueue([])
     setStoppingAll(true)
     try {
@@ -657,14 +677,57 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       for (const s of list.filter(x => x.status === 'Generating' && x.lockedBy !== 'generation')) jobs.push(store.stopSection(p.id, s.code))
       const results = await Promise.allSettled(jobs)
       const failed = results.filter(r => r.status === 'rejected').length
-      logActivity(failed ? `Stopped drafting (${failed} could not be stopped)` : 'Stopped all drafting', failed ? 'error' : 'done')
-      if (failed) toast.error(`${failed} stop request${failed === 1 ? '' : 's'} failed. Try again.`)
-      else toast.success('Stopped. Text written so far is kept for review.')
+      logActivity(failed ? `Paused drafting (${failed} could not be stopped)` : 'Paused drafting', failed ? 'error' : 'done')
+      if (failed) toast.error(`${failed} pause request${failed === 1 ? '' : 's'} failed. Try again.`)
+      else toast.success('Paused. Text written so far is kept for review.')
       refreshRun()
     } finally {
       setStoppingAll(false)
     }
-  }, [confirm, stopRun, refreshRun, logActivity])
+  }, [stopRun, refreshRun, logActivity])
+
+  // Sections still to draft, in reading order: not started or up next, applicable, and not shut by a
+  // lock or another gate (a section held only for the key study decisions is included: it waits in the queue).
+  const remainingCodes = useMemo(() => ordered.filter(s => {
+    const v = view[s.code]
+    if (!v || (v.status !== 'not_started' && v.status !== 'up_next') || s.isApplicableForMethodology === false) return false
+    return v.draft.allowed || v.draft.blocker === 'decisions'
+  }).map(s => s.code), [ordered, view])
+
+  const handleDraftAll = useCallback(async () => {
+    const codes = remainingCodes.filter(c => !draftQueueRef.current.includes(c))
+    if (!codes.length) return
+    const cost = CREDIT_COSTS.proposalSectionGeneration * codes.length
+    const ok = await confirm({
+      title: `Draft all ${codes.length} remaining section${codes.length === 1 ? '' : 's'}?`,
+      message: `The agent drafts them in order (${codes.join(', ')}), one after another. Each one stops at Ready for review; nothing is approved for you. You can pause at any time.`,
+      confirmLabel: `Draft · ${cost} credits`,
+    })
+    if (!ok) return
+    if (!(await preflight(codes.length))) return
+    setPausedQueue([])
+    setDraftQueue(prev => [...prev, ...codes])
+    logActivity(`Queued ${codes.length} section${codes.length === 1 ? '' : 's'} to draft in order`)
+  }, [remainingCodes, confirm, preflight, logActivity])
+
+  const handleResume = useCallback(() => {
+    const { sections: list } = latest.current
+    // Only sections still without text: anything drafted meanwhile is not redrafted.
+    const left = pausedQueue.filter(c => { const s = list.find(x => x.code === c); return !!s && !s.content.trim() && s.status !== 'Generating' })
+    setPausedQueue([])
+    if (left.length) setDraftQueue(prev => [...prev, ...left.filter(c => !prev.includes(c))])
+    const run = proposalRunStatusRef.current
+    if (run && !isRunActive(run) && (run.status === 'Cancelled' || run.status === 'NeedsReview' || run.status === 'Error')) handleRunResume()
+    logActivity('Resumed drafting')
+  }, [pausedQueue, handleRunResume, logActivity])
+
+  // "Draft now" on an up-next section: start it straight away instead of waiting its turn.
+  const handleDraftNow = useCallback(async (code: string) => {
+    setDraftQueue(prev => prev.filter(c => c !== code))
+    if (!(await preflight(1))) return
+    await startDraft(code)
+  }, [preflight, startDraft])
+  const handleDraftNowCb = useCallback((code: string) => { void handleDraftNow(code) }, [handleDraftNow])
 
   // Follow every section being written; when one finishes, forget its stream (the saved section
   // is the truth now), log the outcome, and mark its alignment as not yet checked.
@@ -927,6 +990,10 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     }
   }, [runHeldForDecisions, decisionsReady, runStatus?.status, logActivity, handleRunResume])
 
+  // Paused: a queue the student paused, or a whole-proposal run that stopped short (not one waiting for the decisions).
+  const paused = pausedQueue.length > 0 || (!!runStatus && !runActive && !runHeldForDecisions
+    && (runStatus.status === 'Cancelled' || runStatus.status === 'NeedsReview' || runStatus.status === 'Error'))
+
   const rail = (
     <DocumentOutlineRail chapters={outline} rows={rows} activeCode={activeCode} progress={progress}
       onSelect={scrollToAnchor} onSelectChapter={key => scrollToAnchor(`chapter:${key}`)} />
@@ -947,8 +1014,10 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const agent = (
     <DocumentAgentPanel run={runInfo} projectId={project.id} writing={writing} flagGroups={flagGroups} onNextFlag={handleNextFlag} nextReview={nextReview}
       draftAction={draftAction} queued={draftQueue} onDraftAction={handleDraftAction}
-      counts={counts} onStopAll={() => { void handleStopAll() }} stoppingAll={stoppingAll} contract={contractPanel} review={reviewCard}
-      targetWords={targetWords} activity={activity}
+      counts={counts} onPause={() => { void handlePause() }} pausing={stoppingAll} paused={paused} onResume={handleResume}
+      remaining={remainingCodes.filter(c => !queueSet.has(c)).length} onDraftAll={() => { void handleDraftAll() }}
+      contract={contractPanel} review={reviewCard}
+      wordsFor={wordsFor} activity={activity}
       onJump={scrollToAnchor}
       draftAhead={draftAhead} onToggleDraftAhead={handleToggleDraftAhead}
       staleAlignment={staleAlignment} isValidating={isValidating} onCheckAlignment={handleValidate} />
@@ -1012,6 +1081,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
                     onApprove={handleApprove} onRewrite={handleRewrite} onOpenGuided={onOpenGuided}
                     onDemoted={handleDemoted} registerFlush={registerFlush}
                     onDraft={handleDraftSection} onStop={handleStop} isStopping={stoppingCode === s.code}
+                    onDraftNow={queueSet.has(s.code) ? handleDraftNowCb : undefined}
                     hideHeading={s.code === chapter.leadCode}
                     staleFields={staleMarks[s.code]} onMarkReviewed={handleMarkReviewed} onEditedApproved={handleEditedApproved}
                     registerReveal={registerReveal} onCheckCitations={handleCheckCitationsCb} checkState={sectionChecks.state[s.code]}

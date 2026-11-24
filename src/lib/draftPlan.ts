@@ -17,10 +17,14 @@ export interface DraftAction {
 }
 
 function sectionsToDraft(chapter: OutlineChapter, ctx: DraftContext): ProjectSection[] {
-  return chapter.sections.filter(s => s.isApplicableForMethodology !== false && documentStatus(s, ctx) === 'queued')
+  return chapter.sections.filter(s => s.isApplicableForMethodology !== false && documentStatus(s, ctx) === 'not_started')
 }
 
-export function nextDraftAction(outline: OutlineChapter[], ctx: DraftContext, wordsPerSection: number): DraftAction | null {
+/** Words for one section: a flat number, or each section's own share (a proposal's fixed length budget). */
+export type SectionWords = number | ((code: string) => number)
+
+export function nextDraftAction(outline: OutlineChapter[], ctx: DraftContext, wordsPerSection: SectionWords): DraftAction | null {
+  const wordsOf = (codes: string[]) => codes.reduce((n, code) => n + (typeof wordsPerSection === 'number' ? wordsPerSection : wordsPerSection(code)), 0)
   // Draft ahead: Chapters 1-3 run as one sequence (still one section at a time, each stopping at
   // needs review). Everything after works exactly as without the setting.
   if (ctx.draftAhead) {
@@ -30,7 +34,7 @@ export function nextDraftAction(outline: OutlineChapter[], ctx: DraftContext, wo
     if (todo.length > 1) {
       const first = allowedTodo[0] ?? todo[0]
       const codes = allowedTodo.length ? allowedTodo.map(s => s.code) : todo.map(s => s.code)
-      const words = codes.length * wordsPerSection
+      const words = wordsOf(codes)
       return {
         label: `Draft ahead: Chapters 1–${DRAFT_AHEAD_LAST_CHAPTER} · ${codes.length} sections, about ${words.toLocaleString()} words`,
         codes, words, decision: canDraft(first, ctx),
@@ -46,7 +50,7 @@ export function nextDraftAction(outline: OutlineChapter[], ctx: DraftContext, wo
     const todo = sectionsToDraft(chapter, ctx)
     if (todo.length === 0) continue
     const decision = canDraft(todo[0], ctx)
-    const words = todo.length * wordsPerSection
+    const words = wordsOf(todo.map(s => s.code))
     const about = `about ${words.toLocaleString()} words`
     const label = chapter.number !== null && todo.length > 1
       ? `Draft Chapter ${chapter.number} · ${todo.length} sections, ${about}`

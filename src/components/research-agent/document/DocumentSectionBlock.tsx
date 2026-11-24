@@ -31,6 +31,8 @@ export interface DocumentSectionBlockProps {
   onDraft:       (code: string) => void
   onStop:        (code: string) => void
   isStopping:    boolean
+  /** Up next in the agent's queue: start it now instead of waiting its turn. Absent for the whole-proposal run's sections. */
+  onDraftNow?:   (code: string) => void
   registerFlush: (code: string, flush: (() => Promise<boolean>) | null) => void
   /** The chapter heading already shows this section's title ("1.0 Introduction" under "Introduction"). */
   hideHeading?:  boolean
@@ -63,7 +65,7 @@ const actionClass = 'dm-action rounded-lg text-[13px] px-4 py-2 transition-color
 
 function DocumentSectionBlockImpl({
   projectId, section, status, flags, draft, lockedReason, isApproving, scrollRoot, registerAnchor,
-  onApprove, onRewrite, onOpenGuided, onDemoted, registerFlush, onDraft, onStop, isStopping,
+  onApprove, onRewrite, onOpenGuided, onDemoted, registerFlush, onDraft, onStop, isStopping, onDraftNow,
   hideHeading = false, staleFields, onMarkReviewed, onEditedApproved, registerReveal, onCheckCitations, checkState,
   rewriteReviewPending = false, onOpenRewriteReview, serverApproved = false,
 }: DocumentSectionBlockProps) {
@@ -196,22 +198,34 @@ function DocumentSectionBlockImpl({
           </p>
         )}
 
-        {status === 'queued' && (
+        {(status === 'not_started' || status === 'up_next') && (
           <div className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
             {section.isApplicableForMethodology === false
               ? <p className="m-0">{section.notApplicableReason || 'This section is not needed for this study.'}</p>
               : <p className="m-0 italic" style={{ fontFamily: 'Georgia, serif' }}>{SECTION_PROMPTS[section.code]?.prompt ?? 'Not drafted yet.'}</p>}
-            {section.isApplicableForMethodology !== false && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
+            {section.isApplicableForMethodology !== false && (status === 'up_next' ? (
+              // The agent drafts it in order: a quiet line, and a small way to start it now.
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px]" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                <span>The agent drafts this in order</span>
+                {onDraftNow && (
+                  <button type="button" onClick={() => onDraftNow(section.code)}
+                    className="dm-action font-semibold hover:underline" style={{ color: 'var(--color-purple-text)' }}
+                    aria-label={`Draft ${label} now`}>
+                    Draft now
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="mt-2 flex flex-wrap items-center gap-2.5" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
                 <button type="button" onClick={() => onDraft(section.code)} disabled={!draft.allowed}
                   aria-describedby={!draft.allowed && draft.reason ? `draft-reason-${section.code}` : undefined}
-                  className={`${actionClass} font-semibold disabled:opacity-100`}
-                  style={draft.allowed ? { background: 'var(--color-purple)', color: 'white' } : { background: 'var(--surface-rail)', color: 'var(--text-secondary)' }}>
+                  className="dm-action rounded-md px-2.5 py-1 text-[12px] font-semibold bg-white hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ border: '1px solid var(--border-strong)', color: draft.allowed ? 'var(--color-purple-text)' : 'var(--text-secondary)' }}>
                   Draft this section
                 </button>
                 {!draft.allowed && draft.reason && <span id={`draft-reason-${section.code}`} className="text-[12px]">{draft.reason}</span>}
               </div>
-            )}
+            ))}
           </div>
         )}
 
@@ -283,7 +297,7 @@ export const DocumentSectionBlock = memo(DocumentSectionBlockImpl, (a, b) =>
   && a.section.citationsPendingVerification === b.section.citationsPendingVerification
   && a.projectId === b.projectId
   && a.onDemoted === b.onDemoted && a.registerFlush === b.registerFlush
-  && a.onDraft === b.onDraft && a.onStop === b.onStop && a.isStopping === b.isStopping
+  && a.onDraft === b.onDraft && a.onStop === b.onStop && a.isStopping === b.isStopping && a.onDraftNow === b.onDraftNow
   && flagsKey(a.flags) === flagsKey(b.flags)
   && (a.staleFields ?? []).join('|') === (b.staleFields ?? []).join('|')
   && a.checkState === b.checkState && a.rewriteReviewPending === b.rewriteReviewPending && a.serverApproved === b.serverApproved

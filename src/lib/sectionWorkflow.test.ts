@@ -170,7 +170,7 @@ describe('draft ahead, review later', () => {
 describe('documentStatus', () => {
   it('maps server statuses onto the five document states', () => {
     const c = ctx([])
-    expect(documentStatus(section('1.0', 'NotStarted'), c)).toBe('queued')
+    expect(documentStatus(section('1.0', 'NotStarted'), c)).toBe('not_started')
     expect(documentStatus(section('1.0', 'Generating'), c)).toBe('writing')
     expect(documentStatus(section('1.0', 'Draft'), c)).toBe('needs_review')
     expect(documentStatus(section('1.0', 'Edited'), c)).toBe('needs_review')
@@ -191,7 +191,7 @@ describe('documentStatus', () => {
 
   it('does not lock a section that is only waiting on earlier chapters', () => {
     const sections = [section('1.0', 'Draft'), section('2.0')]
-    expect(documentStatus(sections[1], ctx(sections))).toBe('queued')
+    expect(documentStatus(sections[1], ctx(sections))).toBe('not_started')
   })
 })
 

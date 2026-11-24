@@ -20,14 +20,14 @@ describe('status transitions with review marks', () => {
   })
 
   it('sections without text never take a review mark', () => {
-    for (const status of ['queued', 'writing', 'locked'] as DocumentSectionStatus[]) {
+    for (const status of ['not_started', 'up_next', 'writing', 'locked'] as DocumentSectionStatus[]) {
       expect(withReviewMarks(status, { stale: true, editedAfterApproval: true })).toBe(status)
       expect(hasSectionBody(status)).toBe(false)
     }
   })
 
   it('every status has a text label (status is never shown by colour alone)', () => {
-    const all: DocumentSectionStatus[] = ['queued', 'writing', 'needs_review', 'approved', 'locked', 'edited_after_approval', 'stale']
+    const all: DocumentSectionStatus[] = ['not_started', 'up_next', 'writing', 'needs_review', 'approved', 'locked', 'edited_after_approval', 'stale']
     for (const s of all) expect(DOCUMENT_STATUS_LABELS[s]).toMatch(/\w/)
     expect(DOCUMENT_STATUS_LABELS.edited_after_approval).toBe('Edited after approval')
     expect(DOCUMENT_STATUS_LABELS.stale).toBe('May be out of date')
