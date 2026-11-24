@@ -7,6 +7,7 @@ import type { ProjectSection, ResearchProject, SectionStatus } from '../../../ty
 
 // The agent's stream for one section, as the live draft store would report it.
 const stream = { text: '', words: 0 }
+vi.mock('../../../api/frameworkFigure', () => ({ getFrameworkFigure: vi.fn().mockResolvedValue({ stored: false, figure: null, reason: null }) }))
 vi.mock('../../../lib/liveDraftStore', () => ({
   followDraft: vi.fn(), forgetDraft: vi.fn(),
   useLiveDraft: () => ({ text: stream.text, words: stream.words, sourcesRead: 3, activities: [], streamEnded: false }),

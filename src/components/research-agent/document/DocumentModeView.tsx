@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ListTree, Bot, X, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -37,6 +37,8 @@ import {
 import { openIssueCount, runDocumentReview, type ReviewIssue } from '../../../lib/documentReview'
 import { useSectionCitationChecks } from '../../../lib/sectionCitationCheck'
 import { readRewriteReviews, rewriteLanded, writeRewriteReviews, type RewriteReview } from '../../../lib/rewriteReview'
+import { AbstractFormatToggle, FrameworkFigurePanel } from './FrameworkFigurePanel'
+import { ABSTRACT_FORMAT_KEY, FRAMEWORK_FIGURE_KEY } from '../../../types/frameworkFigure'
 import '../../../styles/research-agent-editor.css'
 import '../../../styles/research-document-mode.css'
 
@@ -1008,6 +1010,11 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     software: `e.g. ${suggestions.software}`, dataCollector: `e.g. ${suggestions.dataCollector}`,
   }), [suggestions])
   const staleCount = Object.keys(staleMarks).length
+  // PR 8: the framework figure follows 3.3 (or 5.7 without one) and is recomputed when 5.7 or 4.4 changes.
+  const figureAfter = sections.some(s => s.code === '3.3') ? '3.3' : '5.7'
+  const figureSource = useMemo(() => sections.filter(s => s.code === '5.7' || s.code === '4.4').map(s => `${s.code}:${s.content?.length ?? 0}:${s.lastEditedAt ?? s.generatedAt ?? ''}`).join('|'), [sections])
+  const saveFigure = useCallback((json: string) => persistContent({ [FRAMEWORK_FIGURE_KEY]: json }), [persistContent])
+  const saveAbstractFormat = useCallback((value: 'structured' | 'single') => { void persistContent({ [ABSTRACT_FORMAT_KEY]: value }) }, [persistContent])
   const contractPanel = (
     <DesignContractPanel contract={contract} hints={contractHints} saving={savingContract} staleCount={staleCount} onSave={handleSaveContract}
       onUseDefaults={() => { void handleUseDefaults() }} isNextStep={decisionsNeeded} pausedAt={decisionsPausedAt} />
@@ -1099,7 +1106,8 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
                 const v = view[s.code]
                 if (!v) return null
                 return (
-                  <DocumentSectionBlock key={s.code} projectId={project.id} section={s} status={v.status} flags={v.flags} draft={v.draft}
+                  <Fragment key={s.code}>
+                  <DocumentSectionBlock projectId={project.id} section={s} status={v.status} flags={v.flags} draft={v.draft}
                     lockedReason={v.draft.blocker === 'locked' ? v.draft.reason : null}
                     isApproving={approvingCode === s.code} scrollRoot={scrollRef} registerAnchor={registerAnchor}
                     onApprove={handleApprove} onRewrite={handleRewrite} onOpenGuided={onOpenGuided}
@@ -1111,6 +1119,14 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
                     registerReveal={registerReveal} onCheckCitations={handleCheckCitationsCb} checkState={sectionChecks.state[s.code]}
                     rewriteReviewPending={!!rewriteReviews[s.code]?.after} onOpenRewriteReview={setReviewingRewrite}
                     serverApproved={s.status === 'Approved'} />
+                  {s.code === '0.0' && (
+                    <AbstractFormatToggle value={project.sectionContent?.[ABSTRACT_FORMAT_KEY]} onChange={saveAbstractFormat} />
+                  )}
+                  {s.code === figureAfter && (
+                    <FrameworkFigurePanel projectId={project.id} stored={project.sectionContent?.[FRAMEWORK_FIGURE_KEY]}
+                      sourceKey={figureSource} onSave={saveFigure} />
+                  )}
+                  </Fragment>
                 )
               })}
             </div>
