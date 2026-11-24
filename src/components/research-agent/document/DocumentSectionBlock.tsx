@@ -52,7 +52,7 @@ export interface DocumentSectionBlockProps {
 }
 
 const FLAG_LABEL: Record<SectionFlag['kind'], string> = {
-  alignment:   'Alignment',
+  alignment:   'Consistency',
   citation:    'Citation',
   interrupted: 'Interrupted',
   stopped:     'Stopped',

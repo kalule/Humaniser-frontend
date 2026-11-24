@@ -18,12 +18,11 @@ import { canDraft, dedupeSections, documentStatus, DRAFT_AHEAD_KEY, hasSectionBo
 import { sectionWordLimit } from '../../../data/proposalLengthBudget'
 import { buildOutline, documentCounts, isCountedSection, sectionFlags, type SectionFlag } from '../../../lib/documentOutline'
 import { isStudentApproved, readStudentApprovals } from '../../../lib/studentApproval'
-import { nextDraftAction } from '../../../lib/draftPlan'
 import { followDraft, forgetDraft } from '../../../lib/liveDraftStore'
 import { isRunActive, isRunVisible, useProposalRun } from '../../../lib/proposalRun'
 import { DocumentOutlineRail, type OutlineRow } from './DocumentOutlineRail'
 import { DocumentSectionBlock } from './DocumentSectionBlock'
-import { DocumentAgentPanel, type FlagGroup, type RunInfo } from './DocumentAgentPanel'
+import { DocumentAgentPanel, type FlagGroup, type NextStep, type RunInfo } from './DocumentAgentPanel'
 import { DocumentEndCard } from './DocumentEndCard'
 import { DocumentReferences } from './DocumentReferences'
 import { CitationDataContext, type CitationData } from './citationDataContext'
@@ -235,7 +234,7 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const handleDemoted = useCallback((code: string) => {
     setAlignmentIssues(prev => prev.filter(i => i.sectionCode !== code))
     setStaleAlignment(prev => (prev.includes(code) ? prev : [...prev, code]))
-    toast(`Your edit to ${code} changed more than a small fix, so it needs approving again. Run Check alignment when you are done editing.`, { duration: 8000 })
+    toast(`Your edit to ${code} changed more than a small fix, so it needs approving again. Run Check consistency when you are done editing.`, { duration: 8000 })
   }, [])
   const isThesis = isThesisDocument(project.documentType)
 
@@ -348,7 +347,6 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       .map(s => ({ code: s.code, label: `${s.displayCode || s.code} ${s.title}`, count: counts.get(s.code)! }))
   }, [countFlags, allFlags, ordered])
   const nextReview = useMemo(() => ordered.find(s => view[s.code]?.status === 'needs_review') ?? null, [ordered, view])
-  const draftAction = useMemo(() => nextDraftAction(outline, ctx, wordsFor), [outline, ctx, wordsFor])
 
   // ── The automatic whole-proposal run, if this project has one: shown live in the Agent panel ──
   const sectionLabel = useCallback((code: string | null | undefined) => {
@@ -618,22 +616,6 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const draftQueueRef = useRef(draftQueue)
   draftQueueRef.current = draftQueue
 
-  const handleDraftAction = useCallback(async () => {
-    const action = draftAction
-    if (!action || !action.decision.allowed) return
-    if (action.codes.length > 1) {
-      const ok = await confirm({
-        title: action.label.split(' · ')[0] + '?',
-        message: `The agent drafts ${action.codes.length} sections one after another (${action.codes.join(', ')}). Each one stops at Needs review for you to approve; nothing is approved for you. You can stop at any time.`,
-        confirmLabel: `Draft · ${CREDIT_COSTS.proposalSectionGeneration * action.codes.length} credits`,
-      })
-      if (!ok) return
-    }
-    if (!(await preflight(action.codes.length))) return
-    const [first, ...rest] = action.codes
-    if (await startDraft(first)) setDraftQueue(rest)
-  }, [draftAction, confirm, preflight, startDraft])
-
   // Chapter drafting: start the next queued section once nothing is being written. Each start is
   // gated again, so a section that became undraftable meanwhile ends the run with its reason.
   // The queue holds (it is not cleared) at the first section that waits for the key study decisions,
@@ -894,10 +876,10 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       const result = await useResearchStore.getState().validateAlignment(latest.current.project.id)
       setAlignmentIssues(result.issues ?? [])
       setStaleAlignment([])
-      if (result.issues?.length) toast(`${result.issues.length} alignment issue${result.issues.length === 1 ? '' : 's'} found. They are shown on the sections concerned.`)
-      else toast.success(result.message || 'No alignment issues found.')
+      if (result.issues?.length) toast(`${result.issues.length} consistency issue${result.issues.length === 1 ? '' : 's'} found. They are shown on the sections concerned.`)
+      else toast.success('No consistency issues found.')
     } catch (err) {
-      toast.error((err as ApiError | undefined)?.message ?? 'Alignment check failed.')
+      toast.error((err as ApiError | undefined)?.message ?? 'Consistency check failed.')
     } finally {
       setIsValidating(false)
     }
@@ -946,12 +928,12 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
       const issues = await runReview().catch(() => [] as ReviewIssue[])
       const open = openIssueCount(issues)
       if (open > 0 && REVIEW_EXPORT_GATE === 'warn') {
-        toast(`Exporting with ${open} open review issue${open === 1 ? '' : 's'}. They are listed under Review in the Agent panel.`, { duration: 7000 })
+        toast(`Exporting with ${open} open review issue${open === 1 ? '' : 's'}. They are listed in the Agent panel's Next step.`, { duration: 7000 })
       } else if (open > 0) {
         setAgentOpen(true)
         const override = await confirm({
           title: `${open} open review issue${open === 1 ? '' : 's'}`,
-          message: `Review found ${open} issue${open === 1 ? '' : 's'} (placeholders, study-decision mismatches or variable conflicts). They are listed under Review in the Agent panel. Fix them first, or export anyway; the override is recorded.`,
+          message: `Review found ${open} issue${open === 1 ? '' : 's'} (placeholders, study-decision mismatches or variable conflicts). They are listed in the Agent panel's Next step. Fix them first, or export anyway; the override is recorded.`,
           confirmLabel: 'Export anyway',
           tone: 'warning',
         })
@@ -1026,19 +1008,37 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
     <DesignContractPanel contract={contract} hints={contractHints} saving={savingContract} staleCount={staleCount} onSave={handleSaveContract}
       onUseDefaults={() => { void handleUseDefaults() }} isNextStep={decisionsNeeded} pausedAt={decisionsPausedAt} />
   )
+  const reviewOutdated = reviewIssues !== null && reviewedKey !== contentKey
   const reviewCard = (
-    <ReviewIssuesCard issues={reviewIssues} running={reviewing} outdated={reviewIssues !== null && reviewedKey !== contentKey}
+    <ReviewIssuesCard issues={reviewIssues} running={reviewing} outdated={reviewOutdated}
       onRun={() => { void handleReview() }} onOpen={openReviewIssue} sectionLabel={code => sectionLabel(code) ?? code} />
   )
+  // ── The one thing to do now (see NextStep for the order) ──
+  const nextStep = useMemo((): NextStep => {
+    if (decisionsNeeded) return { kind: 'decisions' }
+    const busy = writing.length > 0 || draftQueue.length > 0 || runActive
+    const toReview = ordered.filter(s => view[s.code]?.status === 'needs_review' || view[s.code]?.status === 'stale' || view[s.code]?.status === 'edited_after_approval')
+    const undrafted = ordered.some(s => { const st = view[s.code]?.status; return st === 'not_started' || st === 'up_next' || st === 'writing' })
+    // Once everything is drafted, the whole-document review comes first, and stays until its issues are cleared.
+    const reviewOpen = reviewIssues === null || reviewOutdated || openIssueCount(reviewIssues) > 0
+    if (!undrafted && !busy && reviewOpen) return { kind: 'final_review' }
+    if (toReview.length) return { kind: 'review', section: toReview[0], more: toReview.length - 1 }
+    if (!busy && paused) return { kind: 'resume' }
+    const remaining = remainingCodes.filter(c => !queueSet.has(c)).length
+    if (!busy && remaining > 0) return { kind: 'draft', remaining }
+    if (!busy && !undrafted && progress.total > 0 && progress.approved === progress.total) return { kind: 'export' }
+    return { kind: 'waiting' }
+  }, [decisionsNeeded, writing.length, draftQueue.length, runActive, ordered, view, reviewIssues, reviewOutdated, paused, remainingCodes, queueSet, progress])
+
   const agent = (
-    <DocumentAgentPanel run={runInfo} projectId={project.id} writing={writing} flagGroups={flagGroups} onNextFlag={handleNextFlag} nextReview={nextReview}
-      draftAction={draftAction} queued={draftQueue} onDraftAction={handleDraftAction}
+    <DocumentAgentPanel run={runInfo} projectId={project.id} writing={writing} flagGroups={flagGroups} onNextFlag={handleNextFlag}
+      nextStep={nextStep} queued={draftQueue}
       counts={counts} onPause={() => { void handlePause() }} pausing={stoppingAll} paused={paused} onResume={handleResume}
-      remaining={remainingCodes.filter(c => !queueSet.has(c)).length} onDraftAll={() => { void handleDraftAll() }}
-      contract={contractPanel} review={reviewCard}
+      onDraftAll={() => { void handleDraftAll() }} onExport={() => { void handleExport() }} isExporting={isExporting}
+      decisions={contractPanel} review={reviewCard}
       wordsFor={wordsFor} activity={activity}
       onJump={scrollToAnchor}
-      draftAhead={draftAhead} onToggleDraftAhead={handleToggleDraftAhead}
+      draftAhead={draftAhead} showDraftAhead={REQUIRE_CHAPTER_ORDER} onToggleDraftAhead={handleToggleDraftAhead}
       staleAlignment={staleAlignment} isValidating={isValidating} onCheckAlignment={handleValidate} />
   )
 
