@@ -5,6 +5,7 @@ import { researchApi } from '../../api/research'
 import { changedLines } from '../../lib/proposalRepairDiff'
 import { nextActionAfterRepair } from '../../lib/proposalRepairFlow'
 import { triageIssues, type IssueGroup } from '../../lib/proposalIssueTriage'
+import { downloadIssueReport } from '../../lib/issueReport'
 import type { ProposalIssue, ProposalIssues, RepairReport } from '../../types/research'
 
 interface FixIssuesPanelProps {
@@ -16,6 +17,10 @@ interface FixIssuesPanelProps {
   prepare: () => Promise<void>
   /** Build and download the .docx. */
   download: () => Promise<void>
+  /** PR 9: build and download the .docx with the DRAFT banner (open issues listed on its title page). */
+  downloadDraft?: () => Promise<void>
+  /** Used in the issue report's heading. */
+  title?: string
   /** Reload sections after the server rewrote some of them. */
   onRepaired: () => Promise<void>
   /** Called when the issue list could not be loaded, so the caller can fall back to its own scan. */
@@ -134,7 +139,7 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 export function FixIssuesPanel({
-  projectId, canJump, onJump, prepare, download, onRepaired, onUnavailable, onBusyChange,
+  projectId, canJump, onJump, prepare, download, downloadDraft, title, onRepaired, onUnavailable, onBusyChange,
 }: FixIssuesPanelProps) {
   const [issues, setIssues] = useState<ProposalIssues | null>(null)
   const [report, setReport] = useState<RepairReport | null>(null)
@@ -317,6 +322,26 @@ export function FixIssuesPanel({
           >
             Download as is
           </button>
+          {downloadDraft && (
+            <button
+              type="button"
+              onClick={() => { void prepare().catch(() => undefined).then(() => downloadDraft()).catch(() => toast.error('The draft could not be downloaded.')) }}
+              disabled={busy}
+              className="text-[12px] font-medium text-slate-600 hover:text-slate-900 underline underline-offset-2 disabled:opacity-60"
+            >
+              Export as draft
+            </button>
+          )}
+          {issues && issues.issues.length > 0 && (
+            <button
+              type="button"
+              onClick={() => downloadIssueReport(issues, title ?? 'Research proposal')}
+              disabled={busy}
+              className="text-[12px] font-medium text-slate-600 hover:text-slate-900 underline underline-offset-2 disabled:opacity-60"
+            >
+              Download issue report
+            </button>
+          )}
           <button
             type="button"
             onClick={() => void recheck()}

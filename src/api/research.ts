@@ -428,10 +428,11 @@ export const researchApi = {
       { timeout: 60_000 },
     )),
 
-  exportDocx: async (projectId: string, acknowledgeCitationIssues = false): Promise<Blob> => {
+  // PR 9: the export has no DRAFT banner unless asDraft ("Export as draft") is set.
+  exportDocx: async (projectId: string, acknowledgeCitationIssues = false, asDraft = false): Promise<Blob> => {
     const res = await client.get<Blob>(
       `/api/v1/research/projects/${projectId}/export-docx`,
-      { responseType: 'blob', params: { acknowledgeCitationIssues } },
+      { responseType: 'blob', params: asDraft ? { acknowledgeCitationIssues, asDraft } : { acknowledgeCitationIssues } },
     )
     return res.data
   },

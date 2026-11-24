@@ -2364,6 +2364,8 @@ function DownloadStep({ project }: { project: ResearchProject }) {
             onJump={key => setSearchParams({ step: String(stepIndexFor(key)) })}
             prepare={() => syncProject(project.id)}
             download={() => downloadDocument(true)}
+            downloadDraft={isThesisProject ? undefined : () => exportDocx(project.id, true, true)}
+            title={project.title}
             onRepaired={async () => {
               const store = useResearchStore.getState()
               await Promise.all([store.loadSections(project.id), store.loadProject(project.id)])

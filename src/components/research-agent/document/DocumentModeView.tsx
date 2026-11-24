@@ -38,6 +38,8 @@ import { openIssueCount, runDocumentReview, type ReviewIssue } from '../../../li
 import { useSectionCitationChecks } from '../../../lib/sectionCitationCheck'
 import { readRewriteReviews, rewriteLanded, writeRewriteReviews, type RewriteReview } from '../../../lib/rewriteReview'
 import { AbstractFormatToggle, FrameworkFigurePanel } from './FrameworkFigurePanel'
+import { BudgetCostEditor } from './BudgetCostEditor'
+import { BUDGET_COSTS_KEY, type BudgetCosts } from '../../../lib/budgetTable'
 import { ABSTRACT_FORMAT_KEY, FRAMEWORK_FIGURE_KEY } from '../../../types/frameworkFigure'
 import '../../../styles/research-agent-editor.css'
 import '../../../styles/research-document-mode.css'
@@ -1015,6 +1017,16 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
   const figureSource = useMemo(() => sections.filter(s => s.code === '5.7' || s.code === '4.4').map(s => `${s.code}:${s.content?.length ?? 0}:${s.lastEditedAt ?? s.generatedAt ?? ''}`).join('|'), [sections])
   const saveFigure = useCallback((json: string) => persistContent({ [FRAMEWORK_FIGURE_KEY]: json }), [persistContent])
   const saveAbstractFormat = useCallback((value: 'structured' | 'single') => { void persistContent({ [ABSTRACT_FORMAT_KEY]: value }) }, [persistContent])
+  // PR 9: the student's unit costs go into the budget table (totals calculated in the browser, as on export) and are saved.
+  const applyBudgetCosts = useCallback(async (content: string, costs: BudgetCosts): Promise<boolean> => {
+    try {
+      await useResearchStore.getState().saveSection(latest.current.project.id, '6.2', content)
+    } catch {
+      toast.error('The budget could not be saved. Try again.')
+      return false
+    }
+    return persistContent({ [BUDGET_COSTS_KEY]: JSON.stringify(costs) })
+  }, [persistContent])
   const contractPanel = (
     <DesignContractPanel contract={contract} hints={contractHints} saving={savingContract} staleCount={staleCount} onSave={handleSaveContract}
       onUseDefaults={() => { void handleUseDefaults() }} isNextStep={decisionsNeeded} pausedAt={decisionsPausedAt} />
@@ -1121,6 +1133,10 @@ export function DocumentModeView({ project, actionsRef, onActionsStateChange, on
                     serverApproved={s.status === 'Approved'} />
                   {s.code === '0.0' && (
                     <AbstractFormatToggle value={project.sectionContent?.[ABSTRACT_FORMAT_KEY]} onChange={saveAbstractFormat} />
+                  )}
+                  {s.code === '6.2' && !isThesisDocument(project.documentType) && (s.content ?? '').trim().length > 0 && (
+                    <BudgetCostEditor key={`budget-${s.content.length}`} content={s.content}
+                      stored={project.sectionContent?.[BUDGET_COSTS_KEY]} onApply={applyBudgetCosts} />
                   )}
                   {s.code === figureAfter && (
                     <FrameworkFigurePanel projectId={project.id} stored={project.sectionContent?.[FRAMEWORK_FIGURE_KEY]}

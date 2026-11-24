@@ -74,7 +74,7 @@ interface ResearchStore {
   discardSectionFix:   (projectId: string) => Promise<void>
   validateAlignment:   (projectId: string) => Promise<AlignmentValidationResult>
   validateQuality:     (projectId: string) => Promise<AlignmentValidationResult>
-  exportDocx:          (projectId: string, acknowledgeCitationIssues?: boolean) => Promise<void>
+  exportDocx:          (projectId: string, acknowledgeCitationIssues?: boolean, asDraft?: boolean) => Promise<void>
   patchSection:        (projectId: string, section: ProjectSection) => void
 
   // ── Ethics checklist cache — keyed by projectId, not persisted (see partialize below).
@@ -493,8 +493,8 @@ export const useResearchStore = create<ResearchStore>()(
       validateQuality: async (projectId) =>
         researchApi.validateQuality(projectId),
 
-      exportDocx: async (projectId, acknowledgeCitationIssues = false) => {
-        const blob = await researchApi.exportDocx(projectId, acknowledgeCitationIssues)
+      exportDocx: async (projectId, acknowledgeCitationIssues = false, asDraft = false) => {
+        const blob = await researchApi.exportDocx(projectId, acknowledgeCitationIssues, asDraft)
         const url  = URL.createObjectURL(blob)
         const a    = document.createElement('a')
         a.href     = url
