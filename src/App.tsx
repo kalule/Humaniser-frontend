@@ -148,6 +148,12 @@ function AdminRoute() {
   return <Outlet />
 }
 
+// The Research Library's old Find Papers address, kept so bookmarks and shared ?q=/?paper= links still open the search.
+function FindPapersRedirect() {
+  const { search } = useLocation()
+  return <Navigate to={`/app/literature-search${search}`} replace />
+}
+
 function GuestRoute() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   if (isAuthenticated) return <Navigate to="/app" replace />
@@ -299,11 +305,14 @@ function AppInner() {
             </Route>
             <Route element={<ToolGate tool="saved-sources" />}>
               <Route path="web-library"             element={<WebLibraryPage />} />
-              <Route path="web-library/find"        element={<FindPapersPage />} />
+              <Route path="web-library/find"        element={<FindPapersRedirect />} />
               <Route path="web-library/collections" element={<CollectionsPage />} />
               <Route path="web-library/packages" element={<EvidencePackagesPage />} />
               <Route path="web-library/collections/:collectionId" element={<CollectionDetailPage />} />
               <Route path="web-library/papers/:workId/pdf" element={<WebLibraryPdfViewerPage />} />
+            </Route>
+            <Route element={<ToolGate tool="literature-search" />}>
+              <Route path="literature-search"       element={<FindPapersPage />} />
             </Route>
             <Route element={<ToolGate tool="deep-research" />}>
               <Route path="deep-research"           element={<DeepResearchPage />} />

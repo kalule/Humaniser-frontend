@@ -95,7 +95,7 @@ export function SavedSourcePickerView({
   if (!hasLoaded) return <p role="status" className="text-[13px] text-slate-400">{isLoading ? 'Loading your saved sources…' : 'Your saved sources could not be loaded. Refresh the page to try again.'}</p>
   if (available.length === 0) return (
     <p className="text-[13px] text-slate-500">
-      You have no saved sources yet. <Link to="/app/web-library/find" className="text-purple-accent hover:underline">Find papers</Link> and save the ones you want to write from.
+      You have no saved sources yet. <Link to="/app/literature-search" className="text-purple-accent hover:underline">Find papers</Link> and save the ones you want to write from.
     </p>
   )
 

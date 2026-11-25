@@ -1,5 +1,5 @@
 import client from './client'
-import type { ResearchDocument, LibraryFolder, PaperSearchResult, PaperSearchFilters, Collection, CollectionDetail } from '../types/webLibrary'
+import type { ResearchDocument, LibraryFolder, PaperSearchResult, PaperSearchFilters, PaperSearchMode, PaperSearchSort, Collection, CollectionDetail } from '../types/webLibrary'
 
 export interface SaveWebLibraryDocumentPayload {
   id?:          string
@@ -30,6 +30,9 @@ export interface WebLibrarySearchResponse {
   page:          number
   pageSize:      number
   totalReturned: number
+  /** How the server searched: 'doi' when the query was a DOI, whatever mode was sent. */
+  mode?:         PaperSearchMode | 'doi'
+  sort?:         PaperSearchSort
 }
 
 export interface SaveFromSearchPayload {
@@ -87,11 +90,14 @@ export const webLibraryApi = {
     await client.delete(`/api/v1/web-library/folders/${id}`)
   },
 
-  searchPapers: async (query: string, page = 1, pageSize = 20, filters: PaperSearchFilters = {}): Promise<WebLibrarySearchResponse> => {
+  searchPapers: async (
+    query: string, page = 1, pageSize = 20, filters: PaperSearchFilters = {},
+    mode: PaperSearchMode = 'topic', sort: PaperSearchSort = 'relevance',
+  ): Promise<WebLibrarySearchResponse> => {
     // Unset filters are left off the URL entirely rather than sent as empty strings.
     const filterParams = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== undefined && v !== '' && v !== false))
     const res = await client.get<{ success: boolean; data: WebLibrarySearchResponse }>('/api/v1/web-library/search', {
-      params: { query, page, pageSize, ...filterParams },
+      params: { query, page, pageSize, ...filterParams, ...(mode !== 'topic' ? { mode } : {}), ...(sort !== 'relevance' ? { sort } : {}) },
     })
     return res.data.data ?? (res.data as unknown as WebLibrarySearchResponse)
   },

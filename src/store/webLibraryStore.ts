@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import toast from 'react-hot-toast'
 import { webLibraryApi } from '../api/webLibrary'
-import type { ResearchDocument, LibraryFolder, ColumnKey, PaperSearchResult, PaperSearchFilters, Collection } from '../types/webLibrary'
+import type { ResearchDocument, LibraryFolder, ColumnKey, PaperSearchResult, PaperSearchFilters, PaperSearchMode, PaperSearchSort, Collection } from '../types/webLibrary'
 
 const TRASH = '__trash__'
 
@@ -42,6 +42,13 @@ interface WebLibraryStore {
   searchTotal:   number
   isLoadingMore: boolean
   searchFilters: PaperSearchFilters
+  searchMode:    PaperSearchMode
+  searchSort:    PaperSearchSort
+  /** How the server searched the shown results ('doi' when the query was a DOI). */
+  searchResolvedMode: PaperSearchMode | 'doi'
+  /** Each re-runs a showing search from page 1. */
+  setSearchMode: (mode: PaperSearchMode) => void
+  setSearchSort: (sort: PaperSearchSort) => void
   /** Replaces the filters and, if a search is showing, re-runs it from page 1. */
   setSearchFilters: (filters: PaperSearchFilters) => void
   searchPapers:  (query: string) => Promise<void>
@@ -117,6 +124,9 @@ export const useWebLibraryStore = create<WebLibraryStore>()(
       searchTotal:   0,
       isLoadingMore: false,
       searchFilters: {},
+      searchMode:    'topic',
+      searchSort:    'relevance',
+      searchResolvedMode: 'topic',
 
       collections:       [],
       collectionsLoaded: false,
@@ -226,12 +236,15 @@ export const useWebLibraryStore = create<WebLibraryStore>()(
 
       searchPapers: async (query) => {
         const seq = ++searchSeq
-        const filters = get().searchFilters
+        const { searchFilters: filters, searchMode, searchSort } = get()
         set({ isSearching: true, searchError: null, searchQuery: query, searchPage: 0, searchTotal: 0, isLoadingMore: false })
         try {
-          const response = await webLibraryApi.searchPapers(query, 1, 20, filters)
+          const response = await webLibraryApi.searchPapers(query, 1, 20, filters, searchMode, searchSort)
           if (seq !== searchSeq) return
-          set({ searchResults: response.results, isSearching: false, searchPage: 1, searchTotal: response.totalReturned ?? response.results.length })
+          set({
+            searchResults: response.results, isSearching: false, searchPage: 1,
+            searchTotal: response.totalReturned ?? response.results.length, searchResolvedMode: response.mode ?? searchMode,
+          })
         } catch (err) {
           if (seq !== searchSeq) return
           const message = err instanceof Error ? err.message : 'Search failed — please try again.'
@@ -245,13 +258,25 @@ export const useWebLibraryStore = create<WebLibraryStore>()(
         if (searchQuery) void get().searchPapers(searchQuery)
       },
 
+      setSearchMode: (mode) => {
+        set({ searchMode: mode })
+        const { searchQuery } = get()
+        if (searchQuery) void get().searchPapers(searchQuery)
+      },
+
+      setSearchSort: (sort) => {
+        set({ searchSort: sort })
+        const { searchQuery } = get()
+        if (searchQuery) void get().searchPapers(searchQuery)
+      },
+
       loadMoreResults: async () => {
-        const { searchQuery: query, searchPage, searchResults, searchTotal, isLoadingMore, isSearching, searchFilters } = get()
+        const { searchQuery: query, searchPage, searchResults, searchTotal, isLoadingMore, isSearching, searchFilters, searchMode, searchSort } = get()
         if (!query || isLoadingMore || isSearching || searchResults.length >= searchTotal) return
         const seq = searchSeq
         set({ isLoadingMore: true })
         try {
-          const response = await webLibraryApi.searchPapers(query, searchPage + 1, 20, searchFilters)
+          const response = await webLibraryApi.searchPapers(query, searchPage + 1, 20, searchFilters, searchMode, searchSort)
           if (seq !== searchSeq) return
           set(s => {
             const seen = new Set(s.searchResults.map(r => r.canonicalId))
@@ -395,6 +420,7 @@ export const useWebLibraryStore = create<WebLibraryStore>()(
         documents: [], folders: [], isLoading: false, hasLoaded: false,
         searchQuery: '', searchResults: [], isSearching: false, searchError: null,
         searchPage: 0, searchTotal: 0, isLoadingMore: false, searchFilters: {},
+        searchMode: 'topic', searchSort: 'relevance', searchResolvedMode: 'topic',
         collections: [], collectionsLoaded: false,
       }),
     }),

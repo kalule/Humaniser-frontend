@@ -99,6 +99,10 @@ export interface PaperSearchResult {
 export type PaperTypeFilter = 'article' | 'review' | 'book' | 'conference' | 'preprint' | 'thesis'
 
 /** Find Papers filters. They narrow the server's fetched pool (the ~100 most relevant matches). */
+/** What the query is matched against. A pasted DOI is always looked up exactly, whichever mode is chosen. */
+export type PaperSearchMode = 'topic' | 'title' | 'author'
+export type PaperSearchSort = 'relevance' | 'cited' | 'newest' | 'oldest'
+
 export interface PaperSearchFilters {
   yearFrom?:     number
   yearTo?:       number

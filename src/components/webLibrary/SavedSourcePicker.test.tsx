@@ -66,7 +66,7 @@ describe('SavedSourcePicker', () => {
   it('points an empty library at Find Papers', () => {
     const html = render({ documents: [trashed], onPick: () => {} })
     expect(html).toContain('You have no saved sources yet.')
-    expect(html).toContain('href="/app/web-library/find"')
+    expect(html).toContain('href="/app/literature-search"')
   })
 
   it('says so while the library is still loading', () => {

@@ -1,7 +1,7 @@
 import type { ElementType } from 'react'
 import {
   Sparkles, Shield, RefreshCw, Scissors, SpellCheck, ClipboardCheck, ClipboardList, Library, ScrollText,
-  BadgeCheck, Globe, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, BookOpenCheck, FileSearch, Ruler, ListChecks, Table2, Quote, FileClock,
+  BadgeCheck, Globe, Search, MessageSquare, Mic, Brain, BarChart3, Telescope, FileText, GraduationCap, BookOpen, BookMarked, BookOpenCheck, FileSearch, Ruler, ListChecks, Table2, Quote, FileClock,
 } from 'lucide-react'
 import type { ToolId } from './features'
 
@@ -44,7 +44,10 @@ export const TOOLS: Record<ToolId, ToolDef> = {
   // Reached only from this menu item (user decision 2026-11-18): the New Document dialog and Write with AI no longer start papers.
   'research-paper':     { id: 'research-paper', label: 'Research Paper', description: 'Topic to checked, cited paper', icon: FileSearch, link: '/app/research-paper', matchPrefix: '/app/research-paper', badge: 'Beta' },
   'research-agent':     { id: 'research-agent', label: 'Research Agent', description: 'Build a project step by step', icon: GraduationCap, link: '/app/research-agent/new' },
-  'saved-sources':      { id: 'saved-sources', label: 'Research Library', description: 'Find and save papers', icon: Globe, link: '/app/web-library', matchPrefix: '/app/web-library' },
+  // Find sources (2026-11-23): Literature Search discovers papers, Research Library keeps them, Deep Research investigates.
+  // The library's Find Papers tab opens Literature Search; there is one search, not two.
+  'literature-search':  { id: 'literature-search', label: 'Literature Search', description: 'Discover academic papers', icon: Search, link: '/app/literature-search', matchPrefix: '/app/literature-search' },
+  'saved-sources':      { id: 'saved-sources', label: 'Research Library', description: 'Save and organise papers', icon: Globe, link: '/app/web-library', matchPrefix: '/app/web-library' },
   // Not in the sidebar since 2026-11-17: reached from Literature Review (its Matrices tab and the review's extraction step).
   // Kept as a tool for its own flag (ToolGate) and routes.
   'literature-matrix':  { id: 'literature-matrix', label: 'Literature Matrix', description: 'Compare studies side by side', icon: Table2, link: '/app/literature-matrix', matchPrefix: '/app/literature-matrix', badge: 'Beta' },
@@ -77,7 +80,7 @@ const pick = (...ids: ToolId[]): NavItem[] => ids.map(id => TOOLS[id])
 // studios are long-form writing, so they sit under Write.
 export const NAV_SECTIONS: NavSection[] = [
   { section: 'Write',        items: pick('documents', 'editor', 'proposal-studio', 'thesis-studio', 'systematic-review', 'literature-review', 'research-paper', 'citation-generator') },
-  { section: 'Find sources', items: pick('saved-sources', 'deep-research') },
+  { section: 'Find sources', items: pick('literature-search', 'saved-sources', 'deep-research') },
   { section: 'Verify',       items: pick('verify-citations', 'ai-content-check', 'similarity-check', 'reviewer', 'feedback-tracker', 'authorship-evidence') },
   { section: 'Improve',      items: pick('humanise', 'paraphraser', 'grammar', 'summariser') },
   { section: 'Analyse',      items: pick('study-design', 'qualitative-analysis', 'data-analyst') },
@@ -95,7 +98,7 @@ export function visibleNavSections(isEnabled: (id: ToolId) => boolean): NavSecti
 
 /** Order of the 52px icon rail (ToolSidebar). */
 export const TOOL_NAV_ORDER: ToolId[] = [
-  'documents', 'saved-sources', 'editor', 'research-agent', 'humanise', 'ai-content-check', 'verify-citations',
+  'documents', 'literature-search', 'saved-sources', 'editor', 'research-agent', 'humanise', 'ai-content-check', 'verify-citations',
   'paraphraser', 'grammar', 'similarity-check', 'summariser', 'data-analyst', 'document-chat',
   'citation-generator', 'flashcards', 'lecture-notes',
 ]
@@ -125,7 +128,6 @@ export function toolForPath(pathname: string): ToolDef | null {
 // Research Library tabs: what the current tab is for. Only these routes get a header subtitle, because
 // for every other page the sidebar already shows the tool's one-line description next to the title.
 const WEB_LIBRARY_SUBTITLES: { prefix: string; subtitle: string }[] = [
-  { prefix: '/app/web-library/find',        subtitle: 'Search scholarly databases and save papers' },
   { prefix: '/app/web-library/collections', subtitle: 'Organise papers by topic or project' },
   { prefix: '/app/web-library/packages',    subtitle: 'Verified evidence from Deep Research sessions' },
   { prefix: '/app/web-library/papers',      subtitle: 'Read a saved paper' },

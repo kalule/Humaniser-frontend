@@ -9,13 +9,17 @@ import type { PaperSearchResult } from '../../types/webLibrary'
 interface SaveToLibraryModalProps {
   open:   boolean
   result: PaperSearchResult | null
+  /** Bulk save from Literature Search: every paper is saved and added to the checked collections; nothing is removed. */
+  results?: PaperSearchResult[]
   onClose: () => void
+  /** Called after a successful save, e.g. to clear a bulk selection. */
+  onSaved?: () => void
 }
 
 /** Save-a-search-result flow: pick zero or more collections up front, then a single "Add to
  *  Library" confirms — saves the paper and adds it to every checked collection in one step,
  *  rather than saving first and hunting for a separate "add to collection" action afterward. */
-export function SaveToLibraryModal({ open, result, onClose }: SaveToLibraryModalProps) {
+export function SaveToLibraryModal({ open, result, results, onClose, onSaved }: SaveToLibraryModalProps) {
   const {
     collections, collectionsLoaded, loadCollections, createCollection,
     saveFromSearch, addToCollection, removeFromCollection, setSearchResultCollections,
@@ -31,12 +35,14 @@ export function SaveToLibraryModal({ open, result, onClose }: SaveToLibraryModal
     if (open && !collectionsLoaded) void loadCollections()
   }, [open, collectionsLoaded, loadCollections])
 
-  useEffect(() => {
-    if (open) { setSelected(new Set(result?.collectionIds ?? [])); setQuery(''); setCreating(false); setNewName('') }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, result?.canonicalId])
+  const isBulk = results !== undefined
 
-  if (!result) return null
+  useEffect(() => {
+    if (open) { setSelected(new Set(isBulk ? [] : result?.collectionIds ?? [])); setQuery(''); setCreating(false); setNewName('') }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, result?.canonicalId, isBulk])
+
+  if (isBulk ? results.length === 0 : !result) return null
 
   const filtered = collections.filter(c => c.name.toLowerCase().includes(query.toLowerCase()))
 
@@ -54,7 +60,34 @@ export function SaveToLibraryModal({ open, result, onClose }: SaveToLibraryModal
     setSelected(s => new Set(s).add(collection.id))
   }
 
+  const handleBulkSave = async (items: PaperSearchResult[]) => {
+    setSubmitting(true)
+    let saved = 0
+    try {
+      // One at a time: each save is idempotent on the server, and a failure part-way keeps the papers already saved.
+      for (const item of items) {
+        try {
+          const doc = await saveFromSearch(item)
+          const toAdd = [...selected].filter(id => !item.collectionIds.includes(id))
+          await Promise.all(toAdd.map(id => addToCollection(id, doc.id)))
+          setSearchResultCollections(item.canonicalId, [...new Set([...item.collectionIds, ...selected])])
+          saved++
+        } catch { /* the store already showed an error toast for this paper */ }
+      }
+      if (saved > 0) {
+        const where = selected.size > 0 ? ` and added to ${selected.size} collection${selected.size !== 1 ? 's' : ''}` : ''
+        toast.success(`Saved ${saved} paper${saved !== 1 ? 's' : ''} to your library${where}`)
+        onSaved?.()
+        onClose()
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const handleAddToLibrary = async () => {
+    if (isBulk) return handleBulkSave(results)
+    if (!result) return
     setSubmitting(true)
     try {
       const doc = await saveFromSearch(result)
@@ -73,6 +106,7 @@ export function SaveToLibraryModal({ open, result, onClose }: SaveToLibraryModal
           ? `Added to library — in ${finalCount} collection${finalCount !== 1 ? 's' : ''}`
           : 'Added to library',
       )
+      onSaved?.()
       onClose()
     } catch {
       // saveFromSearch/addToCollection/removeFromCollection already surface their own error toasts.
@@ -82,7 +116,7 @@ export function SaveToLibraryModal({ open, result, onClose }: SaveToLibraryModal
   }
 
   return (
-    <Modal isOpen={open} onClose={onClose} title="Select collections (optional)" size="sm">
+    <Modal isOpen={open} onClose={onClose} title={isBulk ? `Save ${results.length} paper${results.length !== 1 ? 's' : ''} · collections (optional)` : 'Select collections (optional)'} size="sm">
       <div className="space-y-3">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -155,7 +189,7 @@ export function SaveToLibraryModal({ open, result, onClose }: SaveToLibraryModal
             disabled={submitting}
             className="px-4 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep disabled:opacity-50 text-white text-[13px] font-medium transition-colors"
           >
-            {submitting ? 'Saving…' : result.isSaved ? 'Save changes' : 'Add to Library'}
+            {submitting ? 'Saving…' : isBulk ? `Save ${results.length} to Library` : result?.isSaved ? 'Save changes' : 'Add to Library'}
           </button>
         </div>
       </div>

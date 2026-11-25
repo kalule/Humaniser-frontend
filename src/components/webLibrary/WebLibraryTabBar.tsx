@@ -10,7 +10,8 @@ const TRASH = '__trash__'
 // The descriptions are what tell Collections and Evidence packages apart: collections are groups of
 // your saved papers; evidence packages are verified evidence produced by a Deep Research session.
 const TABS = [
-  { key: 'find',        label: 'Find Papers',       icon: Search,     path: '/app/web-library/find',        description: 'Search scholarly databases' },
+  // A shortcut into Literature Search, which has its own sidebar item and page.
+  { key: 'find',        label: 'Find Papers',       icon: Search,     path: '/app/literature-search',       description: 'Opens Literature Search' },
   { key: 'library',     label: 'Saved Sources',     icon: BookOpen,   path: '/app/web-library',             description: 'Every paper you have saved or imported' },
   { key: 'collections', label: 'Collections',       icon: FolderOpen, path: '/app/web-library/collections', description: 'Your own groups of saved papers, e.g. by topic' },
   { key: 'packages',    label: 'Evidence packages', icon: Files,      path: '/app/web-library/packages',    description: 'Verified evidence from a Deep Research session' },

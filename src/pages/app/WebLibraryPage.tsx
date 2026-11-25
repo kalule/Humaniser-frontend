@@ -393,7 +393,7 @@ export default function WebLibraryPage() {
     if (documents.length > 0) return
     if ((location.state as { fromTabBar?: boolean } | null)?.fromTabBar) return
     redirectedRef.current = true
-    navigate('/app/web-library/find', { replace: true })
+    navigate('/app/literature-search', { replace: true })
   }, [hasLoaded, documents.length, location.state, navigate])
 
   useEffect(() => {
@@ -662,7 +662,7 @@ export default function WebLibraryPage() {
                   </button>
                 ) : !inTrash && (
                   <div className="flex items-center gap-2">
-                    <button onClick={() => navigate('/app/web-library/find')} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-medium transition-colors">
+                    <button onClick={() => navigate('/app/literature-search')} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-medium transition-colors">
                       <Search size={14} /> Find papers
                     </button>
                     <button onClick={() => setImportSourcesOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-[13px] font-medium transition-colors">

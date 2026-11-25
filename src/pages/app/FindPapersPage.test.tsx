@@ -19,7 +19,7 @@ const { useWebLibraryStore } = await import('../../store/webLibraryStore')
 
 const renderPage = () => {
   const user = userEvent.setup()
-  render(<MemoryRouter initialEntries={['/app/web-library/find']}><FindPapersPage /></MemoryRouter>)
+  render(<MemoryRouter initialEntries={['/app/literature-search']}><FindPapersPage /></MemoryRouter>)
   return user
 }
 
@@ -27,7 +27,7 @@ beforeEach(() => {
   localStorage.clear()
   searchPapers.mockClear()
   useWebLibraryStore.getState().clearSearch()
-  useWebLibraryStore.setState({ searchFilters: {} })
+  useWebLibraryStore.setState({ searchFilters: {}, searchMode: 'topic', searchSort: 'relevance', searchResolvedMode: 'topic' })
 })
 afterEach(() => cleanup())
 
@@ -37,7 +37,7 @@ describe('Find Papers search', () => {
     await user.click(screen.getByRole('button', { name: 'Climate change adaptation' }))
 
     expect((screen.getByRole('textbox', { name: 'Search scholarly literature' }) as HTMLInputElement).value).toBe('Climate change adaptation')
-    expect(searchPapers).toHaveBeenCalledWith('Climate change adaptation', 1, 20, {})
+    expect(searchPapers).toHaveBeenCalledWith('Climate change adaptation', 1, 20, {}, 'topic', 'relevance')
     expect(await screen.findByText('No papers found for "Climate change adaptation"')).toBeTruthy()
   })
 
@@ -48,7 +48,7 @@ describe('Find Papers search', () => {
 
     await user.type(screen.getByRole('textbox', { name: 'Search scholarly literature' }), 'hiv schooling{Enter}')
     expect(button.disabled).toBe(false)
-    expect(searchPapers).toHaveBeenCalledWith('hiv schooling', 1, 20, {})
+    expect(searchPapers).toHaveBeenCalledWith('hiv schooling', 1, 20, {}, 'topic', 'relevance')
   })
 
   it('recent searches replace the examples, with no term in both', () => {
@@ -70,8 +70,32 @@ describe('Find Papers search', () => {
     await user.click(screen.getByRole('checkbox', { name: /Open access only/ }))
     await user.click(screen.getByRole('button', { name: 'Apply filters' }))
 
-    expect(searchPapers).toHaveBeenLastCalledWith('hiv', 1, 20, { yearFrom: 2015, openAccess: true })
+    expect(searchPapers).toHaveBeenLastCalledWith('hiv', 1, 20, { yearFrom: 2015, openAccess: true }, 'topic', 'relevance')
     await user.click(screen.getByRole('button', { name: 'Remove filter: From 2015' }))
-    expect(searchPapers).toHaveBeenLastCalledWith('hiv', 1, 20, { openAccess: true })
+    expect(searchPapers).toHaveBeenLastCalledWith('hiv', 1, 20, { openAccess: true }, 'topic', 'relevance')
+  })
+
+  it('switching to Author re-runs the search as an author search', async () => {
+    const user = renderPage()
+    await user.type(screen.getByRole('textbox', { name: 'Search scholarly literature' }), 'Albert Bandura{Enter}')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Search in' }), 'author')
+    expect(searchPapers).toHaveBeenLastCalledWith('Albert Bandura', 1, 20, {}, 'author', 'relevance')
+  })
+
+  it('selected papers are saved together from the selection bar', async () => {
+    const result = (id: string, isSaved = false) => ({
+      canonicalId: id, title: `Paper ${id}`, authors: ['A. Author'], year: 2020, isRetracted: false, isSaved, collectionIds: [],
+    })
+    searchPapers.mockImplementationOnce(async (query: string) => ({
+      query, results: [result('a'), result('b'), result('c', true)], page: 1, pageSize: 20, totalReturned: 3,
+    }) as never)
+    const user = renderPage()
+    await user.type(screen.getByRole('textbox', { name: 'Search scholarly literature' }), 'mindfulness{Enter}')
+
+    expect((await screen.findByRole('checkbox', { name: 'Paper c is already in your library' }) as HTMLInputElement).disabled).toBe(true)
+    await user.click(screen.getByRole('checkbox', { name: 'Select all unsaved' }))
+    expect(screen.getByText('2 papers selected')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Save to library' }))
+    expect(await screen.findByRole('button', { name: 'Save 2 to Library' })).toBeTruthy()
   })
 })
