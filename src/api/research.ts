@@ -456,6 +456,12 @@ export const researchApi = {
       `/api/v1/research/projects/${projectId}/proposal-issues/fill-placeholder`, { sectionKey, placeholder, value },
     )),
 
+  // PR 12b: settle an unresolved marker with the student's decided sentence, or the suggested default (saved as a fact).
+  resolveProposalMarker: async (projectId: string, sectionKey: string, evidence: string, value: string | null, useDefault: boolean): Promise<RepairReport> =>
+    unwrap(await client.post<Wrap<RepairReport>>(
+      `/api/v1/research/projects/${projectId}/proposal-issues/resolve-marker`, { sectionKey, evidence, value, useDefault },
+    )),
+
   setProposalSourceYear: async (projectId: string, literatureId: string, year: number): Promise<ProposalIssues> =>
     unwrap(await client.post<Wrap<ProposalIssues>>(
       `/api/v1/research/projects/${projectId}/proposal-issues/set-source-year`, { literatureId, year },

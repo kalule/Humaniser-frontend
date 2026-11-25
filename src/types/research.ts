@@ -1121,6 +1121,8 @@ export interface ProposalIssue {
   literatureId?: string | null
   /** The student dismissed it after a repair attempt (recorded on the server); it no longer counts as blocking. */
   dismissed?: boolean
+  /** PR 12b: for an unresolved marker, the default sentence the student can accept; absent when there is no safe default. */
+  suggestion?: string | null
 }
 
 export interface ProposalIssues {

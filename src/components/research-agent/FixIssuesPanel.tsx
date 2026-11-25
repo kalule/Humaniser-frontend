@@ -256,6 +256,20 @@ export function FixIssuesPanel({
     }
   }
 
+  // PR 12b: an open point is settled by the student's sentence or the stated default (saved as a decision); undoable.
+  const resolveMarker = async (issue: ProposalIssue, value: string | null): Promise<boolean> => {
+    try {
+      setReport(await researchApi.resolveProposalMarker(projectId, issue.sectionKey, issue.evidence, value, value === null))
+      await onRepaired()
+      await refresh()
+      toast.success('Decision saved and the open point replaced. You can undo it below.')
+      return true
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not settle this open point.'), { duration: 9000 })
+      return false
+    }
+  }
+
   // "Re-check this proposal": runs every check on the saved text again. Nothing is rewritten.
   const recheck = async () => {
     const id = toast.loading('Checking your proposal…')
@@ -302,7 +316,7 @@ export function FixIssuesPanel({
   const renderRow = (issue: ProposalIssue, idx: number) => (
     <IssueRow key={`${issue.type}|${issue.sectionKey}|${issue.evidence}|${idx}`}
       issue={issue} canJump={canJump(issue.sectionKey)} onJump={onJump} disabled={busy}
-      onFill={fillPlaceholder} onSetYear={setSourceYear} onDismiss={dismiss} />
+      onFill={fillPlaceholder} onSetYear={setSourceYear} onResolve={resolveMarker} onDismiss={dismiss} />
   )
 
   return (
@@ -467,8 +481,9 @@ function IssueGroupRow({ group, renderRow }: {
 }
 
 /** Which inline input an issue offers, if any. Only issues the student can resolve by typing a value get one. */
-export function inlineInputFor(issue: ProposalIssue): 'placeholder' | 'year' | null {
+export function inlineInputFor(issue: ProposalIssue): 'placeholder' | 'year' | 'marker' | null {
   if (issue.type === 'placeholder_unresolved') return 'placeholder'
+  if ((issue.type === 'section_rule_unresolved_wording' || issue.type === 'section_rule_decision_needed') && !issue.dismissed) return 'marker'
   if (issue.type === 'citation_matches_undated_source' && issue.literatureId) return 'year'
   return null
 }
@@ -480,13 +495,14 @@ export function parseYear(text: string): number | null {
   return y >= 1500 && y <= new Date().getFullYear() + 1 ? y : null
 }
 
-function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear, onDismiss }: {
+function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear, onResolve, onDismiss }: {
   issue: ProposalIssue
   canJump: boolean
   onJump: (key: string) => void
   disabled: boolean
   onFill: (issue: ProposalIssue, value: string) => Promise<boolean>
   onSetYear: (issue: ProposalIssue, year: number) => Promise<boolean>
+  onResolve?: (issue: ProposalIssue, value: string | null) => Promise<boolean>
   onDismiss?: (issue: ProposalIssue) => Promise<void>
 }) {
   const isBlocking = issue.severity === 'Blocking'
@@ -501,6 +517,8 @@ function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear, onDismi
         const year = parseYear(text)
         if (year === null) { toast.error('Enter a four-digit year, for example 2026.'); return }
         if (await onSetYear(issue, year)) setText('')
+      } else if (input === 'marker') {
+        if (text.trim() && onResolve && await onResolve(issue, text.trim())) setText('')
       } else if (text.trim()) {
         if (await onFill(issue, text.trim())) setText('')
       }
@@ -552,9 +570,9 @@ function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear, onDismi
             onChange={e => setText(e.target.value)}
             disabled={saving || disabled}
             inputMode={input === 'year' ? 'numeric' : undefined}
-            maxLength={input === 'year' ? 4 : 500}
-            placeholder={input === 'year' ? 'Publication year, e.g. 2026' : 'Type the real value to put here'}
-            aria-label={input === 'year' ? 'Publication year' : 'Replacement text'}
+            maxLength={input === 'year' ? 4 : input === 'marker' ? 600 : 500}
+            placeholder={input === 'year' ? 'Publication year, e.g. 2026' : input === 'marker' ? 'Type the decided sentence' : 'Type the real value to put here'}
+            aria-label={input === 'year' ? 'Publication year' : input === 'marker' ? 'Decided sentence' : 'Replacement text'}
             className={`min-w-0 rounded border border-slate-300 bg-white px-2 py-1 text-[12px] ${input === 'year' ? 'w-44' : 'flex-1 min-w-[200px]'}`}
           />
           <button
@@ -563,10 +581,23 @@ function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear, onDismi
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-900 text-white font-medium text-[11px] disabled:opacity-50"
           >
             {saving && <Loader2 size={11} className="animate-spin" />}
-            {input === 'year' ? 'Set year' : 'Replace'}
+            {input === 'year' ? 'Set year' : input === 'marker' ? 'Save decision' : 'Replace'}
           </button>
+          {input === 'marker' && issue.suggestion && onResolve && (
+            <button
+              type="button"
+              disabled={saving || disabled}
+              onClick={() => { setSaving(true); void onResolve(issue, null).finally(() => setSaving(false)) }}
+              title={issue.suggestion}
+              className="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium text-[11px] disabled:opacity-50"
+            >
+              Use default
+            </button>
+          )}
           <span className="text-[10.5px] text-slate-500">
-            {input === 'year' ? "Read it from the publisher's page. An existing year is never overwritten." : 'Your text replaces the bracket exactly. You can undo it.'}
+            {input === 'year' ? "Read it from the publisher's page. An existing year is never overwritten."
+              : input === 'marker' ? (issue.suggestion ? `Default: "${issue.suggestion}" The decision is saved and the sentence replaced; you can undo it.` : 'Your sentence replaces the open point and is saved as the decision. You can undo it.')
+              : 'Your text replaces the bracket exactly. You can undo it.'}
           </span>
         </form>
       )}

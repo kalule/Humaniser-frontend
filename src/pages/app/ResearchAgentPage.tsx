@@ -2126,6 +2126,8 @@ function DownloadStep({ project }: { project: ResearchProject }) {
           return 'Citation issues were acknowledged, but export is still blocked by an unresolved fact conflict. Resolve or dismiss the conflict in the affected section, then try again.'
         case 'ELIGIBILITY_CONTRADICTION':
           return 'Citation issues were acknowledged, but Study Population and Exclusion Criteria still conflict. Resolve or acknowledge that eligibility issue before exporting.'
+        case 'UNRESOLVED_MARKERS':
+          return apiError?.message || 'Export is blocked by open points in the text ("not yet confirmed", "Decision needed"). Settle or dismiss each one in Fix issues, or use Export as draft.'
         case 'EXPORT_PLACEHOLDER_LEAK':
           return 'Export is blocked because editor placeholder text remains in the proposal. Remove the placeholder and try again.'
         case 'PROSE_BODY_MISSING':
