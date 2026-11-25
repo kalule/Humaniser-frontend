@@ -272,10 +272,11 @@ export const researchApi = {
     )),
 
   // Same enqueue-and-return contract as generateSection above — see its comment.
-  regenerateSection: async (projectId: string, code: string): Promise<ProjectSection> =>
+  // PR 13b: optional userInstructions (the endpoint's existing RegenerateSectionRequest), e.g. to resolve a conflict from the facts.
+  regenerateSection: async (projectId: string, code: string, userInstructions?: string): Promise<ProjectSection> =>
     unwrap(await client.post<Wrap<ProjectSection>>(
       `/api/v1/research/projects/${projectId}/sections/regenerate`,
-      null,
+      userInstructions ? { userInstructions } : null,
       { params: { code }, timeout: 20_000 },
     )),
 

@@ -6,6 +6,8 @@ import { changedLines } from '../../lib/proposalRepairDiff'
 import { nextActionAfterRepair } from '../../lib/proposalRepairFlow'
 import { triageIssues, type IssueGroup } from '../../lib/proposalIssueTriage'
 import { downloadIssueReport } from '../../lib/issueReport'
+import { canRegenerateFromFacts, regenerationInstructions } from '../../lib/regenerateFromFacts'
+import { useConfirm } from '../ui/ConfirmDialog'
 import type { ProposalIssue, ProposalIssues, RepairReport } from '../../types/research'
 
 interface FixIssuesPanelProps {
@@ -170,6 +172,7 @@ export function FixIssuesPanel({
 }: FixIssuesPanelProps) {
   const [issues, setIssues] = useState<ProposalIssues | null>(null)
   const [report, setReport] = useState<RepairReport | null>(null)
+  const { confirm, dialog } = useConfirm()
   const [phase, setPhase] = useState<'idle' | 'repairing' | 'downloading'>('idle')
   const [undoing, setUndoing] = useState<string | null>(null)
   const [openDiff, setOpenDiff] = useState<string | null>(null)
@@ -269,6 +272,22 @@ export function FixIssuesPanel({
     }
   }
 
+  // PR 13b: a conflict is resolved by regenerating the section from the stored facts, never by a note about it.
+  const regenerateFromFacts = async (issue: ProposalIssue): Promise<void> => {
+    const ok = await confirm({
+      title: `Regenerate ${issue.sectionKey} from your study facts?`,
+      message: 'The section is rewritten from your study decisions and facts so it agrees with the rest of the proposal. Its current text is replaced (it stays in the section history). This uses one section generation.',
+      confirmLabel: 'Regenerate',
+    })
+    if (!ok) return
+    try {
+      await researchApi.regenerateSection(projectId, issue.sectionKey, regenerationInstructions(issue))
+      toast.success(`Regenerating ${issue.sectionKey}. Re-check the proposal when it finishes.`, { duration: 7000 })
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not start the regeneration.'), { duration: 9000 })
+    }
+  }
+
   // PR 12b: an open point is settled by the student's sentence or the stated default (saved as a decision); undoable.
   const resolveMarker = async (issue: ProposalIssue, value: string | null): Promise<boolean> => {
     try {
@@ -329,11 +348,12 @@ export function FixIssuesPanel({
   const renderRow = (issue: ProposalIssue, idx: number) => (
     <IssueRow key={`${issue.type}|${issue.sectionKey}|${issue.evidence}|${idx}`}
       issue={issue} canJump={canJump(issue.sectionKey)} onJump={onJump} disabled={busy}
-      onFill={fillPlaceholder} onSetYear={setSourceYear} onResolve={resolveMarker} onDismiss={dismiss} />
+      onFill={fillPlaceholder} onSetYear={setSourceYear} onResolve={resolveMarker} onRegenerate={regenerateFromFacts} onDismiss={dismiss} />
   )
 
   return (
     <div className="mb-6 flex flex-col gap-4" data-testid="fix-issues-panel">
+      {dialog}
       <div className="p-4 rounded-xl bg-white border border-slate-200 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-0 flex-1">
@@ -508,7 +528,7 @@ export function parseYear(text: string): number | null {
   return y >= 1500 && y <= new Date().getFullYear() + 1 ? y : null
 }
 
-function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear, onResolve, onDismiss }: {
+function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear, onResolve, onRegenerate, onDismiss }: {
   issue: ProposalIssue
   canJump: boolean
   onJump: (key: string) => void
@@ -516,6 +536,7 @@ function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear, onResol
   onFill: (issue: ProposalIssue, value: string) => Promise<boolean>
   onSetYear: (issue: ProposalIssue, year: number) => Promise<boolean>
   onResolve?: (issue: ProposalIssue, value: string | null) => Promise<boolean>
+  onRegenerate?: (issue: ProposalIssue) => Promise<void>
   onDismiss?: (issue: ProposalIssue) => Promise<void>
 }) {
   const isBlocking = issue.severity === 'Blocking'
@@ -558,6 +579,17 @@ function IssueRow({ issue, canJump, onJump, disabled, onFill, onSetYear, onResol
               className="px-2.5 py-1 rounded bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-medium text-[11px] shrink-0 transition-colors"
             >
               Jump to {issue.sectionKey}
+            </button>
+          )}
+          {onRegenerate && canRegenerateFromFacts(issue) && (
+            <button
+              type="button"
+              onClick={() => void onRegenerate(issue)}
+              disabled={disabled}
+              title="Rewrite this section from your study facts so the conflict is resolved, not described."
+              className="text-[11px] font-medium text-slate-700 hover:text-slate-900 underline underline-offset-2 disabled:opacity-50"
+            >
+              Regenerate from facts
             </button>
           )}
           {onDismiss && (
