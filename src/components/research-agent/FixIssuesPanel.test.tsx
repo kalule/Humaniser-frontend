@@ -53,6 +53,12 @@ describe('issueLabel', () => {
     expect(issueLabel('some_new_type')).toBe('some new type')
     expect(issueLabel('quality_pi01')).toBe('Completed work in a proposal')
   })
+
+  it('labels the literature review draft checks in plain language', () => {
+    expect(issueLabel('lr_draft_number_untraced')).toBe('Figure not in the cited study')
+    expect(issueLabel('lr_draft_theme_missing')).toBe('Review theme not written')
+    expect(issueLabel('lr_draft_quantifier')).toBe('Strong wording on few studies')
+  })
 })
 
 describe('inline inputs', () => {

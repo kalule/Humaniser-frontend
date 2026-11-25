@@ -52,6 +52,20 @@ const ISSUE_LABELS: Record<string, string> = {
   presentation_glued_citation: 'Broken citation',
   presentation_locale_spelling: 'Spelling convention',
   presentation_undefined_cell: 'Unfilled table cell',
+  // Literature review draft checks (lr-draft-checks.v1), re-run on the current text against its theme plan
+  lr_draft_number_untraced: 'Figure not in the cited study',
+  lr_draft_number_uncited: 'Figure without a citation',
+  lr_draft_process: 'Describes how the review was made',
+  lr_draft_absence_unhedged: 'Unhedged "no study" claim',
+  lr_draft_theme_missing: 'Review theme not written',
+  lr_draft_gap_count: 'Research gap section',
+  lr_draft_quantifier: 'Strong wording on few studies',
+  lr_draft_design: 'Study design described wrongly',
+  lr_draft_extra_heading: 'Heading outside the review plan',
+  lr_draft_plural_one_study: '"Studies" on one citation',
+  lr_draft_figure_without_n: 'Percentage without the sample',
+  lr_draft_quant_share: 'Findings without numbers',
+  lr_draft_claim_fit: 'Claim may not match its source',
 }
 
 /** The proposal business rules (docs/specs/business-rules.md) arrive as quality_brNN. */
