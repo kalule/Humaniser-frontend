@@ -18,6 +18,28 @@ export interface Review extends ReviewSummary {
 
 export interface ReviewOptions { reviewTypes: string[]; academicLevels: string[]; citationStyles: string[]; minTargetWords: number; maxTargetWords: number }
 
+/** Source gate (server flag LiteratureReviewStudio:SourceGate). enabled=false while it is off: show nothing. */
+export interface SourceCheck {
+  enabled: boolean; included: number; extracted: number; inThemes: number; counted: number; minimum: number; met: boolean; overridden: boolean
+  message: string | null; minSourcesPerTheme: number; themes: ThemeCoverage[]; balance: SourceBalance | null
+}
+export interface ThemeCoverage { themeId: string; title: string; verified: boolean; evidenceSources: number; thin: boolean; overridden: boolean; suggestedQuery: string }
+export type SourceKind = 'Empirical' | 'SystematicOrScoping' | 'NarrativeOrCommentary' | 'GuidelineOrPolicy' | 'Other'
+export interface SourceBalance { counts: Record<SourceKind, number>; total: number; warning: string | null; kindBySource: Record<string, SourceKind> }
+export interface Landmark { candidateId: string; title: string; authors: string; year: string | null; journal: string | null; citations: number; aiVerdict: string; manualDecision: string | null }
+
+export const SOURCE_KIND_LABELS: Record<SourceKind, string> = {
+  Empirical: 'Empirical studies', SystematicOrScoping: 'Systematic or scoping reviews', NarrativeOrCommentary: 'Narrative reviews or commentary',
+  GuidelineOrPolicy: 'Guidelines or policy', Other: 'Other',
+}
+
+/** The gate's refusal codes (409) from drafting. */
+export type GateRefusal = 'SOURCE_GATE' | 'THIN_THEMES'
+export function gateRefusal(err: unknown): GateRefusal | null {
+  const code = (err as { serverCode?: string } | null)?.serverCode
+  return code === 'SOURCE_GATE' || code === 'THIN_THEMES' ? code : null
+}
+
 export interface ScopeAdvice { assessment: 'Clear' | 'Vague' | 'TooBroad' | 'TooNarrow'; issues: string[]; suggestedQuestions: string[]; keyConcepts: string[] }
 
 export interface PoolSource { id: string; title: string; authors: string; year: number | null; journal: string | null; doi: string | null; evidenceLevel: 'FullText' | 'AbstractOnly' | 'MetadataOnly'; origin: 'Library' | 'Search' }

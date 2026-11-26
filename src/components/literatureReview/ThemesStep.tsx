@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, CheckCircle2, Pencil, Scissors, Trash2, TriangleAlert } from 'lucide-react'
 import { literatureReviewApi } from '../../api/literatureReview'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -6,6 +6,8 @@ import { errorMessage, isRunActive, type Gap, type Outline, type PoolSource, typ
 import { Chip, Loading, Notice, Panel, RunBanner } from './ui'
 import { btn, inputClass } from './styles'
 import { useRunPoll } from '../../hooks/useRunPoll'
+import { SourceCheckPanel, ThinThemeBar } from './SourceCheck'
+import { useSourceCheck } from '../../hooks/useSourceCheck'
 
 const KIND_LABELS: Record<string, string> = {
   Agreement: 'Agreement', Contradiction: 'Contradiction', MethodDifference: 'Methods differ', TheoryDifference: 'Theories differ',
@@ -25,11 +27,13 @@ export function ThemesStep({ review, onChanged, onNext }: { review: Review; onCh
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const { confirm, dialog } = useConfirm()
+  const [checkKey, setCheckKey] = useState(0)
+  const { check } = useSourceCheck(review.id, checkKey)
 
   const load = useCallback(async () => {
     try {
       const [t, g, p, o] = await Promise.all([literatureReviewApi.themes(review.id), literatureReviewApi.gaps(review.id), literatureReviewApi.sources(review.id), literatureReviewApi.outline(review.id)])
-      setThemes(t); setGaps(g); setPool(p); setOutline(o)
+      setThemes(t); setGaps(g); setPool(p); setOutline(o); setCheckKey(k => k + 1)
     } catch (e) { setError(errorMessage(e, 'The themes could not be loaded.')) }
   }, [review.id])
   useEffect(() => { void load() }, [load])
@@ -70,6 +74,7 @@ export function ThemesStep({ review, onChanged, onNext }: { review: Review; onCh
         </Panel>
         {themes?.map((t, i) => (
           <ThemeCard key={t.id} theme={t} index={i} count={themes.length} themes={themes} pool={pool} busy={busy || running}
+            coverage={<ThinThemeBar reviewId={review.id} coverage={check?.themes.find(c => c.themeId === t.id)} busy={busy || running} onSearched={onChanged} />}
             onRename={(title, summary) => act(() => literatureReviewApi.updateTheme(review.id, t.id, { title, summary }), 'The theme could not be saved.')}
             onMove={dir => act(() => { const ids = themes.map(x => x.id); const j = i + dir; [ids[i], ids[j]] = [ids[j], ids[i]]; return literatureReviewApi.reorderThemes(review.id, ids) }, 'The order could not be saved.')}
             onMerge={other => act(() => literatureReviewApi.mergeThemes(review.id, [t.id, other]), 'The themes could not be merged.')}
@@ -81,6 +86,7 @@ export function ThemesStep({ review, onChanged, onNext }: { review: Review; onCh
       </div>
 
       <div className="space-y-4">
+        <SourceCheckPanel reviewId={review.id} check={check} />
         <GapsPanel reviewId={review.id} gaps={gaps} onChanged={() => void load()} />
         <Panel title="Outline" id="lr-outline-preview" description="Built from the themes that passed their checks. You can edit it in the next step.">
           {outline ? (
@@ -101,8 +107,8 @@ export function ThemesStep({ review, onChanged, onNext }: { review: Review; onCh
   )
 }
 
-function ThemeCard({ theme, index, count, themes, pool, busy, onRename, onMove, onMerge, onSplit, onSources, onDelete }: {
-  theme: Theme; index: number; count: number; themes: Theme[]; pool: PoolSource[]; busy: boolean
+function ThemeCard({ theme, index, count, themes, pool, busy, coverage, onRename, onMove, onMerge, onSplit, onSources, onDelete }: {
+  theme: Theme; index: number; count: number; themes: Theme[]; pool: PoolSource[]; busy: boolean; coverage?: ReactNode
   onRename: (title: string, summary: string) => void; onMove: (dir: -1 | 1) => void; onMerge: (other: string) => void
   onSplit: (ids: string[]) => void; onSources: (s: { literatureId: string; stance: string }[]) => void; onDelete: () => void
 }) {
@@ -126,6 +132,7 @@ function ThemeCard({ theme, index, count, themes, pool, busy, onRename, onMove, 
         </Chip>
       </div>
       {!ok && theme.failureReason ? <p className="mt-1.5 text-[13px] text-amber-950">{theme.failureReason}</p> : null}
+      {coverage}
 
       <p className="mt-2 text-[12px] font-medium uppercase tracking-wide text-slate-600">Sources</p>
       <ul className="mt-1 flex flex-wrap gap-1.5">

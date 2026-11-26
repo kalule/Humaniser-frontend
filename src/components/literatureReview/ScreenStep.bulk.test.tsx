@@ -25,6 +25,8 @@ const api = {
   undoBulk: vi.fn().mockResolvedValue({ restored: 30, skipped: 0 }),
   extraction: vi.fn().mockResolvedValue({ matrixAvailable: false }),
   decide: vi.fn(), approve: vi.fn(), exclusions: vi.fn(),
+  // The source check (server flag off): renders nothing.
+  sourceCheck: vi.fn().mockResolvedValue({ enabled: false }),
 }
 vi.mock('../../api/literatureReview', () => ({ literatureReviewApi: api }))
 vi.mock('../../api/literatureMatrix', () => ({ literatureMatrixApi: {} }))

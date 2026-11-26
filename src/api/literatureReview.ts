@@ -1,7 +1,7 @@
 import client from './client'
 import type {
   ApproveResult, BulkResult, BulkUndoResult, Coverage, Exclusion, Extraction, Gap, ImportResult, IssueList, Issue, Outline, OutlineSection, PoolSource,
-  Reason, Review, ReviewOptions, ReviewRun, ReviewSummary, ScopeAdvice, ScreeningItem, ScreeningList, Section, Theme,
+  Landmark, Reason, Review, ReviewOptions, ReviewRun, ReviewSummary, ScopeAdvice, ScreeningItem, ScreeningList, Section, SourceCheck, Theme,
 } from '../lib/literatureReview'
 import type { ScreeningQuery } from '../lib/literatureReviewScreening'
 
@@ -89,4 +89,11 @@ export const literatureReviewApi = {
   exportFile: async (id: string, format: 'docx' | 'pdf'): Promise<Blob> =>
     (await client.get<Blob>(`${base}/${id}/export`, { params: { format }, responseType: 'blob' })).data,
   handOff: (id: string) => client.post<unknown>(`${base}/${id}/handoff/editor`).then(data),
+
+  // Source gate: counts against the minimum, thin themes, source kinds, landmarks; continue-anyway is recorded on the server.
+  sourceCheck: (id: string) => client.get<SourceCheck>(`${base}/${id}/source-check`).then(data),
+  overrideSourceGate: (id: string, kind: 'SourceMinimum' | 'ThinTheme', themeId?: string) =>
+    client.post<SourceCheck>(`${base}/${id}/source-check/override`, { kind, themeId }).then(data),
+  landmarks: (id: string) => client.get<Landmark[]>(`${base}/${id}/landmarks`).then(data),
+  searchTheme: (id: string, themeId: string, query: string) => client.post<{ started: boolean }>(`${base}/${id}/themes/${themeId}/search`, { query }).then(data),
 }

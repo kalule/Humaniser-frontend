@@ -2,12 +2,13 @@ import { Fragment, useCallback, useEffect, useState } from 'react'
 import { ArrowDown, ArrowUp, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { literatureReviewApi } from '../../api/literatureReview'
 import {
-  errorMessage, fromEditable, isRunActive, shortCite, splitCitations, toEditable,
+  errorMessage, fromEditable, gateRefusal, isRunActive, shortCite, splitCitations, toEditable,
   type Outline, type OutlineSection, type PoolSource, type Review, type Section,
 } from '../../lib/literatureReview'
 import { Chip, Loading, Notice, Panel, RunBanner } from './ui'
 import { btn, inputClass } from './styles'
 import { useRunPoll } from '../../hooks/useRunPoll'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 const STATUS: Record<Section['status'], { label: string; tone: string }> = {
   NotDrafted: { label: 'Not written', tone: 'border-slate-300 bg-slate-50 text-slate-800' },
@@ -27,6 +28,7 @@ export function DraftStep({ review, onChanged, onNext }: { review: Review; onCha
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [editingOutline, setEditingOutline] = useState(false)
+  const { confirm, dialog } = useConfirm()
 
   const load = useCallback(async () => {
     try {
@@ -42,7 +44,22 @@ export function DraftStep({ review, onChanged, onNext }: { review: Review; onCha
   const start = async (fn: () => Promise<Awaited<ReturnType<typeof literatureReviewApi.draftAll>>>) => {
     setBusy(true)
     setError(null)
-    try { setRun(await fn()) } catch (e) { setError(errorMessage(e, 'Drafting could not be started.')) } finally { setBusy(false) }
+    try {
+      // Source gate: too few sources for the review, or a theme on too few. The student may continue anyway; that is recorded.
+      for (let attempt = 0; ; attempt++) {
+        try { setRun(await fn()); return } catch (e) {
+          const refusal = gateRefusal(e)
+          if (!refusal || attempt >= 2) throw e
+          const ok = await confirm({
+            title: refusal === 'SOURCE_GATE' ? 'Too few sources for a review of this length' : 'Some themes rest on too few sources',
+            message: errorMessage(e, 'This review has fewer sources than it usually needs.'),
+            confirmLabel: 'Continue anyway',
+          })
+          if (!ok) return
+          await literatureReviewApi.overrideSourceGate(review.id, refusal === 'SOURCE_GATE' ? 'SourceMinimum' : 'ThinTheme')
+        }
+      }
+    } catch (e) { setError(errorMessage(e, 'Drafting could not be started.')) } finally { setBusy(false) }
   }
 
   if (outline === undefined && !error) return <Panel><Loading /></Panel>
@@ -71,6 +88,7 @@ export function DraftStep({ review, onChanged, onNext }: { review: Review; onCha
           onRegenerate={() => void start(() => literatureReviewApi.draftSection(review.id, s.code))}
           onSaved={updated => { setSections(list => list.map(x => x.code === updated.code ? updated : x)); onChanged() }} />
       ))}
+      {dialog}
     </div>
   )
 }

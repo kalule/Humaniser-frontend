@@ -17,6 +17,8 @@ import { Chip, Loading, Notice, Panel } from './ui'
 import { BulkBar, BulkExcludeDialog, ScreeningCounters, ScreeningFilters } from './ScreeningTools'
 import { btn, inputClass } from './styles'
 import { cn } from '../../lib/utils'
+import { SourceCountLine } from './SourceCheck'
+import { useSourceCheck } from '../../hooks/useSourceCheck'
 
 const PAGE_SIZE = 25
 
@@ -25,8 +27,11 @@ const PAGE_SIZE = 25
  * the review through its Literature Matrix (shown here, editable, with the passage behind every value).
  */
 export function ScreenStep({ review, onChanged, onNext }: { review: Review; onChanged: () => void; onNext: () => void }) {
+  // Refreshed with the review (its revision changes on every decision and approval).
+  const { check } = useSourceCheck(review.id, review.revision)
   return (
     <div className="space-y-4">
+      <SourceCountLine check={check} />
       <ScreeningPanel review={review} onChanged={onChanged} />
       <ExtractionPanel review={review} onChanged={onChanged} onNext={onNext} />
     </div>
