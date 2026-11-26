@@ -22,7 +22,11 @@ const POLL_MS = 3000
  * One matrix: the table is the screen. Rows are loaded once (a matrix holds at most a few hundred), searched,
  * filtered and sorted here, and shown a page at a time so a 500-row matrix stays quick.
  */
-export function MatrixWorkspace({ matrix, onMatrixChange, onDeleted }: { matrix: Matrix; onMatrixChange: (m: Matrix) => void; onDeleted: () => void }) {
+export function MatrixWorkspace({ matrix, onMatrixChange, onDeleted, hiddenStudyIds }: {
+  matrix: Matrix; onMatrixChange: (m: Matrix) => void; onDeleted: () => void
+  /** Rows kept on the server but not shown, extracted, exported or handed off (a literature review's sources taken out of it). */
+  hiddenStudyIds?: readonly string[]
+}) {
   const [rows, setRows] = useState<MatrixStudy[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -37,10 +41,18 @@ export function MatrixWorkspace({ matrix, onMatrixChange, onDeleted }: { matrix:
   const [drawer, setDrawer] = useState<string | null>(null)
   const { confirm: ask, dialog: confirmDialog } = useConfirm()
 
+  // A stable key, so a new array with the same ids does not reload the table.
+  const hiddenKey = hiddenStudyIds?.length ? [...hiddenStudyIds].sort().join(',') : ''
   const loadRows = useCallback(() => {
     setLoadError(null)
-    literatureMatrixApi.studies(matrix.id).then(p => setRows(p.items)).catch(e => setLoadError(failureMessage(e, 'load')))
-  }, [matrix.id])
+    const hidden = new Set(hiddenKey ? hiddenKey.split(',') : [])
+    literatureMatrixApi.studies(matrix.id)
+      .then(p => {
+        setRows(hidden.size ? p.items.filter(r => !hidden.has(r.id)) : p.items)
+        setSelected(s => hidden.size && [...s].some(id => hidden.has(id)) ? new Set([...s].filter(id => !hidden.has(id))) : s)
+      })
+      .catch(e => setLoadError(failureMessage(e, 'load')))
+  }, [matrix.id, hiddenKey])
   useEffect(loadRows, [loadRows])
   useEffect(() => { literatureMatrixApi.latestRun(matrix.id).then(setRun).catch(() => setRun(null)) }, [matrix.id])
 
@@ -134,7 +146,8 @@ export function MatrixWorkspace({ matrix, onMatrixChange, onDeleted }: { matrix:
             <button type="button" className={buttonClass.primary} disabled={!rows?.length || active || !matrix.extractionAvailable} onClick={() => setDialog('extract')}>
               <Sparkles size={15} />{selected.size > 0 ? `Extract ${selected.size} selected` : 'Extract all'}
             </button>
-            <ExportMenu matrix={matrix} studyIds={[...selected]} disabled={!rows?.length} onError={m => setActionError(m)} />
+            {/* No selection exports the whole matrix on the server; with hidden rows, name the shown rows instead so hidden ones stay out. */}
+            <ExportMenu matrix={matrix} studyIds={selected.size > 0 || !hiddenKey ? [...selected] : (rows ?? []).map(r => r.id)} disabled={!rows?.length} onError={m => setActionError(m)} />
             <button type="button" className={buttonClass.secondary} disabled={!rows?.some(r => r.cells.some(c => c.verified))}
               title="Studies with values you checked" onClick={() => setDialog('handoff')}>
               <FileDown size={15} />Use in literature review

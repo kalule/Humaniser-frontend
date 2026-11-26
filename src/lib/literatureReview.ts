@@ -30,12 +30,30 @@ export interface ScreeningItem {
   candidateId: string; title: string; authors: string; year: string; journal: string; doi: string; abstract: string; foundVia: string[]
   state: ScreeningState; reasonCode: string | null; reasonLabel: string | null; explanation: string; studentNote: string | null
   relevanceScore: number; topicMatchScore: number; evidenceLevel: string; hasFullText: boolean; inPool: boolean
+  /** The database this record came from; citations as that database reported them (0 when it gave none). */
+  source: string; citations: number
+  /** The AI's verdict and reason, kept even when the reviewer decided otherwise. */
+  aiVerdict: AiVerdict; aiReason: string
+  /** Approved into the review earlier and since taken out of it. */
+  removedFromReview: boolean
 }
 
+export type AiVerdict = 'Pending' | 'Relevant' | 'Uncertain' | 'Excluded'
+
+/**
+ * stateCounts follow the search and filters (they label the tabs); overallCounts are the whole review. matchingIds lists every paper
+ * in the current view across pages and is sent only while bulk screening is on.
+ */
 export interface ScreeningList {
   items: ScreeningItem[]; totalCount: number; page: number; pageSize: number; stateCounts: Record<ScreeningState, number>
   screeningStatus: string; screeningProgressPct: number; canApprove: boolean
+  overallCounts: Record<ScreeningState, number>; databases: string[]; bulkScreening: boolean; matchingIds: string[] | null
 }
+
+export interface BulkResult { batchId: string | null; changed: number; unchanged: number; leftReview: number; returnedToReview: number }
+export interface BulkUndoResult { restored: number; skipped: number }
+/** One record set aside at screening. decidedBy is Student, AI or DateRange. */
+export interface Exclusion { candidateId: string; title: string; year: string; doi: string; reasonCode: string | null; reason: string; decidedBy: 'Student' | 'AI' | 'DateRange' }
 
 export interface Reason { code: string; label: string }
 export interface ApproveResult { addedToPool: number; excludedForDateRange: number; poolSize: number; status: ReviewStatus }
@@ -53,6 +71,8 @@ export interface MatrixRunInfo { id: string; status: string; studiesTotal: numbe
 export interface Extraction {
   matrixId: string | null; matrixAvailable: boolean; poolSize: number; inMatrix: number; extracted: number; notLinked: number
   consentAccepted: boolean; creditsPerStudy: number; run: MatrixRunInfo | null
+  /** Matrix rows of sources taken out of the review: kept, with their extracted values, but not shown. */
+  hiddenStudyIds?: string[] | null
 }
 
 export type RunStatus = 'Queued' | 'Running' | 'Succeeded' | 'PartiallySucceeded' | 'Failed' | 'Cancelled'

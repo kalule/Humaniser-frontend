@@ -1,8 +1,9 @@
 import client from './client'
 import type {
-  ApproveResult, Coverage, Extraction, Gap, ImportResult, IssueList, Issue, Outline, OutlineSection, PoolSource, Reason, Review, ReviewOptions,
-  ReviewRun, ReviewSummary, ScopeAdvice, ScreeningItem, ScreeningList, Section, Theme,
+  ApproveResult, BulkResult, BulkUndoResult, Coverage, Exclusion, Extraction, Gap, ImportResult, IssueList, Issue, Outline, OutlineSection, PoolSource,
+  Reason, Review, ReviewOptions, ReviewRun, ReviewSummary, ScopeAdvice, ScreeningItem, ScreeningList, Section, Theme,
 } from '../lib/literatureReview'
+import type { ScreeningQuery } from '../lib/literatureReviewScreening'
 
 // Literature Review Studio. The shared client already unwraps the server's { success, data } envelope.
 const data = <T>(response: { data: T }) => response.data
@@ -34,10 +35,15 @@ export const literatureReviewApi = {
 
   // Screening
   reasons: () => client.get<Reason[]>(`${base}/screening-reasons`).then(data),
-  screening: (id: string, params: { state?: string; search?: string; page?: number; pageSize?: number }) =>
-    client.get<ScreeningList>(`${base}/${id}/screening`, { params }).then(data),
+  screening: (id: string, params: ScreeningQuery, signal?: AbortSignal) =>
+    client.get<ScreeningList>(`${base}/${id}/screening`, { params, signal }).then(data),
   decide: (id: string, candidateId: string, body: { decision: 'include' | 'exclude' | 'undo'; reasonCode?: string; note?: string }) =>
     client.patch<ScreeningItem>(`${base}/${id}/screening/${candidateId}`, body).then(data),
+  /** One decision on many papers, in one transaction. 404 unless bulk screening is switched on. */
+  bulkDecide: (id: string, body: { candidateIds: string[]; decision: 'include' | 'exclude'; reasonCode?: string; note?: string }) =>
+    client.post<BulkResult>(`${base}/${id}/screening/bulk`, body).then(data),
+  undoBulk: (id: string, batchId: string) => client.post<BulkUndoResult>(`${base}/${id}/screening/bulk/${batchId}/undo`).then(data),
+  exclusions: (id: string) => client.get<Exclusion[]>(`${base}/${id}/screening/exclusions`).then(data),
   approve: (id: string, acknowledgeLimitedCoverage: boolean) =>
     client.post<ApproveResult>(`${base}/${id}/screening/approve`, { acknowledgeLimitedCoverage }).then(data),
   coverage: (id: string) => client.get<Coverage>(`${base}/${id}/coverage`).then(data),
