@@ -9,6 +9,7 @@ import { Chip, Loading, Notice, Panel, RunBanner } from './ui'
 import { btn, inputClass } from './styles'
 import { useRunPoll } from '../../hooks/useRunPoll'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { TextLevelBadge, TextLevelSummary } from './TextLevel'
 
 const STATUS: Record<Section['status'], { label: string; tone: string }> = {
   NotDrafted: { label: 'Not written', tone: 'border-slate-300 bg-slate-50 text-slate-800' },
@@ -80,6 +81,7 @@ export function DraftStep({ review, onChanged, onNext }: { review: Review; onCha
           ? <button type="button" onClick={() => void start(() => literatureReviewApi.draftAll(review.id))} disabled={busy || running} className={btn.primary}>Draft {unwritten} section{unwritten === 1 ? '' : 's'}</button>
           : <button type="button" onClick={onNext} className={btn.primary}>Continue to review</button>}>
         <RunBanner run={run} label="Drafting" />
+        <div className="mt-2"><TextLevelSummary reviewId={review.id} pool={pool} /></div>
         {error ? <div className="mt-2"><Notice tone="error">{error}</Notice></div> : null}
       </Panel>
 
@@ -142,7 +144,7 @@ function SectionCard({ reviewId, section, poolById, busy, onRegenerate, onSaved 
           </div>
           <div className="text-[12px] text-slate-800">
             <p className="font-medium uppercase tracking-wide text-slate-600">Cited sources</p>
-            <ul className="mt-1 space-y-1">{section.citedSourceIds.map(id => <li key={id} className="[overflow-wrap:anywhere]">{shortCite(poolById.get(id))} — {poolById.get(id)?.title ?? 'no longer in the review'}</li>)}</ul>
+            <ul className="mt-1 space-y-1">{section.citedSourceIds.map(id => <li key={id} className="[overflow-wrap:anywhere]">{shortCite(poolById.get(id))} — {poolById.get(id)?.title ?? 'no longer in the review'}<TextLevelBadge source={poolById.get(id)} /></li>)}</ul>
           </div>
         </div>
       ) : null}

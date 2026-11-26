@@ -18,6 +18,7 @@ import { BulkBar, BulkExcludeDialog, ScreeningCounters, ScreeningFilters } from 
 import { btn, inputClass } from './styles'
 import { cn } from '../../lib/utils'
 import { SourceCountLine } from './SourceCheck'
+import { TextLevelSummary } from './TextLevel'
 import { useSourceCheck } from '../../hooks/useSourceCheck'
 
 const PAGE_SIZE = 25
@@ -428,6 +429,7 @@ function ExtractionPanel({ review, onChanged, onNext }: { review: Review; onChan
     <Panel title="Extract the evidence" id="lr-extract"
       description="Each source's aim, context, method, sample, findings and limitations, every value tied to the passage it came from. Unchanged sources are never extracted or charged twice.">
       {error ? <Notice tone="error">{error}</Notice> : null}
+      <div className="mb-2"><TextLevelSummary reviewId={review.id} refreshKey={`${state.extracted}-${review.revision}`} /></div>
       <p className="text-[13px] text-slate-800">
         {state.poolSize} sources in the review · {state.extracted} extracted{remaining ? ` · ${remaining} to extract` : ''}{state.notLinked ? ` · ${state.notLinked} could not be matched to a matrix row` : ''}.
         {hidden.length ? ` ${hidden.length} source${hidden.length === 1 ? '' : 's'} taken out of the review ${hidden.length === 1 ? 'is' : 'are'} hidden below; anything extracted from them is kept.` : ''}

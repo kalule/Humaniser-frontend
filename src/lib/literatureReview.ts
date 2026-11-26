@@ -42,7 +42,9 @@ export function gateRefusal(err: unknown): GateRefusal | null {
 
 export interface ScopeAdvice { assessment: 'Clear' | 'Vague' | 'TooBroad' | 'TooNarrow'; issues: string[]; suggestedQuestions: string[]; keyConcepts: string[] }
 
-export interface PoolSource { id: string; title: string; authors: string; year: number | null; journal: string | null; doi: string | null; evidenceLevel: 'FullText' | 'AbstractOnly' | 'MetadataOnly'; origin: 'Library' | 'Search' }
+export interface PoolSource { id: string; title: string; authors: string; year: number | null; journal: string | null; doi: string | null; evidenceLevel: 'FullText' | 'AbstractOnly' | 'MetadataOnly'; origin: 'Library' | 'Search'
+  /** What drafting read (server flag LiteratureReviewStudio:EvidenceLevels); absent while the flag is off. */
+  textLevel?: 'FullText' | 'AbstractOnly' | 'TitleOnly' | null }
 
 export interface ImportResult { added: number; alreadyInPool: number; withoutAbstract: string[]; notFound: number }
 
