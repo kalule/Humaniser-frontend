@@ -6,7 +6,7 @@ const project = (id: string) => `/api/v1/research/projects/${id}`
 // The shared client already unwraps the server's ApiResponse envelope.
 const data = <T>(response: { data: T }) => response.data
 
-/** 404 means the research agent is switched off for this path (backend flags), so the UI shows nothing. */
+/** An older API that 404s is treated as "agent off". Current APIs answer "off" with 200 and an empty or Unavailable body. */
 const offWhenNotFound = async <T>(call: () => Promise<T>): Promise<T | null> => {
   try { return await call() }
   catch (e) { if (axios.isAxiosError(e) && e.response?.status === 404) return null; throw e }
@@ -16,8 +16,11 @@ export const proposalAgentApi = {
   activity: (projectId: string, section?: string, signal?: AbortSignal): Promise<AgentActivity | null> =>
     offWhenNotFound(async () => data(await client.get(`${project(projectId)}/agent-activity`, { params: section ? { section } : undefined, signal }))),
 
-  evidence: (projectId: string, signal?: AbortSignal): Promise<AgentEvidenceState | null> =>
-    offWhenNotFound(async () => data(await client.get(`${project(projectId)}/proposal-workflow/agent-evidence`, { signal }))),
+  /** Null when suggested evidence is unavailable (agent off, or no accepted research design): the panel does not appear. */
+  evidence: async (projectId: string, signal?: AbortSignal): Promise<AgentEvidenceState | null> => {
+    const state = await offWhenNotFound(async () => data<AgentEvidenceState>(await client.get(`${project(projectId)}/proposal-workflow/agent-evidence`, { signal })))
+    return state && state.status !== 'Unavailable' ? state : null
+  },
 
   prepareEvidence: async (projectId: string): Promise<AgentEvidenceState> =>
     data(await client.post(`${project(projectId)}/proposal-workflow/agent-evidence/run`)),

@@ -52,7 +52,8 @@ export interface AgentProposedGap {
 }
 
 export interface AgentEvidenceState {
-  status: 'None' | 'Running' | 'Ready' | 'Failed' | string
+  /** Unavailable: the agent is off or no research design is accepted (the API client turns it into null). */
+  status: 'Unavailable' | 'None' | 'Running' | 'Ready' | 'Failed' | string
   preparedAt: string | null
   searches: number
   papersRead: number
