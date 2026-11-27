@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Download } from 'lucide-react'
 import { literatureReviewApi } from '../../api/literatureReview'
@@ -37,9 +37,16 @@ export function ScreenStep({ review, onChanged, onNext }: { review: Review; onCh
 function useScreeningView() {
   const [params, setParams] = useSearchParams()
   const view = useMemo(() => readView(params), [params])
+  // setSearchParams(fn) hands fn the params of the last render, so two changes before a re-render (a filter changed as the search
+  // debounce fires) lost the first. Each change builds on the latest written params instead; navigation (Back) resets them.
+  const latest = useRef(params)
+  useLayoutEffect(() => { latest.current = params }, [params])
   // Any change but a page change starts again on page 1, so a narrower list is never shown from an empty page.
-  const update = useCallback((patch: Partial<ScreeningView>) =>
-    setParams(current => writeView(current, { ...readView(current), page: 1, ...patch }), { replace: true }), [setParams])
+  const update = useCallback((patch: Partial<ScreeningView>) => {
+    const next = writeView(latest.current, { ...readView(latest.current), page: 1, ...patch })
+    latest.current = next
+    setParams(next, { replace: true })
+  }, [setParams])
   return [view, update] as const
 }
 
@@ -342,7 +349,12 @@ function ScreeningRow({ reviewId, item, reasons, bulkOn, selected, onToggle, onU
         </div>
         <Chip className={tone}>{stateLabel(item.state)}</Chip>
       </div>
-      <p className="mt-1.5 text-[13px] text-slate-800">{item.reasonLabel ? <span className="font-medium">{item.reasonLabel}. </span> : null}{item.explanation}</p>
+      {/* For the reviewer's own exclusion the explanation is the reason label itself; say it once, then the note if there is one. */}
+      <p className="mt-1.5 text-[13px] text-slate-800">
+        {item.reasonLabel ? <span className="font-medium">{item.reasonLabel}.</span> : null}
+        {item.explanation && item.explanation !== item.reasonLabel ? `${item.reasonLabel ? ' ' : ''}${item.explanation}` : null}
+        {item.studentNote ? <span className="text-slate-700"> Note: {item.studentNote}</span> : null}
+      </p>
       {showAi ? (
         <p className="mt-1 text-[12px] text-slate-600"><span className="font-medium">AI verdict: {verdictLabel(item.aiVerdict)}.</span> {item.aiReason}</p>
       ) : null}

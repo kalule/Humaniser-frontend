@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { Review, ScreeningItem, ScreeningList } from '../../lib/literatureReview'
 
@@ -82,12 +82,30 @@ describe('Screen step bulk screening', () => {
     expect(screen.getByText('3 selected')).toBeTruthy()
   })
 
+  it('says an exclusion reason once and shows the reviewer note', async () => {
+    api.screening.mockResolvedValue({ ...list(true), items: [item(1, { state: 'Excluded', reasonCode: 'OPINION', reasonLabel: 'Opinion piece or editorial', explanation: 'Opinion piece or editorial', studentNote: 'An editorial' })] })
+    renderStep()
+    const text = (await screen.findByText(/Note: An editorial/)).closest('p')!.textContent
+    expect(text).toBe('Opinion piece or editorial. Note: An editorial')
+  })
+
   it('shows no checkboxes or bulk controls while the flag is off', async () => {
     api.screening.mockResolvedValue(list(false))
     renderStep()
     await screen.findByText('Paper 1')
     expect(screen.queryByLabelText('Select Paper 1')).toBeNull()
     expect(screen.queryByRole('button', { name: /Select all in this view/ })).toBeNull()
+  })
+
+  it('keeps both filters when two change before the page re-renders', async () => {
+    api.screening.mockResolvedValue(list(false))
+    renderStep()
+    await screen.findByText('Paper 1')
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Abstract', { selector: 'select' }), { target: { value: 'no' } })
+      fireEvent.change(screen.getByLabelText('AI verdict', { selector: 'select' }), { target: { value: 'Uncertain' } })
+    })
+    await waitFor(() => expect(api.screening).toHaveBeenLastCalledWith('r1', { page: 1, pageSize: 25, hasAbstract: false, verdict: 'Uncertain' }, expect.anything()))
   })
 
   it('reads the search and filters from the URL and sends them to the server', async () => {
