@@ -43,6 +43,8 @@ export const literatureReviewApi = {
   bulkDecide: (id: string, body: { candidateIds: string[]; decision: 'include' | 'exclude'; reasonCode?: string; note?: string }) =>
     client.post<BulkResult>(`${base}/${id}/screening/bulk`, body).then(data),
   undoBulk: (id: string, batchId: string) => client.post<BulkUndoResult>(`${base}/${id}/screening/bulk/${batchId}/undo`).then(data),
+  /** Includes every paper the AI suggested that is still undecided; undone with undoBulk like any bulk action. */
+  acceptSuggestions: (id: string) => client.post<BulkResult>(`${base}/${id}/screening/accept-suggestions`).then(data),
   exclusions: (id: string) => client.get<Exclusion[]>(`${base}/${id}/screening/exclusions`).then(data),
   /**
    * With the backend's evidence rules on, approval is refused (serverCode UNRESOLVED_RECORDS) while screening left records undecided;

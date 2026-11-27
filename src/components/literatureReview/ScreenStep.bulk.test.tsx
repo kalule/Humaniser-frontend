@@ -11,7 +11,7 @@ const item = (n: number, extra: Partial<ScreeningItem> = {}): ScreeningItem => (
   removedFromReview: false, ...extra,
 })
 
-const counts = { NotScreened: 0, Included: 30, AwaitingFullText: 0, PotentiallyRelevant: 0, NotRelevant: 0, Excluded: 0, UnableToAssess: 0 }
+const counts = { NotScreened: 0, Included: 30, AwaitingFullText: 0, PotentiallyRelevant: 0, NotRelevant: 0, Excluded: 0, UnableToAssess: 0, Suggested: 0 }
 const list = (bulkScreening: boolean): ScreeningList => ({
   items: Array.from({ length: 3 }, (_, i) => item(i + 1)), totalCount: 30, page: 1, pageSize: 25, stateCounts: counts, overallCounts: counts,
   screeningStatus: 'Completed', screeningProgressPct: 100, canApprove: true, databases: ['openalex'], bulkScreening,
@@ -23,6 +23,7 @@ const api = {
   reasons: vi.fn().mockResolvedValue([{ code: 'TOPIC', label: 'Not about the topic' }, { code: 'OTHER', label: 'Other reason' }, { code: 'NEEDS_FULLTEXT', label: 'Need full text' }]),
   bulkDecide: vi.fn().mockResolvedValue({ batchId: 'b1', changed: 30, unchanged: 0, leftReview: 30, returnedToReview: 0 }),
   undoBulk: vi.fn().mockResolvedValue({ restored: 30, skipped: 0 }),
+  acceptSuggestions: vi.fn().mockResolvedValue({ batchId: 'b2', changed: 2, unchanged: 0, leftReview: 0, returnedToReview: 0 }),
   extraction: vi.fn().mockResolvedValue({ matrixAvailable: false }),
   decide: vi.fn(), approve: vi.fn(), exclusions: vi.fn(),
   // The source check (server flag off): renders nothing.
@@ -108,6 +109,28 @@ describe('Screen step bulk screening', () => {
       fireEvent.change(screen.getByLabelText('AI verdict', { selector: 'select' }), { target: { value: 'Uncertain' } })
     })
     await waitFor(() => expect(api.screening).toHaveBeenLastCalledWith('r1', { page: 1, pageSize: 25, hasAbstract: false, verdict: 'Uncertain' }, expect.anything()))
+  })
+
+  it('treats AI picks as suggestions: names the count on approve, includes all on request, and lets a suggestion be decided', async () => {
+    const suggestionCounts = { ...counts, Included: 1, Suggested: 2 }
+    api.screening.mockResolvedValue({
+      ...list(false), aiSuggestions: true, stateCounts: suggestionCounts, overallCounts: suggestionCounts, totalCount: 3,
+      items: [item(1, { explanation: 'Included by you.' }), item(2, { state: 'Suggested', inPool: false }), item(3, { state: 'Suggested', inPool: true, explanation: 'Old approval.' })],
+    })
+    renderStep()
+    expect(await screen.findByText(/The AI suggests 2 papers/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add the 1 paper you included to the review' })).toBeTruthy()
+    expect(screen.getByText(/The 2 AI suggestions you have not included are left out/)).toBeTruthy()
+    expect(screen.getAllByText('Suggested by AI').length).toBeGreaterThan(0)
+    // A suggestion an old approval put in the review can still be decided (no bulk screening needed).
+    const old = screen.getByText('Paper 3').closest('li')!
+    expect(within(old).getByRole('button', { name: 'Include' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Include all 2 suggestions' }))
+    await waitFor(() => expect(api.acceptSuggestions).toHaveBeenCalledWith('r1'))
+    expect(await screen.findByText(/2 papers included from the AI suggestions/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(api.undoBulk).toHaveBeenCalledWith('r1', 'b2'))
   })
 
   it('reads the search and filters from the URL and sends them to the server', async () => {

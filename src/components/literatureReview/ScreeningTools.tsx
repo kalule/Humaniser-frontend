@@ -111,6 +111,7 @@ function YearInput({ label, value, onCommit }: { label: string; value: number | 
 export function ScreeningCounters({ counts, selected, showSelected }: { counts: Counters; selected: number; showSelected: boolean }) {
   const items: [string, number][] = [
     ['Included', counts.included],
+    ...(counts.suggested > 0 ? [['Suggested by AI', counts.suggested] as [string, number]] : []),
     ['Needs full text', counts.needsFullText],
     ['Excluded', counts.excluded],
     ['Needs your decision', counts.undecided],

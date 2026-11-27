@@ -53,9 +53,9 @@ describe('shift-click ranges', () => {
 
 describe('decision counters', () => {
   it('group the states the way the reviewer reads them', () => {
-    expect(counters({ Included: 5, AwaitingFullText: 2, Excluded: 3, NotRelevant: 4, PotentiallyRelevant: 1, UnableToAssess: 6, NotScreened: 7 }))
-      .toEqual({ included: 5, needsFullText: 2, excluded: 7, undecided: 7, notScreened: 7 })
-    expect(counters({})).toEqual({ included: 0, needsFullText: 0, excluded: 0, undecided: 0, notScreened: 0 })
+    expect(counters({ Included: 5, AwaitingFullText: 2, Excluded: 3, NotRelevant: 4, PotentiallyRelevant: 1, UnableToAssess: 6, NotScreened: 7, Suggested: 9 }))
+      .toEqual({ included: 5, needsFullText: 2, excluded: 7, undecided: 7, notScreened: 7, suggested: 9 })
+    expect(counters({})).toEqual({ included: 0, needsFullText: 0, excluded: 0, undecided: 0, notScreened: 0, suggested: 0 })
   })
 })
 

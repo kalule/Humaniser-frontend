@@ -48,7 +48,8 @@ export interface PoolSource { id: string; title: string; authors: string; year: 
 
 export interface ImportResult { added: number; alreadyInPool: number; withoutAbstract: string[]; notFound: number }
 
-export type ScreeningState = 'NotScreened' | 'Included' | 'AwaitingFullText' | 'PotentiallyRelevant' | 'NotRelevant' | 'Excluded' | 'UnableToAssess'
+/** Suggested: the AI judged it relevant; it joins the review only when the reviewer includes it. */
+export type ScreeningState = 'NotScreened' | 'Included' | 'AwaitingFullText' | 'PotentiallyRelevant' | 'NotRelevant' | 'Excluded' | 'UnableToAssess' | 'Suggested'
 
 export interface ScreeningItem {
   candidateId: string; title: string; authors: string; year: string; journal: string; doi: string; abstract: string; foundVia: string[]
@@ -72,6 +73,8 @@ export interface ScreeningList {
   items: ScreeningItem[]; totalCount: number; page: number; pageSize: number; stateCounts: Record<ScreeningState, number>
   screeningStatus: string; screeningProgressPct: number; canApprove: boolean
   overallCounts: Record<ScreeningState, number>; databases: string[]; bulkScreening: boolean; matchingIds: string[] | null
+  /** The AI's "relevant" papers are suggestions: only papers the reviewer includes are added to the review. */
+  aiSuggestions?: boolean
 }
 
 export interface BulkResult { batchId: string | null; changed: number; unchanged: number; leftReview: number; returnedToReview: number }
@@ -80,8 +83,9 @@ export interface BulkUndoResult { restored: number; skipped: number }
 export interface Exclusion { candidateId: string; title: string; year: string; doi: string; reasonCode: string | null; reason: string; decidedBy: 'Student' | 'AI' | 'DateRange' }
 
 export interface Reason { code: string; label: string }
+/** removedAiOnly: papers an earlier approval added only on the AI's verdict, taken out because the reviewer never included them. */
 /** excludedUnresolved: records screening could not judge, excluded at the reviewer's request as "not enough information to judge". */
-export interface ApproveResult { addedToPool: number; excludedForDateRange: number; poolSize: number; status: ReviewStatus; excludedUnresolved?: number }
+export interface ApproveResult { addedToPool: number; excludedForDateRange: number; poolSize: number; status: ReviewStatus; removedAiOnly?: number; excludedUnresolved?: number }
 
 /** Approval refused because screening left records undecided (backend LiteratureReviewStudio:EvidenceRules). */
 export const UNRESOLVED_RECORDS = 'UNRESOLVED_RECORDS'
@@ -189,6 +193,7 @@ export const STYLE_LABELS: Record<string, string> = { apa7: 'APA 7', harvard: 'H
 export const SCREENING_STATES: { state: ScreeningState; label: string; tone: string }[] = [
   { state: 'PotentiallyRelevant', label: 'Potentially relevant', tone: 'bg-amber-50 text-amber-900 border-amber-300' },
   { state: 'UnableToAssess', label: 'Unable to assess', tone: 'bg-slate-100 text-slate-800 border-slate-300' },
+  { state: 'Suggested', label: 'Suggested by AI', tone: 'bg-purple-tint text-purple-text border-purple-accent/40' },
   { state: 'AwaitingFullText', label: 'Awaiting full text', tone: 'bg-sky-50 text-sky-900 border-sky-300' },
   { state: 'Included', label: 'Included', tone: 'bg-green-50 text-green-900 border-green-300' },
   { state: 'NotScreened', label: 'Not screened', tone: 'bg-white text-slate-700 border-slate-300' },

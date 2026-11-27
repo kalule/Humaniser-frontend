@@ -38,7 +38,7 @@ export const VERDICT_OPTIONS: { value: AiVerdict; label: string }[] = [
 
 export const verdictLabel = (v: AiVerdict) => VERDICT_OPTIONS.find(o => o.value === v)?.label ?? v
 
-const STATES: ScreeningState[] = ['NotScreened', 'Included', 'AwaitingFullText', 'PotentiallyRelevant', 'NotRelevant', 'Excluded', 'UnableToAssess']
+const STATES: ScreeningState[] = ['NotScreened', 'Included', 'AwaitingFullText', 'PotentiallyRelevant', 'NotRelevant', 'Excluded', 'UnableToAssess', 'Suggested']
 const SORTS = SORT_OPTIONS.map(o => o.value)
 const VERDICTS = VERDICT_OPTIONS.map(o => o.value)
 
@@ -120,7 +120,7 @@ export function rangeBetween(order: readonly string[], anchor: string, target: s
   return order.slice(Math.min(a, b), Math.max(a, b) + 1)
 }
 
-export interface Counters { included: number; needsFullText: number; excluded: number; undecided: number; notScreened: number }
+export interface Counters { included: number; needsFullText: number; excluded: number; undecided: number; notScreened: number; suggested: number }
 
 /** The decision counters: excluded covers the reviewer's exclusions and the AI's "not relevant"; undecided waits on the reviewer. */
 export function counters(counts: Partial<Record<ScreeningState, number>>): Counters {
@@ -131,6 +131,7 @@ export function counters(counts: Partial<Record<ScreeningState, number>>): Count
     excluded: n('Excluded') + n('NotRelevant'),
     undecided: n('PotentiallyRelevant') + n('UnableToAssess'),
     notScreened: n('NotScreened'),
+    suggested: n('Suggested'),
   }
 }
 

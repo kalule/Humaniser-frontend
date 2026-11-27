@@ -158,14 +158,27 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
     setUnresolved(null)
     try {
       const r = await literatureReviewApi.approve(review.id, ack, excludeUnresolved)
+      const removed = r.removedAiOnly ?? 0
       const unjudged = r.excludedUnresolved ?? 0
-      setNotice(`${r.addedToPool} paper${r.addedToPool === 1 ? '' : 's'} added to the review${r.excludedForDateRange ? `; ${r.excludedForDateRange} excluded as outside your date range (you can include them again)` : ''}${unjudged ? `; ${unjudged} that could not be judged ${unjudged === 1 ? 'was' : 'were'} excluded as not enough information (you can include them again)` : ''}. The review now has ${r.poolSize} sources.`)
+      setNotice(`${r.addedToPool} paper${r.addedToPool === 1 ? '' : 's'} added to the review${r.excludedForDateRange ? `; ${r.excludedForDateRange} excluded as outside your date range (you can include them again)` : ''}${unjudged ? `; ${unjudged} that could not be judged ${unjudged === 1 ? 'was' : 'were'} excluded as not enough information (you can include them again)` : ''}${removed ? `; ${removed} the AI had picked but you never included ${removed === 1 ? 'was' : 'were'} taken out (include ${removed === 1 ? 'it' : 'them'} to bring ${removed === 1 ? 'it' : 'them'} back)` : ''}. The review now has ${r.poolSize} sources.`)
       reload(); onChanged()
     } catch (e) {
       // Records screening could not judge must be decided, or excluded as not enough information, before the review can go on.
       if (serverCode(e) === UNRESOLVED_RECORDS) setUnresolved(errorMessage(e, 'Some records could not be judged from their title and abstract.'))
       else setError(errorMessage(e, 'The papers could not be approved.'))
     } finally { setBusy(false) }
+  }
+  const acceptSuggestions = async () => {
+    setBusy(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const r = await literatureReviewApi.acceptSuggestions(review.id)
+      setLastBulk(r.batchId ? { batchId: r.batchId, summary: bulkSummary(r, 'included from the AI suggestions') } : null)
+      if (!r.batchId) setNotice('There were no AI suggestions left to include.')
+      reload()
+      if (r.returnedToReview) onChanged()
+    } catch (e) { setError(errorMessage(e, 'The suggestions could not be included. Nothing was changed.')) } finally { setBusy(false) }
   }
   // A single decision shows at once, then the list reloads so counts, tabs and order follow it.
   const decided = (item: ScreeningItem) => {
@@ -224,6 +237,11 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
   const matching = list?.matchingIds ?? []
   const allSelected = matching.length > 0 && matching.every(id => selected.has(id))
   const excludedTotal = overall ? (overall.Excluded ?? 0) + (overall.NotRelevant ?? 0) : 0
+  const aiSuggests = !!list?.aiSuggestions
+  const suggested = overall?.Suggested ?? 0
+  const includedTotal = overall ? (overall.Included ?? 0) + (overall.AwaitingFullText ?? 0) : 0
+  // A decision on a paper already in the review moves it in or out when bulk screening is on, or when AI verdicts are only suggestions.
+  const membershipFollowsDecisions = bulkOn || aiSuggests
 
   return (
     <Panel title="Screen what the search found" id="lr-screen"
@@ -253,6 +271,15 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
       {list && total > 0 ? (
         <>
           <ScreeningCounters counts={counters(overall ?? {})} selected={selected.size} showSelected={bulkOn} />
+          {aiSuggests && suggested > 0 ? (
+            <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-purple-accent/30 bg-purple-tint/40 p-3 text-[13px] text-slate-800">
+              <span className="min-w-0 flex-1">
+                The AI suggests {suggested} {suggested === 1 ? 'paper' : 'papers'}. Suggestions join the review only if you include them.
+              </span>
+              <button type="button" onClick={() => setView({ state: 'Suggested' })} className={btn.small}>Show suggestions</button>
+              <button type="button" onClick={() => void acceptSuggestions()} disabled={busy} className={btn.small}>Include all {suggested} suggestions</button>
+            </div>
+          ) : null}
           <ScreeningFilters view={view} databases={list.databases ?? []} matches={loading ? null : list.totalCount} onChange={setView} />
           <div role="group" aria-label="Show papers by state" className="mb-3 flex flex-wrap gap-1.5">
             <button type="button" onClick={() => setView({ state: '' })} aria-pressed={view.state === ''} className={cn(btn.small, view.state === '' && 'border-purple-accent bg-purple-tint text-purple-text')}>All ({tabTotal})</button>
@@ -291,7 +318,7 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
           ) : (
             <ul className={cn('space-y-2', loading && 'opacity-60 transition-opacity')} aria-busy={loading}>
               {list.items.map(item => (
-                <ScreeningRow key={item.candidateId} reviewId={review.id} item={item} reasons={reasons} bulkOn={bulkOn}
+                <ScreeningRow key={item.candidateId} reviewId={review.id} item={item} reasons={reasons} bulkOn={bulkOn} canChangeReview={membershipFollowsDecisions}
                   selected={selected.has(item.candidateId)} onToggle={toggle} onUpdated={decided} onError={m => setError(m)} />
               ))}
             </ul>
@@ -309,7 +336,7 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
               I understand that if the search coverage is limited, the review may miss relevant studies.
             </label>
             <button type="button" onClick={() => void approve()} disabled={busy || !list.canApprove} className={btn.secondary}>
-              Add the included papers to the review
+              {aiSuggests ? `Add the ${includedTotal} ${includedTotal === 1 ? 'paper' : 'papers'} you included to the review` : 'Add the included papers to the review'}
             </button>
             {!list.canApprove ? <p className="text-[12px] text-slate-600">Finish screening first.</p> : null}
             {unresolved ? (
@@ -323,6 +350,9 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
                 </div>
               </div>
             ) : null}
+            {list.canApprove && aiSuggests && suggested > 0 ? (
+              <p className="text-[12px] text-slate-600">The {suggested} AI {suggested === 1 ? 'suggestion' : 'suggestions'} you have not included {suggested === 1 ? 'is' : 'are'} left out.</p>
+            ) : null}
           </div>
         </>
       ) : null}
@@ -334,8 +364,8 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
   )
 }
 
-function ScreeningRow({ reviewId, item, reasons, bulkOn, selected, onToggle, onUpdated, onError }: {
-  reviewId: string; item: ScreeningItem; reasons: Reason[]; bulkOn: boolean; selected: boolean
+function ScreeningRow({ reviewId, item, reasons, bulkOn, canChangeReview, selected, onToggle, onUpdated, onError }: {
+  reviewId: string; item: ScreeningItem; reasons: Reason[]; bulkOn: boolean; canChangeReview: boolean; selected: boolean
   onToggle: (id: string, range: boolean) => void; onUpdated: (i: ScreeningItem) => void; onError: (m: string) => void
 }) {
   const [excluding, setExcluding] = useState(false)
@@ -349,8 +379,8 @@ function ScreeningRow({ reviewId, item, reasons, bulkOn, selected, onToggle, onU
   }
   const excludeReasons = reasons.filter(r => r.code !== 'NEEDS_FULLTEXT')
   const decided = item.state === 'Excluded' || (item.state === 'Included' && item.explanation.startsWith('Included by you')) || item.state === 'AwaitingFullText'
-  // With bulk screening on a paper already in the review can be decided too: excluding takes it out of the review.
-  const canDecide = !item.inPool || bulkOn
+  // When decisions move papers in and out of the review, a paper already in it can be decided too: excluding takes it out.
+  const canDecide = !item.inPool || canChangeReview
   // The AI's own reason, shown when the card's text is the reviewer's decision (or the date range) rather than the AI's.
   const showAi = item.aiVerdict !== 'Pending' && !!item.aiReason && item.explanation !== item.aiReason
   const checkboxId = `lr-select-${item.candidateId}`
