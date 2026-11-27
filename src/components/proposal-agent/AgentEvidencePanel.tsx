@@ -62,6 +62,13 @@ export function AgentEvidenceView(props: AgentEvidenceViewProps) {
         </p>
       )}
 
+      {state.proposedGap?.built && (
+        <p className="rounded-lg border border-violet-200 bg-white p-3 text-sm text-slate-700">
+          A draft research gap is ready from this evidence. Open <span className="font-medium">Research gap</span> to check it
+          {state.proposedGap.pointsAwaitingEvidence > 0 ? `; ${state.proposedGap.pointsAwaitingEvidence} of its points need evidence you confirm here first` : ''}.
+        </p>
+      )}
+
       {state.gaps.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <p className="font-medium">No evidence found for:</p>

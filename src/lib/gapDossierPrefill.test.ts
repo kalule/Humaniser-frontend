@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GapCard, GapRun } from '../types/gapFinder'
 import type { GapDossier } from '../types/proposalWorkflow'
-import { dossierFromGap, fillEmpty, pickGapCard } from './gapDossierPrefill'
+import { dossierFromAgent, dossierFromGap, fillEmpty, pickGapCard } from './gapDossierPrefill'
 
 const card = (gapId: string, statement: string): GapCard => ({
   gapId, type: 'insufficient', statement, whatIsKnown: '', evidence: [], suggestedQuestion: '', promptVersion: 'v1',
@@ -40,5 +40,32 @@ describe('gap dossier prefill (research-platform W4.4)', () => {
     const next = fillEmpty({ ...empty, gap: 'My own wording' }, { gap: 'From the finder', scope: 'Kenya' })
     expect(next.gap).toBe('My own wording')
     expect(next.scope).toBe('Kenya')
+  })
+})
+
+describe('dossierFromAgent', () => {
+  const empty = { gap: '', type: '', scope: '', evidenceIds: [], counterEvidenceIds: [], searchQueryIds: [], coverageLimitations: '', counterEvidenceAssessment: '' }
+  const draft = { built: true, gap: 'No trial has tested reminders in Pretoria clinics.', scope: 'Setting: Pretoria', coverageLimitations: 'Absence is not proof.', counterEvidenceAssessment: 'Existing studies already show: reminders help.', evidenceIds: ['e1'] }
+
+  it('fills empty fields and adds the confirmed evidence it cites', () => {
+    const next = dossierFromAgent(empty, draft)!
+    expect(next.gap).toBe(draft.gap)
+    expect(next.coverageLimitations).toBe('Absence is not proof.')
+    expect(next.evidenceIds).toEqual(['e1'])
+    expect(next.type).toBe('') // the student still chooses the gap type
+  })
+
+  it('never overwrites what the student (or the Gap Finder) already wrote, nor drops their evidence', () => {
+    const mine = { ...empty, gap: 'My own gap.', evidenceIds: ['e0'] }
+    const next = dossierFromAgent(mine, draft)!
+    expect(next.gap).toBe('My own gap.')
+    expect(next.evidenceIds).toEqual(['e0', 'e1'])
+  })
+
+  it('adds nothing when the agent built no gap or there is nothing new', () => {
+    expect(dossierFromAgent(empty, { ...draft, built: false })).toBeNull()
+    expect(dossierFromAgent(empty, null)).toBeNull()
+    const full = dossierFromAgent(empty, draft)!
+    expect(dossierFromAgent(full, draft)).toBeNull()
   })
 })

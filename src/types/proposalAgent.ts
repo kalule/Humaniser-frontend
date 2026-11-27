@@ -39,6 +39,18 @@ export interface AgentEvidenceProposal {
   message: string | null
 }
 
+/** A dossier draft from the agent's gap argument; cites only evidence the student already confirmed. */
+export interface AgentProposedGap {
+  built: boolean
+  gap: string | null
+  scope: string | null
+  coverageLimitations: string | null
+  counterEvidenceAssessment: string | null
+  evidenceIds: string[]
+  pointsAwaitingEvidence: number
+  reason: string | null
+}
+
 export interface AgentEvidenceState {
   status: 'None' | 'Running' | 'Ready' | 'Failed' | string
   preparedAt: string | null
@@ -46,6 +58,7 @@ export interface AgentEvidenceState {
   papersRead: number
   proposals: AgentEvidenceProposal[]
   gaps: string[]
+  proposedGap?: AgentProposedGap | null
 }
 
 export interface AgentEvidenceAcceptResult {

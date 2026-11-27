@@ -56,6 +56,22 @@ export function dossierFromGap(run: GapRun, card: GapCard): Pick<GapDossier, 'ga
   }
 }
 
+/**
+ * The research agent's dossier draft: fills only empty fields and adds the confirmed evidence it cites to the student's
+ * selection (never removes one). Null when there is nothing to add.
+ */
+export function dossierFromAgent(current: GapDossier, draft: { built: boolean; gap: string | null; scope: string | null; coverageLimitations: string | null; counterEvidenceAssessment: string | null; evidenceIds: string[] } | null | undefined): GapDossier | null {
+  if (!draft?.built) return null
+  const filled = fillEmpty(current, {
+    gap: draft.gap ?? '', scope: draft.scope ?? '', coverageLimitations: draft.coverageLimitations ?? '',
+    counterEvidenceAssessment: draft.counterEvidenceAssessment ?? '',
+  })
+  const evidenceIds = [...new Set([...current.evidenceIds, ...draft.evidenceIds])]
+  const changed = evidenceIds.length !== current.evidenceIds.length
+    || (['gap', 'scope', 'coverageLimitations', 'counterEvidenceAssessment'] as const).some(k => filled[k] !== current[k])
+  return changed ? { ...filled, evidenceIds } : null
+}
+
 /** Fills only the fields the student has not written yet. */
 export function fillEmpty(current: GapDossier, from: Partial<GapDossier>): GapDossier {
   const next = { ...current }
