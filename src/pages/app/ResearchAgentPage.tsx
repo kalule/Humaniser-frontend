@@ -5279,6 +5279,7 @@ function ChapterWriterView({
                   ref={documentSurfaceRef}
                   key={activeSection.code}
                   sectionCode={activeSection.code}
+                  agentProjectId={project.id}
                   sectionTitle={activeSection.title}
                   sectionDescription={getSectionDescription(activeSection.code)}
                   content={editorContent}

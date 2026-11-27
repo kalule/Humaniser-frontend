@@ -8,6 +8,8 @@ const renders = new Map<string, number>()
 // Flush result each mounted editor reports (true = everything saved).
 const flushResult = { value: true }
 const flushCalls: string[] = []
+// The research agent's activity list makes its own request; off here, as when the agent is disabled.
+vi.mock('../../../api/proposalAgent', () => ({ proposalAgentApi: { activity: vi.fn().mockResolvedValue(null) } }))
 vi.mock('../../../api/frameworkFigure', () => ({ getFrameworkFigure: vi.fn().mockResolvedValue({ stored: false, figure: null, reason: null }) }))
 vi.mock('./SectionEditor', async () => {
   const { useEffect } = await import('react')

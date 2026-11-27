@@ -5,6 +5,7 @@ import { useLiveDraft } from '../../../lib/liveDraftStore'
 import { isRunActive } from '../../../lib/proposalRun'
 import type { DocumentCounts } from '../../../lib/documentOutline'
 import type { ActivityEntry } from './DocumentModeView'
+import { AgentActivity } from '../../proposal-agent/AgentActivityList'
 
 /** The automatic whole-proposal run, when this project has one. */
 export interface RunInfo {
@@ -272,6 +273,7 @@ function DraftingCard({ projectId, writing, queued, run, counts, wordsFor, onJum
         )}
       </div>
       {current && <LiveLine projectId={projectId} section={current} targetWords={wordsFor(current.code)} />}
+      {current && <div className="mt-2"><AgentActivity projectId={projectId} section={current.code} active title="What the research agent did" /></div>}
       {!current && runActive && run?.status.lastActivity && (
         <p className="m-0 mt-1.5 text-[12px] truncate" style={{ color: 'var(--text-secondary)' }} title={run.status.lastActivity}>{run.status.lastActivity}</p>
       )}

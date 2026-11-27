@@ -31,6 +31,7 @@ import { extractSurnamesFromAuthors } from '../../lib/citationFormat'
 import { CitationPopover } from './CitationPopover'
 import { useUiStore, type DocEditorFontSize } from '../../store/uiStore'
 import toast from 'react-hot-toast'
+import { AgentActivity } from '../proposal-agent/AgentActivityList'
 
 const DOC_EDITOR_FONT_SIZES: DocEditorFontSize[] = [14, 16, 18]
 
@@ -68,6 +69,8 @@ interface DocumentSurfaceProps {
   // docs/OPEN_ITEMS.md #42 piece (b) — non-null only for a hardcoded, temporary set of known
   // (project, section) pairs; see ResearchService.MethodologyReviewAdvisory's own doc comment.
   methodologyReviewAdvisory?: string | null
+  /** When set, the research agent's activity for this section is listed (nothing shows while the agent is off). */
+  agentProjectId?: string
   onContentChange:   (content: string) => void
   onSave:            () => void
   onGenerate:        (wordCount: number) => void
@@ -311,6 +314,7 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
   citationTarget,
   resolvedCitationCount,
   methodologyReviewAdvisory,
+  agentProjectId,
   onContentChange,
   onSave,
   onGenerate,
@@ -873,6 +877,12 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
               known (project, section) pairs; see ResearchService.MethodologyReviewAdvisory. No
               dismiss action: the underlying issue is resolved by regenerating the section, not by
               acknowledging this banner. */}
+          {agentProjectId && (
+            <div className="px-6 py-2 border-b border-slate-100">
+              <AgentActivity projectId={agentProjectId} section={sectionCode} active={isGenerating} />
+            </div>
+          )}
+
           {methodologyReviewAdvisory && (
             <div className="flex items-start gap-2 px-6 py-3 border-b border-amber-200 bg-amber-50">
               <AlertTriangle size={15} className="text-amber-500 mt-0.5 shrink-0" />

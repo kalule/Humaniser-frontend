@@ -9,6 +9,7 @@ import {
   progressPercent, summarizeRows, type ProgressRow, type ProgressStep,
 } from '../../lib/proposalGenerationProgress'
 import type { GenerationPhase, ProjectSection } from '../../types/research'
+import { AgentActivity } from '../proposal-agent/AgentActivityList'
 
 // The live progress dialog for the one-click proposal generator. Purely presentational: it is fed
 // the polled generation status and the project's sections and reports user intent (stop / done /
@@ -24,6 +25,8 @@ export interface GenerationProgressProps {
   wordsWritten:     number
   failedCount:      number
   lastActivity?: string | null
+  /** When set, the research agent's activity for this run is listed (nothing shows while the agent is off). */
+  projectId?:       string
   stalled:          boolean
   /** Per-section word target the run was started with. */
   targetWords:      number
@@ -307,6 +310,12 @@ export function GenerationProgressDialog(props: GenerationProgressProps) {
             </ul>
           )}
         </div>
+
+        {props.projectId && (
+          <div className="px-6 pb-3 pt-1">
+            <AgentActivity projectId={props.projectId} active={active} title="What the research agent did for this proposal" />
+          </div>
+        )}
 
         {/* Footer */}
         <div className="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">

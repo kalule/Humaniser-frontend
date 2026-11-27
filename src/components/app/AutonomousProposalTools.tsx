@@ -733,6 +733,7 @@ export function GenerationPanel({ gen, onToggleArticleView, onCancel, onClose, o
       failedCount={gen.failedCount}
       stalled={gen.stalled}
       lastActivity={gen.lastActivity}
+      projectId={gen.projectId}
       targetWords={targetWords}
       startedAt={gen.startedAt ?? null}
       steps={CHAPTER_STEPS}

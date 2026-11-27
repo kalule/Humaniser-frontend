@@ -7,6 +7,8 @@ import type { ProjectSection, ResearchProject, SectionStatus } from '../../../ty
 
 // The agent's stream for one section, as the live draft store would report it.
 const stream = { text: '', words: 0 }
+// The research agent's activity list makes its own request; off here, as when the agent is disabled.
+vi.mock('../../../api/proposalAgent', () => ({ proposalAgentApi: { activity: vi.fn().mockResolvedValue(null) } }))
 vi.mock('../../../api/frameworkFigure', () => ({ getFrameworkFigure: vi.fn().mockResolvedValue({ stored: false, figure: null, reason: null }) }))
 vi.mock('../../../lib/liveDraftStore', () => ({
   followDraft: vi.fn(), forgetDraft: vi.fn(),
