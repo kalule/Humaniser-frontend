@@ -41,6 +41,9 @@ export function DraftStep({ review, onChanged, onNext }: { review: Review; onCha
   const fetchRun = useCallback(() => literatureReviewApi.latestRun(review.id, 'Draft'), [review.id])
   const { run, setRun } = useRunPoll(fetchRun, () => { void load(); onChanged() })
   const running = isRunActive(run)
+  // Show each section as it is written: without this, every section read "Not written" until the whole run (and its check) ended.
+  const progress = running ? `${run?.stage ?? ''}|${run?.done ?? 0}` : null
+  useEffect(() => { if (progress) void load() }, [progress, load])
 
   const start = async (fn: () => Promise<Awaited<ReturnType<typeof literatureReviewApi.draftAll>>>) => {
     setBusy(true)
