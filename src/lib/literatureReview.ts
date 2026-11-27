@@ -80,7 +80,16 @@ export interface BulkUndoResult { restored: number; skipped: number }
 export interface Exclusion { candidateId: string; title: string; year: string; doi: string; reasonCode: string | null; reason: string; decidedBy: 'Student' | 'AI' | 'DateRange' }
 
 export interface Reason { code: string; label: string }
-export interface ApproveResult { addedToPool: number; excludedForDateRange: number; poolSize: number; status: ReviewStatus }
+/** excludedUnresolved: records screening could not judge, excluded at the reviewer's request as "not enough information to judge". */
+export interface ApproveResult { addedToPool: number; excludedForDateRange: number; poolSize: number; status: ReviewStatus; excludedUnresolved?: number }
+
+/** Approval refused because screening left records undecided (backend LiteratureReviewStudio:EvidenceRules). */
+export const UNRESOLVED_RECORDS = 'UNRESOLVED_RECORDS'
+
+/** The server's error code carried on a rejected request, if any. */
+export function serverCode(err: unknown): string | undefined {
+  return (err as { serverCode?: string } | null)?.serverCode
+}
 export interface ProviderOutcome { id: string; name: string; state: 'NotSearched' | 'Results' | 'NoSearchResults' | 'ProviderUnavailable' | 'Searching'; count: number; message: string }
 
 export interface Coverage {

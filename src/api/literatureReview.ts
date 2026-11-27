@@ -44,8 +44,12 @@ export const literatureReviewApi = {
     client.post<BulkResult>(`${base}/${id}/screening/bulk`, body).then(data),
   undoBulk: (id: string, batchId: string) => client.post<BulkUndoResult>(`${base}/${id}/screening/bulk/${batchId}/undo`).then(data),
   exclusions: (id: string) => client.get<Exclusion[]>(`${base}/${id}/screening/exclusions`).then(data),
-  approve: (id: string, acknowledgeLimitedCoverage: boolean) =>
-    client.post<ApproveResult>(`${base}/${id}/screening/approve`, { acknowledgeLimitedCoverage }).then(data),
+  /**
+   * With the backend's evidence rules on, approval is refused (serverCode UNRESOLVED_RECORDS) while screening left records undecided;
+   * excludeUnresolved excludes them first as "not enough information to judge".
+   */
+  approve: (id: string, acknowledgeLimitedCoverage: boolean, excludeUnresolved = false) =>
+    client.post<ApproveResult>(`${base}/${id}/screening/approve`, { acknowledgeLimitedCoverage, excludeUnresolved }).then(data),
   coverage: (id: string) => client.get<Coverage>(`${base}/${id}/coverage`).then(data),
 
   // Extraction (cells and passages use the Literature Matrix routes on extraction.matrixId)

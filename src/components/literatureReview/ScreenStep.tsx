@@ -7,7 +7,7 @@ import { researchApi } from '../../api/research'
 import { MatrixWorkspace } from '../literatureMatrix/MatrixWorkspace'
 import type { Matrix } from '../../lib/literatureMatrix'
 import {
-  errorMessage, isRunActive, SCREENING_STATES, stateLabel,
+  errorMessage, isRunActive, SCREENING_STATES, serverCode, stateLabel, UNRESOLVED_RECORDS,
   type BulkResult, type Extraction, type Reason, type Review, type ScreeningItem, type ScreeningList,
 } from '../../lib/literatureReview'
 import {
@@ -85,6 +85,7 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
   const [reasons, setReasons] = useState<Reason[]>([])
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [unresolved, setUnresolved] = useState<string | null>(null)
   const [ack, setAck] = useState(false)
   const [busy, setBusy] = useState(false)
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
@@ -151,14 +152,20 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
     setBusy(true)
     try { await researchApi.startScreening(review.researchProjectId); reload() } catch (e) { setError(errorMessage(e, 'Screening could not be started.')) } finally { setBusy(false) }
   }
-  const approve = async () => {
+  const approve = async (excludeUnresolved = false) => {
     setBusy(true)
     setNotice(null)
+    setUnresolved(null)
     try {
-      const r = await literatureReviewApi.approve(review.id, ack)
-      setNotice(`${r.addedToPool} paper${r.addedToPool === 1 ? '' : 's'} added to the review${r.excludedForDateRange ? `; ${r.excludedForDateRange} excluded as outside your date range (you can include them again)` : ''}. The review now has ${r.poolSize} sources.`)
+      const r = await literatureReviewApi.approve(review.id, ack, excludeUnresolved)
+      const unjudged = r.excludedUnresolved ?? 0
+      setNotice(`${r.addedToPool} paper${r.addedToPool === 1 ? '' : 's'} added to the review${r.excludedForDateRange ? `; ${r.excludedForDateRange} excluded as outside your date range (you can include them again)` : ''}${unjudged ? `; ${unjudged} that could not be judged ${unjudged === 1 ? 'was' : 'were'} excluded as not enough information (you can include them again)` : ''}. The review now has ${r.poolSize} sources.`)
       reload(); onChanged()
-    } catch (e) { setError(errorMessage(e, 'The papers could not be approved.')) } finally { setBusy(false) }
+    } catch (e) {
+      // Records screening could not judge must be decided, or excluded as not enough information, before the review can go on.
+      if (serverCode(e) === UNRESOLVED_RECORDS) setUnresolved(errorMessage(e, 'Some records could not be judged from their title and abstract.'))
+      else setError(errorMessage(e, 'The papers could not be approved.'))
+    } finally { setBusy(false) }
   }
   // A single decision shows at once, then the list reloads so counts, tabs and order follow it.
   const decided = (item: ScreeningItem) => {
@@ -305,6 +312,17 @@ function ScreeningPanel({ review, onChanged }: { review: Review; onChanged: () =
               Add the included papers to the review
             </button>
             {!list.canApprove ? <p className="text-[12px] text-slate-600">Finish screening first.</p> : null}
+            {unresolved ? (
+              <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-[13px] text-amber-950">
+                <p>{unresolved}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => void approve(true)} disabled={busy} className={btn.secondary}>
+                    Exclude them as not enough information, and add the papers
+                  </button>
+                  <button type="button" onClick={() => setUnresolved(null)} className={btn.small}>I will decide them myself</button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </>
       ) : null}
