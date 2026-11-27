@@ -14,6 +14,7 @@ const api = {
   screening: vi.fn().mockResolvedValue(list),
   reasons: vi.fn().mockResolvedValue([]),
   extraction: vi.fn().mockResolvedValue({ matrixAvailable: false }),
+  sourceCheck: vi.fn().mockResolvedValue({ enabled: false }),
   approve: vi.fn(),
   decide: vi.fn(), exclusions: vi.fn(), bulkDecide: vi.fn(), undoBulk: vi.fn(), acceptSuggestions: vi.fn(),
 }

@@ -2307,23 +2307,6 @@ function DownloadStep({ project }: { project: ResearchProject }) {
             </div>
           </div>
         ), { duration: 12000 })
-      } else {
-        const message = (err as ApiError | undefined)?.message
-        toast.error(message || 'Export failed — check the server is running.')
-      }
-    } finally {
-      setDownloading(null)
-    }
-  }
-
-  const handleTxt = () => {
-    setDownloading('txt')
-    try {
-      const lines: string[] = [
-        project.title || 'Research Proposal',
-        '='.repeat(60),
-        '',
-      ]
       } else if (errorCode === 'METHODOLOGY_VIOLATION') {
         // Export has no override for this: the flagged text has to change. Say which passage and where.
         const violations = ((err as ApiError)?.details as { violations?: MethodologyViolation[] } | undefined)?.violations ?? []
@@ -2353,6 +2336,23 @@ function DownloadStep({ project }: { project: ResearchProject }) {
             </button>
           </div>
         ), { duration: 20000 })
+      } else {
+        const message = (err as ApiError | undefined)?.message
+        toast.error(message || 'Export failed — check the server is running.')
+      }
+    } finally {
+      setDownloading(null)
+    }
+  }
+
+  const handleTxt = () => {
+    setDownloading('txt')
+    try {
+      const lines: string[] = [
+        project.title || 'Research Proposal',
+        '='.repeat(60),
+        '',
+      ]
       for (const step of docSteps) {
         const content = getContent(step)
         if (content?.trim()) {
