@@ -2308,7 +2308,8 @@ function DownloadStep({ project }: { project: ResearchProject }) {
           </div>
         ), { duration: 12000 })
       } else {
-        toast.error('Export failed — check the server is running.')
+        const message = (err as ApiError | undefined)?.message
+        toast.error(message || 'Export failed — check the server is running.')
       }
     } finally {
       setDownloading(null)
@@ -2323,6 +2324,35 @@ function DownloadStep({ project }: { project: ResearchProject }) {
         '='.repeat(60),
         '',
       ]
+      } else if (errorCode === 'METHODOLOGY_VIOLATION') {
+        // Export has no override for this: the flagged text has to change. Say which passage and where.
+        const violations = ((err as ApiError)?.details as { violations?: MethodologyViolation[] } | undefined)?.violations ?? []
+        toast((t) => (
+          <div className="flex max-h-[70vh] w-[420px] max-w-full flex-col gap-2 overflow-y-auto text-[13px]">
+            <span className="font-semibold text-red-700">Export blocked: text contradicts the confirmed methodology</span>
+            {violations.map((v, i) => {
+              const stepIdx = STEPS.findIndex(s => s.id === v.sectionCode)
+              return (
+                <div key={i} className="flex flex-col gap-1 rounded border border-slate-200 p-2">
+                  <span className="text-slate-500">Section {v.sectionCode}</span>
+                  {v.quote && <span className="italic">“{v.quote}”</span>}
+                  {v.suggestedCorrection && <span>{v.suggestedCorrection}</span>}
+                  {stepIdx !== -1 && (
+                    <button
+                      onClick={() => { toast.dismiss(t.id); setSearchParams({ step: String(stepIdx) }) }}
+                      className="self-start px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-medium text-[11px] hover:bg-slate-200"
+                    >
+                      Jump to {v.sectionCode}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+            <button onClick={() => toast.dismiss(t.id)} className="self-end text-slate-500 hover:text-slate-700 text-[11px]">
+              Dismiss
+            </button>
+          </div>
+        ), { duration: 20000 })
       for (const step of docSteps) {
         const content = getContent(step)
         if (content?.trim()) {
