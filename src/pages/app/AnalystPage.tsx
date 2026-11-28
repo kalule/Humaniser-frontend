@@ -159,9 +159,24 @@ function IssueRow({ issue }: { issue: QualityIssue }) {
   const setDecision = useAnalystStore((s) => s.setIssueDecision)
   const sev = SEVERITY_STYLE[issue.severity]
   const col = issue.column === '__row__' ? 'Whole rows' : issue.column
+  const focusIssueId = useAnalystStore((s) => s.focusIssueId)
+  const setFocusIssue = useAnalystStore((s) => s.setFocusIssue)
+  const rowRef = useRef<HTMLDivElement | null>(null)
+  const confirmRef = useRef<HTMLDivElement | null>(null)
+  // The Confirm step opens below the fold of the narrow list; bring it into view so the fix never looks dead.
+  useEffect(() => {
+    if (pending) confirmRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [pending])
+  // "Review issues" in the wizard opens this row so its Fix / Keep as is buttons are on screen.
+  useEffect(() => {
+    if (focusIssueId !== issue.id) return
+    setOpen(true)
+    rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setFocusIssue(null)
+  }, [focusIssueId, issue.id, setFocusIssue])
 
   return (
-    <div className="rounded-lg border" style={{ borderColor: '#ebebea', background: '#ffffff' }}>
+    <div ref={rowRef} className="rounded-lg border" style={{ borderColor: '#ebebea', background: '#ffffff' }}>
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -308,7 +323,7 @@ function IssueRow({ issue }: { issue: QualityIssue }) {
           </p>
 
           {pending ? (
-            <div className="rounded-lg border px-2.5 py-2 space-y-1.5" style={{ borderColor: '#c4b5fd', background: '#f5f3ff' }} role="alertdialog" aria-label="Confirm change">
+            <div ref={confirmRef} className="rounded-lg border px-2.5 py-2 space-y-1.5" style={{ borderColor: '#c4b5fd', background: '#f5f3ff' }} role="alertdialog" aria-label="Confirm change">
               <p className="font-semibold text-violet-900">{pending.label}?</p>
               <p className="text-[10px] text-violet-800">
                 This changes your working copy only. The original upload is kept, the step is added to the cleaning log, and you can undo it.
@@ -2651,6 +2666,8 @@ function ObjectivesWizard() {
   const [predictorVariables,  setPredictorVariables]   = useState<string[]>([])
   const [groupingVariable,    setGroupingVariable]     = useState('')
 
+  const setFocusIssue    = useAnalystStore((s) => s.setFocusIssue)
+  const setIssueDecision = useAnalystStore((s) => s.setIssueDecision)
   const [confirmSkip, setConfirmSkip] = useState(false)
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([])
 
@@ -2683,6 +2700,7 @@ function ObjectivesWizard() {
   const showFirstUnmet = () => {
     const unmet = firstUnmet(gate)
     if (!unmet) return false
+    if (unmet.id === 'issues' && openHigh.length > 0) setFocusIssue(openHigh[0].id)
     const el = document.getElementById(unmet.id === 'objective' ? 'analyst-objective-cards' : 'analyst-quality-report')
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -2692,6 +2710,9 @@ function ObjectivesWizard() {
     }
     return true
   }
+
+  /** Explicit, logged-free decision: keep every open high-severity issue as it is and move on. */
+  const keepAllHighAsIs = () => openHigh.forEach((i) => setIssueDecision(i.id, 'ignore'))
 
   /** Skip = analyse the data as uploaded. Unresolved problems are written into the analysis as a note. */
   const handleSkipConfirmed = () => {
@@ -2821,6 +2842,31 @@ function ObjectivesWizard() {
         {/* ── Step 1: select objective ────────────────────────── */}
         {wizardStep === 'objectives' && (
           <div className="space-y-5">
+            {healthReport && openHigh.length > 0 && (
+              <div className="rounded-xl px-4 py-3 space-y-2" style={{ background: '#fffbeb', border: '1px solid #fcd34d' }} role="status">
+                <p className="text-sm font-semibold text-amber-900 flex items-center gap-1.5">
+                  <AlertTriangle size={15} aria-hidden /> {openHigh.length} high-severity issue{openHigh.length !== 1 ? 's' : ''} need a decision before you continue
+                </p>
+                <p className="text-[13px] text-amber-900">
+                  Open each one in the Issues list to fix or exclude it, or keep it as it is. Left as they are, they can distort your results.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setFocusIssue(openHigh[0].id)}
+                    className="text-[13px] font-semibold px-3 py-1.5 rounded-lg text-white bg-violet-600 hover:bg-violet-500"
+                  >
+                    Review issues
+                  </button>
+                  <button
+                    onClick={keepAllHighAsIs}
+                    className="text-[13px] font-semibold px-3 py-1.5 rounded-lg border bg-white text-slate-700"
+                    style={{ borderColor: '#d1d5db' }}
+                  >
+                    Keep all as they are
+                  </button>
+                </div>
+              </div>
+            )}
             <div>
               <label htmlFor="analyst-project" className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Which project is this for? (optional)</label>
               <select id="analyst-project" value={projectId ?? ''} onChange={e => setProjectId(e.target.value || null)}
@@ -3095,7 +3141,11 @@ function ObjectivesWizard() {
                 {item.done
                   ? <CheckCircle size={16} className="text-emerald-600 shrink-0" aria-hidden />
                   : <AlertTriangle size={16} className="text-amber-600 shrink-0" aria-hidden />}
-                <span className={item.done ? 'text-slate-600' : 'text-slate-900 font-medium'}>{item.label}</span>
+                {!item.done && item.id === 'issues' && openHigh.length > 0 ? (
+                  <button onClick={() => setFocusIssue(openHigh[0].id)} className="text-slate-900 font-medium underline underline-offset-2 hover:text-violet-800">{item.label}</button>
+                ) : (
+                  <span className={item.done ? 'text-slate-600' : 'text-slate-900 font-medium'}>{item.label}</span>
+                )}
                 <span className="sr-only">{item.done ? '(done)' : '(still to do)'}</span>
               </li>
             ))}

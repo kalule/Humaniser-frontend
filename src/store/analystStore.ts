@@ -35,6 +35,8 @@ interface AnalystStore {
   cleaningLog:   CleaningLogEntry[]
   // issue id -> user's explicit decision for high-severity issues (blocks the wizard's Continue until set)
   issueDecisions: Record<string, 'ignore'>
+  // Issue the wizard wants the issue list to open and scroll to (set by "Review issues").
+  focusIssueId: string | null
   // Variables the user picked for their analysis; used to tag issues as affecting it or not.
   analysisFocus: string[]
   // Research objective chosen in the wizard; the chat page uses it to order its suggestions.
@@ -77,6 +79,7 @@ interface AnalystStore {
   insertIntoPrompt:      (text: string) => void
   applyQualityState:     (state: QualityState) => void
   setIssueDecision:      (issueId: string, decision: 'ignore' | null) => void
+  setFocusIssue:         (issueId: string | null) => void
   setCleaning:           (v: boolean) => void
   setExporting:          (v: boolean) => void
   applyCleanResult:      (schema: DatasetSchema) => void
@@ -107,6 +110,7 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
   profileError: null,
   cleaningLog: [],
   issueDecisions: {},
+  focusIssueId: null,
   analysisFocus: [],
   analysisObjective: null,
   promptInsert: null,
@@ -248,6 +252,7 @@ export const useAnalystStore = create<AnalystStore>((set) => ({
       if (decision) next[issueId] = decision; else delete next[issueId]
       return { issueDecisions: next }
     }),
+  setFocusIssue:   (focusIssueId) => set({ focusIssueId }),
   setCleaning:     (isCleaning)  => set({ isCleaning }),
   setExporting:    (isExporting) => set({ isExporting }),
 

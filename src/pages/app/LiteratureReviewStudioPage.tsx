@@ -198,9 +198,9 @@ function Workspace({ id }: { id: string }) {
           <h1 className="mt-0.5 text-[22px] font-semibold text-slate-900 [overflow-wrap:anywhere]">{r.title}</h1>
           <p className="mt-0.5 text-[13px] text-slate-700">{r.sourceCount} source{r.sourceCount === 1 ? '' : 's'} in the review · {STATUS_LABELS[r.status]}</p>
         </div>
-        <div className="w-48" aria-label={`${r.progressPercent}% through the workflow`}>
+        <div className="w-48" aria-label={`Step ${current + 1} of ${STEPS.length}, ${r.progressPercent}% through the workflow`}>
           <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-purple-accent" style={{ width: `${r.progressPercent}%` }} /></div>
-          <p className="mt-1 text-right text-[12px] text-slate-600">{r.progressPercent}% through</p>
+          <p className="mt-1 text-right text-[12px] text-slate-600">Step {current + 1} of {STEPS.length}</p>
         </div>
       </header>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">

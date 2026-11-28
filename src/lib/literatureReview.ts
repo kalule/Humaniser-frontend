@@ -204,7 +204,7 @@ export const SCREENING_STATES: { state: ScreeningState; label: string; tone: str
 export const stateLabel = (s: ScreeningState) => SCREENING_STATES.find(x => x.state === s)?.label ?? s
 
 export const PROVIDER_LABELS: Record<ProviderOutcome['state'], string> = {
-  NotSearched: 'Not searched', Results: 'Found papers', NoSearchResults: 'No matching papers', ProviderUnavailable: 'Results missing', Searching: 'Searching',
+  NotSearched: 'Not searched', Results: 'Found papers', NoSearchResults: 'No matching papers', ProviderUnavailable: 'No response', Searching: 'Searching',
 }
 
 export const EVIDENCE_LABELS: Record<PoolSource['evidenceLevel'], string> = { FullText: 'Full text', AbstractOnly: 'Abstract only', MetadataOnly: 'Details only' }
