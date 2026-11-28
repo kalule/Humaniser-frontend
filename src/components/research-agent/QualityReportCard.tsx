@@ -7,7 +7,8 @@ import { issueLabel } from './FixIssuesPanel'
  * PR 11 (2026-11-25): the quality report shown before export. A rubric-style estimate from the automatic checks (no model
  * call) with the checks that failed; it says plainly that it is an estimate and how well it agreed with marked proposals.
  */
-export function QualityReportCard({ projectId, refreshKey }: { projectId: string; refreshKey?: unknown }) {
+/** `compact`: one column and no outer margin, for the Document view's narrow Agent panel. */
+export function QualityReportCard({ projectId, refreshKey, compact = false }: { projectId: string; refreshKey?: unknown; compact?: boolean }) {
   const [report, setReport] = useState<ProposalQualityReport | null>(null)
   const [failed, setFailed] = useState(false)
   const [open, setOpen] = useState(false)
@@ -24,7 +25,7 @@ export function QualityReportCard({ projectId, refreshKey }: { projectId: string
   const warnings = report.failedChecks.length - blocking
 
   return (
-    <section aria-label="Quality report" className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+    <section aria-label="Quality report" className={`${compact ? '' : 'mb-6 '}rounded-xl border border-slate-200 bg-white p-4`}>
       <div className="flex items-start gap-3">
         <Gauge size={18} className="text-slate-500 mt-0.5 shrink-0" aria-hidden="true" />
         <div className="flex-1">
@@ -36,7 +37,7 @@ export function QualityReportCard({ projectId, refreshKey }: { projectId: string
           <p className="m-0 text-[11.5px] text-slate-500 leading-relaxed">{report.calibration.note}</p>
         </div>
       </div>
-      <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 list-none p-0 m-0">
+      <ul className={`mt-3 grid grid-cols-1 ${compact ? '' : 'sm:grid-cols-2 '}gap-x-6 gap-y-1.5 list-none p-0 m-0`}>
         {report.criteria.map(c => (
           <li key={c.id} className="text-[12px] text-slate-700">
             <div className="flex justify-between"><span>{c.label}</span><span className="tabular-nums">{c.score} / {c.max}</span></div>

@@ -20,16 +20,18 @@ export interface RunInfo {
 
 /**
  * The one thing the student should do now, shown first in the panel with its only primary button.
- * Chosen in DocumentModeView, in this order: set the key study decisions (drafting waits for them);
- * run the final review once every section is drafted; review the next drafted section; draft the
+ * Chosen in DocumentModeView, in this order: run the final review once every section is drafted; review the next drafted section; draft the
  * rest (or resume); export when everything is approved; otherwise nothing (the agent is working).
  */
 export type NextStep =
-  | { kind: 'decisions' }
   | { kind: 'final_review' }
   | { kind: 'review'; section: ProjectSection; more: number }
   | { kind: 'draft'; remaining: number }
-  | { kind: 'resume' }
+  /**
+   * `before`: the next section to draft ("4.1 Research Questions"), when known. `instructable`: the whole-proposal run is what
+   * is paused, so an instruction for that next section can be given before resuming.
+   */
+  | { kind: 'resume'; before?: string | null; instructable?: boolean }
   | { kind: 'export' }
   | { kind: 'waiting' }
 
@@ -61,14 +63,17 @@ interface Props {
   pausing:      boolean
   /** Something was paused (a queue or the whole-proposal run) and can be resumed. */
   paused:       boolean
-  onResume:     () => void
+  /** Resume; `instruction` (optional) is for the next section the run drafts. */
+  onResume:     (instruction?: string) => void
+  /** Pause was asked of the whole-proposal run, which first finishes this section ("3.3 Conceptual Framework"). */
+  pausingAfter?: string | null
   onDraftAll:   () => void
   onExport:     () => void
   isExporting:  boolean
-  /** The Study decisions card. Rendered as the Next step when nextStep is 'decisions'. */
-  decisions:    ReactNode
   /** The whole-document review, rendered inside the Next step card when nextStep is 'final_review'. */
   review:       ReactNode
+  /** Why the framework figure cannot be drawn yet, and the section it follows. A working note: shown here, not in the document. */
+  figureNote?:  { text: string; code: string } | null
 }
 
 export interface FlagGroup { code: string; label: string; count: number }
@@ -140,13 +145,40 @@ function NextStepFrame({ children }: { children: ReactNode }) {
   )
 }
 
+/** Longest instruction kept (the server cuts at 800 characters too). */
+const INSTRUCTION_MAX = 800
+
+/** The paused card's optional instruction for the next section, then Resume. */
+function ResumeControls({ step, onResume, resuming }: {
+  step: Extract<NextStep, { kind: 'resume' }>; onResume: (instruction?: string) => void; resuming: boolean
+}) {
+  const [instruction, setInstruction] = useState('')
+  const target = step.before ?? 'the next section'
+  return (
+    <>
+      {step.instructable && (
+        <label className="flex flex-col gap-1 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+          <span>Instruction for {target} <span style={{ color: 'var(--text-muted)' }}>(optional)</span></span>
+          <textarea value={instruction} maxLength={INSTRUCTION_MAX} rows={3}
+            onChange={e => setInstruction(e.target.value)}
+            placeholder="e.g. Compare transformational and transactional leadership"
+            className="rounded-md px-2 py-1.5 text-[12px] leading-[1.45] resize-y"
+            style={{ border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }} />
+          <span style={{ color: 'var(--text-muted)' }}>Used for that section only. Citation and evidence rules still apply</span>
+        </label>
+      )}
+      <button type="button" onClick={() => onResume(instruction.trim() || undefined)} disabled={resuming} className={primary} style={primaryStyle} aria-label="Resume drafting">
+        <Play size={11} aria-hidden="true" /> {resuming ? 'Resuming…' : 'Resume'}
+      </button>
+    </>
+  )
+}
+
 function NextStepCard({ step, review, onJump, onDraftAll, onResume, onExport, isExporting, resuming }: {
-  step: NextStep; review: ReactNode; onJump: (code: string) => void; onDraftAll: () => void; onResume: () => void
+  step: NextStep; review: ReactNode; onJump: (code: string) => void; onDraftAll: () => void; onResume: (instruction?: string) => void
   onExport: () => void; isExporting: boolean; resuming: boolean
 }) {
   switch (step.kind) {
-    case 'decisions':
-      return null // the Study decisions card is the Next step itself
     case 'final_review':
       return <NextStepFrame>{review}</NextStepFrame>
     case 'review':
@@ -176,13 +208,13 @@ function NextStepCard({ step, review, onJump, onDraftAll, onResume, onExport, is
     case 'resume':
       return (
         <NextStepFrame>
-          <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>Drafting is paused</div>
+          <div className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {step.before ? `Paused before ${step.before}` : 'Drafting is paused'}
+          </div>
           <p className="m-0 text-[12px] leading-[1.45]" style={{ color: 'var(--text-secondary)' }}>
-            Text written so far is kept. Resume to carry on from the next unwritten section
+            Text written so far is kept, and you can edit any section now. Resume to carry on from {step.before ? 'there' : 'the next unwritten section'}
           </p>
-          <button type="button" onClick={onResume} disabled={resuming} className={primary} style={primaryStyle} aria-label="Resume drafting">
-            <Play size={11} aria-hidden="true" /> {resuming ? 'Resuming…' : 'Resume'}
-          </button>
+          <ResumeControls step={step} onResume={onResume} resuming={resuming} />
         </NextStepFrame>
       )
     case 'export':
@@ -229,11 +261,12 @@ function LiveLine({ projectId, section, targetWords }: { projectId: string; sect
  * What the agent is doing, compactly: the section being drafted (with a live progress line), how
  * many are waiting, and Pause. After a pause it says so; Resume lives in the Next step card.
  */
-function DraftingCard({ projectId, writing, queued, run, counts, wordsFor, onJump, onPause, pausing, paused, onResume }: {
+function DraftingCard({ projectId, writing, queued, run, counts, wordsFor, onJump, onPause, pausing, paused, onResume, pausingAfter }: {
   projectId: string; writing: ProjectSection[]; queued: string[]; run: RunInfo | null | undefined; counts: DocumentCounts
   wordsFor: (code: string) => number; onJump: (code: string) => void; onPause: () => void; pausing: boolean; paused: boolean
+  pausingAfter?: string | null
   /** Set when the Next step card is showing something else, so Resume stays reachable here (secondary). */
-  onResume?: () => void
+  onResume?: (instruction?: string) => void
 }) {
   const runActive = isRunActive(run?.status)
   const busy = writing.length > 0 || queued.length > 0 || runActive
@@ -247,9 +280,14 @@ function DraftingCard({ projectId, writing, queued, run, counts, wordsFor, onJum
           <div className="flex items-center gap-1.5 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
             <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full shrink-0 ${busy ? 'dm-pulse' : ''}`}
               style={{ background: busy ? 'var(--color-purple)' : 'var(--color-amber)' }} />
-            {busy ? 'Drafting' : runError ? 'Stopped by an error' : run?.status.status === 'NeedsReview' ? 'Paused for your review' : 'Paused'}
+            {busy ? (pausingAfter ? 'Pausing' : 'Drafting') : runError ? 'Stopped by an error' : run?.status.status === 'NeedsReview' ? 'Paused for your review' : 'Paused'}
             {runActive && <span> · {Math.min(counts.drafted, counts.total)} of {counts.total} drafted</span>}
           </div>
+          {pausingAfter && (
+            <p className="m-0 text-[12px] leading-[1.45]" style={{ color: 'var(--text-secondary)' }} role="status">
+              Pausing after {pausingAfter} is finished. Nothing new starts after it
+            </p>
+          )}
           {current ? (
             <button type="button" onClick={() => onJump(current.code)} className="dm-action text-left text-[13px] font-semibold hover:underline truncate max-w-full" style={{ color: 'var(--text-primary)' }}>
               {label(current)}{writing.length > 1 ? ` +${writing.length - 1} more` : ''}
@@ -263,11 +301,11 @@ function DraftingCard({ projectId, writing, queued, run, counts, wordsFor, onJum
           )}
         </div>
         {busy ? (
-          <button type="button" onClick={onPause} disabled={pausing} className={secondary} style={secondaryStyle} aria-label="Pause drafting">
-            <Pause size={10} aria-hidden="true" /> {pausing ? 'Pausing…' : 'Pause'}
+          <button type="button" onClick={onPause} disabled={pausing || !!pausingAfter} className={secondary} style={secondaryStyle} aria-label="Pause drafting">
+            <Pause size={10} aria-hidden="true" /> {pausing || pausingAfter ? 'Pausing…' : 'Pause'}
           </button>
         ) : onResume && (paused || runError) && (
-          <button type="button" onClick={onResume} disabled={run?.resuming} className={secondary} style={secondaryStyle} aria-label="Resume drafting">
+          <button type="button" onClick={() => onResume()} disabled={run?.resuming} className={secondary} style={secondaryStyle} aria-label="Resume drafting">
             <Play size={10} aria-hidden="true" /> {run?.resuming ? 'Resuming…' : 'Resume'}
           </button>
         )}
@@ -301,6 +339,22 @@ function ConsistencyLine({ codes, isValidating, onCheck }: { codes: string[]; is
   )
 }
 
+/** The framework figure's missing-input note, with a link to where the figure goes. Never part of the manuscript. */
+function FigureNoteLine({ note, onJump }: { note: { text: string; code: string }; onJump: (code: string) => void }) {
+  return (
+    <p className="m-0 flex items-start gap-1.5 text-[12px] leading-[1.45]" style={{ color: 'var(--text-secondary)' }} data-testid="framework-figure-note">
+      <AlertTriangle size={12} className="mt-[2px] shrink-0" aria-hidden="true" style={{ color: 'var(--color-amber)' }} />
+      <span>
+        No framework figure yet: {note.text}{' '}
+        <button type="button" onClick={() => onJump(note.code)}
+          className="dm-action font-semibold hover:underline" style={{ color: 'var(--color-purple-text)' }}>
+          Go to {note.code}
+        </button>
+      </span>
+    </p>
+  )
+}
+
 /** The activity log, collapsed by default. */
 function ActivityLog({ activity }: { activity: ActivityEntry[] }) {
   const [open, setOpen] = useState(false)
@@ -322,13 +376,13 @@ function ActivityLog({ activity }: { activity: ActivityEntry[] }) {
 
 /**
  * The agent panel, top to bottom: the Next step (the one thing to do now, the panel's only primary
- * button), what the agent is drafting, a one-line consistency warning, the Study decisions (when
- * they are not the next step), and the activity log, collapsed.
+ * button), what the agent is drafting, a one-line consistency warning, and the activity log, collapsed.
+ * (The study decisions are planned by the server from the topic; there is no card for them.)
  */
 function DocumentAgentPanelImpl({
   run, projectId, writing, flagGroups, onNextFlag, nextStep, queued, wordsFor,
   activity, onJump, staleAlignment, isValidating, onCheckAlignment, draftAhead, showDraftAhead, onToggleDraftAhead,
-  counts, onPause, pausing, paused, onResume, onDraftAll, onExport, isExporting, decisions, review,
+  counts, onPause, pausing, paused, onResume, onDraftAll, onExport, isExporting, review, figureNote, pausingAfter,
 }: Props) {
   const runActive = isRunActive(run?.status)
 
@@ -336,19 +390,19 @@ function DocumentAgentPanelImpl({
     <aside aria-label="Agent" className="h-full flex flex-col gap-4 p-[18px] overflow-y-auto dm-scroll">
       <h2 className="m-0 text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>Agent</h2>
 
-      {nextStep.kind === 'decisions' && decisions}
       <NextStepCard step={nextStep} review={review} onJump={onJump} onDraftAll={onDraftAll} onResume={onResume}
         onExport={onExport} isExporting={isExporting} resuming={run?.resuming ?? false} />
 
       <DraftingCard projectId={projectId} writing={writing} queued={queued} run={run} counts={counts} wordsFor={wordsFor}
-        onJump={onJump} onPause={onPause} pausing={pausing} paused={paused}
+        onJump={onJump} onPause={onPause} pausing={pausing} paused={paused} pausingAfter={pausingAfter}
         onResume={nextStep.kind === 'resume' ? undefined : onResume} />
 
       {staleAlignment.length > 0 && !runActive && (
         <ConsistencyLine codes={staleAlignment} isValidating={isValidating} onCheck={onCheckAlignment} />
       )}
 
-      {nextStep.kind !== 'decisions' && decisions}
+      {/* Mid-run the inputs (5.7, 4.4) are usually just not written yet; the note waits until the run stops. */}
+      {figureNote && !runActive && writing.length === 0 && <FigureNoteLine note={figureNote} onJump={onJump} />}
 
       {flagGroups.length > 0 && <FlagsCard groups={flagGroups} onJump={onJump} onNextFlag={onNextFlag} />}
 

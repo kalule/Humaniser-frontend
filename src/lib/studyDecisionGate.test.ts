@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ProjectSection } from '../types/research'
-import { canDraft, DECISIONS_REASON, needsKeyDecisions, type DraftContext } from './sectionWorkflow'
+import { canDraft, type DraftContext } from './sectionWorkflow'
 
 let order = 0
 const s = (code: string, displayCode = code): ProjectSection => ({
@@ -8,26 +8,13 @@ const s = (code: string, displayCode = code): ProjectSection => ({
   isApplicableForMethodology: true,
 } as unknown as ProjectSection)
 
-const sections = [s('1.0'), s('1.2', '1.1'), s('2.0'), s('3.1')]
-const ctx = (decisionsReady: boolean | undefined): DraftContext => ({
-  sections, documentType: 'Proposal', methodologyConfirmed: true, chapterOrder: false, decisionsReady,
-})
+const sections = [s('1.0'), s('1.2', '1.1'), s('2.0'), s('3.1'), s('5.6')]
+const ctx: DraftContext = { sections, documentType: 'Proposal', methodologyConfirmed: true, chapterOrder: false }
 
-describe('key study decisions gate (canDraft)', () => {
-  it('Introduction and Background (shown as 1.1) never wait for the decisions', () => {
-    expect(needsKeyDecisions(sections[0])).toBe(false)
-    expect(needsKeyDecisions(sections[1])).toBe(false)
-    expect(canDraft(sections[1], ctx(false)).allowed).toBe(true)
-  })
-
-  it('pauses every later section while a key decision is unset', () => {
-    for (const later of sections.slice(2)) {
-      expect(canDraft(later, ctx(false))).toEqual({ allowed: false, reason: DECISIONS_REASON, blocker: 'decisions' })
-    }
-  })
-
-  it('lets them through once the decisions are set, and does not apply where the view does not check (Guided)', () => {
-    expect(canDraft(sections[2], ctx(true)).allowed).toBe(true)
-    expect(canDraft(sections[2], ctx(undefined)).allowed).toBe(true)
+// Silent study decisions (2026-11-27): the server plans the ten decisions from the topic before drafting, so no section
+// waits for the student to set them (the old "Set the key study decisions first" gate is gone).
+describe('study decisions never hold drafting (canDraft)', () => {
+  it('lets every section be drafted with no design contract at all', () => {
+    for (const section of sections) expect(canDraft(section, ctx)).toEqual({ allowed: true, reason: null, blocker: null })
   })
 })

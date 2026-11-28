@@ -10,7 +10,7 @@ import { CONTRACT_FIELD, listItems, type DesignContract } from './designContract
  * at the exact words, so the list can scroll to them.
  */
 
-export type ReviewIssueKind = 'placeholder' | 'contract' | 'variable_role'
+export type ReviewIssueKind = 'placeholder' | 'contract' | 'variable_role' | 'consistency'
 
 export interface ReviewIssue {
   id:          string
@@ -28,6 +28,7 @@ export const REVIEW_KIND_LABEL: Record<ReviewIssueKind, string> = {
   placeholder:   'Placeholder',
   contract:      'Study decisions',
   variable_role: 'Variables',
+  consistency:   'Consistency and presentation',
 }
 
 type Section = Pick<ProjectSection, 'code' | 'title' | 'content' | 'status' | 'displayCode'>
@@ -247,17 +248,26 @@ const SERVER_KIND: Record<string, ReviewIssueKind> = {
   undecided_wording: 'placeholder', power_basis_missing: 'placeholder',
 }
 
-/** The server checks this review is about; everything else (spelling, reference style) stays on the Download step. */
+// Shown elsewhere in the Document view already (the outline shows what is missing or unapproved).
+const SERVER_SKIP = new Set(['section_missing', 'section_unapproved'])
+
+/**
+ * Every server release check. The mapped types keep their groups; since 2026-11-28 every other check (stray model formatting,
+ * duration and timeline mismatches, power basis, references, citation form …) is listed too, as "Consistency and presentation".
+ * Before, those were dropped here, so the Document view never showed most of the server's checks. Only the server's Blocking
+ * ones count against export; the rest are advisory. Issues the student dismissed are left out.
+ */
 export function fromServerIssues(issues: readonly ProposalIssue[]): ReviewIssue[] {
   const out: ReviewIssue[] = []
   issues.forEach((issue, i) => {
+    if (issue.dismissed || SERVER_SKIP.has(issue.type)) return
     const short = issue.type.replace(/^section_rule_/, '')
-    const kind = SERVER_KIND[short]
-    if (!kind) return
+    const mapped = SERVER_KIND[short]
+    const kind: ReviewIssueKind = mapped ?? 'consistency'
     out.push({
       id: `sv:${issue.type}:${issue.sectionKey}:${i}`, kind, sectionCode: issue.sectionKey, origin: 'server',
       message: issue.message, evidence: issue.evidence?.trim() ? issue.evidence.trim() : null,
-      blocking: issue.severity === 'Blocking' || kind !== 'placeholder',
+      blocking: issue.severity === 'Blocking' || (!!mapped && kind !== 'placeholder'),
     })
   })
   return out

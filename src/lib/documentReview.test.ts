@@ -85,16 +85,21 @@ describe('server issues and merge', () => {
   const server = (type: string, sectionKey: string, severity: 'Blocking' | 'Warning', evidence = ''): ProposalIssue =>
     ({ type, severity, sectionKey, evidence, message: `${type} in ${sectionKey}`, repairKind: 'HumanRequired' })
 
-  it('keeps only placeholder, contract and variable-role checks from the server', () => {
+  it('groups the mapped server checks, and lists every other one as consistency (2026-11-28)', () => {
     const out = fromServerIssues([
       server('section_rule_software_conflict', '5.10', 'Warning'),
       server('section_rule_placeholder_token', '5.7', 'Blocking', '(PrimaryExposureDefinition)'),
       server('spelling', '1.0', 'Warning'),
       server('section_rule_process_note', '2.0', 'Warning'),
+      server('section_rule_editing_leakage', '5.7', 'Blocking', '```markdown'),
+      server('section_missing', '4.4', 'Blocking'),
+      { ...server('citation_malformed_author', '1.0', 'Warning'), dismissed: true },
     ])
-    expect(out.map(i => i.kind)).toEqual(['contract', 'placeholder', 'placeholder'])
+    expect(out.map(i => i.kind)).toEqual(['contract', 'placeholder', 'consistency', 'placeholder', 'consistency'])
     expect(out.find(i => i.sectionCode === '2.0')?.blocking).toBe(false) // advisory placeholder warning is listed, not counted
-    expect(openIssueCount(out)).toBe(2)
+    expect(out.find(i => i.sectionCode === '1.0')?.blocking).toBe(false) // an unmapped warning is advisory
+    // Mapped contract conflict, server placeholder and the blocking stray fence count; missing sections and dismissed issues are not listed.
+    expect(openIssueCount(out)).toBe(3)
   })
 
   it('lists a placeholder found by both the server and the client once, in document order', () => {

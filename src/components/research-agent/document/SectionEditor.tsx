@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import { Check, Loader2, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -29,6 +29,8 @@ export interface SectionEditorProps {
   onDemoted: (code: string) => void
   /** The student changed the text of a section that was approved (any edit, small ones included). */
   onEditedApproved?: (code: string) => void
+  /** The student's edit to this section was saved (any status): sections that restate it may now be out of date. */
+  onEdited?: (code: string) => void
   /** Lets the view save this section before approving, exporting or switching view. */
   registerFlush: (code: string, flush: (() => Promise<boolean>) | null) => void
   /** Lets the view select words in this section (a Review issue opened from the list). */
@@ -47,8 +49,8 @@ const EMPTY_CITATION_CONTEXT: CitationContext = { style: 'harvard', literature: 
 const CLOSE_DELAY_MS = 200
 
 const SAVE_TEXT: Record<Exclude<SaveState, 'idle' | 'error'>, string> = {
-  pending: 'Saving…',
-  saving:  'Saving…',
+  pending: 'Savingâ€¦',
+  saving:  'Savingâ€¦',
   saved:   'Saved',
 }
 
@@ -64,6 +66,12 @@ const AI_REQUEST: Record<AiEditKind, { mode: number; length: number }> = {
 const editorBody = (text: string) => splitTrailingReferences(stripLeadingHeadingLines(text)).body
 const referencesTail = (text: string) => splitTrailingReferences(text.replace(/\r\n/g, '\n')).tail
 
+// Blank lines and trailing spaces only. Live 2026-11-28 (3.3): an empty paragraph the editor added below a table
+// (a click under it) saved three blank lines and marked the run-approved section "Edited after approval".
+// Splitting a paragraph still changes this form (a space becomes a blank line), so it is still saved.
+const layoutFree = (text: string) =>
+  text.replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim()
+
 const statusOf = (projectId: string, code: string): SectionStatus | undefined =>
   useResearchStore.getState().sections[projectId]?.find(s => s.code === code)?.status
 
@@ -74,10 +82,10 @@ const statusOf = (projectId: string, code: string): SectionStatus | undefined =>
  * click (or Tab) into the text to edit, Escape to leave; no toolbar until text is selected.
  */
 export function SectionEditor({
-  projectId, code, content, editable, label, onDemoted, onEditedApproved, registerFlush, registerReveal, onCheckClaim,
+  projectId, code, content, editable, label, onDemoted, onEditedApproved, onEdited, registerFlush, registerReveal, onCheckClaim,
   citationsPending = false,
 }: SectionEditorProps) {
-  // ── Citations: resolved to pinned sources when shown; the stored text is never changed by this.
+  // â”€â”€ Citations: resolved to pinned sources when shown; the stored text is never changed by this.
   const citationData = useContext(CitationDataContext)
   const citationCtx = useMemo<CitationContext>(() => citationData
     ? {
@@ -104,6 +112,11 @@ export function SectionEditor({
   const lastKnown = useRef(content)
   const programmatic = useRef(false)
   const editorRef = useRef<ReturnType<typeof useEditor>>(null)
+  // The loaded text as this editor writes it ("| --- |" table rules etc.), blank lines ignored; null until known.
+  const loadedForm = useRef<string | null>(null)
+  const editedSinceLoad = useRef(false)
+  const serialize = (e: { storage: unknown }) =>
+    (e.storage as { markdown: { getMarkdown(): string } }).markdown.getMarkdown()
 
   // Text loaded from the store replaces the document: no citation has been edited since its check.
   const loadText = useCallback((text: string) => {
@@ -114,6 +127,8 @@ export function SectionEditor({
     editor.commands.setContent(editorBody(text), { emitUpdate: false })
     editor.view.dispatch(editor.state.tr.setMeta(citationDecorationsKey, 'reset-dirty' satisfies CitationMeta))
     programmatic.current = false
+    loadedForm.current = layoutFree(serialize(editor))
+    editedSinceLoad.current = false
   }, [])
 
   // Show the stored text again, dropping local edits the server refused.
@@ -133,7 +148,8 @@ export function SectionEditor({
       onEditedApproved?.(code)
       if (statusOf(projectId, code) !== 'Approved') onDemoted(code)
     }
-  }, [projectId, code, onDemoted, onEditedApproved])
+    onEdited?.(code)
+  }, [projectId, code, onDemoted, onEditedApproved, onEdited])
 
   const onError = useCallback((err: unknown): SaveFailure => {
     const apiErr = err as ApiError | undefined
@@ -226,14 +242,25 @@ export function SectionEditor({
     },
     onUpdate: ({ editor: e }) => {
       if (programmatic.current) return
-      const markdown = (e.storage as unknown as { markdown: { getMarkdown(): string } }).markdown.getMarkdown()
-        + referencesTail(lastKnown.current)
+      const body = serialize(e)
+      const markdown = body + referencesTail(lastKnown.current)
+      // Nothing but blank lines changed: not an edit, so nothing is saved and an approval is kept.
+      if (layoutFree(markdown) === layoutFree(lastKnown.current)) return
+      // Not edited since load and only re-formatted by the editor (e.g. "|---|" written as "| --- |"): not an edit either.
+      if (!editedSinceLoad.current && loadedForm.current !== null && layoutFree(body) === loadedForm.current) return
+      editedSinceLoad.current = true
       lastKnown.current = markdown
       schedule(markdown)
     },
   })
 
   editorRef.current = editor
+
+  // The first loaded text's own form, once the editor exists (later loads set it in loadText).
+  useEffect(() => {
+    if (editor && !editor.isDestroyed && loadedForm.current === null && !editedSinceLoad.current)
+      loadedForm.current = layoutFree(serialize(editor))
+  }, [editor])
 
   // New sources, flags or a finished claim check: redraw the citation marks. A new check result
   // also means every citation was just checked against the current text.
@@ -283,7 +310,7 @@ export function SectionEditor({
     [citationData],
   )
 
-  // ── Selection menu actions ──
+  // â”€â”€ Selection menu actions â”€â”€
   const handleAiEdit = useCallback(async (kind: AiEditKind) => {
     const ed = editorRef.current
     const at = menu

@@ -64,6 +64,15 @@ describe('FrameworkFigurePanel', () => {
     expect((await screen.findByTestId('framework-figure-none')).textContent).toContain('no measured variables')
   })
 
+  it('in the Document view, hands the reason to the Agent panel and writes nothing into the document', async () => {
+    vi.mocked(getFrameworkFigure).mockResolvedValue({ stored: false, figure: null, reason: 'The Study Variables table (5.7) and the hypotheses do not yet name a predictor and an outcome.' })
+    const onNoFigure = vi.fn()
+    const { container } = render(<FrameworkFigurePanel projectId="p" stored={undefined} sourceKey="k" onSave={vi.fn()} onNoFigure={onNoFigure} />)
+    await waitFor(() => expect(onNoFigure).toHaveBeenCalledWith(expect.stringContaining('predictor and an outcome')))
+    expect(screen.queryByTestId('framework-figure-none')).toBeNull()
+    expect(container.textContent).toBe('')
+  })
+
   it('resets a stored copy to the computed figure', async () => {
     const onSave = vi.fn().mockResolvedValue(true)
     render(<FrameworkFigurePanel projectId="p" stored={JSON.stringify({ ...spec, edited: true })} sourceKey="k" onSave={onSave} />)

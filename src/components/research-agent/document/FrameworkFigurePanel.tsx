@@ -17,6 +17,11 @@ interface Props {
   /** Changes when the text the figure is computed from changes (5.7 and 4.4), so the computed figure is fetched again. */
   sourceKey: string
   onSave: (json: string) => Promise<boolean>
+  /**
+   * Why there is no figure (null once there is one). The reason is a working note, not manuscript text, so it is shown
+   * in the Agent panel rather than in the document (2026-11-28 UX pass: diagnostics stay out of the page body).
+   */
+  onNoFigure?: (reason: string | null) => void
 }
 
 const parseStored = (raw: string | undefined): FrameworkFigureSpec | null => {
@@ -125,7 +130,7 @@ export const FigureSvg = memo(function FigureSvg({ spec }: { spec: FrameworkFigu
   )
 })
 
-export const FrameworkFigurePanel = memo(function FrameworkFigurePanel({ projectId, stored, sourceKey, onSave }: Props) {
+export const FrameworkFigurePanel = memo(function FrameworkFigurePanel({ projectId, stored, sourceKey, onSave, onNoFigure }: Props) {
   const saved = useMemo(() => parseStored(stored), [stored])
   const [computed, setComputed] = useState<FrameworkFigureSpec | null>(null)
   const [reason, setReason] = useState<string | null>(null)
@@ -147,6 +152,9 @@ export const FrameworkFigurePanel = memo(function FrameworkFigurePanel({ project
 
   const shown = draft ?? saved ?? computed
   const editing = draft !== null
+  const missingReason = !loading && !shown ? reason : null
+  useEffect(() => { onNoFigure?.(missingReason) }, [onNoFigure, missingReason])
+  useEffect(() => () => onNoFigure?.(null), [onNoFigure])
 
   const startEdit = useCallback(() => { if (shown) setDraft(structuredClone(shown)) }, [shown])
   const update = useCallback((fn: (s: FrameworkFigureSpec) => FrameworkFigureSpec) => setDraft(d => (d ? fn(d) : d)), [])
@@ -167,8 +175,10 @@ export const FrameworkFigurePanel = memo(function FrameworkFigurePanel({ project
   }, [onSave])
 
   if (loading) return null
+  // No figure: nothing in the document; the reason goes to the Agent panel (onNoFigure). Without that callback (other
+  // hosts) it is still said here, so it never silently disappears.
   if (!shown) {
-    return reason ? (
+    return reason && !onNoFigure ? (
       <p className="m-0 mb-6 text-[12px] leading-[1.45]" style={{ color: 'var(--text-muted)' }} data-testid="framework-figure-none">
         Conceptual framework figure: {reason}
       </p>

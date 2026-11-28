@@ -27,16 +27,20 @@ vi.mock('./SectionEditor', async () => {
 vi.mock('../../../api/research', async importOriginal => {
   const actual = await importOriginal<typeof import('../../../api/research')>()
   return { ...actual, researchApi: { ...actual.researchApi, getSectionCitationFlags: vi.fn().mockResolvedValue([]), getLiterature: vi.fn().mockResolvedValue([]),
-    getBibliography: vi.fn().mockResolvedValue({ entries: [] }), getProposalIssues: vi.fn(async () => proposalIssues.value) } }
+    getBibliography: vi.fn().mockResolvedValue({ entries: [] }), getProposalIssues: vi.fn(async () => proposalIssues.value),
+    // The quality report stays off here (no real request from the test).
+    getClientSettings: vi.fn().mockResolvedValue({ showProposalIssues: false }) } }
 })
 
 const confirmIssues = { value: false }
+// Agent auto-approve is on by default in the app; most tests here cover the student-approval path, so it starts off.
+const agentAutoApprove = { value: false }
 const proposalIssues: { value: { issues: unknown[]; blockingCount: number; repairsAvailable: boolean; repairsUnavailableReason: null } } =
   { value: { issues: [], blockingCount: 0, repairsAvailable: false, repairsUnavailableReason: null } }
 vi.mock('../../../config/features', async importOriginal => {
   const actual = await importOriginal<typeof import('../../../config/features')>()
-  // The chapter-order gate is exercised here, so these tests run with it on.
-  return { ...actual, get CONFIRM_APPROVAL_ISSUES() { return confirmIssues.value }, REQUIRE_CHAPTER_ORDER: true }
+  // The chapter-order gate and the "Export anyway" review gate are exercised here, so these tests run with them on.
+  return { ...actual, get CONFIRM_APPROVAL_ISSUES() { return confirmIssues.value }, get AGENT_AUTO_APPROVE() { return agentAutoApprove.value }, REQUIRE_CHAPTER_ORDER: true, REVIEW_EXPORT_GATE: 'block' }
 })
 
 vi.mock('../../../lib/liveDraftStore', () => ({
@@ -65,7 +69,7 @@ function section(code: string, status: SectionStatus, content = '', extra: Parti
 const project = {
   id: 'p1', title: 'Load-shedding', documentType: 'Proposal', documentMode: 'PROPOSAL', generatorMode: 'GENERATOR',
   citationStyle: 'harvard', confirmedMethodology: { id: 'm' }, researchState: 'Proposal',
-  // Every key study decision set, so tests of the other drafting gates are not held at the decisions gate.
+  // The planned study decisions (the server writes them; the Review card checks the text against them).
   sectionContent: {
     designContract: JSON.stringify({ designType: 'Survey', studySetting: 'The named city', dataSources: 'Questionnaire', populationDefinition: 'Registered owners', samplingMethod: 'Purposive sampling', sampleSize: '384', sampleSizeBasis: 'Cochran formula', analysisApproach: 'Regression', software: 'SPSS', dataCollector: 'The researcher' }),
     // The student approved 1.0 and 1.2 (generatedAt null in these fixtures), so a server Approved shows as Approved.
@@ -124,9 +128,10 @@ describe('DocumentModeView', () => {
     getGenerationStatus.mockResolvedValue({ ...idleRun, status: 'Generating', completedCount: 1, totalCount: 25, currentSection: '3.1', wordsWritten: 480 })
     renderView()
     const card = within((await screen.findAllByRole('region', { name: 'Drafting' }, { timeout: 5000 }))[0])
-    // The document's own count (4 sections, 2 with text), not the run's 25.
-    expect(card.getByText(/2 of 4 drafted/)).toBeTruthy()
-    expect(card.getByRole('button', { name: '3.1 Title 3.1' })).toBeTruthy()
+    // The document's own count (4 sections, 2 with text), not the run's 25. The card appears with the run status and fills
+    // in once the sections are read, so wait for the content rather than reading it on the first render.
+    expect(await card.findByText(/2 of 4 drafted/, {}, { timeout: 5000 })).toBeTruthy()
+    expect(await card.findByRole('button', { name: '3.1 Title 3.1' }, { timeout: 5000 })).toBeTruthy()
     expect(outline().getByText('1 approved · 1 to review · 2 to go')).toBeTruthy()
     // One Pause in the panel, plus Stop on the section being streamed.
     expect(card.getByRole('button', { name: 'Pause drafting' })).toBeTruthy()
@@ -342,32 +347,13 @@ describe('DocumentModeView', () => {
     expect(setContent).toHaveBeenCalledWith('p1', 'editedAfterApproval', '[]')
   })
 
-  it('marks dependent sections stale when a study decision changes, without touching their text', async () => {
-    const setContent = vi.fn()
-    const syncProject = vi.fn().mockResolvedValue(undefined)
-    const saveSection = vi.fn()
-    seed([section('5.5', 'Draft', 'A sample of 300.'), section('5.10', 'Approved', 'Analysed in SPSS.'), section('6.2', 'NotStarted')])
-    act(() => { useResearchStore.setState({ setContent, syncProject, saveSection }) })
-    renderView(vi.fn(), { ...project, sectionContent: { designContract: JSON.stringify({ sampleSize: '300' }) } } as ResearchProject)
-    const contract = within(screen.getAllByRole('region', { name: 'Study decisions' })[0])
-    fireEvent.click(contract.getByRole('button', { name: 'Sample size: 300. Edit' }))
-    expect(document.activeElement).toBe(contract.getByLabelText('Sample size'))
-    fireEvent.change(contract.getByLabelText('Sample size'), { target: { value: '384' } })
-    await act(async () => { fireEvent.click(contract.getByRole('button', { name: 'Save decisions' })) })
-    const staleCall = setContent.mock.calls.find(c => c[1] === 'designContractStale')
-    expect(JSON.parse(staleCall![2])).toEqual({ '5.5': ['Sample size'], '5.10': ['Sample size'] })
-    expect(JSON.parse(setContent.mock.calls.find(c => c[1] === 'designContract')![2])).toEqual({ sampleSize: '384' })
-    expect(syncProject).toHaveBeenCalledWith('p1')
-    expect(saveSection).not.toHaveBeenCalled()
-  })
-
   it('shows a stale section with the changed fields, and "Still matches" clears it', async () => {
     const setContent = vi.fn()
     const syncProject = vi.fn().mockResolvedValue(undefined)
     act(() => { useResearchStore.setState({ setContent, syncProject }) })
     renderView(vi.fn(), { ...project, sectionContent: { designContractStale: JSON.stringify({ '1.2': ['Analysis software'] }) } } as ResearchProject)
     expect(sectionRegion('1.2').getByText('May be out of date')).toBeTruthy()
-    expect(sectionRegion('1.2').getByText(/the study decisions changed \(Analysis software\)/)).toBeTruthy()
+    expect(sectionRegion('1.2').getByText(/changed since this was written: Analysis software/)).toBeTruthy()
     await act(async () => { fireEvent.click(sectionRegion('1.2').getByRole('button', { name: 'Still matches' })) })
     expect(setContent).toHaveBeenCalledWith('p1', 'designContractStale', '{}')
   })
@@ -427,51 +413,21 @@ describe('DocumentModeView', () => {
     expect(screen.queryByRole('dialog', { name: /Review the rewrite/ })).toBeNull()
   })
   describe('study decisions', () => {
-    const KEY_SET = { designType: 'Cross-sectional survey', studySetting: 'The named city', dataSources: 'Questionnaire', populationDefinition: 'Registered owners', samplingMethod: 'Purposive sampling', sampleSize: '384', sampleSizeBasis: 'Cochran formula', analysisApproach: 'Regression', software: 'SPSS', dataCollector: 'The researcher' }
-
-    it('holds every section after 1.1 until the key decisions are set, and shows them as the next step', async () => {
-      seed([section('1.0', 'Approved', 'Intro.'), section('1.2', 'NotStarted'), section('2.0', 'NotStarted')])
-      renderView(vi.fn(), { ...project, sectionContent: { designContract: JSON.stringify({ software: 'SPSS', sampleSize: '384' }) } } as ResearchProject)
-      await act(async () => {})
-      const card = within(screen.getAllByRole('region', { name: 'Study decisions' })[0])
-      expect(card.getByText('NEXT STEP')).toBeTruthy()
-      expect(card.getByText(/2 of 10 set/)).toBeTruthy()
-      expect(card.getByRole('button', { name: 'Design type: not set. Edit' })).toBeTruthy()
-      // 1.1 Background (code 1.2) may still be drafted; 2.0 waits.
-      expect((sectionRegion('1.2').getByRole('button', { name: /^Draft/ }) as HTMLButtonElement).disabled).toBe(false)
-      const blocked = sectionRegion('2.0').getByRole('button', { name: /^Draft/ }) as HTMLButtonElement
-      expect(blocked.disabled).toBe(true)
-      expect(sectionRegion('2.0').getByText(/Set the key study decisions first/)).toBeTruthy()
-      fireEvent.click(blocked)
-      expect(generateSection).not.toHaveBeenCalled()
-    })
-
-    it('lets drafting past 1.1 go ahead once every key decision is set', async () => {
+    // Silent study decisions (2026-11-27): the server plans them from the topic, so there is no card, no "0 of 10 set",
+    // no "Use suggested defaults" and nothing waits for them.
+    it('has no Study decisions card and drafts past 1.1 with no decisions set', async () => {
       seed([section('1.0', 'Approved', 'Intro.'), section('1.2', 'Approved', 'Background.'), section('2.0', 'NotStarted')])
-      renderView(vi.fn(), { ...project, sectionContent: { designContract: JSON.stringify(KEY_SET) } } as ResearchProject)
+      // No designContract at all: only the student's approvals of 1.0 and 1.2.
+      renderView(vi.fn(), { ...project, sectionContent: { studentApproved: JSON.stringify({ '1.0': '', '1.2': '' }) } } as ResearchProject)
       await act(async () => {})
-      expect(screen.queryAllByRole('region', { name: 'Study decisions' }).every(r => !r.textContent?.includes('NEXT STEP'))).toBe(true)
+      expect(screen.queryAllByRole('region', { name: 'Study decisions' })).toHaveLength(0)
+      expect(screen.queryByText(/of 10 set/)).toBeNull()
+      expect(screen.queryByText(/Set the key study decisions/)).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Use suggested defaults' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Set remaining decisions' })).toBeNull()
+      // 2.0 used to wait for the decisions after 1.1; it is now draftable (only the chapter order applies) and is the next step.
       expect((sectionRegion('2.0').getByRole('button', { name: /^Draft/ }) as HTMLButtonElement).disabled).toBe(false)
-    })
-
-    it('"Use suggested defaults" writes explicit values for every missing key decision and keeps the ones set', async () => {
-      const setContent = vi.fn()
-      const syncProject = vi.fn().mockResolvedValue(undefined)
-      seed([section('1.0', 'Approved', 'Intro.'), section('2.0', 'NotStarted')])
-      act(() => { useResearchStore.setState({ setContent, syncProject }) })
-      renderView(vi.fn(), { ...project, methodologyType: 'Quantitative', studyLocation: 'The named city', studyPopulation: 'Registered owners',
-        sectionContent: { designContract: JSON.stringify({ software: 'Stata' }) } } as unknown as ResearchProject)
-      const card = within(screen.getAllByRole('region', { name: 'Study decisions' })[0])
-      await act(async () => { fireEvent.click(card.getByRole('button', { name: 'Use suggested defaults' })) })
-      const saved = JSON.parse(setContent.mock.calls.find(c => c[1] === 'designContract')![2])
-      expect(saved).toEqual({
-        designType: 'Cross-sectional survey', studySetting: 'The named city', dataSources: 'Structured questionnaire',
-        populationDefinition: 'Registered owners', samplingMethod: 'Non-probability purposive sampling of eligible respondents',
-        sampleSize: '384 respondents', sampleSizeBasis: 'Cochran formula: 95% confidence, 5% margin of error, p = 0.5',
-        analysisApproach: 'Descriptive statistics, correlation and multiple regression',
-        software: 'Stata', dataCollector: 'The researcher, personally',
-      })
-      expect(syncProject).toHaveBeenCalledWith('p1')
+      expect(within(screen.getAllByRole('region', { name: 'Next step' })[0]).getByText('1 section still to draft')).toBeTruthy()
     })
   })
   describe('up next and not started', () => {
@@ -523,6 +479,18 @@ describe('DocumentModeView', () => {
       seed([section('1.0', 'Approved', 'Intro.'), section('1.2', 'Approved', 'Redrafted background.', { generatedAt: '2026-11-24T09:00:00Z' })])
       renderView()
       expect(outline().getByRole('button', { name: /Ready for review.*1\.2/ })).toBeTruthy()
+    })
+
+    it('with agent auto-approve on, a section the whole-proposal run approved shows as Approved', () => {
+      agentAutoApprove.value = true
+      try {
+        seed([section('1.0', 'Approved', 'Run-approved intro.', { generatedAt: '2026-11-24T08:00:00Z' }), section('1.2', 'Approved', 'Student-approved background.')])
+        renderView()
+        expect(outline().getByRole('button', { name: /Approved.*1\.0/ })).toBeTruthy()
+        expect(outline().getByText('2 approved · 0 to review · 0 to go')).toBeTruthy()
+      } finally {
+        agentAutoApprove.value = false
+      }
     })
 
     it('shows a locked section with a short reason, the full one in its tooltip, and a key of every state', () => {

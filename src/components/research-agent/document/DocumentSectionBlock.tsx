@@ -36,10 +36,12 @@ export interface DocumentSectionBlockProps {
   registerFlush: (code: string, flush: (() => Promise<boolean>) | null) => void
   /** The chapter heading already shows this section's title ("1.0 Introduction" under "Introduction"). */
   hideHeading?:  boolean
-  /** Design-contract fields that changed since this section was last reviewed (status stale). */
+  /** What changed since this section was last reviewed (status stale): study decisions, or sections it restates ("4.1 Research Questions"). */
   staleFields?:  string[]
   onMarkReviewed?: (code: string) => void
   onEditedApproved?: (code: string) => void
+  /** The student's edit to this section was saved. */
+  onEdited?: (code: string) => void
   registerReveal?: (code: string, reveal: ((text: string | null) => boolean) | null) => void
   /** In-place claim-source check of this section's citations. */
   onCheckCitations?: (code: string) => void
@@ -66,7 +68,7 @@ const actionClass = 'dm-action rounded-lg text-[13px] px-4 py-2 transition-color
 function DocumentSectionBlockImpl({
   projectId, section, status, flags, draft, lockedReason, isApproving, scrollRoot, registerAnchor,
   onApprove, onRewrite, onOpenGuided, onDemoted, registerFlush, onDraft, onStop, isStopping, onDraftNow,
-  hideHeading = false, staleFields, onMarkReviewed, onEditedApproved, registerReveal, onCheckCitations, checkState,
+  hideHeading = false, staleFields, onMarkReviewed, onEditedApproved, onEdited, registerReveal, onCheckCitations, checkState,
   rewriteReviewPending = false, onOpenRewriteReview, serverApproved = false,
 }: DocumentSectionBlockProps) {
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -157,7 +159,7 @@ function DocumentSectionBlockImpl({
         <p className="m-0 mb-3 flex items-start gap-2 text-[13px] leading-[1.45] rounded-lg px-3 py-2 bg-white"
           style={{ border: '1px solid var(--color-amber)', color: 'var(--color-amber-text)', fontFamily: 'Inter, system-ui, sans-serif' }}>
           <History size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <span><b className="font-semibold">May be out of date:</b> the study decisions changed ({staleFields.join(', ')}). Check that this section still matches it; nothing was rewritten.</span>
+          <span><b className="font-semibold">May be out of date:</b> changed since this was written: {staleFields.join(', ')}. Check that this section still matches, or rewrite it; nothing was rewritten.</span>
         </p>
       )}
 
@@ -236,7 +238,7 @@ function DocumentSectionBlockImpl({
         {hasBody && (near
           ? <SectionEditor projectId={projectId} code={section.code} content={section.content} label={label}
               editable={!isSectionHeld(section) && !rewriteReviewPending} onDemoted={onDemoted} registerFlush={registerFlush}
-              onEditedApproved={onEditedApproved} registerReveal={registerReveal} onCheckClaim={onCheckCitations}
+              onEditedApproved={onEditedApproved} onEdited={onEdited} registerReveal={registerReveal} onCheckClaim={onCheckCitations}
               citationsPending={section.citationsPendingVerification} />
           : <div aria-hidden="true" style={{ height: measured.current ?? estimateHeight(section.wordCount) }} />)}
       </div>
@@ -303,7 +305,8 @@ export const DocumentSectionBlock = memo(DocumentSectionBlockImpl, (a, b) =>
   && flagsKey(a.flags) === flagsKey(b.flags)
   && (a.staleFields ?? []).join('|') === (b.staleFields ?? []).join('|')
   && a.checkState === b.checkState && a.rewriteReviewPending === b.rewriteReviewPending && a.serverApproved === b.serverApproved
-  && a.onMarkReviewed === b.onMarkReviewed && a.onEditedApproved === b.onEditedApproved && a.registerReveal === b.registerReveal
+  && a.onMarkReviewed === b.onMarkReviewed && a.onEditedApproved === b.onEditedApproved && a.onEdited === b.onEdited
+  && a.registerReveal === b.registerReveal
   && a.onCheckCitations === b.onCheckCitations && a.onOpenRewriteReview === b.onOpenRewriteReview
   && a.onApprove === b.onApprove && a.onRewrite === b.onRewrite && a.onOpenGuided === b.onOpenGuided
   && a.registerAnchor === b.registerAnchor && a.scrollRoot === b.scrollRoot)

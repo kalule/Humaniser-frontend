@@ -55,6 +55,12 @@ export const CONFIRM_APPROVAL_ISSUES = import.meta.env.VITE_CONFIRM_APPROVAL_ISS
 export const REQUIRE_CHAPTER_ORDER = import.meta.env.VITE_REQUIRE_CHAPTER_ORDER === 'true'
 export const SHOW_METHODOLOGY_REFINEMENT =import.meta.env.VITE_SHOW_METHODOLOGY_REFINEMENT === 'true'
 
+//   VITE_AGENT_AUTO_APPROVE=false              — Document view: a section the research agent's whole-proposal run
+//                                                approved (backend Research:AutonomousProposal:AutoApprove) shows
+//                                                as Approved. On by default; 'false' = the old behaviour, where it
+//                                                stays "Ready for review" until the student approves it.
+export const AGENT_AUTO_APPROVE = import.meta.env.VITE_AGENT_AUTO_APPROVE !== 'false'
+
 //   VITE_SHOW_CITATION_FLAGS=true              — open citation-check flags ("Citation: (Smith, 2020): …",
 //                                                flag counts, flagged citation cards) in Guided and Document.
 //                                                On in .env.development; off in production builds, where only
@@ -82,6 +88,8 @@ export function showFlagCounts(): boolean {
   return FLAG_COUNTS_ENV || useAuthStore.getState().user?.role === 'Admin'
 }
 
+//   NOTE 2026-11-26: the Download step no longer reads this; it uses the backend appsettings switch
+//   Research:ProposalIssues:ShowInDownload (GET /api/v1/research/client-settings).
 //   VITE_SHOW_PROPOSAL_ISSUES=true             — the Download step's "Issues in your proposal (N)" list with
 //                                                "Fix issues and download" (and its fallback "Citation Warnings
 //                                                Found" scan). Off: the step just offers the download, and the
@@ -95,9 +103,10 @@ export function showProposalIssues(): boolean {
 
 //   VITE_REVIEW_EXPORT_GATE=block|warn|off     — Document view's "Export .docx" while Review has open issues
 //                                                (placeholders, design-contract mismatches, variable-role
-//                                                conflicts). block (default): export stops and asks for an
+//                                                conflicts). block: export stops and asks for an
 //                                                explicit "Export anyway" override, which is logged. warn: a
-//                                                warning toast, then the export runs. off: no check.
+//                                                warning toast, then the export runs. off (default since
+//                                                2026-11-26): no check, the download just runs.
 export type ReviewExportGate = 'block' | 'warn' | 'off'
 const REVIEW_GATE_RAW = import.meta.env.VITE_REVIEW_EXPORT_GATE
-export const REVIEW_EXPORT_GATE: ReviewExportGate = REVIEW_GATE_RAW === 'warn' || REVIEW_GATE_RAW === 'off' ? REVIEW_GATE_RAW : 'block'
+export const REVIEW_EXPORT_GATE: ReviewExportGate = REVIEW_GATE_RAW === 'warn' || REVIEW_GATE_RAW === 'block' ? REVIEW_GATE_RAW : 'off'

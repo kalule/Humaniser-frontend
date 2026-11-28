@@ -15,7 +15,7 @@ import { isAbstractStepLocked } from '../pages/app/abstractStepStatus'
  *   NotStarted otherwise   -> not_started   (up_next once it is in the agent's current run: see withRunMark)
  *
  * There is no stored "queued" any more: a section waiting in the run is up_next, one outside it
- * (no run, paused, or held for the key study decisions) is not_started.
+ * (no run, or paused) is not_started.
  */
 export type DocumentSectionStatus =
   | 'not_started' | 'up_next' | 'writing' | 'needs_review' | 'approved' | 'locked'
@@ -23,7 +23,7 @@ export type DocumentSectionStatus =
   | 'edited_after_approval' | 'stale'
 
 /** Why a section cannot be drafted right now. `locked` is a gate; the rest are "not yet". */
-export type DraftBlocker = 'writing' | 'not_applicable' | 'locked' | 'prerequisite' | 'methodology' | 'design' | 'decisions'
+export type DraftBlocker = 'writing' | 'not_applicable' | 'locked' | 'prerequisite' | 'methodology' | 'design'
 
 export interface DraftDecision {
   allowed: boolean
@@ -55,22 +55,10 @@ export interface DraftContext {
    * false (the app default, see REQUIRE_CHAPTER_ORDER) lets any chapter be drafted at any time.
    */
   chapterOrder?:         boolean
-  /**
-   * Whether every key study decision is set (lib/designContract KEY_FIELDS). False holds every
-   * section after 1.1 Background; undefined means "not checked here" (Guided). The server's
-   * whole-proposal run applies the same rule (StudyDecisionGate).
-   */
-  decisionsReady?:       boolean
 }
 
-/** Sections drafted before the key study decisions are needed: Introduction and Background (code 1.2, shown as 1.1). */
-const PRE_DECISION_CODES: ReadonlySet<string> = new Set(['1.0', '1.2'])
-
-/** True when this section waits for the key study decisions (everything after 1.1 Background). */
-export const needsKeyDecisions = (section: Pick<ProjectSection, 'code' | 'displayCode'>) =>
-  !PRE_DECISION_CODES.has(section.code) && section.displayCode !== '1.1'
-
-export const DECISIONS_REASON = 'Set the key study decisions first, so every section states them the same way.'
+// The key study decisions used to hold every section after 1.1 Background until the student set them. They are now
+// planned by the server from the topic before drafting (silent study decisions), so drafting never waits for them.
 
 /** Last chapter "draft ahead" covers. Chapter 4 onward always waits for approval. */
 export const DRAFT_AHEAD_LAST_CHAPTER = 3
@@ -198,7 +186,6 @@ export function canDraft(section: ProjectSection, ctx: DraftContext): DraftDecis
   }
   const lock = lockReason(section, ctx)
   if (lock) return blocked('locked', lock)
-  if (ctx.decisionsReady === false && needsKeyDecisions(section)) return blocked('decisions', DECISIONS_REASON)
   const waiting = ctx.chapterOrder === false ? [] : unapprovedPrerequisites(section, ctx.sections, ctx.draftAhead)
   if (waiting.length > 0) return blocked('prerequisite', describeWaiting(waiting))
   if (METHODOLOGY_SENSITIVE_SECTIONS.has(section.code) && !ctx.methodologyConfirmed) {
@@ -250,6 +237,21 @@ export const hasSectionBody = (status: DocumentSectionStatus) =>
  */
 export const withApprovalSource = (status: DocumentSectionStatus, studentApproved: boolean): DocumentSectionStatus =>
   status === 'approved' && !studentApproved ? 'needs_review' : status
+
+/**
+ * Sections to draft, in drafting order: the conceptual framework (3.3) waits for the research questions and objectives
+ * (4.1-4.3) still in the list, so its framework table can name them. Same order as the server's
+ * AutonomousChapterCodes.DraftOrder; the document itself still reads 3.3 before 4.1.
+ */
+export function inDraftOrder(codes: readonly string[]): string[] {
+  if (!codes.includes('3.3')) return [...codes]
+  const rest = codes.filter(c => c !== '3.3')
+  let last = -1
+  rest.forEach((c, i) => { if (c === '4.1' || c === '4.2' || c === '4.3') last = i })
+  if (last < 0) return [...codes]
+  rest.splice(last + 1, 0, '3.3')
+  return rest
+}
 
 /** A few words for a locked section's outline row; the full reason goes in its tooltip. */
 export function shortLockLabel(code: string): string {
