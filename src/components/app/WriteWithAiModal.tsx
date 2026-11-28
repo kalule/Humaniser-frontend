@@ -20,6 +20,7 @@ import { RESEARCH_STAGE_OPTIONS, toResearchState, type ResearchStageChoice } fro
 import { essayStageLabel, essayStageDetail, essayPhase, nextEssayPhase, ESSAY_PHASES, type EssayCoverageState, type EssayPart } from '../../lib/essayProgress'
 import { EssayProgressPanel } from './EssayProgressPanel'
 import { assertWritableDraft } from '../../lib/writeWithAiOutcome'
+import { essayQualitySummary, isEssayQualityNote } from '../../lib/essayQualityNotes'
 import { inferEssaySubType } from '../../lib/essayTypeInference'
 
 const STAGE_LABEL: Record<string, string> = {
@@ -455,7 +456,11 @@ export function WriteWithAiModal({
       }
       result.researchPaperFlags?.forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!' }))
       result.caseStudyFlags?.forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!' }))
-      result.essayFlags?.filter(flag => !['EssayIncomplete', 'QuestionComponentCoverage'].includes(flag.code)).forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!' }))
+      result.essayFlags?.filter(flag => !['EssayIncomplete', 'QuestionComponentCoverage'].includes(flag.code) && !isEssayQualityNote(flag))
+        .forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!' }))
+      // Warn-only structure/evidence/claim notes: one summary instead of one toast each.
+      const qualitySummary = essayQualitySummary(result.essayFlags)
+      if (qualitySummary) toast(qualitySummary, { icon: '✎', duration: 12000 })
       result.literatureReviewFlags?.forEach(flag => toast(`${flag.section}: ${flag.message}`, { icon: '!', duration: 8000 }))
       result.argumentativeQuality?.findings.forEach(finding =>
         toast(`Argument: ${finding.message}`, { icon: '✎', duration: 8000 }))
@@ -1105,9 +1110,6 @@ export function WriteWithAiModal({
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-purple-accent text-white flex items-center justify-center shrink-0">
-            <Sparkles size={16} />
-          </div>
           <div>
             <h2 className="text-[15px] font-bold text-slate-800">Start AI Writing</h2>
             <p className="text-[11px] font-medium text-purple-text leading-tight">{headerSubtitle}</p>

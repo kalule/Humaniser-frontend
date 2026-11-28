@@ -14,5 +14,7 @@ export function resolveEssayCitationTokens(
   style: EssayCitationStyleName,
 ): string {
   const format = { Harvard: 'harvard', Apa7: 'apa7', Ieee: 'ieee', Chicago: 'chicago', Vancouver: 'vancouver' } as const
-  return resolveCslTokens(text.replace(/\[CF\d+\]\s?/g, ''), references.map(ref => ({ ...ref, id: ref.sourceId })), format[style])
+  // The backend sends the work type as workType; the CSL builder reads itemType. Without it a thesis was rendered as a journal article.
+  return resolveCslTokens(text.replace(/\[CF\d+\]\s?/g, ''), references.map(ref => ({ ...ref, id: ref.sourceId,
+    itemType: (ref as { workType?: string | null }).workType ?? undefined })), format[style])
 }

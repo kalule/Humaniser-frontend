@@ -210,7 +210,8 @@ export function citationHtml(attrs: CitationAttrs): string {
 
 /** Resolve generation tokens while their source IDs still exist, before importing HTML into TipTap. */
 export function interactiveCitationTokens(text: string, refs: WriteWithAiReference[], style: FormatStyle, namespace: string): string {
-  const sources = refs.map(ref => ({ ...ref, id: `${namespace}:${ref.sourceId}`, canonicalId: ref.canonicalId ?? undefined, openAlexWorkId: ref.openAlexWorkId ?? undefined, documentId: ref.documentId ?? undefined } as EditorSource))
+  // workType (backend) becomes the CSL itemType, so a thesis or repository record is not rendered as a journal article.
+  const sources = refs.map(ref => ({ ...ref, id: `${namespace}:${ref.sourceId}`, canonicalId: ref.canonicalId ?? undefined, openAlexWorkId: ref.openAlexWorkId ?? undefined, documentId: ref.documentId ?? undefined, itemType: ref.workType ?? undefined } as EditorSource))
   const clean = text.replace(/\[CF\d+\]\s?/g, '')
   const labels = renderCitationTokens(clean, sources.map((source, i) => ({ ...source, sourceId: refs[i].sourceId })), style)
   let output = ''; let end = 0

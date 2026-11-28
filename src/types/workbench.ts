@@ -231,6 +231,10 @@ export interface WriteWithAiReference {
   issue?: string | null
   pages?: string | null
   publisher?: string | null
+  /** OpenAlex work type ("article", "thesis", "document" ...), after the backend reference normaliser. Drives the CSL item type. */
+  workType?: string | null
+  /** How directly the source bears on the essay question (backend EssayEvidenceTiers). */
+  evidenceTier?: 'Direct' | 'Adjacent' | 'Indirect' | null
 }
 
 export interface EssaySections {
