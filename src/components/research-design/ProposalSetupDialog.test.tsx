@@ -14,11 +14,26 @@ vi.mock('../../api/research', async importOriginal => {
 const { START_MODES, ProposalSetupDialog } = await import('./ProposalSetupDialog')
 
 const IDEA = 'The effect of load-shedding on small retailers in Gauteng'
-const tooBroad: ProposalIdeaCheckResult = {
-  available: true, verdict: 'too_broad', evidenceHint: null,
-  reasons: ['It covers every kind of retailer in a whole province.'],
-  rewrites: ['How did load-shedding affect trading hours of spaza shops in Soweto?', 'How do small grocers in Tshwane cope with load-shedding?'],
+const EMPTY: Omit<ProposalIdeaCheckResult, 'available' | 'verdict'> = {
+  topFixes: [], titleRewrite: null, parsed: null, assumptions: [], constructs: [], quality: [], feasibility: null, design: null, searchPlan: null,
 }
+const needsChanges: ProposalIdeaCheckResult = {
+  ...EMPTY,
+  available: true, verdict: 'proceed_with_changes',
+  topFixes: ['Replace "effect of" with "relationship between".', 'Name one outcome measure.'],
+  titleRewrite: 'The relationship between load-shedding and trading hours of small retailers in Gauteng',
+  parsed: { exposure: 'Load-shedding', outcome: 'Trading hours', population: 'Small retailers', region: 'Gauteng', setting: 'Township retail' },
+  assumptions: ['Assumed owner-managed shops with fewer than 50 staff.'],
+  constructs: [{ name: 'Load-shedding', definition: 'Planned rotational power cuts.', synonyms: ['power cuts', 'rolling blackouts', 'outages'] }],
+  quality: [
+    { key: 'researchable', score: 2, reason: 'Retailers can report outages.' },
+    { key: 'causal_wording', score: 1, reason: '"Effect of" implies causation.' },
+  ],
+  feasibility: { samplingFrame: 'Municipal trading licences.', access: 'Retail associations.', sampleSize: 'n = 150', ethics: 'Business data only.', ethicsComplexity: 'low' },
+  design: { approach: 'Cross-sectional survey.', claimType: 'association', canClaim: 'Associations.', cannotClaim: 'That load-shedding caused the changes.' },
+  searchPlan: { tiers: [{ tier: 1, purpose: 'Core', query: '("load-shedding" OR "power cuts") AND "small retailers"' }], include: ['Empirical studies'], exclude: ['Large firms'] },
+}
+const HEADLINE = 'This topic is workable with a few changes.'
 
 function renderDialog(onCreate = vi.fn().mockResolvedValue(undefined), onAutomate = vi.fn()) {
   render(<StrictMode><ProposalSetupDialog onClose={() => {}} onCreate={onCreate} onAutomate={onAutomate} /></StrictMode>)
@@ -52,28 +67,32 @@ describe('ProposalSetupDialog idea check', () => {
     expect(checkLink().disabled).toBe(false)
   })
 
-  it('renders reasons and rewrite chips, and a chip replaces the topic and clears the card', async () => {
-    checkIdea.mockResolvedValue(tooBroad)
+  it('renders fixes, design and the full assessment, and the suggested title replaces the topic and clears the card', async () => {
+    checkIdea.mockResolvedValue(needsChanges)
     const { topic } = renderDialog()
     type(topic(), IDEA)
     fireEvent.click(checkLink())
     expect(checkIdea).toHaveBeenCalledWith(IDEA, 'MASTERS', expect.any(AbortSignal))
 
-    expect(await screen.findByText('This may be too broad for a Masters study.')).toBeTruthy()
-    expect(screen.getByText(tooBroad.reasons[0])).toBeTruthy()
-    const chip = screen.getByRole('button', { name: tooBroad.rewrites[0] })
-    fireEvent.click(chip)
-    expect(topic().value).toBe(tooBroad.rewrites[0])
-    expect(screen.queryByText('This may be too broad for a Masters study.')).toBeNull()
+    expect(await screen.findByText(HEADLINE)).toBeTruthy()
+    expect(screen.getByText(needsChanges.topFixes[1])).toBeTruthy()
+    expect(screen.getByText(/can show associations, but cannot show that load-shedding caused the changes/)).toBeTruthy()
+    expect(screen.getByText('Needs work (1/2)')).toBeTruthy()
+    expect(screen.getByText('Also: power cuts, rolling blackouts, outages')).toBeTruthy()
+    expect(screen.getByText(needsChanges.searchPlan!.tiers[0].query)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: needsChanges.titleRewrite! }))
+    expect(topic().value).toBe(needsChanges.titleRewrite)
+    expect(screen.queryByText(HEADLINE)).toBeNull()
   })
 
-  it('shows only a short positive line for a ready idea', async () => {
-    checkIdea.mockResolvedValue({ available: true, verdict: 'ready', reasons: [], rewrites: [], evidenceHint: null })
+  it('shows a positive line and no fixes or title for a topic ready to proceed', async () => {
+    checkIdea.mockResolvedValue({ ...EMPTY, available: true, verdict: 'proceed' })
     const { topic } = renderDialog()
     type(topic(), IDEA)
     fireEvent.click(checkLink())
-    expect(await screen.findByText('This looks ready to start.')).toBeTruthy()
-    expect(screen.queryByText(/sharper version/)).toBeNull()
+    expect(await screen.findByText('This topic looks ready to start.')).toBeTruthy()
+    expect(screen.queryByText('Top fixes')).toBeNull()
+    expect(screen.queryByText(/Suggested title/)).toBeNull()
   })
 
   it('hides a stale result when the topic changes, and drops a late answer for old text', async () => {
@@ -88,24 +107,48 @@ describe('ProposalSetupDialog idea check', () => {
     type(topic(), IDEA + ' and Limpopo')
     expect(signal.aborted).toBe(true)
     expect(screen.queryByText('Checking your idea…')).toBeNull()
-    resolve(tooBroad)
+    resolve(needsChanges)
     await new Promise(r => setTimeout(r, 0))
-    expect(screen.queryByText('This may be too broad for a Masters study.')).toBeNull()
+    expect(screen.queryByText(HEADLINE)).toBeNull()
 
-    checkIdea.mockResolvedValue(tooBroad)
+    checkIdea.mockResolvedValue(needsChanges)
     fireEvent.click(checkLink())
-    expect(await screen.findByText('This may be too broad for a Masters study.')).toBeTruthy()
+    expect(await screen.findByText(HEADLINE)).toBeTruthy()
     fireEvent.click(screen.getByRole('radio', { name: 'PhD' }))
-    expect(screen.queryByText(/too broad/)).toBeNull()
+    expect(screen.queryByText(HEADLINE)).toBeNull()
   })
 
   it('renders no card for an unavailable result, only a quiet line', async () => {
-    checkIdea.mockResolvedValue({ available: false, verdict: 'unavailable', reasons: [], rewrites: [], evidenceHint: null })
+    checkIdea.mockResolvedValue({ ...EMPTY, available: false, verdict: 'unavailable' })
     const { topic } = renderDialog()
     type(topic(), IDEA)
     fireEvent.click(checkLink())
     expect(await screen.findByText('We could not check your idea just now. You can still start.')).toBeTruthy()
     expect(screen.queryByRole('region', { name: 'Idea check' })).toBeNull()
+  })
+
+  it('checks by itself once typing pauses, and reuses the result for the same text', async () => {
+    checkIdea.mockResolvedValue(needsChanges)
+    const { topic } = renderDialog()
+    type(topic(), IDEA)
+    expect(checkIdea).not.toHaveBeenCalled()
+    expect(await screen.findByText(HEADLINE, {}, { timeout: 3000 })).toBeTruthy()
+    expect(checkIdea).toHaveBeenCalledTimes(1)
+
+    type(topic(), IDEA + ' and Limpopo')
+    expect(screen.queryByText(HEADLINE)).toBeNull()
+    type(topic(), IDEA)                                  // back to the checked wording: no second call
+    expect(await screen.findByText(HEADLINE, {}, { timeout: 3000 })).toBeTruthy()
+    expect(checkIdea).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry a failed check in a loop', async () => {
+    checkIdea.mockResolvedValue({ ...EMPTY, available: false, verdict: 'unavailable' })
+    const { topic } = renderDialog()
+    type(topic(), IDEA)
+    expect(await screen.findByText(/could not check your idea/, {}, { timeout: 3000 })).toBeTruthy()
+    await new Promise(r => setTimeout(r, 1800))
+    expect(checkIdea).toHaveBeenCalledTimes(1)
   })
 
   it('lets Start go ahead while a check is still running', async () => {

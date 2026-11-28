@@ -134,14 +134,22 @@ export interface SyncProjectPayload {
   selectedLibraryDocumentIds?: string[]
 }
 
-/** Advice on a research idea before a proposal exists. "unavailable" when the check is off, over its daily limit or failed. */
-export type ProposalIdeaVerdict = 'ready' | 'too_broad' | 'too_narrow' | 'unclear' | 'not_researchable' | 'unavailable'
+/** Evaluation of a research topic before a proposal exists. "unavailable" when the check is off, over its daily limit or failed. */
+export type ProposalIdeaVerdict = 'proceed' | 'proceed_with_changes' | 'rework' | 'unavailable'
+export type IdeaQualityKey = 'researchable' | 'specific' | 'causal_wording' | 'novelty' | 'level_fit'
 export interface ProposalIdeaCheckResult {
   available: boolean
   verdict: ProposalIdeaVerdict
-  reasons: string[]
-  rewrites: string[]
-  evidenceHint: { level: 'few' | 'some' | 'many'; count: number } | null
+  topFixes: string[]
+  titleRewrite: string | null
+  parsed: { exposure: string; outcome: string; population: string; region: string; setting: string } | null
+  assumptions: string[]
+  constructs: { name: string; definition: string; synonyms: string[] }[]
+  /** Score 0-2, higher is better. */
+  quality: { key: IdeaQualityKey; score: number; reason: string }[]
+  feasibility: { samplingFrame: string; access: string; sampleSize: string; ethics: string; ethicsComplexity: 'low' | 'medium' | 'high' } | null
+  design: { approach: string; claimType: 'descriptive' | 'exploratory' | 'association' | 'causal'; canClaim: string; cannotClaim: string } | null
+  searchPlan: { tiers: { tier: number; purpose: string; query: string }[]; include: string[]; exclude: string[] } | null
 }
 
 // ── API calls ─────────────────────────────────────────────────────────────────
@@ -438,6 +446,10 @@ export const researchApi = {
     )
     return res.data
   },
+
+  // Server display switches (appsettings Research:ProposalIssues:ShowInDownload).
+  getClientSettings: async (): Promise<{ showProposalIssues: boolean }> =>
+    unwrap(await client.get<Wrap<{ showProposalIssues: boolean }>>('/api/v1/research/client-settings')),
 
   // "Fix issues and download": one issue list for the Download step, a repair run, and undo of a single repair.
   getProposalIssues: async (projectId: string): Promise<ProposalIssues> =>

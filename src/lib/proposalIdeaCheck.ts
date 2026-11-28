@@ -1,30 +1,39 @@
-import type { ProposalIdeaCheckResult } from '../api/research'
-import type { AcademicLevel } from '../types/research'
+import type { IdeaQualityKey, ProposalIdeaCheckResult } from '../api/research'
 
 /** The server refuses shorter ideas, so the link stays disabled below this. */
 export const MIN_IDEA_LENGTH = 15
-
-const LEVEL_WORDS: Record<AcademicLevel, string> = { UNDERGRADUATE: 'an undergraduate', MASTERS: 'a Masters', PHD: 'a PhD' }
 
 export function canCheckIdea(topic: string): boolean {
   return topic.trim().length >= MIN_IDEA_LENGTH
 }
 
 /** One modest line per verdict. The verdict is said in words (and an icon), never by colour alone. Null when there is nothing to show. */
-export function ideaHeadline(result: ProposalIdeaCheckResult | null, level: AcademicLevel): string | null {
+export function ideaHeadline(result: ProposalIdeaCheckResult | null): string | null {
   if (!result?.available) return null
   switch (result.verdict) {
-    case 'ready': return 'This looks ready to start.'
-    case 'too_broad': return `This may be too broad for ${LEVEL_WORDS[level]} study.`
-    case 'too_narrow': return `This may be too narrow for ${LEVEL_WORDS[level]} study.`
-    case 'unclear': return 'It is not yet clear what you want to study.'
-    case 'not_researchable': return 'This may be hard to study as written.'
+    case 'proceed': return 'This topic looks ready to start.'
+    case 'proceed_with_changes': return 'This topic is workable with a few changes.'
+    case 'rework': return 'This topic needs reworking before you start.'
     default: return null
   }
 }
 
-export function ideaEvidenceNote(result: ProposalIdeaCheckResult | null): string | null {
-  return result?.available && result.evidenceHint?.level === 'few'
-    ? 'Few published studies found on this. The proposal may rely on related work.'
-    : null
+export const QUALITY_LABELS: Record<IdeaQualityKey, string> = {
+  researchable: 'Researchable',
+  specific: 'Specific',
+  causal_wording: 'Wording',
+  novelty: 'Novelty',
+  level_fit: 'Level fit',
+}
+
+/** Scores in words so the meaning never depends on colour. */
+export function scoreWord(score: number): string {
+  return score >= 2 ? 'Good' : score === 1 ? 'Needs work' : 'Problem'
+}
+
+export const CLAIM_LABELS: Record<string, string> = {
+  descriptive: 'can describe what is happening',
+  exploratory: 'can explore how and why',
+  association: 'can show associations',
+  causal: 'can support causal claims',
 }
