@@ -16,6 +16,7 @@ import { startAutonomousProposal } from '../../lib/startAutonomousProposal'
 import { generationSignature, recoverProposalGeneration } from '../../lib/proposalGenerationRecovery'
 import { findSimilarPapers, MIN_QUERY_LENGTH, type LiteratureCitation } from '../../api/semanticScholar'
 import { CHAPTER_STEPS } from '../../data/proposalOutline'
+import { PROPOSAL_WORD_LIMIT } from '../../data/proposalLengthBudget'
 import type { AcademicLevel, CitationStyle, DocumentMode, GeneratorMode, GenerationPhase, ProjectSection } from '../../types/research'
 import { GenerationProgressDialog } from './GenerationProgressDialog'
 import { DATA_COLLECTION_OPTIONS } from '../../lib/methodologyOptions'
@@ -105,8 +106,7 @@ export function AutonomousProposalModal({ onClose, onCreate, initialTitle = '', 
   const [locationEnabled,  setLocationEnabled]  = useState(true)
   const [geographicalArea, setGeographicalArea] = useState('')
   const [studyPopulation,  setStudyPopulation]  = useState('')
-  const [targetWords,      setTargetWords]      = useState(8000)
-  const [lengthUnit,       setLengthUnit]       = useState<'words' | 'pages'>('words')
+  const targetWords = PROPOSAL_WORD_LIMIT
   const [loading,          setLoading]          = useState(false)
   const [methodologyType, setMethodologyType] = useState<ProposalConfig['methodologyType'] | ''>('')
   const [dataCollectionApproach, setDataCollectionApproach] = useState('')
@@ -380,51 +380,11 @@ export function AutonomousProposalModal({ onClose, onCreate, initialTitle = '', 
                 </select>
                 <p className="text-[12px] text-slate-500 mt-2">The methodology chapters are written from this, including whether the study has participants.</p>
               </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-[12px] font-semibold text-slate-700">Document Length</label>
-                  <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-                    {(['words', 'pages'] as const).map(u => (
-                      <button
-                        key={u}
-                        onClick={() => setLengthUnit(u)}
-                        className={cn(
-                          'px-3 py-1 rounded-md text-[11px] font-medium capitalize transition-all',
-                          lengthUnit === u ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700',
-                        )}
-                      >
-                        {u}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={1000}
-                    max={20000}
-                    step={250}
-                    value={targetWords}
-                    onChange={e => setTargetWords(Number(e.target.value))}
-                    className="flex-1 accent-[#7c3aed]"
-                  />
-                  <div className="shrink-0 px-3 py-1.5 rounded-lg border border-slate-200 text-[13px] font-semibold text-slate-800">
-                    {lengthUnit === 'words'
-                      ? `${targetWords.toLocaleString()} words`
-                      : `${Math.round(targetWords / WORDS_PER_PAGE)} pages`}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between mt-1.5">
-                  <span className="text-[11px] text-slate-400">~1,000 words</span>
-                  <span className="text-[11px] text-slate-400">~20,000 words</span>
-                </div>
-              </div>
-
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-[12px] font-semibold text-slate-700 mb-3">📊 Estimated Generation</p>
+                <p className="text-[12px] font-semibold text-slate-700 mb-1">Length</p>
+                <p className="text-[12px] text-slate-500 mb-3">Proposals are capped at {targetWords.toLocaleString()} words, shared across the sections so each one gets the space it needs (the Literature Review gets the most).</p>
                 <div className="grid grid-cols-2 gap-y-2 text-[12px]">
-                  <p className="text-slate-500">Words: <span className="font-semibold text-slate-800">{targetWords.toLocaleString()}</span></p>
+                  <p className="text-slate-500">Words: <span className="font-semibold text-slate-800">up to {targetWords.toLocaleString()}</span></p>
                   <p className="text-slate-500">Pages: <span className="font-semibold text-slate-800">~{Math.round(targetWords / WORDS_PER_PAGE)}</span></p>
                   <p className="text-slate-500">Sections: <span className="font-semibold text-slate-800">{PROPOSAL_SECTION_COUNT}</span></p>
                   <p className="text-slate-500">Est. Time: <span className="font-semibold text-slate-800">~{Math.round(targetWords * MINUTES_PER_WORD)} min</span></p>

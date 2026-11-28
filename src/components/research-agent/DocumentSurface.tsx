@@ -74,8 +74,8 @@ interface DocumentSurfaceProps {
   onContentChange:   (content: string) => void
   onSave:            () => void
   onGenerate:        (wordCount: number) => void
-  generateImmediately?: boolean
-  defaultTargetWordCount?: number
+  /** This section's share of the document length (for a proposal: src/data/proposalLengthBudget.ts). */
+  sectionWordLimit:  number
   onRegenerate:      () => void
   onApprove:         () => void
   onCitationInserted?: (text: string) => void
@@ -318,8 +318,7 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
   onContentChange,
   onSave,
   onGenerate,
-  generateImmediately = false,
-  defaultTargetWordCount = 500,
+  sectionWordLimit,
   onRegenerate,
   onApprove,
   onCitationInserted,
@@ -585,11 +584,6 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
   )
   const hasOpenFlags   = openFlags.length > 0 || content.includes('[CITATION NEEDED]')
 
-  // ── Word Count Modal ────────────────────────────────────────────────────────
-  const [showWCModal,     setShowWCModal]     = useState(false)
-  const [targetWordCount, setTargetWordCount] = useState(500)
-  const [wcInputValue,    setWcInputValue]    = useState('500')
-
   // ── Text Style dropdown (Zone 2 — replaces separate H1/H2/H3/paragraph buttons) ──
   const [textStyleMenuOpen, setTextStyleMenuOpen] = useState(false)
 
@@ -638,37 +632,6 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
   ]
   const currentTextStyleLabel = textStyleOptions.find(o => o.active)?.label ?? 'Normal Text'
 
-  const WC_PRESETS = [
-    { label: 'Short',    sub: '300 words',  words: 300  },
-    { label: 'Standard', sub: '500 words',  words: 500  },
-    { label: 'Long',     sub: '750 words',  words: 750  },
-    { label: 'Extended', sub: '1500 words', words: 1500 },
-  ]
-
-  const approxPages  = (targetWordCount / 275).toFixed(1)
-  const isValidWC    = targetWordCount >= 100 && targetWordCount <= 5000
-
-  const handlePresetSelect = (words: number) => {
-    setTargetWordCount(words)
-    setWcInputValue(String(words))
-  }
-
-  const handleWcInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value
-    setWcInputValue(raw)
-    const parsed = parseInt(raw, 10)
-    if (!isNaN(parsed)) {
-      setTargetWordCount(Math.min(5000, Math.max(100, parsed)))
-    }
-  }
-
-  const handleWcInputBlur = () => {
-    const parsed = parseInt(wcInputValue, 10)
-    const clamped = isNaN(parsed) ? 100 : Math.min(5000, Math.max(100, parsed))
-    setTargetWordCount(clamped)
-    setWcInputValue(String(clamped))
-  }
-
   return (
     <div className="doc-surface-wrapper">
       {/* ── Citation reference popover — opens when a resolved in-text citation is clicked */}
@@ -686,116 +649,6 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
           onDismissFlag={onDismissCitationFlag}
           onChooseSource={onChooseCitationSource}
         />
-      )}
-
-      {/* ── Word Count Modal — inlined JSX (never a component def inside render) */}
-      {showWCModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{chapterLabel || 'Section'}</p>
-                <h3 className="text-[15px] font-bold text-slate-800">Write {sectionCode} {sectionTitle}</h3>
-              </div>
-              <button
-                onClick={() => setShowWCModal(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                </svg>
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="px-6 py-6">
-              <p className="text-[13px] font-semibold text-slate-700 mb-4">Target Word Count</p>
-
-              {/* Preset tiles */}
-              <div className="grid grid-cols-4 gap-2 mb-5">
-                {WC_PRESETS.map(p => (
-                  <button
-                    key={p.words}
-                    onClick={() => handlePresetSelect(p.words)}
-                    className={cn(
-                      'flex flex-col items-center py-3 px-2 rounded-xl border-2 text-center transition-all',
-                      targetWordCount === p.words
-                        ? 'border-violet-500 bg-violet-50'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
-                    )}
-                  >
-                    <span className={cn(
-                      'text-[13px] font-semibold',
-                      targetWordCount === p.words ? 'text-violet-700' : 'text-slate-700',
-                    )}>
-                      {p.label}
-                    </span>
-                    <span className={cn(
-                      'text-[11px] mt-0.5',
-                      targetWordCount === p.words ? 'text-violet-500' : 'text-slate-400',
-                    )}>
-                      {p.sub}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Custom word count */}
-              <div className="mb-3">
-                <p className="text-[11px] font-medium text-slate-500 mb-1.5">Custom word count</p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={100}
-                    max={5000}
-                    value={wcInputValue}
-                    onChange={handleWcInputChange}
-                    onBlur={handleWcInputBlur}
-                    className={cn(
-                      'w-24 text-center border rounded-lg px-2 py-1.5 text-[13px] text-slate-800 outline-none transition-colors',
-                      !isValidWC
-                        ? 'border-red-300 focus:border-red-400'
-                        : 'border-slate-200 focus:border-violet-400',
-                    )}
-                  />
-                  <span className="text-[12px] text-slate-500">words</span>
-                </div>
-              </div>
-
-              {/* Pages estimate */}
-              <p className="text-[12px] text-slate-500">≈ {approxPages} pages (double-spaced)</p>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/60">
-              <button
-                onClick={() => setShowWCModal(false)}
-                className="px-5 py-2 rounded-lg text-[13px] text-slate-600 hover:bg-slate-100 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (!isValidWC) return
-                  setShowWCModal(false)
-                  onGenerate(targetWordCount)
-                }}
-                disabled={!isValidWC}
-                className={cn(
-                  'flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-[13px] font-semibold transition-colors shadow-md',
-                  isValidWC
-                    ? 'bg-purple-accent hover:bg-purple-deep shadow-violet-200'
-                    : 'bg-slate-300 shadow-slate-200 cursor-not-allowed',
-                )}
-              >
-                <PenLine size={14} aria-hidden />
-                {isValidWC ? `Write ${targetWordCount} words` : 'Write section'}
-                <span className="font-normal text-white/75">· {CREDIT_COSTS.proposalSectionGeneration} credits</span>
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* ── White document card (fills remaining height, scrolls internally) ── */}
@@ -856,18 +709,11 @@ export const DocumentSurface = forwardRef<DocumentSurfaceHandle, DocumentSurface
                 </>
               ) : (
                 <button
-                  onMouseDown={e => {
-                    e.preventDefault()
-                    if (generateImmediately) {
-                      onGenerate(defaultTargetWordCount)
-                    } else {
-                      setShowWCModal(true)
-                    }
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-semibold transition-colors"
+                  onMouseDown={e => { e.preventDefault(); onGenerate(sectionWordLimit) }}
+                  title={`Up to ${sectionWordLimit.toLocaleString()} words · ${CREDIT_COSTS.proposalSectionGeneration} credits. The length is this section's share of the document, so the whole document stays within its word limit.`}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-accent hover:bg-purple-deep text-white text-[13px] font-semibold whitespace-nowrap transition-colors"
                 >
                   <PenLine size={13} aria-hidden /> Write section
-                  <span className="font-normal text-white/75">· {CREDIT_COSTS.proposalSectionGeneration} credits</span>
                 </button>
               )}
             </div>

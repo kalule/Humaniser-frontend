@@ -28,7 +28,7 @@ import ConfirmActionModal from '../../components/app/ConfirmActionModal'
 import { DocumentSurface, type DocumentSurfaceHandle } from '../../components/research-agent/DocumentSurface'
 import { ReviewNotesPanel } from '../../components/research-agent/ReviewNotesPanel'
 import { LiteratureReviewEvidenceTablesPanel } from '../../components/research-agent/LiteratureReviewEvidenceTables'
-import { SHOW_LIT_REVIEW_EVIDENCE_TABLES, SHOW_REVIEW_NOTES, SHOW_THESIS_AUDIT_BANNER, CONFIRM_APPROVAL_ISSUES, SHOW_METHODOLOGY_REFINEMENT, REQUIRE_CHAPTER_ORDER, showProposalIssues } from '../../config/features'
+import { SHOW_LIT_REVIEW_EVIDENCE_TABLES, SHOW_REVIEW_NOTES, SHOW_THESIS_AUDIT_BANNER, CONFIRM_APPROVAL_ISSUES, SHOW_METHODOLOGY_REFINEMENT, REQUIRE_CHAPTER_ORDER } from '../../config/features'
 import { ReferencesDrawer } from '../../components/research-agent/ReferencesDrawer'
 import { SectionVersionHistoryDrawer } from '../../components/research-agent/SectionVersionHistoryDrawer'
 import { EvidenceCoverageDrawer } from '../../components/research-agent/EvidenceCoverageDrawer'
@@ -53,6 +53,7 @@ import { FixIssuesPanel } from '../../components/research-agent/FixIssuesPanel'
 // AutonomousProposalTools' autonomous generation flow, which needs the same
 // chapter list and prompts without pulling in this whole page's module.
 import { STEPS, SECTION_PROMPTS, getStepLabel } from '../../data/proposalOutline'
+import { sectionWordLimit } from '../../data/proposalLengthBudget'
 import { isAbstractStepLocked } from './abstractStepStatus'
 import { canDraft, dedupeSections, DEFERRABLE_SECTIONS, isDraftAheadOn, type DraftDecision } from '../../lib/sectionWorkflow'
 import { guidedParamsFor } from '../../lib/documentOutline'
@@ -1540,7 +1541,14 @@ function LiteratureStep({
   // sectionContent key before project.gatherMode existed — still honoured
   // once here as a one-time migration fallback for projects created before
   // gatherMode was added (which all got backfilled to the "documents" default).
-  const initialMode = (project.sectionContent['sourceTypePreference'] as LitMode) || project.gatherMode || 'documents'
+  // Web is the default. A stored "documents" mode with no documents picked is
+  // indistinguishable from the old backend default, so it also opens on Web.
+  const storedMode = (project.sectionContent['sourceTypePreference'] as LitMode) || project.gatherMode
+  const hasPickedDocs = (project.selectedLibraryDocumentIds?.length ?? 0) > 0
+  const initialMode: LitMode =
+    storedMode === 'hybrid' || storedMode === 'web' ? storedMode
+    : storedMode === 'documents' && hasPickedDocs ? 'documents'
+    : 'web'
   const [mode,           setMode]          = useState<LitMode>(initialMode)
   const [selectedFolder, setSelectedFolder] = useState<string>('all')
   // Hydrated from the real persisted field — previously this always started
@@ -2114,8 +2122,16 @@ function DownloadStep({ project }: { project: ResearchProject }) {
   // "Fix issues and download" owns the issue list. The older per-section scan below only shows if that list could not be loaded.
   const [issuePanelFailed, setIssuePanelFailed] = useState(false)
   const [issuePanelBusy, setIssuePanelBusy] = useState(false)
-  // The issue list (and its fallback scan) is off for end users in production; see VITE_SHOW_PROPOSAL_ISSUES.
-  const showIssues = showProposalIssues()
+  // The issue list (and its fallback scan) is controlled by the server's appsettings switch
+  // Research:ProposalIssues:ShowInDownload. Hidden until the switch is read; hidden if it can't be read.
+  const [showIssues, setShowIssues] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    researchApi.getClientSettings()
+      .then(s => { if (!cancelled) setShowIssues(s.showProposalIssues) })
+      .catch(() => { if (!cancelled) setShowIssues(false) })
+    return () => { cancelled = true }
+  }, [])
   const stepIndexFor = (key: string) => STEPS.findIndex(s => s.id === key)
 
   const showAcknowledgedExportError = (err: unknown, toastId: string) => {
@@ -4325,11 +4341,13 @@ function ChapterWriterView({
     }
   }
 
-  // AI Thesis's creation modal lets users set a total document length up
-  // front and stashes the per-section share as `targetSectionWordCount` —
-  // fall back to the previous fixed default when a project has none (i.e.
-  // every project created before this existed, or via any other entry point).
-  const defaultTargetWordCount = Number(project.sectionContent['targetSectionWordCount']) || 500
+  // A proposal has a fixed length (at most 10,000 words over 1.0-6.3), so each section's length is its share of that
+  // cap and the student is not asked for one. A thesis keeps the per-section share its creation modal stored as
+  // `targetSectionWordCount` (500 when a project has none).
+  const isThesisDocument = project.documentType === 'Thesis' || project.documentType === 'Dissertation'
+  const defaultTargetWordCount = isThesisDocument
+    ? Number(project.sectionContent['targetSectionWordCount']) || 500
+    : sectionWordLimit(selectedCode)
 
   // After a successful generate/regenerate, the store's section.content is the fresh
   // truth — but editorContent only reads it when isDirty is false (see editorContent
@@ -5299,8 +5317,7 @@ function ChapterWriterView({
                   onContentChange={handleContentChange}
                   onSave={() => handleSave()}
                   onGenerate={(wc) => handleGenerate(wc)}
-                  generateImmediately={(Number.parseInt(selectedCode.split('.')[0] ?? '', 10) || 0) >= 6}
-                  defaultTargetWordCount={defaultTargetWordCount}
+                  sectionWordLimit={defaultTargetWordCount}
                   onRegenerate={handleRegenerate}
                   onApprove={handleApprove}
                   onRequestBibliography={handleRequestBibliography}
